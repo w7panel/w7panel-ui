@@ -1,0 +1,620 @@
+<template>
+    <div class="padding-20">
+        <route-breadcrumb />
+        <div>
+            <div class="mb-20">
+                <a-button type="primary" @click="openForm()"><template #icon><icon-plus /></template>新建</a-button>
+            </div>
+            <div class="bg-white padding-20">
+                <a-tabs v-model:active-key="listTab">
+                    <a-tab-pane key="1" title="手动创建">
+                        <div class="c-99">自主手动创建的分区，允许多应用混用，允许安装应用时选择</div>
+                    </a-tab-pane>
+                    <a-tab-pane key="2" title="自动创建">
+                        <div class="c-99">来自其他应用自动创建的分区，不允许多应用混用，不允许安装应用时选择</div>
+                    </a-tab-pane>
+                    <template #extra>
+                        <div class="df ai-c">
+                            <!-- <div v-if="syspvc.show" class="df ai-c" style="margin-right:30px;">
+                                <span>系统盘：</span>
+                                <a-progress :percent="syspvc.progress" status="normal" style="width:60px;" :stroke-width="14" :show-text="false" />
+                                <div class="ml-10">{{syspvc.actualSizeTxt}} / {{syspvc.sizeTxt}}</div>
+                            </div> -->
+                            <!-- <div v-if="clusterMode=='shared'">存储剩余：{{availableResource.storage.value + availableResource.storage.unit}} / {{availableResource.hard}}</div> -->
+                        </div>
+                    </template>
+                </a-tabs>
+                <a-table :data="listTab=='1'?list1:list2" class="mt-20 cptable extratable zonelisttable" :scroll="{x:'1200px'}" :bordered="false" :pagination="false">
+                    <template #columns>
+                        <a-table-column title="名称" :width="360" fixed="left">
+                            <template #cell="{ record }">
+                                <div class="df ai-c">
+                                    <!-- 状态图标 -->
+                                    <div v-if="record.status=='Lost'||record.status=='Released'" class="point c-red df-s0" ></div>
+                                    <div v-else-if="record.status=='Bound'" class="point c-green df-s0"></div>
+                                    <div v-else class="point df-s0"></div>
+                                    <div>
+                                        <div class="df ai-c">
+                                            <span>{{record.name}}</span>
+                                            <!-- 默认状态：默认显示图标，悬停显示"默认分区" -->
+                                            <span v-if="record.isDefault && listTab=='1'" class="ml-6 default-status">
+                                                <icon-bookmark class="fs-16" />
+                                                <span class="default-text">默认分区</span>
+                                            </span>
+                                            <!-- 设为默认：默认显示图标，悬停显示"设为默认" -->
+                                            <span v-else-if="!record.onlyshow && listTab=='1'" class="ml-6 cursor default-btn" @click.stop="setDefault(record)">
+                                                <icon-bookmark class="fs-16" />
+                                                <span class="default-text">设为默认</span>
+                                            </span>
+                                        </div>
+                                        <div class="fs-12" style="color:rgb(var(--gray-6));">{{record.storageClassName}}</div>
+                                    </div>
+                                </div>
+                            </template>
+                        </a-table-column>
+
+                        <a-table-column v-if="usermode!=='cluster'" title="副本数">
+                            <template #cell="{ record }">{{record.numberOfReplicas}}</template>
+                        </a-table-column>
+                        <a-table-column v-if="usermode!=='cluster'" title="已使用/分配">
+                            <template #cell="{ record }">
+                                <div class="df df-inline df-c ai-c">
+                                    <a-progress :percent="record.usedSizeNum / record.storageSizeNum" style="width:100px;" :status="(record.usedSizeNum / record.storageSizeNum)>=1?'danger':'normal'" :stroke-width="10" trackColor="rgb(var(--primary-2))" :show-text="false" />
+                                    <span class="fs-12 mt-4 lh-1">{{record.usedSize}} / {{record.storageSize}}</span>
+                                </div>
+                            </template>
+                        </a-table-column>
+                        <a-table-column v-if="usermode=='cluster'" title="已使用">
+                            <template #cell="{ record }">{{record.usedSize}}</template>
+                        </a-table-column>
+
+                        <a-table-column title="访问模式">
+                            <template #cell="{ record }">
+                                {{record.accessModes || '-'}}
+                            </template>
+                        </a-table-column>
+                        <a-table-column title="创建时间">
+                            <template #cell="{ record }">{{record.create || '-'}}</template>
+                        </a-table-column>
+                        <a-table-column title="操作" fixed='right'>
+                            <template #cell="{ record }">
+                                <span class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
+                                <!-- <span class="c-blue cursor mr-20" v-if="!record.pvDisabled" @click="openPvpvc(record)">创建pv/pvc</span> -->
+                                <a-popconfirm v-if="!record.onlyshow" content="确定要删除吗？" @ok="del(record)" position="lt" >
+                                    <span :id="'disk-'+record.name" class="c-blue cursor">删除</span>
+                                </a-popconfirm>
+                            </template>
+                        </a-table-column>
+                    </template>
+                </a-table>
+            </div>
+        </div>
+
+        <a-modal :visible="expand.show" title="扩容" @ok="expandSubmit" @cancel="expand.show=false;" :popup-container="false?'#allmodalbox':'body'">
+            <a-form :model="expand" ref="expand" auto-label-width>
+                <a-form-item label="大小" field="size" :rules="[{required:true,message:'请输入大小'}]">
+                    <a-input v-model="expand.size" type="number" placeholder="请输入大小">
+                        <template #append>Gi</template>
+                    </a-input>
+                </a-form-item>
+            </a-form>
+        </a-modal>
+        
+        <zone-drawer
+            :show="form.show"
+            :availableResource="availableResource"
+            @close="closeSD"
+        ></zone-drawer>
+    </div>
+</template>
+
+<script>
+import { panelApi } from '@/utils/api';
+import { k8sproxy } from '@/utils/api';
+
+import axios from 'axios';
+import { useNamespaceStore } from '@/store';
+import zoneDrawer from './zone-drawer.vue';
+import { getUserInfo } from '@/utils/auth';
+import { IconBookmark } from '@arco-design/web-vue/es/icon';
+import CryptoJS  from 'crypto-js';
+
+export default {
+    data() {
+        return {
+            namespaceActive: "",
+            listTab: '1',
+            list: [],
+            list1: [],
+            list2: [],
+            expand: {
+                show: false,
+                nativeSize: '',
+                size: '',
+                key: '',
+            },
+            form: {
+                show: false,
+            },
+            disks: [],
+            userInfo: {},
+            availableResource: {
+                storage: {
+                    value: '',
+                    unit: '',
+                },
+                hard: '',
+            },
+
+            clusterMode: '',
+            usermode: '',
+
+            syspvc: {},
+        }
+    },
+    created(){
+        this.namespaceActive = useNamespaceStore().namespace;
+        this.userInfo = getUserInfo();
+        this.clusterMode = this.userInfo?.['k3k.io/cluster-mode'];
+        this.usermode = this.userInfo?.['w7.cc/user-mode'];
+        this.getList();
+    },
+    components: {
+        zoneDrawer,
+        IconBookmark,
+    },
+    methods: {
+        openForm(){
+            this.form = {
+                show: true,
+                name: this.createName(),
+                size: 1,
+                replicas: 1,
+                frontend: 'blockdev',
+                dataEngine: 'v1', // 数据引擎
+                dataLocality: 'disabled', // 'best-effort', // 数据本地化
+                accessMode: 'rwx', //访问模式
+                backingImage: '', // 备份镜像
+                encrypted: false, // 加密
+                disk: '',
+            }
+            if(!this.disks?.length){
+                this.getDisks();
+            }
+        },
+        closeSD(v){
+            this.form.show = false;
+            v && this.getList();
+        },
+        getList(){
+            if(this.userInfo['w7.cc/user-mode']=='cluster'){
+                k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${this.userInfo['w7.cc/k3k-namespace']}/resourcequotas/${this.userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
+                    let data = res.data;
+                    this.availableResource = {
+                        storage: this.minusMemory(data.status?.hard?.['requests.storage'], data.status?.used?.['requests.storage']),
+                        hard: data.status?.hard?.['requests.storage'],
+                    }
+                })
+            }
+            k8sproxy.get('/api/v1/persistentvolumeclaims').then(res=>{
+                let list = res?.data?.items;
+                list = list.map(i=>{
+                    let size = i.spec?.resources?.requests?.storage;
+                    return {
+                        name: i.metadata.name,
+                        namespace: i.metadata.namespace,
+                        key: i.metadata.name + ':' + i.metadata.namespace,
+                        accessModes: i.spec?.accessModes?.join(',') || '',
+                        storageSize: this.btog(size),
+                        storageSizeNum: this.gtob(size),
+                        storageClassName: i.spec?.storageClassName,
+                        create: window.formatDate(i?.metadata?.creationTimestamp),
+                        status: i.status?.phase,
+                    }
+                })
+                return list;
+            }).then(list=>{
+                
+                const formatStorageSize = (bytes) => {
+                    // 1 GiB = 1024 MiB = 1024*1024*1024 bytes
+                    return bytes >= 1024 ** 3 
+                        ? `${(bytes / (1024 ** 3)).toFixed(0)} Gi` 
+                        : `${(bytes / (1024 ** 2)).toFixed(0)} Mi`;
+                };
+
+                panelApi.get('/longhorn/volumes/status').then(res=>{
+                    let data = res?.data || {};
+
+                    list = list.map(i=>{
+                        let translateKey = this.translateToHostName(i.name, this.namespaceActive, this.userInfo?.['w7.cc/k3k-name']) + ':' + this.userInfo['w7.cc/k3k-namespace'];
+                        
+                        let obj = data?.[this.clusterMode=='shared'? translateKey : i.key] || {};
+                        if(obj.actualSize){
+                            obj.usedSize = this.btog(obj.actualSize);
+                            obj.usedSizeNum = Number(obj.actualSize);
+                        }else{
+                            obj.usedSize = 0;
+                            obj.usedSizeNum = 0;
+                        }
+
+                        return {
+                            ...i,
+                            ...obj,
+                        }
+                    })
+                    
+                    let syspvc = data?.[this.userInfo?.['w7.cc/sys-pvc-name']+':'+this.userInfo?.['w7.cc/k3k-namespace']] || '';
+                    if(syspvc){
+                        this.syspvc = {
+                            show: true,
+                            numberOfReplicas: syspvc.numberOfReplicas,
+                            robustness: syspvc.robustness,
+                            
+                            actualSize: syspvc.actualSize,
+                            actualSizeTxt: formatStorageSize(syspvc.actualSize),
+                            size: Number(syspvc.size),
+                            sizeTxt: formatStorageSize(Number(syspvc.size)),
+
+                            
+                            actualSize: syspvc.actualSize,
+                            actualSizeTxt: formatStorageSize(syspvc.actualSize),
+                            size: Number(syspvc.size),
+                            sizeTxt: formatStorageSize(Number(syspvc.size)),
+                        }
+                        this.syspvc.progress = Number( (syspvc.actualSize / Number(syspvc.size)).toFixed(2) );
+                        if(this.clusterMode=="shared"){
+                            list.unshift({
+                                onlyshow: true,
+                                name: this.userInfo?.['w7.cc/sys-pvc-name'],
+                                numberOfReplicas: 1,
+                                
+                                usedSizeNum: syspvc.actualSize,
+                                usedSize: formatStorageSize(syspvc.actualSize),
+                                storageSizeNum: Number(syspvc.size),
+                                storageSize: formatStorageSize(Number(syspvc.size)),
+                            })
+                        }
+                    }
+                    this.list = list;
+
+                    this.getCustom();
+                })
+            });
+        },
+        // 判断是否手动创建
+        getCustom(){
+            return k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/longhorn-volumes-config',{noAlert:true}).then(res=>{
+                if(!res.data){return}
+                let arr = res.data?.data?.customs?.split(',');
+                this.customsExist = true;
+                this.customsList = arr;
+                this.customsDefault = res?.data?.data?.default || '';
+                this.list.map(i=>{
+                    i.isCustom = arr.includes(i.name);
+                    i.isDefault = i.name == this.customsDefault;
+                });
+                this.list1 = this.list.filter(i=>i.isCustom&&!i.onlyshow);
+                this.list2 = this.list.filter(i=>!i.isCustom||i.onlyshow);
+                // console.log(this.list1,this.list2)
+            })
+        },
+        setDefault(record){
+            if(this.customsExist){
+                k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/longhorn-volumes-config',{
+                    data: {default: record?.name || ''}
+                },{
+                    headers: {'Content-Type': 'application/strategic-merge-patch+json'}
+                }).then(res=>{
+                    this.$message.success('操作成功');
+                    this.getCustom();
+                })
+            }else{
+                k8sproxy.post('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps',{
+                    kind: 'ConfigMap',
+                    apiVersion: 'v1',
+                    metadata: {
+                        name: 'longhorn-volumes-config',
+                        namespace: this.namespaceActive,
+                    },
+                    data: {
+                        default: record?.name || '',
+                    }
+                }).then(res=>{
+                    this.$message.success('操作成功');
+                    this.getCustom();
+                });
+            }
+        },
+        del(row){
+            k8sproxy.delete(`/k8s-proxy/api/v1/namespaces/${row.namespace}/persistentvolumeclaims/${row.name}`).then(res=>{
+                this.$message.success('删除成功');
+                this.getList();
+            })
+        },
+        createName(length){
+            let len = length || 8;
+            let s = 'abcdefghijklmnopqrstuvwxyz';
+            let p = '';
+            for(var i=0; i<len; i++){
+                p = p + s[parseInt(Math.random()*s.length)]
+            }
+            return p;
+        },
+        openExpend(record){
+            console.log(record)
+            this.expand = {
+                show: true,
+                isOnlyshow: record.onlyshow,
+                nativeSize: record.storageSize,
+                size: record.storageSize.replace(/Gi/,'').trim(),
+                key: record.name,
+            }
+        },
+        expandSubmit(){
+            this.$refs['expand'].validate((valid)=>{
+                if(valid){return}
+                
+                let availableSize = this.availableResource.storage.value + this.availableResource.storage.unit;
+
+                if(this.clusterMode=="shared" && availableSize){
+                    let size = this.expand.size + 'Gi';
+                    let all = this.plusMemory(availableSize, this.expand.nativeSize);
+                    let minus = this.minusMemory(all.value+all.unit, size);
+                    if(minus.value<0){
+                        this.$message.error("剩余存储不足");
+                        return;
+                    }
+                }
+
+                if(this.expand?.isOnlyshow){
+                    panelApi.post('/k3k/storage/resize',{
+                        size: Number(this.expand.size),
+                    }).then(res=>{
+                        this.expand.show = false;
+                        this.$message.success('操作成功');
+                        setTimeout(()=>{
+                            this.getList();
+                        },800)
+                        return;
+                    })
+                    return;
+                }
+
+                k8sproxy.patch(`/k8s-proxy/api/v1/namespaces/${this.namespaceActive}/persistentvolumeclaims/${this.expand.key}`,[{
+                    op: 'replace',
+                    path: '/spec/resources/requests/storage',
+                    value: this.expand.size + 'Gi',
+                }],{
+                    headers: {'Content-Type': 'application/json-patch+json'},
+                }).then(res=>{
+                    this.expand.show = false;
+                    this.$message.success('操作成功');
+                    setTimeout(()=>{
+                        this.getList();
+                    },800)
+                });
+                // k8sproxy.post(`/k8s-proxy/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/volumes/${this.expand.key}?action=expand`,{
+                //     size: this.expand.size + 'Gi',
+                // }).then(res=>{
+                //     this.expand.show = false;
+                //     this.$message.success('操作成功');
+                //     setTimeout(()=>{
+                //         this.getList();
+                //     },800)
+                // });
+            });
+        },
+        getDisks(){
+            k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes`,{
+                headers: {Accept: 'application/json',},
+            }).then(res=>{
+                let result = res.data.data || [];
+                this.diskTags = [];
+                this.disks = [];
+                result?.map(item =>{
+                    let d = item?.disks || [];
+                    this.disks = this.disks.concat(Object.keys(d));
+                    
+                    let ds = Object.keys(item?.disks || []);
+                    ds?.map(k =>{
+                        this.diskTags = this.diskTags.concat(item.disks[k]?.tags);
+                    });
+                });
+                this.diskCont = {};
+                this.disks.map(i=>{
+                    this.diskCont[i] = this.diskCont[i]? this.diskCont[i]+1 : 1;
+                })
+                // 去重
+                this.disks = Array.from(new Set(this.disks));
+                this.diskTags = Array.from(new Set(this.diskTags));
+            });
+        },
+        btog(input){
+            // 单位换算比例 (以字节为基准)
+            const units = {
+                '': 1,        // 无单位默认字节
+                'B': 1,
+                'k': 1024,
+                'M': 1024**2,
+                'G': 1024**3,
+                'T': 1024**4,
+                'Ki': 1024,
+                'Mi': 1024**2,
+                'Gi': 1024**3,
+                'Ti': 1024**4
+            };
+            
+            // 提取数值和单位
+            const match = String(input).match(/^(\d+\.?\d*)\s*(\D*)$/);
+            if (!match) return '无效输入';
+            
+            const [, num, unit] = match;
+            const bytes = parseFloat(num) * (units[unit] || 1);
+            
+            // 确定显示单位
+            const levels = ['B', 'K', 'Mi', 'Gi', 'Ti'];
+            let level = 0;
+            let size = bytes;
+            
+            while (size >= 1024 && level < levels.length - 1) {
+                size /= 1024;
+                level++;
+            }
+            
+            return `${Number(size.toFixed(2))} ${levels[level]}`;
+        },
+        gtob(input){
+            // 单位与字节的换算比例
+            const units = {
+                '': 1,        // 无单位默认字节
+                'B': 1,
+                'k': 1024,
+                'M': 1024**2,
+                'G': 1024**3,
+                'T': 1024**4,
+                'Ki': 1024,
+                'Mi': 1024**2,
+                'Gi': 1024**3,
+                'Ti': 1024**4
+            };
+            
+            // 提取数值和单位
+            const match = String(input).match(/^(\d+\.?\d*)\s*(\D*)$/);
+            if (!match) return NaN; // 无效输入返回NaN
+            
+            const [, numStr, unit] = match;
+            const num = parseFloat(numStr);
+            
+            // 计算字节数
+            return num * (units[unit] || 1);
+        },
+        
+        translateToHostName(name, namespace, clusterName) {
+            const namePrefix = `${name}-${namespace}-${clusterName}`;
+            const nameKey = `${name}+${namespace}+${clusterName}`;
+            const nameSuffix = CryptoJS.enc.Hex.stringify(CryptoJS.enc.Utf8.parse(nameKey));
+            const fullPath = `${namePrefix}-${nameSuffix}`;
+
+            if (fullPath.length < 64) return fullPath;
+
+            const hash = CryptoJS.SHA256(fullPath).toString(CryptoJS.enc.Hex);
+            const validChar = /[a-z0-9]/.test(fullPath[56]) 
+                ? fullPath.substring(0, 57) + "-" + hash.substring(0, 5)
+                : fullPath.substring(0, 56) + "-" + hash.substring(0, 6);
+
+            return validChar;
+        },
+
+        minusCpu(a,b){
+            if(!a){a = '0'}
+            if(!b){b = '0'}
+            if(/^\d+(\.\d+)?$/.test(a)){ a = Number(a) * 1000; }
+            if(/m$/.test(a)){a = Number(a.replace(/m$/,''))}
+            if(/k$/.test(a)){a = Number(a.replace(/k$/,'')) * 1000 * 1000; }
+            if(/^\d+(\.\d+)?$/.test(b)){ b = Number(b) * 1000; }
+            if(/m$/.test(b)){b = Number(b.replace(/m$/,''))}
+            if(/k$/.test(b)){b = Number(b.replace(/k$/,'')) * 1000 * 1000; }
+            let value = a - b;
+            let unit = 'm';
+            if(value>0 && value%1000 == 0 ){
+                value = value / 1000;
+                unit = '';
+            }
+            return { value, unit };
+        },
+
+        minusMemory(a,b){
+            if(!a){a = '0'}
+            if(!b){b = '0'}
+            if(/Ti$/.test(a)){ a = parseInt(a.replace(/Ti$/,'') * 1024 * 1024); }
+            if(/Gi$/.test(a)){ a = parseInt(a.replace(/Gi$/,'') * 1024); }
+            if(/Mi$/.test(a)){ a = Number(a.replace(/Mi$/,'')) }
+            if(/Ti$/.test(b)){ b = parseInt(b.replace(/Ti$/,'') * 1024 * 1024); }
+            if(/Gi$/.test(b)){ b = parseInt(b.replace(/Gi$/,'') * 1024); }
+            if(/Mi$/.test(b)){ b = Number(b.replace(/Mi$/,'')) }
+            let value = Number(a) - Number(b);
+            let unit = 'Mi';
+            if(value > 0 && value % 1024 == 0){
+                value = value / 1024;
+                unit = 'Gi';
+            }
+            return {value, unit}
+        },
+
+        plusMemory(a, b) {
+            if (!a) { a = '0' }
+            if (!b) { b = '0' }
+            
+            if (/Ti$/.test(a)) { 
+                a = parseInt(a.replace(/Ti$/, '') * 1024 * 1024); 
+            } else if (/Gi$/.test(a)) { 
+                a = parseInt(a.replace(/Gi$/, '') * 1024); 
+            } else if (/Mi$/.test(a)) { 
+                a = Number(a.replace(/Mi$/, '')) 
+            }
+            
+            if (/Ti$/.test(b)) { 
+                b = parseInt(b.replace(/Ti$/, '') * 1024 * 1024); 
+            } else if (/Gi$/.test(b)) { 
+                b = parseInt(b.replace(/Gi$/, '') * 1024); 
+            } else if (/Mi$/.test(b)) { 
+                b = Number(b.replace(/Mi$/, '')) 
+            }
+            
+            let value = Number(a) + Number(b);
+            let unit = 'Mi';
+            
+            if (value > 0 && value % 1024 === 0) {
+                value = value / 1024;
+                unit = 'Gi';
+            }
+
+            return { value, unit };
+        }
+        
+    },
+}
+</script>
+
+<style scoped>
+
+.point{width:8px; height:8px; border-radius:50%; background:#999; margin-right:6px;}
+.point.c-red{background:#D00805;}
+.point.c-green{background:#00A870;}
+.point.c-blue{color:rgb(var(--primary-6));}
+.point.c-brown{color:#C37937;}
+
+/* 默认状态 - 始终显示图标 */
+.default-status {
+    display: inline-flex;
+    align-items: center;
+    color: rgb(var(--orange-5));
+    cursor: default;
+}
+
+/* 设为默认 - 默认不显示 */
+.default-btn {
+    display: none;
+    align-items: center;
+    color: rgb(var(--primary-6));
+    cursor: pointer;
+}
+
+.default-text {
+    display: none;
+    margin-left: 4px;
+    font-size: 12px;
+}
+
+/* 悬停显示文字 */
+.zonelisttable :deep(tr:hover) .default-text,
+.zonelisttable :deep(.arco-table-tr:hover) .default-text {
+    display: inline;
+}
+
+/* 悬停时显示设为默认按钮 */
+.zonelisttable :deep(tr:hover) .default-btn,
+.zonelisttable :deep(.arco-table-tr:hover) .default-btn {
+    display: inline-flex;
+}
+</style>

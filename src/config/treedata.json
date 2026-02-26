@@ -1,0 +1,144 @@
+[{
+    "title": "集群管理",
+    "key": "cluster",
+    "children": [{
+        "title": "概览",
+        "key": "cluster-panel"
+    },{
+        "title": "节点管理",
+        "key": "cluster-nodes",
+        "children": [{
+            "title": "注册节点",
+            "key": "cluster-nodes-add"
+        },{
+            "title": "修改镜像源",
+            "key": "cluster-nodes-registries"
+        },{
+            "title": "内存优化",
+            "key": "cluster-nodes-memory"
+        }]
+    },{
+        "title": "资源对象浏览器",
+        "key": "cluster-resource"
+    }]
+},{
+    "title": "应用管理",
+    "key": "app",
+    "children": [{
+        "title": "应用列表",
+        "key": "app-apps",
+        "children": [{
+            "title": "新建",
+            "key": "app-apps-add"
+        },{
+            "title": "编辑",
+            "key": "app-apps-edit"
+        },{
+            "title": "删除",
+            "key": "app-apps-delete"
+        }]
+    },{
+        "title": "计划任务",
+        "key": "app-cronjob",
+        "children": [{
+            "title": "新建",
+            "key": "app-cronjob-add"
+        },{
+            "title": "编辑",
+            "key": "app-cronjob-edit"
+        },{
+            "title": "删除",
+            "key": "app-cronjob-delete"
+        }]
+    },{
+        "title": "反向代理",
+        "key": "app-rvproxy",
+        "children": [{
+            "title": "新建",
+            "key": "app-rvproxy-add"
+        },{
+            "title": "编辑",
+            "key": "app-rvproxy-edit"
+        },{
+            "title": "删除",
+            "key": "app-rvproxy-delete"
+        }]
+    },{
+        "title": "集群数据库",
+        "key": "app-dblist",
+        "children": [{
+            "title": "新建",
+            "key": "app-dblist-add"
+        },{
+            "title": "删除",
+            "key": "app-dblist-delete"
+        }]
+    },{
+        "title": "AI应用管理",
+        "key": "app-gpustack"
+    }]
+},{
+    "title": "存储管理",
+    "key": "storage",
+    "children": [{
+        "title": "存储设备",
+        "key": "storage-node",
+        "children": [{
+            "title": "新建",
+            "key": "storage-node-add"
+        },{
+            "title": "编辑",
+            "key": "storage-node-edit"
+        },{
+            "title": "删除",
+            "key": "storage-node-delete"
+        }]
+    },{
+        "title": "存储分区",
+        "key": "storage-zone"
+    }]
+},{
+    "title": "制品管理",
+    "key": "zpk"
+},{
+    "title": "站点管理",
+    "key": "sitemanage"
+},{
+    "title": "系统管理",
+    "key": "system",
+    "children": [{
+        "title": "云端注册",
+        "key": "system-cloud"
+    },{
+        "title": "订单中心",
+        "key": "system-order-center"
+    },{
+        "title": "费用中心",
+        "key": "system-cost-center"
+    },{
+        "title": "授权管理",
+        "key": "system-license"
+    }]
+},{
+    "title": "多租户管理",
+    "key": "system-manage",
+    "children": [{
+        "title": "用户管理",
+        "key": "system-user"
+    },{
+        "title": "用户组",
+        "key": "system-usergroup"
+    },{
+        "title": "权限套餐",
+        "key": "system-permission"
+    },{
+        "title": "费用套餐",
+        "key": "system-cost"
+    },{
+        "title": "备案域名",
+        "key": "system-white-domain"
+    },{
+        "title": "系统设置",
+        "key": "system-system"
+    }]
+}]
