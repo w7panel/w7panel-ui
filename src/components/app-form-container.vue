@@ -858,12 +858,15 @@ export default{
                 let securityContext = {
                     privileged: form.privileged,
                     // fsGroup: form.fsGroup,
-                    ...(form.privileged?{}:{
-                        capabilities: {
-                            drop: form?.capabilities_drop?.filter?.(i=>i) || [],
-                            add: form?.capabilities_add?.filter?.(i=>i) || [],
-                        }
-                    }),
+                    ...(form.privileged?{}:(() => {
+                        // 先过滤空值，得到最终的drop和add数组
+                        const dropArr = form?.capabilities_drop?.filter?.(i => i) || [];
+                        const addArr = form?.capabilities_add?.filter?.(i => i) || [];
+                        // 只有drop或add非空时，才返回capabilities配置
+                        return (dropArr.length > 0 || addArr.length > 0) 
+                            ? { capabilities: { drop: dropArr, add: addArr } } 
+                            : {};
+                    })()),
                     ...(form.runAsUser?{runAsUser:Number(form.runAsUser)}:{}),
                     ...(form.runAsGroup?{runAsGroup:Number(form.runAsGroup)}:{}),
                     runAsNonRoot: form.runAsNonRoot,

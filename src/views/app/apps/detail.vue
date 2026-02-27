@@ -602,7 +602,7 @@ export default {
         getFront(){
             // /apis/microapp.w7.cc/v1alpha1/namespaces/default/microapps/w7-sitemanager-htwgbayk
             // /apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+appgroup
-            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group).then(res=>{
+            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group,{noAlert:true}).then(res=>{
 
                 let item  = res?.data;
                 if(!item){ return; }

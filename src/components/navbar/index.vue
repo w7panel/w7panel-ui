@@ -236,7 +236,7 @@ import { panelApi } from '@/utils/api';
                 }catch{}
                 
                 return {
-                    title: i?.spec?.title,
+                    title: i?.metadata?.annotations?.title || i?.spec?.title,
                     name: i.metadata.name,
                     roles: roles,
                 }

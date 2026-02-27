@@ -81,9 +81,7 @@ export default {
                 };
                 const redirect = this.$route.query?.redirect;
                 this.$router.push(redirect? redirect : {name:'cluster-panel'});
-                this.$message.success({
-                    content: t('login.form.login.success'),
-                });
+                this.$message.success('欢迎使用');
             }).catch(()=>{
                 this.$router.push('/init-cluster')
                 // this.$router.push('/resource-loading')

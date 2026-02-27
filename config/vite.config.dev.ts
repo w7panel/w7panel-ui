@@ -70,6 +70,16 @@ export default mergeConfig(
           changeOrigin: true,
           ws: true,
         },
+        '/k8s-proxy': {
+          target: proxyUrl,
+          changeOrigin: true,
+          ws: true,
+        },
+        '/panel-api/v1': {
+          target: proxyUrl,
+          changeOrigin: true,
+          ws: true,
+        },
         '/k8s': {
           target: proxyUrl,
           changeOrigin: true,

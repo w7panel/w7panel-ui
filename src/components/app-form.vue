@@ -38,9 +38,9 @@
                     </div>
                 </a-form-item>
 
-                <a-form-item label="挂载文件用户">
+                <!-- <a-form-item label="挂载文件用户">
                     <a-input v-model="form.fsGroup" type="number" placeholder="文件组ID"></a-input>
-                </a-form-item>
+                </a-form-item> -->
 
                 <!-- <a-form-item label="启动用户" class="mt-20">
                     <a-checkbox v-model="form.security_context.runAsNonRoot" >非root运行</a-checkbox>
