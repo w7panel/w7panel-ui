@@ -218,12 +218,13 @@ export default{
             startApp({
                 name: "appmicro",
                 url: this.info.frontendUrl + this.page,
+// // 测试
+// url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.page || ''),
                 exec: true,
                 el: '#appmicro',
                 sync: true,
                 props: props,
             })
-            startApp({name:'appmicro'})
         },
         openPodLog(data){
             this.logCpn = {

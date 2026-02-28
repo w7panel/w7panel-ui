@@ -71,7 +71,6 @@ export default{
                 sync: true,
                 props: props,
             })
-            startApp({name:'appmicrotest'})
         },
     }
 }
