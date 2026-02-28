@@ -170,6 +170,7 @@ export default{
                     ...this.info,
                     ...item?.spec?.config?.props,
                     ...roleProps,
+                    appgroup: appgroup,
                     frontendUrl: item?.spec?.frontendUrl,
                     backendUrl: item?.spec?.backendUrl,
                     username: item?.spec?.config?.props?.username,

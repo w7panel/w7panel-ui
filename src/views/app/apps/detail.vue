@@ -614,6 +614,7 @@ export default {
                     ...this.info,
                     ...item?.spec?.config?.props,
                     ...roleProps,
+                    appgroup: this.$route.params.group,
                     frontendUrl: item?.spec?.frontendUrl,
 // frontendUrl: 'http://localhost:8001',
                     backendUrl: item?.spec?.backendUrl,
