@@ -352,7 +352,7 @@ export default {
         getResource(){
             let userInfo = getUserInfo();
             
-            return k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${userInfo['w7.cc/k3k-namespace']}/resourcequotas/${userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
+            return k8sproxy.get(`/api/v1/namespaces/${userInfo['w7.cc/k3k-namespace']}/resourcequotas/${userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
                 let data = res.data;
                 let allocate = this.divideStorage(data.status?.used?.['requests.storage'],data.status?.hard?.['requests.storage'])
                 this.resourceUsedStatus = {
@@ -429,7 +429,7 @@ export default {
                 if(this.userMode=='cluster'){
                     return { data:[] };
                 }
-                return k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes`,{
+                return k8sproxy.get(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes`,{
                     headers: {Accept: 'application/json',},
                     loading: true,
                 })
@@ -538,7 +538,7 @@ export default {
             this.delReplica.start = true;
             for(let i=0; i< list.length; i++){
                 let item = list[i];
-                await k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/volumes/${item.volume}?action=replicaRemove`,{
+                await k8sproxy.post(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/volumes/${item.volume}?action=replicaRemove`,{
                     name: item.name
                 },{
                     headers: {Accept: 'application/json',},
@@ -587,13 +587,13 @@ export default {
                 listItem.disks = listItem.disks || {};
                 listItem.disks[row.name].allowScheduling = false;
 
-                return k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${row.node}?action=diskUpdate`,{
+                return k8sproxy.post(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${row.node}?action=diskUpdate`,{
                     disks: listItem.disks,
                 },{
                     headers: {Accept: 'application/json',},
                 }).then(res=>{
                     delete listItem.disks[row.name];
-                    return k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${row.node}?action=diskUpdate`,{
+                    return k8sproxy.post(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${row.node}?action=diskUpdate`,{
                         disks: listItem.disks,
                     },{
                         headers: {Accept: 'application/json',},
@@ -618,7 +618,7 @@ export default {
                                 reserved: String(row.reserved),
                             }
                         }
-                        return k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${this.namespaceActive}/configmaps`,data)
+                        return k8sproxy.post(`/api/v1/namespaces/${this.namespaceActive}/configmaps`,data)
                     }
                 }).then(()=>{
                     this.$message.success('操作成功');
@@ -626,7 +626,7 @@ export default {
                     // this.changeTags(tags);
                 })
             }else{
-                return k8sproxy.delete(`/k8s-proxy/api/v1/namespaces/${this.namespaceActive}/configmaps/${row.name}`).then(()=>{
+                return k8sproxy.delete(`/api/v1/namespaces/${this.namespaceActive}/configmaps/${row.name}`).then(()=>{
                     this.$message.success('操作成功');
                     this.getList();
                 })
@@ -688,7 +688,7 @@ export default {
                 ...obj,
             };
 
-            k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${node}?action=diskUpdate`,{
+            k8sproxy.post(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${node}?action=diskUpdate`,{
                 disks: nodeItem.disks,
             },{
                 headers: {Accept: 'application/json',},
@@ -724,7 +724,7 @@ export default {
                         "tags": disk.tags?.length? disk.tags : [disk.name],
                     }
                 });
-                return k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${listItem.name}?action=diskUpdate`,{
+                return k8sproxy.post(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${listItem.name}?action=diskUpdate`,{
                     disks: listItem.disks,
                 },{
                     headers: {Accept: 'application/json',},
@@ -732,7 +732,7 @@ export default {
             })).then(()=>{
                 return new Promise((resolve,reject)=>{
                     Promise.all(this.bindForm.keys.map(i=>{
-                        return k8sproxy.delete(`/k8s-proxy/api/v1/namespaces/${this.namespaceActive}/configmaps/${i}`, {noAlert:true});
+                        return k8sproxy.delete(`/api/v1/namespaces/${this.namespaceActive}/configmaps/${i}`, {noAlert:true});
                     })).finally(()=>{
                         resolve()
                     })
@@ -793,7 +793,7 @@ export default {
                 }
                 if(!edit){continue}
 
-                await k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${node.name}?action=diskUpdate`,node,{
+                await k8sproxy.post(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${node.name}?action=diskUpdate`,node,{
                     headers: {Accept: 'application/json',},
                     loading: true,
                 }).then(()=>{
@@ -829,7 +829,7 @@ export default {
                 }
                 if(edit){
                     console.log(node.name, node)
-                    return k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${node.name}?action=diskUpdate`,node,{
+                    return k8sproxy.post(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${node.name}?action=diskUpdate`,node,{
                         headers: {Accept: 'application/json',},
                     })
                 }else{
@@ -887,7 +887,7 @@ export default {
                         if(!this.form.key || this.form.key == this.form.name){
                             resolve();
                         }else{
-                            k8sproxy.delete(`/k8s-proxy/api/v1/namespaces/${this.namespaceActive}/configmaps/${this.form.key}`).then(()=>{
+                            k8sproxy.delete(`/api/v1/namespaces/${this.namespaceActive}/configmaps/${this.form.key}`).then(()=>{
                                 resolve();
                             }).catch(()=>{
                                 reject();
@@ -895,11 +895,11 @@ export default {
                         }
                     }).then(()=>{
                         if(this.form.key == this.form.name){
-                            return k8sproxy.patch(`/k8s-proxy/api/v1/namespaces/${this.namespaceActive}/configmaps/${this.form.key}`,{data: data.data},{
+                            return k8sproxy.patch(`/api/v1/namespaces/${this.namespaceActive}/configmaps/${this.form.key}`,{data: data.data},{
                                 headers: {'Content-Type': 'application/strategic-merge-patch+json'}
                             })
                         }
-                        return k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${this.namespaceActive}/configmaps`,data)
+                        return k8sproxy.post(`/api/v1/namespaces/${this.namespaceActive}/configmaps`,data)
                     }).then(()=>{
                         this.$message.success('操作成功');
                         this.form.show = false;
@@ -920,7 +920,7 @@ export default {
                         }
                         listItem.disks[this.form.name] = data;
 
-                        k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${node.name}?action=diskUpdate`,{
+                        k8sproxy.post(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${node.name}?action=diskUpdate`,{
                             disks: listItem.disks,
                         },{
                             headers: {Accept: 'application/json',},

@@ -288,7 +288,7 @@ export default{
             })
         },
         getApis(){
-            k8sproxy.get(`/k8s-proxy/api/v1/configmaps?labelSelector=${encodeURIComponent('type=code')}`,{loading:true}).then(res=>{
+            k8sproxy.get(`/api/v1/configmaps?labelSelector=${encodeURIComponent('type=code')}`,{loading:true}).then(res=>{
                 let arr = [];
                 res.data?.items?.map?.(i=>{
                     let o = {

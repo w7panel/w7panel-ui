@@ -1088,7 +1088,7 @@ export default {
             this.list[index].podStatus = {
                 loading: true
             }
-            k8sproxy.get(`/k8s-proxy/api/v1/namespaces/k3k-${row.name}/pods/k3k-${row.name}-server-0`,{noAlert:true}).then(res=>{
+            k8sproxy.get(`/api/v1/namespaces/k3k-${row.name}/pods/k3k-${row.name}-server-0`,{noAlert:true}).then(res=>{
                 let data = res?.data?.status?.containerStatuses?.[0]
                 data = {
                     name: data?.name || '',
@@ -1110,7 +1110,7 @@ export default {
         },
         async getStatus(){
             
-            k8sproxy.get(`/k8s-proxy/apis/k3k.io/v1alpha1/clusters`,{noAlert:true}).then(res=>{
+            k8sproxy.get(`/apis/k3k.io/v1alpha1/clusters`,{noAlert:true}).then(res=>{
                 let items = res?.data?.items || [];
                 this.statusList = items;
                 items.map(data=>{

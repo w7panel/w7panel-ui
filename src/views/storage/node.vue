@@ -217,7 +217,7 @@ export default {
     },
     methods: {
         getList(){
-            k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes`,{
+            k8sproxy.get(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes`,{
                 headers: {Accept: 'application/json',},
                 loading: true,
             }).then(res=>{
@@ -369,16 +369,16 @@ export default {
                             listItem.disks[i].allowScheduling = false;
                         }
                     }
-                    k8sproxy.put(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${this.drawer.name}`, listItem, {
+                    k8sproxy.put(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${this.drawer.name}`, listItem, {
                         headers: {Accept: 'application/json',},
                     }).then(()=>{
-                        return k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${this.drawer.name}?action=diskUpdate`,{
+                        return k8sproxy.post(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${this.drawer.name}?action=diskUpdate`,{
                             disks: listItem.disks,
                         },{
                             headers: {Accept: 'application/json',},
                         });
                     }).then(()=>{
-                        return k8sproxy.post(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${this.drawer.name}?action=diskUpdate`,{
+                        return k8sproxy.post(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes/${this.drawer.name}?action=diskUpdate`,{
                             disks: newDisks,
                         },{
                             headers: {Accept: 'application/json',},
