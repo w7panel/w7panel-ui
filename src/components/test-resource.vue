@@ -60,7 +60,7 @@ export default {
 // }
 // this.testResourcePass();
 // return;
-            return k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${userInfo['w7.cc/k3k-namespace']}/resourcequotas/${userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
+            return k8sproxy.get(`/api/v1/namespaces/${userInfo['w7.cc/k3k-namespace']}/resourcequotas/${userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
                 let data = res.data;
                 this.availableResource = {
                     cpu: this.minusCpu(data.status?.hard?.['limits.cpu'], data.status?.used?.['limits.cpu']),

@@ -1095,7 +1095,7 @@ export default {
                 if(!appname){return}
                 this.domain.appname = appname;
                 this.domain.groupName = res?.data?.helmReleaseName;
-                return k8sproxy.get(`/k8s-proxy/apis/networking.k8s.io/v1/namespaces/${this.namespaceActive}/ingresses?labelSelector=app=${appname}`)
+                return k8sproxy.get(`/apis/networking.k8s.io/v1/namespaces/${this.namespaceActive}/ingresses?labelSelector=app=${appname}`)
             }).then(res=>{
                 if(!res?.data){return}
                 let data = res?.data?.items || [];

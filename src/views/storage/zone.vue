@@ -188,7 +188,7 @@ export default {
         },
         getList(){
             if(this.userInfo['w7.cc/user-mode']=='cluster'){
-                k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${this.userInfo['w7.cc/k3k-namespace']}/resourcequotas/${this.userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
+                k8sproxy.get(`/api/v1/namespaces/${this.userInfo['w7.cc/k3k-namespace']}/resourcequotas/${this.userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
                     let data = res.data;
                     this.availableResource = {
                         storage: this.minusMemory(data.status?.hard?.['requests.storage'], data.status?.used?.['requests.storage']),
@@ -326,7 +326,7 @@ export default {
             }
         },
         del(row){
-            k8sproxy.delete(`/k8s-proxy/api/v1/namespaces/${row.namespace}/persistentvolumeclaims/${row.name}`).then(res=>{
+            k8sproxy.delete(`/api/v1/namespaces/${row.namespace}/persistentvolumeclaims/${row.name}`).then(res=>{
                 this.$message.success('删除成功');
                 this.getList();
             })
@@ -380,7 +380,7 @@ export default {
                     return;
                 }
 
-                k8sproxy.patch(`/k8s-proxy/api/v1/namespaces/${this.namespaceActive}/persistentvolumeclaims/${this.expand.key}`,[{
+                k8sproxy.patch(`/api/v1/namespaces/${this.namespaceActive}/persistentvolumeclaims/${this.expand.key}`,[{
                     op: 'replace',
                     path: '/spec/resources/requests/storage',
                     value: this.expand.size + 'Gi',
@@ -405,7 +405,7 @@ export default {
             });
         },
         getDisks(){
-            k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes`,{
+            k8sproxy.get(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes`,{
                 headers: {Accept: 'application/json',},
             }).then(res=>{
                 let result = res.data.data || [];

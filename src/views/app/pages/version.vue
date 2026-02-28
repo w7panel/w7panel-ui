@@ -164,9 +164,9 @@ export default {
             for(let i in matchLabels){
                 labelSelector += i+'='+matchLabels[i]+',';
             }
-            let url = `/k8s-proxy/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets`;
+            let url = `/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets`;
             if(this.$route.params.kind=='daemonsets'){
-                url = `/k8s-proxy/apis/apps/v1/namespaces/${this.namespaceActive}/controllerrevisions`;
+                url = `/apis/apps/v1/namespaces/${this.namespaceActive}/controllerrevisions`;
             }
             axios.get(url,{
                 params: {labelSelector: labelSelector.replace(/,$/,'')},
@@ -213,9 +213,9 @@ export default {
             // let old = this.list.find(i=>i.revision == item.revision - 1);
             // if(!old){this.$message.error("没有上一个版本");return;}
             this.compare.loading = true;
-            k8sproxy.get(`/k8s-proxy/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${this.compare.name}`,{loading:true}).then(res=>{
+            k8sproxy.get(`/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${this.compare.name}`,{loading:true}).then(res=>{
                 let data = res.data;
-                k8sproxy.get(`/k8s-proxy/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${oldname}`,{loading:true}).then(res=>{
+                k8sproxy.get(`/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${oldname}`,{loading:true}).then(res=>{
                     let oldData = res.data;        
                     this.compare.show = false;
                     this.versiondiff = {
@@ -231,9 +231,9 @@ export default {
             });
         },
         openYaml(item){
-            let url = `/k8s-proxy/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${item.name}`;
+            let url = `/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${item.name}`;
             if(this.$route.params.kind=='daemonsets'){
-                url = `/k8s-proxy/apis/apps/v1/namespaces/${this.namespaceActive}/controllerrevisions/${item.name}`;
+                url = `/apis/apps/v1/namespaces/${this.namespaceActive}/controllerrevisions/${item.name}`;
             }
             axios.get(url,{loading:true}).then(res=>{
                 let data = res.data;
@@ -242,7 +242,7 @@ export default {
                     title: item.name,
                     data: data,
                     submit: (data)=>{
-                        k8sproxy.put(`/k8s-proxy/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${item.name}`,data).then(res=>{
+                        k8sproxy.put(`/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${item.name}`,data).then(res=>{
                             this.$message.success("修改成功");
                             this.yamlData = { show:false,};
                             this.getList();
@@ -252,9 +252,9 @@ export default {
             })
         },
         toDelete(row){
-            let url = `/k8s-proxy/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${row.name}`;
+            let url = `/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${row.name}`;
             if(this.$route.params.kind=='daemonsets'){
-                url = `/k8s-proxy/apis/apps/v1/namespaces/${this.namespaceActive}/controllerrevisions/${row.name}`;
+                url = `/apis/apps/v1/namespaces/${this.namespaceActive}/controllerrevisions/${row.name}`;
             }
             axios.delete(url).then(res=>{
                 if(!res?.data){return}

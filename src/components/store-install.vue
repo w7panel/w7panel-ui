@@ -1124,7 +1124,7 @@ export default {
         },
         async getStatusApp(){
             let getDomain = async (item,i,j)=>{
-                let { data:d } = await k8sproxy.get(`/k8s-proxy/apis/networking.k8s.io/v1/namespaces/${this.namespaceActive}/ingresses/${item.name}`).catch(()=>({}));
+                let { data:d } = await k8sproxy.get(`/apis/networking.k8s.io/v1/namespaces/${this.namespaceActive}/ingresses/${item.name}`).catch(()=>({}));
                 let domain = d?.spec?.rules?.[0]?.host || '';
                 this.complete.items[i].resourcesList[j].domain = domain;
 
@@ -1169,9 +1169,9 @@ export default {
             }
 
             let getApp = async (item,i,j)=>{
-                let { data } = await k8sproxy.get(`/k8s-proxy/apis/apps/v1/namespaces/${this.namespaceActive}/deployments/${item.name}`);
+                let { data } = await k8sproxy.get(`/apis/apps/v1/namespaces/${this.namespaceActive}/deployments/${item.name}`);
                 let query = `involvedObject.kind=Deployment,involvedObject.uid=${data.metadata.uid},involvedObject.name=${data.metadata.name},involvedObject.namespace=${this.namespaceActive}`;
-                await k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${this.namespaceActive}/events?fieldSelector=${encodeURIComponent(query)}`).then(res=>{
+                await k8sproxy.get(`/api/v1/namespaces/${this.namespaceActive}/events?fieldSelector=${encodeURIComponent(query)}`).then(res=>{
                     this.complete.items[i].resourcesList[j].message = res?.data?.items?.[0]?.message || '';
                 })
             }
