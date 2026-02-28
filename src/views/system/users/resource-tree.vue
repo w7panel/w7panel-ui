@@ -227,7 +227,7 @@ export default{
             }
         },
         toDelete(link){
-            axios.delete(link,{customToken:this.token}).then(res=>{
+            k8sproxy.delete(link,{customToken:this.token}).then(res=>{
                 if(!res?.data){return}
                 this.$message.success('删除成功');
                 this.getList();
@@ -242,7 +242,7 @@ export default{
             }
         },
         openYaml(link){
-            axios.get(link,{
+            k8sproxy.get(link,{
                 customToken: this.token,
             }).then(res=>{
                 let data = res?.data;
@@ -253,7 +253,7 @@ export default{
                     title: data?.metadata?.annotations?.title || data?.metadata?.name,
                     submit: (data)=>{
                         if(/^\/api\/v1\//.test(link)){
-                            return axios.put(link, data, {customToken:this.token}).then(res=>{
+                            return k8sproxy.put(link, data, {customToken:this.token}).then(res=>{
                                 if(!res?.data){return}
                                 this.$message.success("修改成功");
                                 this.yamlData = { show:false };
@@ -275,7 +275,7 @@ export default{
             if(v.name=="core"||v.name=="custom.metrics.k8s.io"){
                 path = "/api"
             }
-            axios.get(`${path}/${v.version}/${filter}${v.label}`,{
+            k8sproxy.get(`${path}/${v.version}/${filter}${v.label}`,{
                 loading: true,
                 customToken: this.token,
             }).then(res=>{
@@ -301,7 +301,7 @@ export default{
         },
         async getTree(){
             this.nodata = false;
-            await axios.get('/apis',{
+            await k8sproxy.get('/apis',{
                 headers:{"Accept": "application/json;g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
                 loading: true,
                 noAlert: true,
@@ -339,7 +339,7 @@ export default{
 
             if(this.nodata){return}
 
-            axios.get('/api',{
+            k8sproxy.get('/api',{
                 headers:{"Accept": "application/json;g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
                 loading: true,
             }).then(res=>{
