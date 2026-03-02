@@ -3324,7 +3324,7 @@ export default {
                     this.refreshCatch();
                     this.upload.show = false;
                 };
-                reader[isImg?'readAsDataURL':'readAsArrayBuffer'](this.upload.file);
+                reader[isImg?'readAsDataURL':'readAsText'](this.upload.file);
                 
                 return;
             }
