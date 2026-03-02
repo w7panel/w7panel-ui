@@ -182,184 +182,184 @@
                 <div class="editor-container">
                     <!-- 左侧文件列表 -->
                     <div class="editor-sidebar">
-                    <div class="sidebar-header">
-                        <icon-folder /> 文件列表
-                        <span class="sidebar-refresh" @click="refreshSidebar" title="刷新">
-                            <icon-refresh :spin="file.sidebarLoading" />
-                        </span>
-                        <span class="sidebar-back" @click="sidebarGoBack" v-if="file.sidebarPath && file.sidebarPath !== '/'">
-                            <icon-up /> 返回
-                        </span>
-                    </div>
-                    <div class="sidebar-path" v-if="file.sidebarPath">
-                        <span class="path-text">{{file.sidebarPath}}</span>
-                    </div>
-                    <div class="sidebar-content" v-if="file.sidebarFiles.length > 0">
-                        <div 
-                            v-for="(item, index) in file.sidebarFiles" 
-                            :key="index"
-                            class="sidebar-file-item"
-                            :class="{'active': isFileActive(item), 'is-dir': item.is_dir, 'is-symlink': item.is_symlink}"
-                            @click="openSidebarFile(item)"
-                            :title="getItemTitle(item)"
-                        >
-                            <icon-storage v-if="item.is_symlink" />
-                            <icon-file v-else-if="!item.is_dir" />
-                            <icon-folder v-else />
-                            <span class="file-name">{{item.name}}</span>
-                            <span class="file-size" v-if="!item.is_dir && item.size">{{formatSize(item.size)}}</span>
-                        </div>
-                    </div>
-                    <div class="sidebar-content" v-else-if="file.sidebarLoading">
-                        <div class="sidebar-loading">
-                            <icon-loading /> 加载中...
-                        </div>
-                    </div>
-                    <div class="sidebar-content" v-else-if="file.sidebarError">
-                        <div class="sidebar-error">
-                            <icon-close-circle /> {{file.sidebarError}}
-                            <div class="sidebar-error-actions">
-                                <a-button size="small" @click="refreshSidebar">重试</a-button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="sidebar-content" v-else>
-                        <div class="sidebar-empty">
-                            <icon-empty /> 暂无文件
-                            <span class="sidebar-back-empty" @click="sidebarGoBack" v-if="file.sidebarPath && file.sidebarPath !== '/'">
-                                <icon-up /> 返回上级
+                        <div class="sidebar-header">
+                            <icon-folder /> 文件列表
+                            <span class="sidebar-refresh" @click="refreshSidebar" title="刷新">
+                                <icon-refresh :spin="file.sidebarLoading" />
+                            </span>
+                            <span class="sidebar-back" @click="sidebarGoBack" v-if="file.sidebarPath && file.sidebarPath !== '/'">
+                                <icon-up /> 返回
                             </span>
                         </div>
-                    </div>
-                </div>
-                <!-- 右侧编辑器 -->
-                <div class="editor-main">
-                    <!-- 搜索面板 -->
-                    <div class="search-panel" v-if="searchPanel.visible">
-                        <div class="search-panel-row">
-                            <a-input 
-                                v-model="searchPanel.query" 
-                                placeholder="搜索..." 
-                                size="small"
-                                ref="searchInputRef"
-                                @input="doSearch"
-                                @keydown.enter="findNext"
-                                @keydown.escape="closeSearchPanel"
-                                allow-clear
+                        <div class="sidebar-path" v-if="file.sidebarPath">
+                            <span class="path-text">{{file.sidebarPath}}</span>
+                        </div>
+                        <div class="sidebar-content" v-if="file.sidebarFiles.length > 0">
+                            <div 
+                                v-for="(item, index) in file.sidebarFiles" 
+                                :key="index"
+                                class="sidebar-file-item"
+                                :class="{'active': isFileActive(item), 'is-dir': item.is_dir, 'is-symlink': item.is_symlink}"
+                                @click="openSidebarFile(item)"
+                                :title="getItemTitle(item)"
                             >
-                                <template #prefix><icon-search /></template>
-                            </a-input>
-                            <a-input 
-                                v-if="searchPanel.showReplace" 
-                                v-model="searchPanel.replace" 
-                                placeholder="替换为..." 
-                                size="small"
-                                @keydown.enter="replaceNext"
-                                allow-clear
-                            />
-                            <div class="search-actions">
-                                <a-tooltip content="替换 (Ctrl+H)" v-if="!searchPanel.showReplace">
-                                    <a-button size="small" @click="searchPanel.showReplace = true">
-                                        <icon-swap />
-                                    </a-button>
-                                </a-tooltip>
-                                <a-tooltip content="查找下一个 (Enter)">
-                                    <a-button size="small" @click="findNext">
-                                        <icon-down />
-                                    </a-button>
-                                </a-tooltip>
-                                <a-tooltip content="查找上一个 (Shift+Enter)">
-                                    <a-button size="small" @click="findPrev">
-                                        <icon-up />
-                                    </a-button>
-                                </a-tooltip>
-                                <a-tooltip content="全部替换" v-if="searchPanel.showReplace">
-                                    <a-button size="small" @click="replaceAll">
-                                        全部
-                                    </a-button>
-                                </a-tooltip>
-                                <a-tooltip content="关闭 (Esc)">
-                                    <a-button size="small" @click="closeSearchPanel">
-                                        <icon-close />
-                                    </a-button>
-                                </a-tooltip>
+                                <icon-storage v-if="item.is_symlink" />
+                                <icon-file v-else-if="!item.is_dir" />
+                                <icon-folder v-else />
+                                <span class="file-name">{{item.name}}</span>
+                                <span class="file-size" v-if="!item.is_dir && item.size">{{formatSize(item.size)}}</span>
                             </div>
                         </div>
-                        <div class="search-info" v-if="searchPanel.query">
-                            <span v-if="searchPanel.matchCount > 0">
-                                {{ searchPanel.currentMatch }} / {{ searchPanel.matchCount }} 个匹配
-                            </span>
-                            <span v-else class="no-match">无匹配</span>
-                            <label class="search-option">
-                                <a-checkbox v-model="searchPanel.caseSensitive" @change="doSearch">区分大小写</a-checkbox>
-                            </label>
-                            <label class="search-option">
-                                <a-checkbox v-model="searchPanel.wholeWord" @change="doSearch">全词匹配</a-checkbox>
-                            </label>
-                            <label class="search-option">
-                                <a-checkbox v-model="searchPanel.useRegex" @change="doSearch">正则表达式</a-checkbox>
-                            </label>
+                        <div class="sidebar-content" v-else-if="file.sidebarLoading">
+                            <div class="sidebar-loading">
+                                <icon-loading /> 加载中...
+                            </div>
+                        </div>
+                        <div class="sidebar-content" v-else-if="file.sidebarError">
+                            <div class="sidebar-error">
+                                <icon-close-circle /> {{file.sidebarError}}
+                                <div class="sidebar-error-actions">
+                                    <a-button size="small" @click="refreshSidebar">重试</a-button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sidebar-content" v-else>
+                            <div class="sidebar-empty">
+                                <icon-empty /><span>暂无文件</span>
+                                <span class="sidebar-back-empty" @click="sidebarGoBack" v-if="file.sidebarPath && file.sidebarPath !== '/'">
+                                    <icon-up /><span>返回上级</span>
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <div id="editor_textarea"></div>
-                    <!-- 改进的底部工具栏 -->
-                    <div class="editor-toolbar" v-if="currentTab">
-                        <!-- 左侧操作按钮 -->
-                        <div class="toolbar-left">
-                            <a-button type="primary" size="small" @click="savefile" :disabled="currentTab.readOnly">
-                                <template #icon><icon-save /></template>
-                                保存
-                            </a-button>
-                            <a-button size="small" @click="closeEditor">
-                                <template #icon><icon-close /></template>
-                                关闭
-                            </a-button>
-                            <a-button size="small" @click="openSearchPanel">
-                                <template #icon><icon-search /></template>
-                                搜索
-                            </a-button>
-                        </div>
-                        <!-- 中间状态信息 -->
-                        <div class="toolbar-center">
-                            <span v-if="currentTab.readOnly" class="status-readonly">
-                                <icon-lock /> 只读
-                            </span>
-                            <span v-if="currentTab.modified" class="status-modified">
-                                ● 已修改
-                            </span>
-                            <span class="status-cursor" v-if="editorCursor.line > 0">
-                                行 {{ editorCursor.line }}, 列 {{ editorCursor.column }}
-                            </span>
-                            <span class="status-language" v-if="editorLanguage">
-                                {{ editorLanguage }}
-                            </span>
-                            <span class="status-size" v-if="currentTab.size">
-                                {{ formatSize(currentTab.size) }}
-                            </span>
-                        </div>
-                        <!-- 右侧设置 -->
-                        <div class="toolbar-right">
-                            <a-tooltip content="自动换行">
-                                <span class="toolbar-toggle" :class="{'active': file.wordWrap}" @click="toggleWordWrap">
-                                    <icon-indent :style="file.wordWrap ? 'color: #165dff' : ''" />
-                                    换行
+                    <!-- 右侧编辑器 -->
+                    <div class="editor-main">
+                        <!-- 搜索面板 -->
+                        <div class="search-panel" v-if="searchPanel.visible">
+                            <div class="search-panel-row">
+                                <a-input 
+                                    v-model="searchPanel.query" 
+                                    placeholder="搜索..." 
+                                    size="small"
+                                    ref="searchInputRef"
+                                    @input="doSearch"
+                                    @keydown.enter="findNext"
+                                    @keydown.escape="closeSearchPanel"
+                                    allow-clear
+                                >
+                                    <template #prefix><icon-search /></template>
+                                </a-input>
+                                <a-input 
+                                    v-if="searchPanel.showReplace" 
+                                    v-model="searchPanel.replace" 
+                                    placeholder="替换为..." 
+                                    size="small"
+                                    @keydown.enter="replaceNext"
+                                    allow-clear
+                                />
+                                <div class="search-actions">
+                                    <a-tooltip content="替换 (Ctrl+H)" v-if="!searchPanel.showReplace">
+                                        <a-button size="small" @click="searchPanel.showReplace = true">
+                                            <icon-swap />
+                                        </a-button>
+                                    </a-tooltip>
+                                    <a-tooltip content="查找下一个 (Enter)">
+                                        <a-button size="small" @click="findNext">
+                                            <icon-down />
+                                        </a-button>
+                                    </a-tooltip>
+                                    <a-tooltip content="查找上一个 (Shift+Enter)">
+                                        <a-button size="small" @click="findPrev">
+                                            <icon-up />
+                                        </a-button>
+                                    </a-tooltip>
+                                    <a-tooltip content="全部替换" v-if="searchPanel.showReplace">
+                                        <a-button size="small" @click="replaceAll">
+                                            全部
+                                        </a-button>
+                                    </a-tooltip>
+                                    <a-tooltip content="关闭 (Esc)">
+                                        <a-button size="small" @click="closeSearchPanel">
+                                            <icon-close />
+                                        </a-button>
+                                    </a-tooltip>
+                                </div>
+                            </div>
+                            <div class="search-info" v-if="searchPanel.query">
+                                <span v-if="searchPanel.matchCount > 0">
+                                    {{ searchPanel.currentMatch }} / {{ searchPanel.matchCount }} 个匹配
                                 </span>
-                            </a-tooltip>
-                            <a-dropdown trigger="click">
-                                <span class="toolbar-encoding">
-                                    {{ file.encoding }}
-                                    <icon-down />
+                                <span v-else class="no-match">无匹配</span>
+                                <label class="search-option">
+                                    <a-checkbox v-model="searchPanel.caseSensitive" @change="doSearch">区分大小写</a-checkbox>
+                                </label>
+                                <label class="search-option">
+                                    <a-checkbox v-model="searchPanel.wholeWord" @change="doSearch">全词匹配</a-checkbox>
+                                </label>
+                                <label class="search-option">
+                                    <a-checkbox v-model="searchPanel.useRegex" @change="doSearch">正则表达式</a-checkbox>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="editor_textarea"></div>
+                        <!-- 改进的底部工具栏 -->
+                        <div class="editor-toolbar" v-if="currentTab">
+                            <!-- 左侧操作按钮 -->
+                            <div class="toolbar-left">
+                                <a-button type="primary" size="small" @click="savefile" :disabled="currentTab.readOnly">
+                                    <template #icon><icon-save /></template>
+                                    保存
+                                </a-button>
+                                <a-button size="small" @click="closeEditor">
+                                    <template #icon><icon-close /></template>
+                                    关闭
+                                </a-button>
+                                <a-button size="small" @click="openSearchPanel">
+                                    <template #icon><icon-search /></template>
+                                    搜索
+                                </a-button>
+                            </div>
+                            <!-- 中间状态信息 -->
+                            <div class="toolbar-center">
+                                <span v-if="currentTab.readOnly" class="status-readonly">
+                                    <icon-lock /> 只读
                                 </span>
-                                <template #content>
-                                    <a-doption v-for="enc in encodingOptions" :key="enc" :value="enc" @click="changeEncoding(enc)">{{ enc }}</a-doption>
-                                </template>
-                            </a-dropdown>
-                            <span class="status-hint">Ctrl+S 保存</span>
+                                <span v-if="currentTab.modified" class="status-modified">
+                                    ● 已修改
+                                </span>
+                                <span class="status-cursor" v-if="editorCursor.line > 0">
+                                    行 {{ editorCursor.line }}, 列 {{ editorCursor.column }}
+                                </span>
+                                <span class="status-language" v-if="editorLanguage">
+                                    {{ editorLanguage }}
+                                </span>
+                                <span class="status-size" v-if="currentTab.size">
+                                    {{ formatSize(currentTab.size) }}
+                                </span>
+                            </div>
+                            <!-- 右侧设置 -->
+                            <div class="toolbar-right">
+                                <a-tooltip content="自动换行">
+                                    <span class="toolbar-toggle" :class="{'active': file.wordWrap}" @click="toggleWordWrap">
+                                        <icon-indent :style="file.wordWrap ? 'color: #165dff' : ''" />
+                                        换行
+                                    </span>
+                                </a-tooltip>
+                                <a-dropdown trigger="click">
+                                    <span class="toolbar-encoding">
+                                        {{ file.encoding }}
+                                        <icon-down />
+                                    </span>
+                                    <template #content>
+                                        <a-doption v-for="enc in encodingOptions" :key="enc" :value="enc" @click="changeEncoding(enc)">{{ enc }}</a-doption>
+                                    </template>
+                                </a-dropdown>
+                                <span class="status-hint">Ctrl+S 保存</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
         </a-modal>
 
         <a-modal v-model:visible="upload.show" width="500px" @cancel="upload.show=false;" :footer="false" :popup-container="false?'#allmodalbox':'body'">
@@ -2160,11 +2160,11 @@ export default {
             if (!this.outEditorInfo?.webdavUrl) return;
             
             // 使用 sidebarPath（如果已设置），否则使用当前 partPath
-            let targetPath = this.file.sidebarPath || decodeURIComponent(this.showPath);
+            let targetPath = decodeURIComponent(this.showPath);
             if (!targetPath) {
                 targetPath = decodeURIComponent(this.partPath);
             }
-            
+            // console.log(targetPath,this.showPath)
             this.file.sidebarPath = targetPath;
             this.file.sidebarLoading = true;
             this.file.sidebarFiles = [];
