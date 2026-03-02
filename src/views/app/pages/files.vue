@@ -892,23 +892,39 @@ export default {
             this.authority.chmod = chmod.join('');
         },
         downzip(row){
-            let data = {
-                from: (this.origin=='nodes'?'/host':'') + '/proc/'+ this.form.pid+'/root' + (this.form.subPid?`/proc/${this.form.subPid}/root`:'') + this.partPath + row.name,
-                to: row.name,
-                upload: 0,
-                namespace: this.namespaceActive,
-                podName: this.form.pod_name,
-            }
-            const params = new URLSearchParams();
-            for (let key in data) {
-                params.append(key, data[key]);
-            }
-            panelApi.post('/cp',params.toString(),{
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'}
-            }).then(res=>{
-                const token = getToken();
-                window.open('/panel-api/v1/download/'+row.name+'?api-token='+token).focus()
+            // let data = {
+            //     from: (this.origin=='nodes'?'/host':'') + '/proc/'+ this.form.pid+'/root' + (this.form.subPid?`/proc/${this.form.subPid}/root`:'') + this.partPath + row.name,
+            //     to: row.name,
+            //     upload: 0,
+            //     namespace: this.namespaceActive,
+            //     podName: this.form.pod_name,
+            // }
+            // const params = new URLSearchParams();
+            // for (let key in data) {
+            //     params.append(key, data[key]);
+            // }
+            // panelApi.post('/cp',params.toString(),{
+            //     headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+            // }).then(res=>{
+            //     const token = getToken();
+            //     window.open('/panel-api/v1/download/'+row.name+'?api-token='+token).focus()
+            // })
+
+            axios.get(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}`,{
+                responseType: 'blob'
+            }).then(async res=>{
+                try{
+                    const urlObj = URL.createObjectURL(res.data);
+                    const a = document.createElement('a');
+                    a.href = urlObj;
+                    a.download = row.name; // 自定义文件名（带后缀，如test.xlsx）
+                    a.click();
+                    URL.revokeObjectURL(urlObj);
+                }catch(error){
+                    console.log('下载失败',error)
+                }
             })
+
         },
         // 容器列表
         // async getContList(){
@@ -1134,9 +1150,9 @@ export default {
                     let href = response?.getElementsByTagNameNS('DAV:', 'href')?.[0]?.textContent?.trim();
                     // 解码href后再比较，解决中文路径过滤问题
                     const decodedHref = decodeURIComponent(href);
-                    if(decodedHref === decodedSelfPath || decodedHref === decodedBasePath){
-                        continue;
-                    }
+                    if(decodedHref === decodedSelfPath || decodedHref === decodedBasePath){continue;}
+                    if(decodedBasePath.endsWith(href) || decodedSelfPath.endsWith(href)){continue;}
+                    
                     const propstat = response?.getElementsByTagNameNS('DAV:', 'propstat')?.[0];
                     const prop = propstat?.getElementsByTagNameNS('DAV:', 'prop')?.[0];
                     let path = prop?.getElementsByTagNameNS('DAV:', 'displayname')?.[0]?.textContent?.trim();
@@ -1412,6 +1428,7 @@ export default {
                     this.file.path = this.form.path;
                     this.file.fromFileCatch = true;
                     this.file.forever = true;
+                    this.file.sidebarPath = '';
                     this.init(()=>{
                         this.inputContent(row.value);
                     });
@@ -1428,6 +1445,7 @@ export default {
                             this.file.mf = row.mf;
                             this.file.power = row.power;
                             this.file.forever = row.mf || this.form.isMount || false;
+                            this.file.sidebarPath = '';
                             this.init(()=>{
                                 this.inputContent(find.editValue);
                             });
@@ -1442,6 +1460,7 @@ export default {
                             this.file.mf = row.mf;
                             this.file.power = row.power;
                             this.file.forever = row.mf || this.form.isMount || false;
+                            this.file.sidebarPath = '';
                             this.init(()=>{
                                 this.inputContent(data);
                             });
@@ -1460,6 +1479,7 @@ export default {
                         this.file.mf = row.mf;
                         this.file.power = row.power;
                         this.file.forever = row.mf || this.form.isMount || false;
+                        this.file.sidebarPath = '';
                         this.init(()=>{
                             if(typeof data=='object'){
                                 try{
@@ -2160,7 +2180,7 @@ export default {
             if (!this.outEditorInfo?.webdavUrl) return;
             
             // 使用 sidebarPath（如果已设置），否则使用当前 partPath
-            let targetPath = decodeURIComponent(this.showPath);
+            let targetPath = this.file.sidebarPath || decodeURIComponent(this.showPath);
             if (!targetPath) {
                 targetPath = decodeURIComponent(this.partPath);
             }
@@ -2239,7 +2259,7 @@ export default {
                 const normalizedHref = decodedHref.replace(/\/+$/, '');
                 
                 // 排除目录本身（比较规范化后的路径）
-                if (normalizedRequestPath && normalizedHref === normalizedRequestPath) {
+                if (normalizedRequestPath && normalizedRequestPath.endsWith(normalizedHref)) {
                     continue;
                 }
                 
@@ -3282,6 +3302,7 @@ export default {
             }
 
             let isImg = /^image\//.test(this.upload.file.type)
+            
             if(!this.form.isMount && this.upload.forever){
                 const fileSizeInBytes = this.upload.file.size;
                 const oneMBInBytes = 1024 * 1024;
@@ -3303,38 +3324,72 @@ export default {
                     this.refreshCatch();
                     this.upload.show = false;
                 };
-                reader[isImg?'readAsDataURL':'readAsText'](this.upload.file);
+                reader[isImg?'readAsDataURL':'readAsArrayBuffer'](this.upload.file);
+                
                 return;
             }
-            let data = new FormData();
-            data.append('file',this.upload.file);
-            data.append('X-Amz-Credential', 'AKIAIOSFODNN7EXAMPLE/20151229/us-east-1/s3/aws4_request');
-            data.append('X-Amz-Algorithm', 'AWS4-HMAC-SHA256')
-            data.append('key', 'upload/'+this.upload.filename);
 
             this.upload.uploading = true;
-            panelApi.post('/s3bucket',data).then(res=>{
-                let data = {
-                    from: 'upload/'+this.upload.filename,
-                    to: (this.origin=='nodes'?'/host':'') + '/proc/'+ this.form.pid+'/root' + (this.form.subPid?`/proc/${this.form.subPid}/root`:'') + this.partPath +  this.upload.filename,
-                    // fromOrTo: 'to',
-                    upload: 1,
-                    namespace: this.namespaceActive,
-                    podName: this.form.pod_name,
-                }
-                const params = new URLSearchParams();
-                for (let key in data) {  
-                    params.append(key, data[key]);  
-                }
-                panelApi.post('/cp',params.toString(),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).then(res=>{
-                    this.upload.uploading = false;
-                    this.$message.success('操作成功')
-                    this.upload.show = false;
-                    this.getFileList();
-                }).catch(()=>{
-                    this.upload.uploading = false;
-                })
-            }).catch(()=>{this.upload.uploading = false;})
+            try{
+                const reader = new FileReader();
+                reader.onload = ()=>{
+                    let value = reader.result;
+                    console.log(value)
+                    
+                    axios.put(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+this.upload.filename)}`, value, {
+                        headers: {
+                            "content-type": "application/octet-stream",
+                            "Authorization": `Bearer ${this.outEditorInfo.webdavToken}`,
+                            'Content-Length': this.upload.file.size // 确保传输长度和文件大小一致
+                        },
+                        transformRequest: [(data) => data],
+                    }).then(res=>{
+                        this.loading = false;
+                        this.$message.success('保存成功');
+                        // 刷新文件列表
+                        this.upload.show = false;
+                        this.getFileList();
+                    }).catch(err=>{
+                        this.loading = false;
+                        this.$message.error('保存失败: ' + (err.response?.data?.message || err.message || '未知错误'));
+                    }).finally(()=>{
+                        this.upload.uploading = false;
+                    })
+                    return;
+                };
+                reader[isImg?'readAsDataURL':'readAsArrayBuffer'](this.upload.file);
+            }catch(error){
+                console.log('上传失败',error);
+            }
+
+            // let data = new FormData();
+            // data.append('file',this.upload.file);
+            // data.append('X-Amz-Credential', 'AKIAIOSFODNN7EXAMPLE/20151229/us-east-1/s3/aws4_request');
+            // data.append('X-Amz-Algorithm', 'AWS4-HMAC-SHA256')
+            // data.append('key', 'upload/'+this.upload.filename);
+            // this.upload.uploading = true;
+            // panelApi.post('/s3bucket',data).then(res=>{
+            //     let data = {
+            //         from: 'upload/'+this.upload.filename,
+            //         to: (this.origin=='nodes'?'/host':'') + '/proc/'+ this.form.pid+'/root' + (this.form.subPid?`/proc/${this.form.subPid}/root`:'') + this.partPath +  this.upload.filename,
+            //         // fromOrTo: 'to',
+            //         upload: 1,
+            //         namespace: this.namespaceActive,
+            //         podName: this.form.pod_name,
+            //     }
+            //     const params = new URLSearchParams();
+            //     for (let key in data) {  
+            //         params.append(key, data[key]);  
+            //     }
+            //     panelApi.post('/cp',params.toString(),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).then(res=>{
+            //         this.upload.uploading = false;
+            //         this.$message.success('操作成功')
+            //         this.upload.show = false;
+            //         this.getFileList();
+            //     }).catch(()=>{
+            //         this.upload.uploading = false;
+            //     })
+            // }).catch(()=>{this.upload.uploading = false;})
         },
         openUpload(){
             this.upload = {
