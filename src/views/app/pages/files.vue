@@ -1886,6 +1886,8 @@ export default {
             
             // 使用语法高亮
             const syntaxHighlightingExt = syntaxHighlighting(isDarkTheme ? darkSyntaxColors : lightSyntaxColors);
+            const fileName = this.file?.openTabs?.[this.file?.activeTabIndex]?.name || '';
+            const langExtension = this.getLanguageExtension(fileName);
             
             this.editor = new EditorView({
                 doc: content,
@@ -1897,7 +1899,7 @@ export default {
                     saveKeymap,
                     updateListener,
                     EditorView.editable.of(!readOnly),
-                    this.wordWrapCompartment.of(this.file.wordWrap ? EditorView.lineWrapping : []),
+                    // this.wordWrapCompartment.of(this.file.wordWrap ? EditorView.lineWrapping : []),
                 ],
                 parent: document.getElementById("editor_textarea"),
             });
@@ -3311,7 +3313,7 @@ export default {
             data.append('key', 'upload/'+this.upload.filename);
 
             this.upload.uploading = true;
-            axios.post('/s3bucket',data).then(res=>{
+            panelApi.post('/s3bucket',data).then(res=>{
                 let data = {
                     from: 'upload/'+this.upload.filename,
                     to: (this.origin=='nodes'?'/host':'') + '/proc/'+ this.form.pid+'/root' + (this.form.subPid?`/proc/${this.form.subPid}/root`:'') + this.partPath +  this.upload.filename,

@@ -665,7 +665,7 @@ export default {
                 let find = roles.find(i=>i.name==userRole)
                 this.roles = find?[find]:[];
             }
-            console.log(bindings,roles,'xxxxxxxxxxx')
+            // console.log(bindings,roles,'xxxxxxxxxxx')
         },
         
         filterMenu(roles){
