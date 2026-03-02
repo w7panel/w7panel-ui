@@ -2902,11 +2902,12 @@ export default {
             const dstPath = decodeURIComponent(this.partPath + this.rename.name);
             
             try {
+                let base = ('/' + this.outEditorInfo.webdavBasePath).replace(/^\/+/,'/');
                 await axios({
                     url: `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${srcPath}`,
                     method: 'MOVE',
                     headers: {
-                        'Destination': `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${dstPath}`,
+                        'Destination': `${base}${dstPath}`,
                         'Overwrite': 'T'
                     }
                 });
