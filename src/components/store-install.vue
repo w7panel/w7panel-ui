@@ -155,7 +155,8 @@
                                         </tbody></table>
                                     </div>
                                 </a-form-item>
-                                <a-form-item v-if="item.requireBuild && !(mirror.length==1 && mirror[0] && mirror[0].value=='registry.local.w7.cc/default')" label="镜像仓库" field="registry" :rules="[{required:true,message:'请选择镜像仓库'}]">
+                                
+                                <!-- <a-form-item v-if="item.requireBuild && !(mirror.length==1 && mirror[0] && mirror[0].value=='registry.local.w7.cc/default')" label="镜像仓库" field="registry" :rules="[{required:true,message:'请选择镜像仓库'}]">
                                     <template #label>
                                         <span class="form-label">镜像仓库</span>
                                     </template>
@@ -163,7 +164,7 @@
                                         <a-option v-for="mr in mirror" :key="mr.value" :value="mr.value">{{mr.label}}</a-option>
                                     </a-select>
                                     <span @click="imgShow=true;" class="ml-10 c-blue cursor" style="flex-shrink:0;">新建</span>
-                                </a-form-item>
+                                </a-form-item> -->
 
                                 <div v-for="(sp,index) in item.startParams" :key="sp.name">
                                     <a-form-item v-if="sp.values_text!='%DOMAIN_HOST%' && sp.values_text!='%DOMAIN_URL%' && sp.values_text!='%DOMAIN_SSL_URL%'" @change="testInstallStatus" :label="sp.title" :field="'startParams['+index+'].value'" :rules="[{required:sp.required,message:'内容不能为空'}, validator(sp)]">
