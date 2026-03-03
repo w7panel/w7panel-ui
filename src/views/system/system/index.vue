@@ -7,6 +7,7 @@
                 <a-tab-pane key="2" title="超卖配置"></a-tab-pane>
                 <a-tab-pane key="3" title="ICP/域名备案信息"></a-tab-pane>
                 <a-tab-pane key="4" title="域名解析记录"></a-tab-pane>
+                <a-tab-pane key="5" title="联系方式"></a-tab-pane>
             </a-tabs>
             <div v-if="tab=='1'">
                 <a-form ref="register" :model="register" auto-label-width class="padding-20">
@@ -160,6 +161,9 @@
                     </a-form-item>
                 </a-form>
             </div>
+            <div v-else-if="tab=='5'">
+                <contact-us></contact-us>
+            </div>
         </div>
     </div>
 </template>
@@ -169,6 +173,7 @@ import { k8sproxy } from '@/utils/api';
 
 import axios from 'axios';
 import { useNamespaceStore } from '@/store';
+import ContactUs from './contact-us.vue';
 
 export default{
     data(){
@@ -185,6 +190,9 @@ export default{
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
         this.initRegister();
+    },
+    components: {
+        ContactUs,
     },
     watch: {
         tab(v){
