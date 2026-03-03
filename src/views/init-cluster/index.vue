@@ -289,7 +289,7 @@ export default {
                     panelApi.get("/auth/console/info?code=test").then(res=>{
                         let data = res?.data;
                         if(data.cluster_id == "" && data.thirdparty_cd_token !=""){
-                            panelApi.post('/console/register-to-console?offline_url='+window.location.origin,{
+                            panelApi.post('/auth/console/register-to-console?offline_url='+window.location.origin,{
                                 offline_url: window.location.origin,
                                 offlineUrl: window.location.origin,
                             }).then(()=>{}).catch(()=>{})

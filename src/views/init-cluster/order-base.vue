@@ -554,7 +554,7 @@ export default {
             if(!this.promo.format){return}
             // /k8s/console/code/xxxxxx
             // /k8s/console/proxy/api/thirdparty-cd/k8s-offline/sdk/coupon/xxxx
-            panelApi.get(`/panel-api/v1/auth/console/code/${this.promo.code.trim()}`).then(res=>{
+            panelApi.get(`/auth/console/code/${this.promo.code.trim()}`).then(res=>{
                 let d = res.data;
 //测试 20251215145138-XNBMAY2O
 // d = {
@@ -701,11 +701,11 @@ export default {
             const url = new URL(window.location.href);
             url.searchParams.set('register', 'true');
             
-            window.location.href = '/panel-api/v1/console/oauth?redirect_uri='+(url.toString());
+            window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+(url.toString());
         },
         register(){
             let code = this.$route.query.code;
-            panelApi.get('/console/bind?code='+code).then(res=>{
+            panelApi.get('/auth/console/bind?code='+code).then(res=>{
                 this.$message.success('操作成功');
                 this.$router.push({
                     ...this.$route,
@@ -717,7 +717,7 @@ export default {
                 }).then(res=>{
                     this.getData();
                 });
-                // panelApi.post('/console/register-to-console?offline_url='+window.location.origin,{
+                // panelApi.post('/auth/console/register-to-console?offline_url='+window.location.origin,{
                 //     offline_url: window.location.origin,
                 //     offlineUrl: window.location.origin,
                 // },{loading:true})

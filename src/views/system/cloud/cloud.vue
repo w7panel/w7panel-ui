@@ -175,7 +175,7 @@ export default {
         if(this.$route.query.code){
             let code = this.$route.query.code;
             this.$router.push({query:{}});
-            panelApi.get('/console/bind?code='+code).then(res=>{
+            panelApi.get('/auth/console/bind?code='+code).then(res=>{
                 this.getData();
             })
         }
@@ -342,17 +342,17 @@ export default {
             }
         },
         changeUser(){
-            window.location.href = '/panel-api/v1/console/oauth?redirect_uri='+(window.location.origin + '/system/cloud-register');
+            window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+(window.location.origin + '/system/cloud-register');
         },
         oauth(){
             // || this.$route.query.forcebind=='true'
             if(this.require_oauth){
-                window.location.href = '/panel-api/v1/console/oauth?redirect_uri='+(window.location.href.replace('forcebind=true','forcebind=false'));
+                window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+(window.location.href.replace('forcebind=true','forcebind=false'));
                 return;
             }
         },
         register(){
-            panelApi.post('/console/register-to-console?offline_url='+window.location.origin).then(res=>{
+            panelApi.post('/auth/console/register-to-console?offline_url='+window.location.origin).then(res=>{
                 this.$message.success('注册集群成功');
                 this.getData();
             })

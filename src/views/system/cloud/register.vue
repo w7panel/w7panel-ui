@@ -16,8 +16,8 @@ export default {
     methods: {
         register(){
             let code = this.$route.query.code;
-            panelApi.get('/console/bind?code='+code).then(res=>{
-                panelApi.post('/console/register-to-console?offline_url='+window.location.origin).then(res=>{
+            panelApi.get('/auth/console/bind?code='+code).then(res=>{
+                panelApi.post('/auth/console/register-to-console?offline_url='+window.location.origin).then(res=>{
                     this.$message.success('注册集群成功');
                     this.$router.replace('/system/cloud');
                 })

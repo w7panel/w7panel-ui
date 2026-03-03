@@ -55,7 +55,7 @@ export default async function useK3kinfo(){
 
             let data = cData;
             if (data.cluster_id == "" && data.thirdparty_cd_token != "") {
-                axios.post('/panel-api/v1/console/register-to-console?offline_url=' + window.location.origin, {
+                axios.post('/panel-api/v1/auth/console/register-to-console?offline_url=' + window.location.origin, {
                     offline_url: window.location.origin,
                     offlineUrl: window.location.origin,
                 }).then(() => { }).catch(() => { })

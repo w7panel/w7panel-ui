@@ -274,13 +274,13 @@ export default{
             this.getList();
         },
         clearExpire(){
-            panelApi.delete(`/panel-api/v1/auth/console/proxy/api/thirdparty-cd/k8s-offline/sdk/promotion/${this.codes.id}/coupon`).then(res=>{
+            panelApi.delete(`/auth/console/proxy/api/thirdparty-cd/k8s-offline/sdk/promotion/${this.codes.id}/coupon`).then(res=>{
                 this.$message.success('操作成功');
                 this.getDetail({id:this.codes.id});
             })
         },
         deleteExpireCode(item){
-            panelApi.delete(`/panel-api/v1/auth/console/proxy/api/thirdparty-cd/k8s-offline/sdk/promotion/${this.codes.id}/coupon`,{params:{
+            panelApi.delete(`/auth/console/proxy/api/thirdparty-cd/k8s-offline/sdk/promotion/${this.codes.id}/coupon`,{params:{
                 code: item.code
             }}).then(res=>{
                 this.$message.success('操作成功');
@@ -303,7 +303,7 @@ export default{
             })
         },
         getDetail(row){
-            panelApi.get(`/panel-api/v1/auth/console/proxy/api/thirdparty-cd/k8s-offline/sdk/promotion/${row.id}/coupon?page=${this.codes.page}`,{loading:true}).then(res=>{
+            panelApi.get(`/auth/console/proxy/api/thirdparty-cd/k8s-offline/sdk/promotion/${row.id}/coupon?page=${this.codes.page}`,{loading:true}).then(res=>{
                 let list = res.data?.data || [];
                 list = list.map(i=>{
                     i.is_expire = new Date(i.expire_at).getTime() < Date.now();
@@ -332,7 +332,7 @@ export default{
         createCode(){
             this.createNum.show = false;
             const formStr = new URLSearchParams({quantity: this.createNum.num}).toString();
-            panelApi.post(`/panel-api/v1/auth/console/proxy/api/thirdparty-cd/k8s-offline/sdk/promotion/${this.createNum.id}/coupon`,formStr).then(res=>{
+            panelApi.post(`/auth/console/proxy/api/thirdparty-cd/k8s-offline/sdk/promotion/${this.createNum.id}/coupon`,formStr).then(res=>{
                 this.$message.success('操作成功');
                 this.getList();
             })
@@ -469,7 +469,7 @@ export default{
         stopSwitch(row){
             let o = {open: row.open==1?2:1};
             let data = new URLSearchParams(o).toString()
-            panelApi.put(`/panel-api/v1/auth/console/proxy/api/thirdparty-cd/k8s-offline/sdk/promotion/${row.id}`,data).then(res=>{
+            panelApi.put(`/auth/console/proxy/api/thirdparty-cd/k8s-offline/sdk/promotion/${row.id}`,data).then(res=>{
                 this.getList();
             });
         },

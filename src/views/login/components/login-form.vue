@@ -138,7 +138,7 @@ panelApi.get('/noauth/site/init-user').then(res=>{
 const consoleLogin = ()=>{
     let policyName = router?.currentRoute?.value?.query?.policyName || '';
     let couponCode = router?.currentRoute?.value?.query?.couponCode || '';
-    window.location.href = '/panel-api/v1/console/oauth?redirect_uri='+encodeURIComponent(window.location.origin + '/console-login?policyName=' + policyName + '&couponCode=' + couponCode);
+    window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+encodeURIComponent(window.location.origin + '/console-login?policyName=' + policyName + '&couponCode=' + couponCode);
 }
 if(router?.currentRoute?.value?.query?.consolelogin=='1'){
     consoleLogin();

@@ -40,7 +40,7 @@ export default {
             return keys;
         },
         toLogin(){
-            panelApi.get('/console/login',{
+            panelApi.get('/auth/console/login',{
                 params:{
                     code: this.$route.query.code,
                     policyName: this.$route.query?.policyName || '',
