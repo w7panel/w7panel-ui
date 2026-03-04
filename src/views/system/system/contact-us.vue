@@ -30,7 +30,7 @@
                     <template #cell="{ record }">
                         <div class="df df-ww style-select">
                             <template v-for="(item,index) in styles" :key="index">
-                                <div v-if="Number(record.style)==index" :class="`item item${index+1}`">
+                                <div v-if="Number(record.style)==index" :class="`item item${index}`">
                                     <div>{{ item.txt }}</div>
                                 </div>
                             </template>
@@ -86,7 +86,7 @@
                         <div
                             v-for="(item,index) in styles"
                             :key="index"
-                            :class="`item item${index+1} ${form.styleIndex==index?'active':''}`"
+                            :class="`item item${index} ${form.styleIndex==index?'active':''}`"
                             @click="form.styleIndex=index"
                         >
                             <div>{{ item.txt }}</div>
@@ -290,31 +290,31 @@ export default{
 .style-select .item{width:120px; border:2px solid #fff; padding:2px; cursor:pointer; height:40px; border-radius:6px;}
 .style-select .item.active{border-color:rgb(var(--primary-6));}
 .style-select .item div{height:100%; width:100%; display:flex; align-items:center; justify-content:center; border-radius:4px;}
-.style-select .item.item1 div{
+.style-select .item.item0 div{
     background: linear-gradient(0deg, #ffffff 0%, #f3f5f8 100%);
     color: rgb(var(--primary-6));
 }
-.style-select .item.item2 div{
+.style-select .item.item1 div{
     background: linear-gradient(180deg, #0E42D2 0%, #4080FF 100%);
     color: #FFF;
 }
-.style-select .item.item3 div{
+.style-select .item.item2 div{
     background: linear-gradient(180deg, #5A4BFF 0%, #BC8CF2 100%);
     color: #FFF;
 }
-.style-select .item.item4 div{
+.style-select .item.item3 div{
     background: linear-gradient(180deg, #2D3748 0%, #64748B 100%);
     color: #FFF;
 }
-.style-select .item.item5 div{
+.style-select .item.item4 div{
     background: linear-gradient(180deg, #ff3b3b 0%, #ffa45a 100%);
     color: #FFF;
 }
-.style-select .item.item6 div{
+.style-select .item.item5 div{
     background: linear-gradient(180deg, #2F5233 0%, #8BC34A 100%);
     color: #FFF;
 }
-.style-select .item.item7 div{
+.style-select .item.item6 div{
     background: linear-gradient(180deg, #0E7490 0%, #5EEAD4 100%);
     color: #FFF;
 }

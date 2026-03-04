@@ -42,6 +42,7 @@
         </a-layout>
       </a-layout>
     </a-layout>
+    <contact-us></contact-us>
   </a-layout>
 </template>
 
@@ -56,6 +57,7 @@
   import usePermission from '@/hooks/permission';
   import useResponsive from '@/hooks/responsive';
   import PageLayout from './page-layout.vue';
+  import contactUs from '@/components/contact-us.vue';
 
   const isInit = ref(false);
   const appStore = useAppStore();

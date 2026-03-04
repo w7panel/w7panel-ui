@@ -36,12 +36,18 @@ const router = createRouter(({
         path: '/console-login',
         name: 'console-login',
         component: () => import('@/views/login/console-login.vue'),
+        meta: {
+            requiresAuth: false,
+        },
     },
     
     {
         path: '/resource-loading',
         name: 'resource-loading',
         component: () => import('@/views/init-cluster/resource-loading.vue'),
+        meta: {
+            requiresAuth: false,
+        },
     },
     
     ...appRoutes,
