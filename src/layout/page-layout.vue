@@ -12,11 +12,13 @@
             </keep-alive> -->
         </transition>
     </router-view>
+    <contact-us></contact-us>
 </template>
 
 <script lang="ts" setup>
     import { computed } from 'vue';
     import { useTabBarStore } from '@/store';
+  import contactUs from '@/components/contact-us.vue';
 
     const tabBarStore = useTabBarStore();
 

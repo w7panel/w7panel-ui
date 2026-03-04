@@ -181,7 +181,7 @@ const testWeihu = async ()=>{
     let data = getK8sinfo();
     if(data['w7.cc/weihu']=='true'){ return true; }
     try{
-        await axios.get('/version',{noAlert:true})
+        await k8sproxy.get('/version',{noAlert:true})
     }catch{
         return true;
     }

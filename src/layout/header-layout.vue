@@ -6,6 +6,7 @@
         <a-layout-content class="layout-content " >
             <router-view />
         </a-layout-content>
+        <contact-us></contact-us>
     </a-layout>
 </template>
 
@@ -15,7 +16,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAppStore, useUserStore } from '@/store';
 import NavBar from '@/components/navbar/index.vue';
 import usePermission from '@/hooks/permission';
-
+import contactUs from '@/components/contact-us.vue';
+  
     const userStore = useUserStore();
     const permission = usePermission();
     const router = useRouter();

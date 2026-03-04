@@ -106,7 +106,7 @@ export default {
         async getInfo(){
             // 并行请求优化
             const [versionRes, serviceRes, nodesRes] = await Promise.all([
-                axios.get('/version'),
+                k8sproxy.get('/version'),
                 k8sproxy.get('/api/v1/namespaces/default/services/kubernetes', {noAlert:true}),
                 k8sproxy.get('/api/v1/nodes',{loading:true})
             ]);

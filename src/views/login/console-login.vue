@@ -4,6 +4,7 @@
             <icon-loading class="c-99" style="font-size:30px;" />
             <span class="c-99 ml-20" style="font-size:20px;">登录中...</span>
         </div>
+        <contact-us></contact-us>
     </div>
 </template>
 
@@ -14,6 +15,7 @@ import { setToken,setPermission, setUserInfo,getK8sinfo, setRefreshToken } from 
 import treeData from '@/config/treedata.json';
 import useK3kinfo from '@/hooks/k3k-info';
 import { useNamespaceStore } from '@/store';
+  import contactUs from '@/components/contact-us.vue';
 
 
 export default {
@@ -92,7 +94,7 @@ export default {
             let data = getK8sinfo();
             if(data['w7.cc/weihu']=='true'){ return true; }
             try{
-                await axios.get('/version',{noAlert:true})
+                await k8sproxy.get('/version',{noAlert:true})
             }catch{
                 return true;
             }

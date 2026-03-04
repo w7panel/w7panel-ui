@@ -22,6 +22,7 @@
             <span v-if="site.tbol" class="c-99">增值电信业务经营许可证：{{ site.tbol }}</span>
             <span>© 微擎面板 提供技术支持</span>
         </div>
+        <contact-us></contact-us>
     </div>
 </template>
 
@@ -32,6 +33,7 @@ import { panelApi } from '@/utils/api';
 import { ref } from 'vue';
   import LoginForm from './components/login-form.vue';
 import axios from 'axios';
+import contactUs from '@/components/contact-us.vue';
 
 const site = ref({});
 

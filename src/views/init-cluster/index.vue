@@ -227,7 +227,7 @@ export default {
                 }
             })
 
-            axios.get('/version',{noAlert:true,loading:true}).then(res=>{
+            k8sproxy.get('/version',{noAlert:true,loading:true}).then(res=>{
                 this.startCluster = true;
             }).catch(()=>{
                 this.startCluster = false;
