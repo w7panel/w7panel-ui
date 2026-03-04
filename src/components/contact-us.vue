@@ -55,7 +55,7 @@ export default{
 }
 </script>
 <style scoped>
-.contactus-box{position:fixed; right:8px; bottom:40px;}
+.contactus-box{position:fixed; z-index:999; right:8px; bottom:40px;}
 .icon{
     width:52px;
     height:52px;

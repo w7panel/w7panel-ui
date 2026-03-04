@@ -18,9 +18,9 @@
                 <a-table-column title="图标">
                     <template #cell="{ record }">
                         <div v-if="!record.customIcon">
-                            <component :is="record.icon" style="font-size:48px;" class="c-66"></component>
+                            <component :is="record.icon" style="font-size:32px;" class="c-66"></component>
                         </div>
-                        <img v-else :src="record.icon" alt="" style="width:48px;height:48px;border-radius:4px;" />
+                        <img v-else :src="record.icon" alt="" style="width:32px;height:32px;border-radius:4px;" />
                     </template>
                 </a-table-column>
                 <a-table-column title="名称">
@@ -70,7 +70,7 @@
                     <a-input v-model="form.text" placeholder="请输入"></a-input>
                 </a-form-item>
                 <a-form-item label="图标">
-                    <component v-if="!form.icon" :is="form.selicon" @click="selIconDialog=true;" class="c-66 mr-20" style="font-size:48px;"></component>
+                    <component v-if="!form.icon" :is="form.selicon" @click="selIconDialog=true;" class="c-66 mr-20" style="font-size:32px;"></component>
                     <div class="upload">
                         <img v-if="form.icon" :src="form.icon" alt="图标" class="icon" />
                         <a-button v-else >上传图标</a-button>
@@ -283,7 +283,7 @@ export default{
 .upload{position:relative;}
 .upload .close{position:absolute; width:20px; height:20px; line-height:20px; top:-10px; right:-10px; border-radius:50%; background-color:rgb(var(--red-6));}
 .upload .img{width:120px; height:120px; display:block; border:1px solid var(--color-neutral-3); border-radius:4px;}
-.upload .icon{width:48px; height:48px; display:block; border:1px solid var(--color-neutral-3); border-radius:4px;}
+.upload .icon{width:32px; height:32px; display:block; border:1px solid var(--color-neutral-3); border-radius:4px;}
 .upload input[type='file']{min-width:0; position:absolute; top:0; left:0; right:0; bottom:0; z-index:1; opacity:0; cursor:pointer;}
 
 .style-select{width:100%; gap:8px;}
