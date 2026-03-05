@@ -72,7 +72,7 @@
             </a-layout-content>
             <a-layout-content v-else-if="isMicroPage" class="ml-6 df df-c">
                 <div class="bg-white routerviewbox fc ml-6" >
-                    <div id="appmicro" style="min-height:calc(100vh - 146px);transform:translate(0,0);"></div>
+                    <div id="appmicro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
                 </div>
             </a-layout-content>
             <a-layout-content v-else class="ml-6 df df-c">
