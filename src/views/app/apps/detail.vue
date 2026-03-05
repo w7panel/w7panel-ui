@@ -192,6 +192,9 @@
         <domain-cert :data="domainCertData"></domain-cert>
 
         <pod-log :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></pod-log>
+        
+        <micro-app-form :show="maf.show" :yaml="maf.yaml" :callback="callback" @close="maf.show=false;"></micro-app-form>
+
     </div>
 </template>
 
@@ -211,6 +214,7 @@ import jobLog from '@/components/job-log.vue';
 import domainCert from '@/views/topapp/domain-cert.vue';
 import appFile from '@/views/app/pages/files.vue';
 import podLog from '@/views/app/pages/pod-log.vue';
+import microAppForm from '@/components/micro-app-form.vue';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -293,6 +297,12 @@ export default {
                 show: false,
                 data: {},
             },
+            maf: {
+                show: false,
+                yaml: null,
+                json: null,
+                callback: null,
+            },
         }
     },
     watch: {
@@ -361,6 +371,7 @@ export default {
         registerWujieEvent('zip', this.zip);
         registerWujieEvent('domainCert', this.setDomainCert);
         registerWujieEvent('podLog', this.openPodLog);
+        registerWujieEvent('openAppForm', this.openAppForm);
         // this.getData();
     },
     computed:{
@@ -375,6 +386,7 @@ export default {
         domainCert,
         appFile,
         podLog,
+        microAppForm,
     },
     beforeUnmount(){
         if(this.watchInterval){
@@ -393,6 +405,14 @@ export default {
                 src: '/dialog/appgroup/'+ data.appgroup +'/micro?path='+ encodeURIComponent(data?.path||''),
                 title: data?.title || '',
                 fullscreen: false,
+            }
+        },
+        openAppForm(data,callback){
+            this.maf = {
+                show: true,
+                yaml: data.yaml,
+                json: data.json,
+                callback: callback,
             }
         },
         openFile(data){
@@ -472,7 +492,7 @@ export default {
         setDomainCert(data){
             this.domainCertData = data;
         },
-        async zip(data){
+        async zip(data,callback){
             // data {pid:{...}, output:'',input:''}
             let input = data.input.join(' ');
             let output = data.output;
@@ -495,9 +515,8 @@ export default {
                 name: output.replace(/^.*\//,''),
             })
             
-            data?.callback?.({
-                link: link,
-            })
+            data?.callback?.({link: link});
+            callback?.({link:link});
         },
         getPid(data){
             return panelApi.get('/pid',{

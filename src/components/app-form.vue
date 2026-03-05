@@ -463,6 +463,29 @@ export default {
                 });
             })
         },
+        exportFormData(){
+            return this.validate().then(()=>{
+                
+                let data = this.formTodata();
+
+                let {
+                    initContainers,
+                    containers,
+                    hostPorts,
+                    imagePullSecrets,
+                } = this.$refs.appformcontainer.formToData();
+                
+                data.spec.template.spec.volumes = this.volumes || [];
+                data.spec.volumeClaimTemplates = this.volumeClaimTemplates || [];
+                data.spec.template.spec.initContainers = initContainers;
+                data.spec.template.spec.containers = containers;
+                
+                data.spec.template.spec.imagePullSecrets = imagePullSecrets;
+                data.metadata.annotations['w7.cc.app/ports'] = JSON.stringify(hostPorts);
+                
+                return data;
+            })
+        },
         submit(hideMessage){
             return this.validate().then(()=>{
                 

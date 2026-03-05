@@ -69,6 +69,8 @@
         
         <pod-log :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></pod-log>
 
+        <micro-app-form :show="maf.show" :yaml="maf.yaml" :callback="callback" @close="maf.show=false;"></micro-app-form>
+
     </div>
 </template>
 <script>
@@ -82,6 +84,7 @@ import jobLog from '@/components/job-log.vue';
 import domainCert from '@/views/topapp/domain-cert.vue';
 import appFile from '@/views/app/pages/files.vue';
 import podLog from '@/views/app/pages/pod-log.vue';
+import microAppForm from '@/components/micro-app-form.vue';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
 
 export default{
@@ -114,6 +117,11 @@ export default{
                 show: false,
                 data: {},
             },
+            maf: {
+                show: false,
+                yaml: null,
+                json: null,
+            },
             domainCertData: null,
         }
     },
@@ -132,6 +140,7 @@ export default{
         registerWujieEvent('zip', this.zip);
         registerWujieEvent('domainCert', this.setDomainCert);
         registerWujieEvent('podLog', this.openPodLog);
+        registerWujieEvent('openAppForm', this.openAppForm);
     },
     mounted(){
         if(this.appgroup){
@@ -143,6 +152,7 @@ export default{
         domainCert,
         appFile,
         podLog,
+        microAppForm,
     },
     watch: {
         appgroup(v){
@@ -226,6 +236,14 @@ export default{
                 props: props,
             })
         },
+        openAppForm(data,callback){
+            this.maf = {
+                show: true,
+                yaml: data.yaml,
+                json: data.json,
+                callback: callback,
+            }
+        },
         openPodLog(data){
             this.logCpn = {
                 show: true,
@@ -239,7 +257,7 @@ export default{
         setDomainCert(data){
             this.domainCertData = data;
         },
-        async zip(data){
+        async zip(data,callback){
             // data {pid:{...}, output:'',input:''}
             let input = data.input.join(' ');
             let output = data.output;
@@ -262,9 +280,8 @@ export default{
                 name: output.replace(/^.*\//,''),
             })
             
-            data?.callback?.({
-                link: link,
-            })
+            data?.callback?.({link: link})
+            callback?.({link:link})
         },
         getPid(data){
             return panelApi.get('/pid',{
