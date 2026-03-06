@@ -138,6 +138,7 @@ export default{
         registerWujieEvent('buildImageLog', this.buildImageLog);
         registerWujieEvent('closeBuildImageLog', this.closeBuildImageLog);
         registerWujieEvent('zip', this.zip);
+        registerWujieEvent('uploadFile',this.uploadFile);
         registerWujieEvent('domainCert', this.setDomainCert);
         registerWujieEvent('podLog', this.openPodLog);
         registerWujieEvent('openAppForm', this.openAppForm);
@@ -257,6 +258,46 @@ export default{
         setDomainCert(data){
             this.domainCertData = data;
         },
+        async uploadFile(data,callback){
+            /**
+             * data: {
+             *      pid: {...},
+             *      file: ...,
+             *      path: xxx
+             * }
+             */
+            let outEditorInfo = await this.getPid(data.pid);
+            
+            useLoadingStore().loading = true;
+            try{
+                const reader = new FileReader();
+                reader.onload = ()=>{
+                    let value = reader.result;
+                    console.log(value)
+                    
+                    axios.put(`${outEditorInfo.origin}${outEditorInfo.webdavUrl}${encodeURIComponent(data.path+data.file.name)}`, value, {
+                        headers: {
+                            "content-type": "application/octet-stream",
+                            "Authorization": `Bearer ${outEditorInfo.webdavToken}`,
+                            'Content-Length': data.file.size // 确保传输长度和文件大小一致
+                        },
+                        transformRequest: [(data) => data],
+                    }).then(res=>{
+                        try{callback?.()}catch{}
+                    }).catch(err=>{
+                        this.$message.error('保存失败: ' + (err.response?.data?.message || err.message || '未知错误'));
+                        try{callback?.(err)}catch{}
+                    }).finally(()=>{
+                        useLoadingStore().loading = false;
+                    })
+                    return;
+                };
+                reader['readAsArrayBuffer'](data.file);
+            }catch(error){
+                callback?.(error)
+                console.log('上传失败',error);
+            }
+        },
         async zip(data,callback){
             // data {pid:{...}, output:'',input:''}
             let input = data.input.join(' ');
@@ -295,11 +336,21 @@ export default{
                 loading: true,
             }).then(res=>{
                 return {
-                    pod_name: res.data?.podName,
-                    containerName: res.data?.containerName,
-                    namespace: res.data?.namespace,
+                    // pod_name: res.data?.podName,
+                    // containerName: res.data?.containerName,
+                    // namespace: res.data?.namespace,
                     subPid: res.data.subPid,
                     pid: res.data.pid,
+                    
+                    origin: origin,
+                    webdavUrl: res.data.webdavUrl,
+                    webdavToken: res.data.webdavToken,
+                    webdavBasePath: res.data.webdavBasePath,
+                    compressUrl: res.data.compressUrl,
+                    permissionUrl: res.data.permissionUrl,
+                    pod_name: d.name,
+                    containerName: d.containerName,
+                    namespace: res.data?.namespace,
                 }
             }).catch(()=>({}))
         },
