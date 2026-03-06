@@ -11,13 +11,13 @@
         </div>
         <div class="bg-white padding-20">
 
-            <a-tabs v-if="usermode!=='cluster'" v-model:active-key="tabsActive">
+            <a-tabs v-if="usermode!=='cluster' && hasLonghornSystem" v-model:active-key="tabsActive">
                 <a-tab-pane key="1" title="设备列表"></a-tab-pane>
                 <a-tab-pane key="2" title="负载均衡"></a-tab-pane>
             </a-tabs>
             
             <div v-if="tabsActive=='1'">
-                <div v-if="usermode=='cluster'">
+                <div v-if="usermode=='cluster' || !hasLonghornSystem">
                     <a-table :data="storageClasses" :pagination="false" :bordered="false">
                         <template #columns>
                             <a-table-column title="名称" data-index="name"></a-table-column>
@@ -334,6 +334,8 @@ export default {
             },
 
             loadList: [],
+
+            hasLonghornSystem: false,
         }
     },
     created(){
@@ -347,8 +349,16 @@ export default {
             this.namespaceActive = useNamespaceStore().namespace;
             this.getList();
         }
+        this.testLonghornSystem();
     },
     methods: {
+        testLonghornSystem(){
+            panelApi.get('/helm/releases/longhorn?namespace=longhorn-system',{loading:true,noAlert:true}).then(res=>{
+                if(res?.data){this.hasLonghornSystem = true;}
+            }).catch(()=>{
+                this.hasLonghornSystem = false;
+            })
+        },
         getResource(){
             let userInfo = getUserInfo();
             

@@ -45,10 +45,10 @@ export default{
             // k8sproxy.get('/apis/longhorn.io/v1beta2/namespaces/longhorn-system/settings/taint-toleration').then(res=>{
             //     this.tt = res?.data?.value || '';
             // })
-            k8sproxy.get('/apis/longhorn.io/v1beta2/namespaces/longhorn-system/settings/storage-network').then(res=>{
+            k8sproxy.get('/apis/longhorn.io/v1beta2/namespaces/longhorn-system/settings/storage-network',{noAlert:true}).then(res=>{
                 if(res?.data?.value){this.sn = res.data.value}
             })
-            k8sproxy.get('/apis/longhorn.io/v1beta2/namespaces/longhorn-system/settings/storage-network-for-rwx-volume-enabled').then(res=>{
+            k8sproxy.get('/apis/longhorn.io/v1beta2/namespaces/longhorn-system/settings/storage-network-for-rwx-volume-enabled',{noAlert:true}).then(res=>{
                 this.ve = res?.data?.value === 'true';
             })
         },

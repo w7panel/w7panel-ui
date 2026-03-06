@@ -156,15 +156,17 @@
                 <div v-if="selectMenu[0]=='2'">
                     <a-tabs default-active-key="1">
                         <a-tab-pane key="1" title="节点规划">
-                            <a-alert class="mt-10">
-                                <div>添加存储节点，是用来规划可以使用哪些节点的硬盘来创建存储分区。</div>
-                                <div>设置专用节点，是用来规划存储专用节点，限制这些节点只能用于存储服务，非存储服务无法部署在这些节点且已经部署的会被驱逐。</div>
-                            </a-alert>
-                            <nb-page ref="nbpage" class="mt-10" :list="list" @submit="getList()"></nb-page>
+                            <div v-if="hasLonghornSystem">
+                                <a-alert class="mt-10">
+                                    <div>添加存储节点，是用来规划可以使用哪些节点的硬盘来创建存储分区。</div>
+                                    <div>设置专用节点，是用来规划存储专用节点，限制这些节点只能用于存储服务，非存储服务无法部署在这些节点且已经部署的会被驱逐。</div>
+                                </a-alert>
+                                <nb-page ref="nbpage" class="mt-10" :list="list" @submit="getList()"></nb-page>
+                            </div>
+                            <div v-else >
+                                <a-empty>longhorn组件未安装，<span class="c-blue cursor" @click="insLonghorn">点击安装</span></a-empty>
+                            </div>
                             
-                            <!-- <div class="mt-20">
-                                <a-button type="primary" @click="submitTransfer">确定</a-button>
-                            </div> -->
                         </a-tab-pane>
                         <a-tab-pane key="2" title="存储配置">
                             <nd-set></nd-set>
@@ -361,6 +363,25 @@ import yamlEditor from "@/components/yaml-editor.vue";
 import { getPermission,getWebshell,getFileEditor } from '@/utils/auth';
 import jsyaml from "js-yaml";
 
+const templateYaml = `apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+    name: longhorn
+    namespace: kube-system
+spec:
+    chart: https://cdn.w7.cc/w7panel/charts/longhorn-1.7.2.tgz
+    createNamespace: true
+    set:
+        csi.attacherReplicaCount: 1
+        csi.provisionerReplicaCount: 1
+        csi.resizerReplicaCount: 1
+        csi.snapshotterReplicaCount: 1
+        defaultSettings.storageReservedPercentageForDefaultDisk: '0'
+        longhornUI.replicas: 0
+    targetNamespace: longhorn-system
+    version: v1.7.2
+`
+
 export default {
     data(){
         return {
@@ -471,6 +492,7 @@ export default {
             // nodebindshow: false,
 
             selectMenu: ['1'],
+            hasLonghornSystem: false,
         }
     },
     created(){
@@ -484,6 +506,10 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.getList();
         this.getConfig();
+        this.testLonghornSystem();
+    },
+    watch: {
+        selectMenu: 'testLonghornSystem',
     },
     components: {
         yamlDrawer,
@@ -495,6 +521,20 @@ export default {
         ndSet,
     },
     methods: {
+        insLonghorn(){
+            panelApi.post('/yaml', templateYaml, {loading:true}).then(res=>{
+                this.$message.success('操作成功')
+                this.testLonghornSystem();
+            });
+        },
+        testLonghornSystem(){
+            if(this.selectMenu[0]!='2'){return}
+            panelApi.get('/helm/releases/longhorn?namespace=longhorn-system',{loading:true,noAlert:true}).then(res=>{
+                if(res?.data){this.hasLonghornSystem = true;}
+            }).catch(()=>{
+                this.hasLonghornSystem = false;
+            })
+        },
         // async submitTransfer(){
         //     try {
         //         await Promise.all([

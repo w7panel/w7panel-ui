@@ -53,10 +53,10 @@
                             </template>
                         </a-table-column>
 
-                        <a-table-column v-if="usermode!=='cluster'" title="副本数">
+                        <a-table-column v-if="usermode!=='cluster' && hasLonghornSystem" title="副本数">
                             <template #cell="{ record }">{{record.numberOfReplicas}}</template>
                         </a-table-column>
-                        <a-table-column v-if="usermode!=='cluster'" title="已使用/分配">
+                        <a-table-column v-if="usermode!=='cluster' && hasLonghornSystem" title="已使用/分配">
                             <template #cell="{ record }">
                                 <div class="df df-inline df-c ai-c">
                                     <a-progress :percent="record.usedSizeNum / record.storageSizeNum" style="width:100px;" :status="(record.usedSizeNum / record.storageSizeNum)>=1?'danger':'normal'" :stroke-width="10" trackColor="rgb(var(--primary-2))" :show-text="false" />
@@ -64,7 +64,7 @@
                                 </div>
                             </template>
                         </a-table-column>
-                        <a-table-column v-if="usermode=='cluster'" title="已使用">
+                        <a-table-column v-if="usermode=='cluster' && hasLonghornSystem" title="已使用">
                             <template #cell="{ record }">{{record.usedSize}}</template>
                         </a-table-column>
 
@@ -78,7 +78,7 @@
                         </a-table-column>
                         <a-table-column title="操作" fixed='right'>
                             <template #cell="{ record }">
-                                <span class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
+                                <span v-if=" hasLonghornSystem" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
                                 <!-- <span class="c-blue cursor mr-20" v-if="!record.pvDisabled" @click="openPvpvc(record)">创建pv/pvc</span> -->
                                 <a-popconfirm v-if="!record.onlyshow" content="确定要删除吗？" @ok="del(record)" position="lt" >
                                     <span :id="'disk-'+record.name" class="c-blue cursor">删除</span>
@@ -150,6 +150,7 @@ export default {
             usermode: '',
 
             syspvc: {},
+            hasLonghornSystem: false,
         }
     },
     created(){
@@ -158,12 +159,20 @@ export default {
         this.clusterMode = this.userInfo?.['k3k.io/cluster-mode'];
         this.usermode = this.userInfo?.['w7.cc/user-mode'];
         this.getList();
+        this.testLonghornSystem();
     },
     components: {
         zoneDrawer,
         IconBookmark,
     },
     methods: {
+        testLonghornSystem(){
+            panelApi.get('/helm/releases/longhorn?namespace=longhorn-system',{loading:true,noAlert:true}).then(res=>{
+                if(res?.data){this.hasLonghornSystem = true;}
+            }).catch(()=>{
+                this.hasLonghornSystem = false;
+            })
+        },
         openForm(){
             this.form = {
                 show: true,
