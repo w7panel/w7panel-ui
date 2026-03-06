@@ -143,7 +143,7 @@ import { panelApi } from '@/utils/api';
 
     const userInfo = ref(getUserInfo());
 
-    const logoimg = ref(window.origin + '/logo.png')
+    const logoimg = ref(window.origin + '/assets/logo.png')
 
     const permissions = ref(getPermission());
     

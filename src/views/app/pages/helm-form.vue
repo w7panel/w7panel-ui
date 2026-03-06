@@ -167,8 +167,8 @@ export default {
             
             let data = new FormData();
             data.append('file',this.upload.file);
-            data.append('X-Amz-Credential', 'AKIAIOSFODNN7EXAMPLE/20151229/us-east-1/s3/aws4_request');
-            data.append('X-Amz-Algorithm', 'AWS4-HMAC-SHA256');
+            // data.append('X-Amz-Credential', 'AKIAIOSFODNN7EXAMPLE/20151229/us-east-1/s3/aws4_request');
+            // data.append('X-Amz-Algorithm', 'AWS4-HMAC-SHA256');
             data.append('key', 'upload/helm/'+this.upload.filename);
 
             this.upload.uploading = true;

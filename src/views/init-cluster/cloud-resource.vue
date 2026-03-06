@@ -123,7 +123,7 @@ export default{
             list: [],
             site: {},
             userInfo: {},
-            logoimg: window.origin + '/logo.png',
+            logoimg: window.origin + '/assets/logo.png',
         }
     },
     created(){

@@ -82,7 +82,7 @@ const slidecapt = ref(null);
 const { loading, setLoading } = useLoading();
 const userStore = useUserStore();
 
-const logoimg = ref(window.origin + '/logo.png')
+const logoimg = ref(window.origin + '/assets/logo.png')
 
 panelApi.get('/noauth/site/k3k-config',{noAlert:true}).then(res=>{
     if(res?.data?.data?.indexpage=='resource' && !sessionStorage.getItem('passResourcePage')){
