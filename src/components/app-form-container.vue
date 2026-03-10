@@ -199,7 +199,8 @@
                                     </td>
                                     <td>
                                         <a-input v-if="item.type=='custom'" :disabled="item.disabled" v-model="item.value" size="large" style="width:170px;" placeholder="变量值" />
-                                        <a-select v-else-if="item.type=='field'" :disabled="item.disabled" v-model="item.value" size="large" placeholder="请选择" style="width:170px;">
+                                        
+                                        <!-- <a-select v-if="item.type=='field'" :disabled="item.disabled" v-model="item.value" size="large" placeholder="请选择" style="width:170px;">
                                             <a-option value="metadata.name" label="metadata.name"></a-option>
                                             <a-option value="metadata.namespace" label="metadata.namespace"></a-option>
                                             <a-option value="spec.serviceAccountName" label="spec.serviceAccountName"></a-option>
@@ -207,8 +208,19 @@
                                             <a-option value="status.podIP" label="status.podIP"></a-option>
                                             <a-option value="status.podIPs" label="status.podIPs"></a-option>
                                             <a-option value="spec.nodeName" label="spec.nodeName"></a-option>
-                                        </a-select>
-                                        <a-select v-else-if="item.type=='resource_field'" :disabled="item.disabled" v-model="item.value" placeholder="请选择" size="large" style="width:170px;">
+                                        </a-select> -->
+                                        <a-auto-complete
+                                            v-if="item.type=='field'"
+                                            :disabled="item.disabled"
+                                            :data="fieldData"
+                                            v-model="item.value"
+                                            size="large"
+                                            placeholder="请输入"
+                                            style="width:170px;"
+                                            @search="v=>fieldData=v?fieldList.filter(i=>i.startsWith(v)):fieldList"
+                                        />
+
+                                        <a-select v-if="item.type=='resource_field'" :disabled="item.disabled" v-model="item.value" placeholder="请选择" size="large" style="width:170px;">
                                             <a-option value="limits.cpu" label="limits.cpu"></a-option>
                                             <a-option value="limits.memory" label="limits.memory"></a-option>
                                             <a-option value="limits.ephemeral-storage" label="limits.ephemeral-storage"></a-option>
@@ -425,6 +437,16 @@ export default{
             userInfo: {},
             subItemStyle: "flex:0;width:100px;min-width:100px;",
             showExtra: false,
+            fieldData: [],
+            fieldList: [
+                "metadata.name",
+                "metadata.namespace",
+                "spec.serviceAccountName",
+                "status.hostIP",
+                "status.podIP",
+                "status.podIPs",
+                "spec.nodeName",
+            ],
             
             envedit:{ show: false, values: '', },
             createImage: {show: false, name: '', submit: ()=>{ this.$emit('getMirror') } },
