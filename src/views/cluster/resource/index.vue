@@ -18,7 +18,7 @@
                 <div class="df ai-c jc-b">
                     <div class="df ai-c">
                         <span class="fs-14 df-s0">命名空间：</span>
-                        <a-select v-model="activeNs" placeholder="选择命名空间" style="width:500px;">
+                        <a-select v-model="activeNs" placeholder="选择命名空间" allow-search style="width:500px;">
                             <a-option value="">所有命名空间</a-option>
                             <a-option v-for="item in namespaceList" :key="item" :value="item">{{item}}</a-option>
                         </a-select>
