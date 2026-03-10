@@ -168,8 +168,8 @@ export default {
 
                 if(this.activeApp.has_backend){
                     let deployid = this.activeApp.id;
-                    let item_id = item.item_id || (this.adminData.ok? this.adminData.item_id : (this.$route.query.item_id? this.$route.query.item_id : ''));
-                    let path = 'deploy://console/'+deployid+'/'+item_id;
+                    // let item_id = item.item_id || (this.adminData.ok? this.adminData.item_id : (this.$route.query.item_id? this.$route.query.item_id : ''));
+                    let path = 'deploy://console/'+deployid //+'/'+item_id;
                     this.$router.push('/app/store-install?path=' + encodeURIComponent(path) +'&insClusterId='+ this.clusterId + '&thirdpartyCDToken=' + this.tpcdtoken);
                     return;
                 }else{
