@@ -442,6 +442,7 @@ export default {
                 return k8sproxy.get(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes`,{
                     headers: {Accept: 'application/json',},
                     loading: true,
+                    noAlert: true,
                 })
             }).then(res=>{
                 let result = res.data;

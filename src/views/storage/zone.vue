@@ -231,7 +231,7 @@ export default {
                         : `${(bytes / (1024 ** 2)).toFixed(0)} Mi`;
                 };
 
-                panelApi.get('/longhorn/volumes/status').then(res=>{
+                panelApi.get('/longhorn/volumes/status',{noAlert:true}).then(res=>{
                     let data = res?.data || {};
 
                     list = list.map(i=>{
