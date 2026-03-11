@@ -124,7 +124,7 @@ export default {
     },
     methods: {
         getData(){
-            panelApi.get(`/panel-api/v1/helm/releases/${this.$route.params.name}`).then(res=>{
+            panelApi.get(`/helm/releases/${this.$route.params.name}`).then(res=>{
                 let data = res?.data;
                 
                 this.title = data?.chart?.metadata?.annotations?.title || this.$route.params.name;

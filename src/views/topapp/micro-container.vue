@@ -307,7 +307,7 @@ export default{
             let preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
             let command = `${preCmd} --pid=${pidData?.pid} --subPid=${pidData?.subPid} --cmd=zip --srcPath='${output}' ${input}`;
             
-            await panelApi.post(`/panel-api/v1/exec2`,{
+            await panelApi.post(`/exec2`,{
                 podName: pidData?.pod_name,
                 containerName: pidData?.containerName,
                 tty: false,
@@ -362,7 +362,7 @@ export default{
             let preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
             let command = `${preCmd} --pid=${pidData?.pid} --subPid=${pidData?.subPid} ${data.command}`;
             
-            return panelApi.post(`/panel-api/v1/exec2`,{
+            return panelApi.post(`/exec2`,{
                 podName: pidData?.pod_name,
                 containerName: pidData?.containerName,
                 tty: false,

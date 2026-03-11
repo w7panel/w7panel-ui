@@ -799,7 +799,7 @@ export default {
         getUserByExec(){
             let cmd = `cat /etc/passwd`;
             if (this.form.pod_name && this.form.namespace) {
-                panelApi.post(`/panel-api/v1/exec2`,{
+                panelApi.post(`/exec2`,{
                     podName: this.form.pod_name,
                     containerName: this.form.containerName,
                     tty: false,

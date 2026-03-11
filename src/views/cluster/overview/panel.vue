@@ -1170,7 +1170,7 @@ export default {
         //         cmd = cmd.join('&');
 
         //         let params = `podName=${d.pod_name}&containerName=${d.containerName}&tty=false&namespace=${d.namespace}&${cmd}`
-        //         return panelApi.get(`/panel-api/v1/exec?${params}`,{responseType: 'text', loading:true})
+        //         return panelApi.get(`/exec?${params}`,{responseType: 'text', loading:true})
         //     }).then(res=>{
         //         this.k3s_token = res?.data || '';
         //     }).catch(()=>{

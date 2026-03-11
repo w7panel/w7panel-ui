@@ -161,7 +161,7 @@ export default {
     methods: {
         update(){
             let value = this.valuesConfigEditor.state.doc.toString();
-            panelApi.put(`/panel-api/v1/helm/releases/${this.$route.params.group}/reuse`,{
+            panelApi.put(`/helm/releases/${this.$route.params.group}/reuse`,{
                 "namespace": this.namespaceActive,
                 "vals": jsyaml.load(value),
             },{loading:true}).then(res=>{

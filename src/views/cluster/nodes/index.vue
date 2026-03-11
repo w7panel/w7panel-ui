@@ -809,7 +809,7 @@ export default {
         //     cmd = cmd.join('&');
             
         //     let params = `podName=${this.commandModal.pod_name}&containerName=${this.commandModal.containerName}&tty=false&namespace=${this.commandModal.namespace}&${cmd}`;
-        //     return panelApi.get(`/panel-api/v1/exec?${params}`,{responseType: 'text', loading:true}).then(res=>{
+        //     return panelApi.get(`/exec?${params}`,{responseType: 'text', loading:true}).then(res=>{
         //         this.commandModal.show = false;
         //         this.commandModal.command = '';
         //         this.$message.success("执行成功");
@@ -911,7 +911,7 @@ export default {
                 cmd = cmd.join('&');
 
                 let params = `podName=${d.pod_name}&containerName=${d.containerName}&tty=false&namespace=${d.namespace}&${cmd}`
-                return panelApi.get(`/panel-api/v1/exec?${params}`,{responseType: 'text', loading:true})
+                return panelApi.get(`/exec?${params}`,{responseType: 'text', loading:true})
             }).then(res=>{
                 let k3s_token = res?.data || '';
                 this.form.k3s_url = this.form.defaultURL;//this.publicIp? (this.publicIp + ':6443') : this.form.defaultURL;
