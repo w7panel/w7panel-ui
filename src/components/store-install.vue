@@ -346,6 +346,8 @@ export default {
                 configmap: 'ConfigMap',
                 secret: 'Secret',
             },
+
+            thirdparty_cd_token: '',
         }
     },
     async created(){
@@ -393,6 +395,7 @@ export default {
                 }
             }
             // 放前面
+            await this.getToken();
             await this.getStorage();
             await this.getWhiteList();
             await this.getInfo();
@@ -418,6 +421,13 @@ export default {
                 }
             }
             this.nextStep();
+        },
+        
+        getToken(){
+            return panelApi.get("/auth/console/info",{noAlert:true}).then(res=>{
+                let thirdparty_cd_token = res?.data?.thirdparty_cd_token;
+                this.thirdparty_cd_token = thirdparty_cd_token;
+            }).catch(()=>{});
         },
         async getWhiteList(){
             let userInfo = getUserInfo();
@@ -1052,7 +1062,7 @@ export default {
                 ingressSeletorName: this.form.ingressSeletorName,
                 installOptions: installOptions,
                 clusterId: this.$route.query.insClusterId || '',
-                thirdpartyCDToken: this.$route.query.thirdpartyCDToken || '',
+                thirdpartyCDToken: this.$route.query.thirdpartyCDToken || this.thirdparty_cd_token,
             }
 
             if(!this.is_component && this.$route.query.isTrandition){
