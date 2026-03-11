@@ -335,6 +335,7 @@ export default{
                 },
                 loading: true,
             }).then(res=>{
+                let origin = window.location.origin;
                 return {
                     // pod_name: res.data?.podName,
                     // containerName: res.data?.containerName,
@@ -348,8 +349,8 @@ export default{
                     webdavBasePath: res.data.webdavBasePath,
                     compressUrl: res.data.compressUrl,
                     permissionUrl: res.data.permissionUrl,
-                    pod_name: d.name,
-                    containerName: d.containerName,
+                    pod_name: res.data?.podName,
+                    containerName: res.data?.containerName,
                     namespace: res.data?.namespace,
                 }
             }).catch(()=>({}))
