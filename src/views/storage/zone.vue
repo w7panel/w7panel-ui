@@ -353,6 +353,7 @@ export default {
             console.log(record)
             this.expand = {
                 show: true,
+                namespace: record.namespace,
                 isOnlyshow: record.onlyshow,
                 nativeSize: record.storageSize,
                 size: record.storageSize.replace(/Gi/,'').trim(),
@@ -389,7 +390,7 @@ export default {
                     return;
                 }
 
-                k8sproxy.patch(`/api/v1/namespaces/${this.namespaceActive}/persistentvolumeclaims/${this.expand.key}`,[{
+                k8sproxy.patch(`/api/v1/namespaces/${this.expand.namespace}/persistentvolumeclaims/${this.expand.key}`,[{
                     op: 'replace',
                     path: '/spec/resources/requests/storage',
                     value: this.expand.size + 'Gi',
