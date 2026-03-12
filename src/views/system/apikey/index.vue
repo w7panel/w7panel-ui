@@ -42,8 +42,8 @@ export default{
         getList(){
             k8sproxy.get('/api/v1/namespaces/kube-system/secrets/license').then(res=>{
                 this.info = {
-                    appId: (res.data?.data?.appId),
-                    appSecret: (res.data?.data?.appSecret),
+                    appId: atob(res.data?.data?.appId),
+                    appSecret: atob(res.data?.data?.appSecret),
                 }
             })
         },

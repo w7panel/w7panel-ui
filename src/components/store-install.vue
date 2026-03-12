@@ -768,6 +768,13 @@ export default {
                                 }
                             }
                         });
+                        
+                        if(i=='0' && this.form?.requireDomain && envs?.DOMAIN_URL){
+                            let url = envs.DOMAIN_URL;
+                            this.form.ingressHostPre = url.match(/^https?:\/\//)?.[0] || '';
+                            this.form.ingressHost = url.replace(/^https?:\/\//,'') || '';
+                            this.form.auto_ssl = this.form.ingressHostPre == 'https://';
+                        }
                     }
                     
                     // 从参数获取 pvcname , presubpath
