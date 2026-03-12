@@ -522,59 +522,83 @@ export default {
             this.watchController = controller;  // 保存到实例
             const { signal } = controller;
             const queryString = new URLSearchParams({ labelSelector: label, watch: 'true', }).toString();
-            fetch("/k8s-proxy/api/v1/namespaces/"+ this.namespaceActive +"/pods?"+queryString,{
+            fetch("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?" + queryString, {
                 signal,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
-                    "authorization": "Bearer "+getToken(),
+                    "authorization": "Bearer " + getToken(),
                 },
-            }).then(response=>{
-                
-                // 检查响应是否成功且是流式响应
-                if (!response.ok){
-                    console.log('!response.ok')
-                    return;
+            }).then(response => {
+                // 检查响应是否成功
+                if (!response.ok) {
+                    console.error('请求失败，状态码:', response.status);
+                    // 抛出错误让外层捕获，而不是静默返回
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                if(!response.body) {
-                    console.log('!response.body')
-                    return
+                if (!response.body) {
+                    console.error('响应体不是流式数据');
+                    throw new Error('Response body is not a readable stream');
                 }
 
                 // 获取流的读取器
                 const reader = response.body.getReader();
-                const decoder = new TextDecoder('utf-8'); // 用于将二进制数据解码为文本
+                const decoder = new TextDecoder('utf-8');
                 let buffer = '';
 
-                // 递归读取流数据
-                let readStream = ()=>{
-                    return reader.read().then(({ done, value }) => {
-                        if(done){console.log('done');return}
+                // 递归读取流数据（优化版）
+                const readStream = async () => {
+                    try {
+                        const { done, value } = await reader.read();
 
-                        // 将二进制数据解码为文本
+                        // 流读取完成，处理剩余缓冲区
+                        if (done) {
+                            console.log('流读取完成');
+                            // 处理最后剩余的缓冲区数据
+                            if (buffer.trim()) {
+                                try {
+                                    const parsed = JSON.parse(buffer);
+                                    this.setNativeList(parsed);
+                                } catch (e) {
+                                    console.error('处理最后缓冲区数据失败:', e, '数据内容:', buffer);
+                                }
+                            }
+                            return;
+                        }
+
+                        // 解码二进制数据为文本
                         const chunk = decoder.decode(value, { stream: true });
-                        const lines = chunk.split('\n');
-                        console.log('lines',lines);
+                        // 合并缓冲区和当前块（关键修复点）
+                        const combinedData = buffer + chunk;
+                        // console.log('xxxxxxxxxxxxxxxxx')
+                        // console.log(combinedData)
+                        const lines = combinedData.split('\n');
                         
-                        lines.forEach((line, index) => {
-                            // 最后一行可能不完整，留到下次处理
-                            if (index === lines.length - 1) { buffer = line; return; }
-                            // 合并缓冲区和当前行（如果有缓冲区内容）
-                            const data = buffer ? buffer + line : line;
-                            buffer = '';
-                            if (!data){ console.log('!data'); return; }
-                            // console.log('data',data)
+                        // 重置缓冲区，用于存储最后不完整的行
+                        buffer = lines.pop() || '';
+
+                        // 处理每一行完整数据
+                        lines.forEach(line => {
+                            const trimmedLine = line.trim();
+                            if (!trimmedLine) return; // 跳过空行
+                            
                             try {
-                                const parsed = JSON.parse(data);
+                                const parsed = JSON.parse(trimmedLine);
                                 this.setNativeList(parsed);
                             } catch (e) {
-                                console.log('try error',e)
-                                console.log(data)
+                                console.error('解析单行数据失败:', e, '数据内容:', line);
                             }
                         });
-                        // 递归读取下一块数据
+
+                        // 继续读取下一块
                         return readStream();
-                    });
-                }
+                    } catch (error) {
+                        console.error('读取流数据时发生错误:', error);
+                        // 释放读取器资源
+                        reader.releaseLock();
+                        throw error;
+                    }
+                };
+
                 // 开始读取流
                 return readStream();
             }).catch((error)=>{
