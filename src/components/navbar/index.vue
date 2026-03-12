@@ -266,11 +266,11 @@ import { panelApi } from '@/utils/api';
         //     topApps.value = topApps.value.filter(i=>i.roles?.length >=2 )
         // })
     }
-    if(userRole=='founder' && route.name!='order-base-index' && route.name!='init-cluster-index'){
+    if(route.name!='order-base-index' && route.name!='init-cluster-index'){
         getMenutop();
     }
     watch(() => route.name, () => {
-        if(!alreadyGetMenu.value && userRole=='founder' && route.name!='order-base-index' && route.name!='init-cluster-index'){
+        if(!alreadyGetMenu.value && route.name!='order-base-index' && route.name!='init-cluster-index'){
             getMenutop();
         }
     })
