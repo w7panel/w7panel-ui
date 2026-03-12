@@ -155,30 +155,6 @@
                 </div>
             </template>
             <div class="editor-wrapper">
-                <!-- 标签栏 -->
-                <div class="editor-tabs-bar">
-                    <span class="tabs-scroll-btn" @click="scrollTabs(-150)" v-show="showTabsScrollLeft">
-                        <icon-left />
-                    </span>
-                    <div class="editor-tabs-scroll" ref="tabsScrollRef" @scroll="updateTabsScrollButtons">
-                        <div 
-                            v-for="(tab, index) in file.openTabs" 
-                            :key="index"
-                            class="editor-tab"
-                            :class="{'active': index === file.activeTabIndex, 'modified': tab.modified}"
-                            @click="switchTab(index)"
-                            :title="tab.path"
-                        >
-                            <span class="tab-name">{{ tab.name }}</span>
-                            <span class="tab-close" @click.stop="closeTab(index)" v-if="file.openTabs.length > 1">
-                                <icon-close />
-                            </span>
-                        </div>
-                    </div>
-                    <span class="tabs-scroll-btn" @click="scrollTabs(150)" v-show="showTabsScrollRight">
-                        <icon-right />
-                    </span>
-                </div>
                 <div class="editor-container">
                     <!-- 左侧文件列表 -->
                     <div class="editor-sidebar">
@@ -234,6 +210,31 @@
                     </div>
                     <!-- 右侧编辑器 -->
                     <div class="editor-main">
+                        
+                        <!-- 标签栏 -->
+                        <div class="editor-tabs-bar">
+                            <span class="tabs-scroll-btn" @click="scrollTabs(-150)" v-show="showTabsScrollLeft">
+                                <icon-left />
+                            </span>
+                            <div class="editor-tabs-scroll" ref="tabsScrollRef" @scroll="updateTabsScrollButtons">
+                                <div 
+                                    v-for="(tab, index) in file.openTabs" 
+                                    :key="index"
+                                    class="editor-tab"
+                                    :class="{'active': index === file.activeTabIndex, 'modified': tab.modified}"
+                                    @click="switchTab(index)"
+                                    :title="tab.path"
+                                >
+                                    <span class="tab-name">{{ tab.name }}</span>
+                                    <span class="tab-close" @click.stop="closeTab(index)" v-if="file.openTabs.length > 1">
+                                        <icon-close />
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="tabs-scroll-btn" @click="scrollTabs(150)" v-show="showTabsScrollRight">
+                                <icon-right />
+                            </span>
+                        </div>
                         <!-- 搜索面板 -->
                         <div class="search-panel" v-if="searchPanel.visible">
                             <div class="search-panel-row">
@@ -304,20 +305,31 @@
                         <div id="editor_textarea"></div>
                         <!-- 改进的底部工具栏 -->
                         <div class="editor-toolbar" v-if="currentTab">
-                            <!-- 左侧操作按钮 -->
-                            <div class="toolbar-left">
-                                <a-button type="primary" size="small" @click="savefile" :disabled="currentTab.readOnly">
-                                    <template #icon><icon-save /></template>
-                                    保存
-                                </a-button>
-                                <a-button size="small" @click="closeEditor">
-                                    <template #icon><icon-close /></template>
-                                    关闭
-                                </a-button>
+                            <!-- 左侧设置 -->
+                            <div class="toolbar-right">
+
+                                <a-checkbox v-if="!file.fromFileCatch&&origin!='nodes'" v-model="file.forever" :disabled="form.isMount && !file.mf">永久文件</a-checkbox>
                                 <a-button size="small" @click="openSearchPanel">
                                     <template #icon><icon-search /></template>
                                     搜索
                                 </a-button>
+                                
+                                <a-tooltip content="自动换行">
+                                    <span class="toolbar-toggle" :class="{'active': file.wordWrap}" @click="toggleWordWrap">
+                                        <icon-indent :style="file.wordWrap ? 'color: #165dff' : ''" />
+                                        换行
+                                    </span>
+                                </a-tooltip>
+                                <a-dropdown trigger="click">
+                                    <span class="toolbar-encoding">
+                                        {{ file.encoding }}
+                                        <icon-down />
+                                    </span>
+                                    <template #content>
+                                        <a-doption v-for="enc in encodingOptions" :key="enc" :value="enc" @click="changeEncoding(enc)">{{ enc }}</a-doption>
+                                    </template>
+                                </a-dropdown>
+                                <span class="status-hint">Ctrl+S 保存</span>
                             </div>
                             <!-- 中间状态信息 -->
                             <div class="toolbar-center">
@@ -337,24 +349,16 @@
                                     {{ formatSize(currentTab.size) }}
                                 </span>
                             </div>
-                            <!-- 右侧设置 -->
-                            <div class="toolbar-right">
-                                <a-tooltip content="自动换行">
-                                    <span class="toolbar-toggle" :class="{'active': file.wordWrap}" @click="toggleWordWrap">
-                                        <icon-indent :style="file.wordWrap ? 'color: #165dff' : ''" />
-                                        换行
-                                    </span>
-                                </a-tooltip>
-                                <a-dropdown trigger="click">
-                                    <span class="toolbar-encoding">
-                                        {{ file.encoding }}
-                                        <icon-down />
-                                    </span>
-                                    <template #content>
-                                        <a-doption v-for="enc in encodingOptions" :key="enc" :value="enc" @click="changeEncoding(enc)">{{ enc }}</a-doption>
-                                    </template>
-                                </a-dropdown>
-                                <span class="status-hint">Ctrl+S 保存</span>
+                            <!-- 右侧操作按钮 -->
+                            <div class="toolbar-left">
+                                <a-button type="primary" size="small" @click="savefile" :disabled="currentTab.readOnly">
+                                    <template #icon><icon-save /></template>
+                                    保存
+                                </a-button>
+                                <a-button size="small" @click="closeEditor">
+                                    <template #icon><icon-close /></template>
+                                    关闭
+                                </a-button>
                             </div>
                         </div>
                     </div>
@@ -1398,7 +1402,7 @@ export default {
             
             this.loading = true;
             // let params = `podName=${this.form.pod_name}&containerName=${this.form.containerName}&tty=false&namespace=${this.form.namespace}&${cmd}`;
-            return panelApi.post(`/panel-api/v1/exec2`,{
+            return panelApi.post(`/exec2`,{
                 podName: this.form.pod_name,
                 containerName: this.form.containerName,
                 tty: false,
@@ -3690,7 +3694,7 @@ body[arco-theme='light'] .tabs-scroll-btn:hover {
     gap: 6px; 
     background: var(--color-bg-2, #252526); 
     flex-shrink: 0; 
-    font-size: 12px;
+    font-size: 14px;
     color: var(--color-text-2, #cccccc);
 }
 .sidebar-refresh { 
@@ -3733,7 +3737,7 @@ body[arco-theme='light'] .tabs-scroll-btn:hover {
     align-items: center; 
     gap: 6px; 
     transition: background 0.15s; 
-    font-size: 12px;
+    font-size: 14px;
     color: var(--color-text-2, #cccccc);
 }
 .sidebar-file-item:hover { background: var(--color-fill-2, #2a2d2e); }

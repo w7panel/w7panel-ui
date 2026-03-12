@@ -138,7 +138,7 @@
                                             </a-select>
                                             <span @click="sdShow=true;" class="ml-10 c-blue cursor" style="flex-shrink:0;">新建</span>
                                         </div>
-                                        <table class="com-table mt-16"><tbody>
+                                        <table v-if="item.volumesMounts&&item.volumesMounts.length" class="com-table mt-16"><tbody>
                                             <tr>
                                                 <td>类型</td>
                                                 <td>mountPath</td>
@@ -771,9 +771,10 @@ export default {
                         
                         if(i=='0' && this.form?.requireDomain && envs?.DOMAIN_URL){
                             let url = envs.DOMAIN_URL;
-                            this.form.ingressHostPre = url.match(/^https?:\/\//)?.[0] || '';
+                            this.form.ingressHostPre = url.match(/^https?:\/\//)?.[0] || 'http://';
                             this.form.ingressHost = url.replace(/^https?:\/\//,'') || '';
                             this.form.auto_ssl = this.form.ingressHostPre == 'https://';
+                            this.form.ingressDisabled = true;
                         }
                     }
                     

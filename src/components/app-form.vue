@@ -370,6 +370,9 @@ export default {
                 title: this.data?.metadata?.annotations?.title || "",
                 // imagePullSecrets: imagePullSecrets,
             }
+            if(this.id && !this.form.title){
+                this.form.title = this.form.name;
+            }
         },
 
         createName(length){
