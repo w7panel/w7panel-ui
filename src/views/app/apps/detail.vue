@@ -451,13 +451,13 @@ export default {
                 thirdparty_cd_token = data?.thirdparty_cd_token;
             });
             let props = {
-                ...this.info,
                 url: /^\//.test(this.info.backendUrl)? window.location.origin + this.info.backendUrl : this.info.backendUrl,
                 Authorization: 'Basic '+ btoa(this.info.username+':'+this.info.password),
                 domain: this.domain,
                 isRegister: is_register,
                 w7PanelToken: thirdparty_cd_token,
                 paneltoken: getToken(),
+                ...this.info,
             }
             console.log(props)
             startApp({
@@ -700,13 +700,13 @@ export default {
 
                 this.info = {
                     ...this.info,
-                    ...item?.spec?.config?.props,
-                    ...roleProps,
                     appgroup: this.$route.params.group,
                     frontendUrl: item?.spec?.frontendUrl,
 // frontendUrl: 'http://localhost:8001',
                     backendUrl: item?.spec?.backendUrl,
                     appImage: item?.spec?.config?.props?.image,
+                    ...item?.spec?.config?.props,
+                    ...roleProps,
                 }
 
                 this.getMenu(item?.spec?.bindings||[]);

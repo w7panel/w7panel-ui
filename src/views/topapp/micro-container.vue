@@ -185,14 +185,14 @@ export default{
 
                 this.info = {
                     ...this.info,
-                    ...item?.spec?.config?.props,
-                    ...roleProps,
                     appgroup: appgroup,
                     frontendUrl: item?.spec?.frontendUrl,
                     backendUrl: item?.spec?.backendUrl,
                     username: item?.spec?.config?.props?.username,
                     password: item?.spec?.config?.props?.password,
                     appImage: item?.spec?.config?.props?.image,
+                    ...item?.spec?.config?.props,
+                    ...roleProps,
                 }
                 this.$emit('getBindings',item?.spec?.bindings||[])
                 this.$emit('getinfo',{...this.info})
@@ -223,13 +223,13 @@ export default{
                 thirdparty_cd_token = data?.thirdparty_cd_token;
             });
             let props = {
-                ...this.info,
                 url: /^\//.test(this.info.backendUrl)? window.location.origin + this.info.backendUrl : this.info.backendUrl,
                 Authorization: 'Basic '+ btoa(this.info.username+':'+this.info.password),
                 domain: this.domain,
                 isRegister: is_register,
                 w7PanelToken: thirdparty_cd_token,
                 paneltoken: getToken(),
+                ...this.info,
             }
             console.log(props)
             startApp({
