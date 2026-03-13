@@ -5,6 +5,9 @@
         </div>
         <a-table :data="list" :pagination="false" :bordered="false">
             <template #columns>
+                <a-table-column title="编号">
+                    <template #cell="{ record,rowIndex }">{{ rowIndex }}</template>
+                </a-table-column>
                 <a-table-column title="类型">
                     <template #cell="{ record }">{{{link:'链接',qrcode:'二维码',text:'文字'}[record.type]}}</template>
                 </a-table-column>
@@ -79,7 +82,8 @@
                     </div>
                 </a-form-item>
                 <a-form-item label="名称">
-                    <a-input v-model="form.name" placeholder="请输入"></a-input>
+                    <a-input v-model="form.name" placeholder="请输入" style="flex:1;"></a-input>
+                    <a-checkbox v-model="form.showName" style="margin-left:20px; flex-shrink:0;">显示名称</a-checkbox>
                 </a-form-item>
                 <a-form-item label="样式">
                     <div class="df df-ww style-select">
@@ -135,6 +139,7 @@ export default{
                 text: '',
                 qrcode: '',
                 name: '',
+                showName: false,
                 selicon: 'icon-customer-service',
                 icon: '',
                 styleIndex: 0,
@@ -167,6 +172,7 @@ export default{
                     text: '',
                     qrcode: '',
                     name: '',
+                    showName: false,
                     selicon: 'icon-customer-service',
                     icon: '',
                     styleIndex: 0,
@@ -182,6 +188,7 @@ export default{
                     text: row.text || '',
                     qrcode: row.qrcode || '',
                     name: row.name || '',
+                    showName: row.showName,
                     selicon: row.customIcon? 'icon-customer-service' : row.icon,
                     icon: row.customIcon? row.icon : '',
                     styleIndex: Number(row.style),
@@ -196,6 +203,7 @@ export default{
                     return {
                         type: i.data.type,
                         name: i.data.name,
+                        showName: i.data.showName == 'true',
                         configmapName: i.metadata.name,
                         text: i.data.text,
                         link: i.data.link,
@@ -245,6 +253,7 @@ export default{
                         type: this.form.type,
                         selicon: this.form.selicon,
                         name: this.form.name,
+                        showName: this.form.showName? 'true' : 'false',
                         style: String(this.form.styleIndex),
                         qrcodeHeader: this.form.qrcode?.match?.(/^.*base64,/)?.[0] || '',
                         iconHeader: this.form.icon?.match?.(/^.*base64,/)?.[0] || '',

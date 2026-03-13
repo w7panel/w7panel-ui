@@ -101,6 +101,7 @@
                 </div>
             </div>
         </a-layout-content>
+        <contact-us></contact-us>
     </a-layout>
 </template>
 <script>
@@ -109,6 +110,7 @@ import axios from 'axios';
 import { isLogin } from '@/utils/auth';
 import { getUserInfo } from '@/utils/auth';
 import { clearToken } from '@/utils/auth';
+import contactUs from '@/components/contact-us.vue';
 
 export default{
     data(){
@@ -125,6 +127,9 @@ export default{
             userInfo: {},
             logoimg: window.origin + '/assets/logo.png',
         }
+    },
+    components: {
+        contactUs,
     },
     created(){
         this.isLogin = isLogin();

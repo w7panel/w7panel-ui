@@ -1,14 +1,20 @@
 <template>
     <div class="contactus-box">
         <template v-for="(item,index) in list" :key="index">
-            <a v-if="item.type=='link'" :href="item.link" target="_blank" class="icon mt-8 df ai-c jc-c cursor" :class="`style${item.style}`">
-                <img v-if="item.customIcon" :src="item.icon" alt="" style="width:28px;height:28px;" />
-                <component v-else :is="item.icon" style="font-size:28px;"></component>
+            <a v-if="item.type=='link'" :href="item.link" target="_blank" class="icon df df-c ai-c mt-8 cursor" :class="`style${item.style}`">
+                <div class="logo df ai-c jc-c">
+                    <img v-if="item.customIcon" :src="item.icon" alt="" style="width:100%;height:100%;display:block;" />
+                    <component v-else :is="item.icon" style="font-size:28px;"></component>
+                </div>
+                <div v-if="item.showName" class="name">{{ item.name }}</div>
             </a>
             <a-popover v-else position="lb" trigger="hover" content-style="max-width:600px;">
-                <div class="icon mt-8 df ai-c jc-c cursor" :class="`style${item.style}`">
-                    <img v-if="item.customIcon" :src="item.icon" alt="" style="width:28px;height:28px;" />
-                    <component v-else :is="item.icon" style="font-size:28px;"></component>
+                <div class="icon mt-8 df df-c ai-c cursor" :class="`style${item.style}`">
+                    <div class="logo df ai-c jc-c">
+                        <img v-if="item.customIcon" :src="item.icon" alt="" style="width:100%;height:100%;" />
+                        <component v-else :is="item.icon" style="font-size:28px;"></component>
+                    </div>
+                    <div v-if="item.showName" class="name">{{ item.name }}</div>
                 </div>
                 <template #content>
                     <img v-if="item.type=='qrcode'" :src="item.qrcode" alt="" style="width:200px;height:200px;" />
@@ -39,6 +45,7 @@ export default{
                     return {
                         type: i.data.type,
                         name: i.data.name,
+                        showName: i.data.showName == 'true',
                         configmapName: i.metadata.name,
                         text: i.data.text,
                         link: i.data.link,
@@ -57,10 +64,25 @@ export default{
 <style scoped>
 .contactus-box{position:fixed; z-index:999; right:8px; bottom:80px;}
 .icon{
-    width:52px;
-    height:52px;
+    box-sizing: border-box;
+    width: 52px;
     border:2px solid var(--color-bg-2);
+    border-radius: 28px;
+    padding: 2px;
+    text-decoration: none;
+}
+.icon .logo{
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
+    overflow: hidden;
+}
+.icon .name{
+    writing-mode: vertical-rl;
+    margin:8px 0 10px;
+    text-decoration: none;
+    font-size: 16px;
+    letter-spacing: 4px;
 }
 
 .style0{
