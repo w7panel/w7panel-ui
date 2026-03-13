@@ -373,12 +373,13 @@ export default {
         this.debug = getUserInfo()?.['w7.cc/debug']=='true';
         this.namespaceActive = useNamespaceStore().namespace;
         this.userInfo = getUserInfo();
-        this.getList();
+        // this.getList();
+        this.getListOld();
     },
     watch: {
         data(v,ov){
             if(!Object.keys(ov)?.length){
-                this.getList();
+                // this.getList();
             }
         },
     },

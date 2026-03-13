@@ -1838,7 +1838,7 @@ export default {
                 '.cm-content': { caretColor: isDarkTheme ? '#aeafad' : '#165dff', fontFamily: 'Consolas, Monaco, "Courier New", monospace', fontSize: '14px' },
                 '.cm-cursor': { borderLeftColor: isDarkTheme ? '#aeafad' : '#165dff' },
                 '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': { backgroundColor: isDarkTheme ? '#264f78' : '#e8f3ff' },
-                '.cm-activeLine': { backgroundColor: isDarkTheme ? '#2a2d2e' : '#f6f8fa' },
+                // '.cm-activeLine': { backgroundColor: isDarkTheme ? '#2a2d2e' : '#f6f8fa' },
                 '.cm-gutters': { backgroundColor: isDarkTheme ? '#252526' : '#f6f8fa', color: isDarkTheme ? '#858585' : '#6e7781', border: 'none' },
                 '.cm-activeLineGutter': { backgroundColor: isDarkTheme ? '#37373d' : '#eaeef2' },
                 '.cm-search-match': { backgroundColor: isDarkTheme ? '#515c6a' : '#fff8c5', color: isDarkTheme ? '#ffffff' : '#24292f' },
