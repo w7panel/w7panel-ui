@@ -223,7 +223,7 @@ import { panelApi } from '@/utils/api';
     
     const getMenutop = ()=>{
         panelApi.get('/microapp/top').then(res=>{
-            let items = res.data.items;
+            let items = res.data?.items || [];
             alreadyGetMenu.value = true;
             topApps.value = items.map(i=>{
                 let roles = []

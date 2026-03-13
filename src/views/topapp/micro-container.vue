@@ -176,6 +176,12 @@ export default{
 
                 let userRole = getK8sinfo()['w7.cc/role'];
                 let roleProps = item?.spec?.['config-v2']?.props?.roleConfig?.[userRole] || {};
+                if(roleProps.frontend_props){
+                    roleProps = {
+                        ...roleProps,
+                        ...roleProps.frontend_props,
+                    }
+                }
 
                 this.info = {
                     ...this.info,

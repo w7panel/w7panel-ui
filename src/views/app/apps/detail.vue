@@ -347,13 +347,16 @@ export default {
             this.breadcrumbData = {id:v};
         },
     },
-    created(){
+    async created(){
         this.permission = getPermission() || [];
         this.fileeditor = getFileEditor() == 'true';
         this.selectMenu = [this.$route.meta.routekey]
         this.namespaceActive = useNamespaceStore().namespace;
         this.groupTitle = this.$route.params.group;
-        this.getData();
+        await this.getData();
+        if(!this.isMicroPage){
+            this.getFront();
+        }
         if(this.$route.params.page && this.$route.params.kind && this.$route.params.id){
             let p = this.$route.fullPath.replace('/app/appgroup/'+this.$route.params.group+'/'+this.$route.params.kind+'/'+this.$route.params.id+'/micro/','');
             this.menukey = p || '';
@@ -435,6 +438,11 @@ export default {
             this.$router.push('/app/store-install?path=' + path);
         },
         async wujieInit(){
+            
+            try{
+                destroyApp('appmicro');
+            }catch(e){console.log('destroy err')}
+
             let is_register = false;
             let thirdparty_cd_token = '';
             await panelApi.get("/auth/console/info").then(res=>{
@@ -455,6 +463,7 @@ export default {
             startApp({
                 name: "appmicro",
                 url: this.info.frontendUrl + (this.menuActive || ''),
+// 测试
 // url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.menuActive || ''),
                 el: '#appmicro',
                 // alive: true,
@@ -534,7 +543,7 @@ export default {
                 const reader = new FileReader();
                 reader.onload = ()=>{
                     let value = reader.result;
-                    console.log(value)
+                    // console.log(value)
                     
                     axios.put(`${outEditorInfo.origin}${outEditorInfo.webdavUrl}${encodeURIComponent(data.path+data.file.name)}`, value, {
                         headers: {
@@ -666,7 +675,9 @@ export default {
                 bus.$emit("routeChange", v.replace(/^#/,''));
             }else{
                 this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?appmicro='+encodeURIComponent(this.info.frontendUrl + this.menuActive)).then(res=>{
-                    this.wujieInit();
+                    this.$nextTick(()=>{
+                        this.wujieInit();
+                    })
                 })
             }
         },
@@ -680,6 +691,12 @@ export default {
                 
                 let userRole = getK8sinfo()['w7.cc/role'];
                 let roleProps = item?.spec?.['config-v2']?.props?.roleConfig?.[userRole] || {};
+                if(roleProps.frontend_props){
+                    roleProps = {
+                        ...roleProps,
+                        ...roleProps.frontend_props,
+                    }
+                }
 
                 this.info = {
                     ...this.info,
@@ -693,7 +710,6 @@ export default {
                 }
 
                 this.getMenu(item?.spec?.bindings||[]);
-
                 if(this.isMicroPage){
                     let appmicro = this.$route.query?.appmicro;
                     appmicro = appmicro? decodeURIComponent(appmicro) : '';
@@ -703,8 +719,12 @@ export default {
                     if(!this.selectMenu[0] && this.menuActive){
                         this.selectMenu = [this.menuActive];
                     }
-                    this.wujieInit();
+                    this.$nextTick(()=>{
+                        this.wujieInit();
+                    })
                 }
+            }).catch(()=>{
+                this.noMicroJump();
             })
         },
         getMenu(bindings){
@@ -736,7 +756,23 @@ export default {
                 let find = roles.find(i=>i.name==userRole)
                 this.roles = find?[find]:[];
             }
+            if(!this.roles?.length){
+                this.noMicroJump();
+            }
             // console.log(bindings,roles,'xxxxxxxxxxx')
+        },
+        noMicroJump(){
+            if(!this.isMicroPage){return}
+            if(this.isHelmApp){
+                this.$router.push({path:'/app/appgroup/'+ this.$route.params.group+'/helm/detail'}).then(()=>{
+                    this.selectMenu = [this.$route.meta.routekey]
+                });
+                return;
+            }
+            let app = this.applist.find(i=>!i.isHelm)
+            this.$router.push({name:'app-detail',params:{group:this.$route.params.group, id:app?.name, kind:app?.kind}}).then(()=>{
+                this.selectMenu = [this.$route.meta.routekey]
+            });
         },
         
         filterMenu(roles){
@@ -1042,7 +1078,7 @@ export default {
             }else{
                 this.appname = this.$route.params.kind + this.$route.params.id;
             }
-            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
+            await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
                 noAlert: this.$route.params.group=='gpustack-backend',
             }).then(async res=>{
                 this.groupTitle = res?.data?.metadata?.annotations?.title || this.groupTitle;
@@ -1069,7 +1105,9 @@ export default {
                     return Promise.reject();
                 }
 
-                this.getFront()
+                if(this.isMicroPage){
+                    this.getFront()
+                }
                 
                 if(res?.data?.metadata?.labels?.['w7.cc/parent']){
                     await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ res?.data?.metadata?.labels?.['w7.cc/parent']).then(res=>{
