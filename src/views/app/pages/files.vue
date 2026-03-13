@@ -307,17 +307,26 @@
                         <div class="editor-toolbar" v-if="currentTab">
                             <!-- 左侧设置 -->
                             <div class="toolbar-right">
-
-                                <a-checkbox v-if="!file.fromFileCatch&&origin!='nodes'" v-model="file.forever" :disabled="form.isMount && !file.mf">永久文件</a-checkbox>
-                                <a-button size="small" @click="openSearchPanel">
-                                    <template #icon><icon-search /></template>
-                                    搜索
-                                </a-button>
+                                
+                                <a-checkbox v-if="!file.fromFileCatch&&origin!='nodes'" v-model="file.forever" :disabled="form.isMount && !file.mf">
+                                    <template #checkbox="{ checked }">
+                                        <span class="toolbar-toggle" :class="{'active': checked, 'disabled':form.isMount && !file.mf}">
+                                            <span style="font-size:11px;">永久文件</span>
+                                        </span>
+                                    </template>
+                                </a-checkbox>
+                                
+                                <a-tooltip content="搜索">
+                                    <span class="toolbar-toggle" @click="openSearchPanel">
+                                        <icon-search />
+                                        <span>搜索</span>
+                                    </span>
+                                </a-tooltip>
                                 
                                 <a-tooltip content="自动换行">
                                     <span class="toolbar-toggle" :class="{'active': file.wordWrap}" @click="toggleWordWrap">
                                         <icon-indent :style="file.wordWrap ? 'color: #165dff' : ''" />
-                                        换行
+                                        <span>换行</span>
                                     </span>
                                 </a-tooltip>
                                 <a-dropdown trigger="click">
@@ -3838,6 +3847,7 @@ body[arco-theme='light'] .tabs-scroll-btn:hover {
 }
 .toolbar-toggle:hover { background: var(--color-fill-3, #3c3c3c); }
 .toolbar-toggle.active { color: rgb(var(--primary-6, 22, 93, 255)); }
+.toolbar-toggle.disabled { cursor:no-drop; }
 
 .toolbar-encoding {
     display: flex;
