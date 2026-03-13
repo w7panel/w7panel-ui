@@ -5,8 +5,16 @@
         </div>
         <a-table :data="list" :pagination="false" :bordered="false">
             <template #columns>
-                <a-table-column title="编号">
-                    <template #cell="{ record,rowIndex }">{{ rowIndex }}</template>
+                <a-table-column title="编号" width="100">
+                    <template #cell="{ record,rowIndex }">
+                        <a-input-number
+                            v-model="record.index"
+                            :min="1"
+                            :max="999"
+                            style="width:80px;"
+                            @change="updateIndex(record)"
+                        />
+                    </template>
                 </a-table-column>
                 <a-table-column title="类型">
                     <template #cell="{ record }">{{{link:'链接',qrcode:'二维码',text:'文字'}[record.type]}}</template>
@@ -144,6 +152,7 @@ export default{
                 icon: '',
                 styleIndex: 0,
                 file: null,
+                index: 1,
             },
             rules: {
                 link: [{ required: true, message: '请输入名称', trigger: 'blur' }],
@@ -192,6 +201,7 @@ export default{
                     selicon: row.customIcon? 'icon-customer-service' : row.icon,
                     icon: row.customIcon? row.icon : '',
                     styleIndex: Number(row.style),
+                    index: row.index || 1,
                     file: null,
                 }
             }
@@ -211,6 +221,7 @@ export default{
                         icon: i.binaryData.icon? i.data.iconHeader + i.binaryData.icon : i.data.selicon,
                         qrcode: i.data.qrcodeHeader + i.binaryData.qrcode,
                         style: i.data.style,
+                        index: Number(i.data.index) || 1,
                     }
                 })
             })
@@ -255,6 +266,7 @@ export default{
                         name: this.form.name,
                         showName: this.form.showName? 'true' : 'false',
                         style: String(this.form.styleIndex),
+                        index: String(this.form.index || 1),
                         qrcodeHeader: this.form.qrcode?.match?.(/^.*base64,/)?.[0] || '',
                         iconHeader: this.form.icon?.match?.(/^.*base64,/)?.[0] || '',
                     },
@@ -283,6 +295,27 @@ export default{
                 p = p + s[parseInt(Math.random()*s.length)]
             }
             return p;
+        },
+        updateIndex(row){
+            // 使用 patch 请求直接更新 index 字段
+            k8sproxy.patch(
+                "/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+row.configmapName,
+                {
+                    data: {
+                        index: String(row.index || 1)
+                    }
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/strategic-merge-patch+json'
+                    }
+                }
+            ).then(()=>{
+                this.$message.success('排序更新成功');
+            }).catch(err=>{
+                console.error(err);
+                this.$message.error('排序更新失败');
+            })
         },
     }
 }

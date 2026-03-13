@@ -53,8 +53,11 @@ export default{
                         icon: i.binaryData.icon? i.data.iconHeader + i.binaryData.icon : i.data.selicon,
                         qrcode: i.data.qrcodeHeader + i.binaryData.qrcode,
                         style: i.data.style,
+                        index: Number(i.data.index) || 1,
                     }
                 })
+                // 根据 index 字段排序
+                this.list.sort((a, b) => a.index - b.index)
                 console.log(this.list)
             })
         },
