@@ -753,8 +753,9 @@ export default {
             if(userRole=='founder'){
                 this.roles = roles;
             }else{
-                let find = roles.find(i=>i.name==userRole)
-                this.roles = find?[find]:[];
+                // let find = roles.find(i=>i.name==userRole)
+                // this.roles = find?[find]:[];
+                this.roles = roles;
             }
             if(!this.roles?.length){
                 this.noMicroJump();
