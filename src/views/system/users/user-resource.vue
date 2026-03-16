@@ -142,7 +142,7 @@ export default {
         },
         
         async getSearchData(){
-            await axios.get('/apis',{
+            await k8sproxy.get('/apis',{
                 headers:{"Accept": "application/json;g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
                 loading: true,
                 customToken: this.loginInfo.token,
@@ -167,7 +167,7 @@ export default {
                 }
                 this.apis = o;
             })
-            await axios.get('/api',{
+            await k8sproxy.get('/api',{
                 headers:{"Accept": "application/json;g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
                 customToken: this.loginInfo.token,
             }).then(res=>{
@@ -322,8 +322,8 @@ export default {
             let kind = this.apis[api[0]][api[1]][row.kind].resource;
             let namespace = this.apis[api[0]][api[1]][row.kind].scope == 'Namespaced'? 'namespaces/'+row.namespace+'/' : '';
             
-            let url = `${row.api=='v1'?'/api/':'/k8s-proxy/apis/'}${row.api}/${namespace}${kind}/${row.name}`;
-            axios.get(url,{
+            let url = `${row.api=='v1'?'/api/':'/apis/'}${row.api}/${namespace}${kind}/${row.name}`;
+            k8sproxy.get(url,{
                 loading: true,
                 customToken: this.loginInfo.token,
             }).then(res=>{

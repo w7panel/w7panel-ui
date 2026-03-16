@@ -17,7 +17,7 @@
 </template>
 
 <script>
-import { panelApi } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import {basicSetup} from "codemirror"
 import {EditorView, } from "codemirror"
 import axios from 'axios'
@@ -38,7 +38,7 @@ export default {
             let data = JSON.parse(value);
             
             if(/^\/api\/v1\//.test(this.targetPath)){
-                return axios.put(this.targetPath, data).then(res=>{
+                return k8sproxy.put(this.targetPath, data).then(res=>{
                     if(!res?.data){return}
                     this.$message.success("修改成功");
                 })

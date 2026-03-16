@@ -21,6 +21,7 @@
 import axios from 'axios'
 import * as echarts from 'echarts'
 import { useDarkStore } from '@/store'
+import { k8sproxy } from '@/utils/api';
 
 let cpuChart = null;
 let memoryChart = null;
@@ -74,7 +75,7 @@ export default {
             })
         },
         getChart(Name,MetricName){
-            return axios.get(`/api/v1/dashboard/nodes/${Name}/metrics/${MetricName}/minute`).then(res=>{
+            return k8sproxy.get(`/api/v1/dashboard/nodes/${Name}/metrics/${MetricName}/minute`).then(res=>{
                 return res?.data;
             })
         },

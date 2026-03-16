@@ -168,7 +168,7 @@ export default {
             if(this.$route.params.kind=='daemonsets'){
                 url = `/apis/apps/v1/namespaces/${this.namespaceActive}/controllerrevisions`;
             }
-            axios.get(url,{
+            k8sproxy.get(url,{
                 params: {labelSelector: labelSelector.replace(/,$/,'')},
                 loading: true
             }).then(res=>{
@@ -235,7 +235,7 @@ export default {
             if(this.$route.params.kind=='daemonsets'){
                 url = `/apis/apps/v1/namespaces/${this.namespaceActive}/controllerrevisions/${item.name}`;
             }
-            axios.get(url,{loading:true}).then(res=>{
+            k8sproxy.get(url,{loading:true}).then(res=>{
                 let data = res.data;
                 this.yamlData = {
                     show: true,
@@ -256,7 +256,7 @@ export default {
             if(this.$route.params.kind=='daemonsets'){
                 url = `/apis/apps/v1/namespaces/${this.namespaceActive}/controllerrevisions/${row.name}`;
             }
-            axios.delete(url).then(res=>{
+            k8sproxy.delete(url).then(res=>{
                 if(!res?.data){return}
                 this.$message.success('删除成功');
                 this.getList();
