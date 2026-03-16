@@ -9,164 +9,147 @@
         </div>
     </div>
 </template>
+
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
 import { useNamespaceStore } from '@/store';
-import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
-import { getToken,getK8sinfo } from '@/utils/auth';
+import { setupApp, startApp, destroyApp } from "wujie";
+import { getToken, getK8sinfo } from '@/utils/auth';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
 
-export default{
-    props: ['data','activeName'],
-    data(){
+export default {
+    props: ['data', 'activeName'],
+    data() {
         return {
             namespaceActive: '',
             inRvproxy: false,
             fileCache: {
                 open: false,
                 exist: false,
-                show: false,
                 backendUrl: '',
+                ingressHost: '',
+                token: '',
+                destination: '',
             },
             fileCacheApp: null,
             allAgent: [],
-            
             microappInfo: {
                 frontendUrl: '',
                 backendUrl: '',
                 username: '',
                 password: '',
-                domain: '',
+                appImage: '',
             },
-            info:{},
+            roleProps: {},
             appData: {},
         }
     },
-    created(){
+    created() {
         this.namespaceActive = useNamespaceStore().namespace;
-        this.inRvproxy = this.$route.name == 'app-rvproxy-domain';
-        
-        // 注册 wujie 事件（自动处理空值检查）
+        this.inRvproxy = this.$route.name === 'app-rvproxy-domain';
         registerWujieEvent("submit", this.submitFileCache);
         registerWujieEvent("close", this.close);
     },
-    mounted(){
+    mounted() {
         this.init();
     },
     watch: {
         data: 'init',
-        activeName(){
-            if(this.activeName=='fileCache'){
+        activeName() {
+            if (this.activeName === 'fileCache') {
                 this.wujieInit();
-            }else{
-                try{
-                    destroyApp('filecachemicroapp');
-                }catch{}
+            } else {
+                this.destroyMicroApp();
             }
         },
     },
-    beforeUnmount(){
-        try{
-            destroyApp('filecachemicroapp');
-        }catch{}
-        // 使用统一清理函数（自动处理空值检查）
+    beforeUnmount() {
+        this.destroyMicroApp();
         clearAllWujieEvents();
     },
     methods: {
-        init(){
+        init() {
             this.getData();
             this.testFileCache();
         },
-        getData(){
-            if(!this.data){return}
-            this.appData = JSON.parse(JSON.stringify(this.data?.metadata?.annotations||{}));
+        destroyMicroApp() {
+            try { destroyApp('filecachemicroapp'); } catch (e) { /* ignore */ }
         },
-        testFileCache(){
-            if(!this.data||!Object.keys(this.data).length){return}
-            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie=w7-cdncache',{loading:true}).then(res=>{
-                if(!res?.data){return Promise.reject();}
-                let app = res?.data?.items?.[0];
-                if(!app || !app.spec){return}
+        getData() {
+            if (!this.data) { return }
+            this.appData = JSON.parse(JSON.stringify(this.data?.metadata?.annotations || {}));
+        },
+        testFileCache() {
+            if (!this.data || !Object.keys(this.data).length) { return }
+            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/' + this.namespaceActive + '/microapps?labelSelector=w7.cc/identifie=w7-cdncache', { loading: true }).then(res => {
+                if (!res?.data) { return Promise.reject(); }
+                const app = res?.data?.items?.[0];
+                if (!app || !app.spec) { return }
                 this.fileCacheApp = app;
-                
+
                 this.getAllAgent();
                 this.fileCache = {
                     ...this.fileCache,
-                    open: this.data.metadata?.annotations?.['w7.cc/filecache'] == 'true',
+                    open: this.data.metadata?.annotations?.['w7.cc/filecache'] === 'true',
                     ingressHost: this.data?.spec?.rules?.[0]?.host,
                     backendUrl: app.spec.backendUrl,
                     exist: true,
-                    show: false,
                     token: app?.spec?.config?.props?.OAUTH_TOKEN,
-                    // noreplace: this.data?.metadata?.annotations?.['w7.cc/not-replace'] !== 'true',
                     destination: this.data?.metadata?.annotations?.['higress.io/destination'] || '',
                 };
 
-                
-                let userRole = getK8sinfo()['w7.cc/role'];
+                const userRole = getK8sinfo()['w7.cc/role'];
                 let roleProps = app?.spec?.['config-v2']?.props?.roleConfig?.[userRole] || {};
-                if(roleProps.frontend_props){
-                    roleProps = {
-                        ...roleProps,
-                        ...roleProps.frontend_props,
-                    }
+                if (roleProps.frontend_props) {
+                    roleProps = { ...roleProps, ...roleProps.frontend_props };
                 }
-                this.info = {
-                    ...app?.spec?.config?.props,
-                    ...roleProps,
-                }
-                
+                this.roleProps = { ...app?.spec?.config?.props, ...roleProps };
+
                 this.microappInfo = {
-                    ...this.microappInfo,
-                    frontendUrl: app?.spec?.frontendUrl + '#/cache/' +  this.fileCache.ingressHost,
-// frontendUrl: 'http://172.16.1.162:9090' + app?.spec?.frontendUrl + '#/cache/' +  this.fileCache.ingressHost,
+                    frontendUrl: app?.spec?.frontendUrl + '#/cache/' + this.fileCache.ingressHost,
                     backendUrl: app?.spec?.backendUrl,
                     username: app?.spec?.config?.props?.username,
                     password: app?.spec?.config?.props?.password,
                     appImage: app?.spec?.config?.props?.image,
-                }
-                    
-            }).catch(()=>{})
+                };
+            }).catch(() => {});
         },
-        
-        wujieInit(){
-            if(!this.fileCache.exist){return}
+        wujieInit() {
+            if (!this.fileCache.exist) { return }
 
             let endpoint = '';
             let rewrite_path = '';
             let rewrite_host = '';
             let path_match_type = '';
-            
-            if(this.data?.metadata?.annotations?.['higress.io/enable-rewrite']=='true'){
+
+            if (this.data?.metadata?.annotations?.['higress.io/enable-rewrite'] === 'true') {
                 rewrite_host = this.data?.metadata?.annotations?.['higress.io/upstream-vhost'];
                 rewrite_path = this.data?.metadata?.annotations?.['higress.io/rewrite-target'];
             }
 
-            if(this.inRvproxy){
-                let find = this.allAgent.find(i=>i.name == this.data?.metadata?.labels?.['destination'] );
-                if(find){
-                    endpoint = find?.host || [];
-                    
-                    const protocol = find?.protocol? (find?.protocol?.toLowerCase()+'://') : '';
-                    const port = (find?.port==80||!find?.port)? '' : (':'+find.port);
-                    
-                    endpoint = endpoint.map(domain => `${protocol}${domain}${port}`)?.join(',');
+            if (this.inRvproxy) {
+                const find = this.allAgent.find(i => i.name === this.data?.metadata?.labels?.['destination']);
+                if (find) {
+                    const protocol = find?.protocol ? (find?.protocol?.toLowerCase() + '://') : '';
+                    const port = (find?.port === 80 || !find?.port) ? '' : (':' + find.port);
+                    endpoint = (find?.host || []).map(domain => `${protocol}${domain}${port}`).join(',');
                 }
-            }else{
+            } else {
                 let backend = null;
-                if(this.appData['w7.cc/origin-config']){
-                    backend = JSON.parse(this.appData['w7.cc/origin-config'])
-                }else{
+                if (this.appData['w7.cc/origin-config']) {
+                    backend = JSON.parse(this.appData['w7.cc/origin-config']);
+                } else {
                     backend = this.data?.spec?.rules?.[0]?.http?.paths?.[0]?.backend;
                 }
                 endpoint = 'http://' + backend?.service?.name + '.' + this.namespaceActive + '.svc:' + backend?.service?.port?.number;
             }
 
             path_match_type = this.data?.spec?.rules?.[0]?.http?.paths?.[0]?.pathType;
-            path_match_type = path_match_type=='Prefix'? (this.data?.metadata?.annotations?.['higress.io/use-regex']=='true'?'ImplementationSpecific':'Prefix') : path_match_type;
-            path_match_type = {Prefix:'prefix',Exact:'exact',ImplementationSpecific:'regex'}[path_match_type];
-            
+            path_match_type = path_match_type === 'Prefix'
+                ? (this.data?.metadata?.annotations?.['higress.io/use-regex'] === 'true' ? 'ImplementationSpecific' : 'Prefix')
+                : path_match_type;
+            path_match_type = { Prefix: 'prefix', Exact: 'exact', ImplementationSpecific: 'regex' }[path_match_type];
+
             setupApp({
                 name: "filecachemicroapp",
                 url: this.microappInfo.frontendUrl
@@ -180,154 +163,116 @@ export default{
                 el: '#filecachemicroapp',
                 sync: true,
                 props: {
-                    url: (/^\//.test(this.microappInfo.backendUrl)? window.location.origin : '') + this.microappInfo.backendUrl,
-                    Authorization: 'Basic '+ btoa(this.microappInfo.username+':'+this.microappInfo.password),
+                    url: (/^\//.test(this.microappInfo.backendUrl) ? window.location.origin : '') + this.microappInfo.backendUrl,
+                    Authorization: 'Basic ' + btoa(this.microappInfo.username + ':' + this.microappInfo.password),
                     appImage: this.microappInfo.appImage,
-                    domain: this.microappInfo.domain,
                     OAUTH_TOKEN: this.fileCache.token,
                     fileCacheOpen: this.fileCache.open,
                     paneltoken: getToken(),
-                    ...this.info,
+                    ...this.roleProps,
                 },
-            })
-            startApp({name:'filecachemicroapp'})
+            });
+            console.log('filecache',this.roleProps)
+            startApp({ name: 'filecachemicroapp' });
         },
-        getAllAgent(){
-            if(!this.inRvproxy){return}
-            k8sproxy.get('/apis/networking.higress.io/v1/namespaces/'+this.namespaceActive+'/mcpbridges').then(res=>{
-                let data = res?.data?.items || [];
-                let list = [];
-                data.filter(i=>i.metadata.name!='default').map(i=>{
-                    let sr = i.spec?.registries || {};
-                    let host = [];
-                    let labels = [];
-                    sr.map(i=>{
-                        let h = i.domain.split(',').map(i=>i?.trim()).filter(i=>i)
-                        host=host.concat(h);
-                        labels.push(i.name+'.'+i.type);
+        getAllAgent() {
+            if (!this.inRvproxy) { return }
+            k8sproxy.get('/apis/networking.higress.io/v1/namespaces/' + this.namespaceActive + '/mcpbridges').then(res => {
+                const data = res?.data?.items || [];
+                const list = [];
+                data.filter(i => i.metadata.name !== 'default').forEach(item => {
+                    const sr = item.spec?.registries || [];
+                    const host = [];
+                    sr.forEach(i => {
+                        const h = i.domain.split(',').map(d => d?.trim()).filter(d => d);
+                        host.push(...h);
                         list.push({
-                            // title: i.title,
                             domain: i.domain,
                             host: host,
                             port: i.port,
                             protocol: i.protocol,
                             name: i.name,
                             type: i.type,
-                        })
+                        });
                     });
-                })
+                });
                 this.allAgent = list;
-                // console.log('allAgent',this.allAgent)
-            })
+            });
         },
-        
-        submitFileCache(open){
-            if(open?.from && open.from!=='file-cache'){ return }
-            this.fileCache.open = typeof open == 'boolean'? open : open.open;
+        submitFileCache(open) {
+            if (open?.from && open.from !== 'file-cache') { return }
+            this.fileCache.open = typeof open === 'boolean' ? open : open.open;
 
-            let operations = [];
-            if(!this.fileCache.open){
-                if(this.appData['w7.cc/origin-config']){
-                    operations.push({
-                        op: 'replace',
-                        path: '/spec/rules/0/http/paths/0/backend',
-                        value: JSON.parse(this.appData['w7.cc/origin-config'])
-                    })
-                    operations.push({
-                        op: 'remove',
-                        path: '/metadata/annotations/w7.cc~1origin-config',
-                    })
-                }
-                
-                if(this.appData['w7.cc/rewrite-config']){
-                    let json = JSON.parse(this.appData['w7.cc/rewrite-config'])
-
-                    operations.push({
-                        op: 'remove',
-                        path: '/metadata/annotations/w7.cc~1rewrite-config',
-                    })
-                    operations.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/higress.io~1enable-rewrite',
-                        value: json?.['higress.io/enable-rewrite'] || 'false',
-                    })
-                    operations.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/higress.io~1rewrite-target',
-                        value: json?.['higress.io/rewrite-target'] || '',
-                    })
-                    operations.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/higress.io~1upstream-vhost',
-                        value: json?.['higress.io/upstream-vhost'] || '',
-                    })
-                }
+            const operations = [];
+            if (!this.fileCache.open) {
+                this.buildCloseOperations(operations);
+            } else {
+                this.buildOpenOperations(operations);
+            }
+            this.$emit('submit', operations);
+        },
+        buildCloseOperations(operations) {
+            if (this.appData['w7.cc/origin-config']) {
+                operations.push(
+                    { op: 'replace', path: '/spec/rules/0/http/paths/0/backend', value: JSON.parse(this.appData['w7.cc/origin-config']) },
+                    { op: 'remove', path: '/metadata/annotations/w7.cc~1origin-config' }
+                );
+            }
+            if (this.appData['w7.cc/rewrite-config']) {
+                const json = JSON.parse(this.appData['w7.cc/rewrite-config']);
+                operations.push(
+                    { op: 'remove', path: '/metadata/annotations/w7.cc~1rewrite-config' },
+                    { op: 'replace', path: '/metadata/annotations/higress.io~1enable-rewrite', value: json?.['higress.io/enable-rewrite'] || 'false' },
+                    { op: 'replace', path: '/metadata/annotations/higress.io~1rewrite-target', value: json?.['higress.io/rewrite-target'] || '' },
+                    { op: 'replace', path: '/metadata/annotations/higress.io~1upstream-vhost', value: json?.['higress.io/upstream-vhost'] || '' }
+                );
+            }
+            operations.push({ op: 'replace', path: '/metadata/annotations/w7.cc~1filecache', value: 'false' });
+        },
+        buildOpenOperations(operations) {
+            if (!this.appData['w7.cc/origin-config']) {
                 operations.push({
                     op: 'replace',
-                    path: '/metadata/annotations/w7.cc~1filecache',
-                    value: 'false',
-                })
-            }else{
-                if(!this.appData['w7.cc/origin-config']){
-                    operations.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/w7.cc~1origin-config',
-                        value: JSON.stringify(this.data?.spec?.rules?.[0]?.http?.paths?.[0]?.backend),
-                    })
-                }
-                
-                if(this.appData['higress.io/enable-rewrite']=='true'){
-                    operations.push({
+                    path: '/metadata/annotations/w7.cc~1origin-config',
+                    value: JSON.stringify(this.data?.spec?.rules?.[0]?.http?.paths?.[0]?.backend),
+                });
+            }
+            if (this.appData['higress.io/enable-rewrite'] === 'true') {
+                operations.push(
+                    {
                         op: 'replace',
                         path: '/metadata/annotations/w7.cc~1rewrite-config',
                         value: JSON.stringify({
                             'higress.io/enable-rewrite': this.appData['higress.io/enable-rewrite'],
                             'higress.io/rewrite-target': this.appData['higress.io/rewrite-target'],
                             'higress.io/upstream-vhost': this.appData['higress.io/upstream-vhost'],
-                        })
-                    })
-                    operations.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/higress.io~1enable-rewrite',
-                        value: 'false',
-                    })
-                    operations.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/higress.io~1rewrite-target',
-                        value: '',
-                    })
-                    operations.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/higress.io~1upstream-vhost',
-                        value: '',
-                    })
-                }
-                operations.push({
+                        }),
+                    },
+                    { op: 'replace', path: '/metadata/annotations/higress.io~1enable-rewrite', value: 'false' },
+                    { op: 'replace', path: '/metadata/annotations/higress.io~1rewrite-target', value: '' },
+                    { op: 'replace', path: '/metadata/annotations/higress.io~1upstream-vhost', value: '' }
+                );
+            }
+            operations.push(
+                {
                     op: 'replace',
                     path: '/spec/rules/0/http/paths/0/backend',
                     value: {
-                        service:{
+                        service: {
                             name: this.fileCacheApp?.spec?.config?.props?.serviceName,
-                            port:{
-                                number: Number(this.fileCacheApp?.spec?.config?.props?.servicePort)
-                            }
-                        }
+                            port: { number: Number(this.fileCacheApp?.spec?.config?.props?.servicePort) },
+                        },
                     },
-                })
-                operations.push({
-                    op: 'replace',
-                    path: '/metadata/annotations/w7.cc~1filecache',
-                    value: 'true',
-                })
-            }
-            this.$emit('submit',operations);
+                },
+                { op: 'replace', path: '/metadata/annotations/w7.cc~1filecache', value: 'true' }
+            );
         },
-        
-        close(){
+        close() {
             this.$emit('cancel');
         },
     }
 }
 </script>
+
 <style scoped>
 </style>
