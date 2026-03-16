@@ -303,6 +303,7 @@ export default {
                 json: null,
                 callback: null,
             },
+            hasThirdpartyCd: false,
         }
     },
     watch: {
@@ -354,7 +355,7 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.groupTitle = this.$route.params.group;
         await this.getData();
-        if(!this.isMicroPage){
+        if(!this.isMicroPage && this.hasThirdpartyCd){
             this.getFront();
         }
         if(this.$route.params.page && this.$route.params.kind && this.$route.params.id){
@@ -682,6 +683,7 @@ export default {
             }
         },
         getFront(){
+
             // /apis/microapp.w7.cc/v1alpha1/namespaces/default/microapps/w7-sitemanager-htwgbayk
             // /apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+appgroup
             k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group,{noAlert:true}).then(res=>{
@@ -1086,6 +1088,12 @@ export default {
                 let {helmTab,list} = this.arrangeList(res?.data);
                 this.identifie = res?.data?.metadata?.annotations?.['w7.cc/identifie'];
                 this.isHelmApp = Boolean(helmTab?.length);
+                if(res?.data?.metadata?.annotations?.['w7.cc/front-type']){
+                    try{
+                        let ft = JSON.parse(res?.data?.metadata?.annotations?.['w7.cc/front-type'])
+                        if(ft.includes("thirdparty_cd")){this.hasThirdpartyCd = true;}
+                    }catch{}
+                }
 
                 // ai应用管理
                 if(this.identifie == 'gpustack-backend' && this.isMicroPage){
@@ -1106,7 +1114,7 @@ export default {
                     return Promise.reject();
                 }
 
-                if(this.isMicroPage){
+                if(this.isMicroPage && this.hasThirdpartyCd){
                     this.getFront()
                 }
                 

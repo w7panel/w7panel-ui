@@ -2176,6 +2176,11 @@ export default {
                 'cxx': () => { this.editorLanguage = 'C++'; return StreamLanguage.define(cpp); },
                 'h': () => { this.editorLanguage = 'C++'; return StreamLanguage.define(cpp); },
                 'hpp': () => { this.editorLanguage = 'C++'; return StreamLanguage.define(cpp); },
+                'conf': () => { this.editorLanguage = 'Config'; return StreamLanguage.define(shell); },
+                'cnf': () => { this.editorLanguage = 'Config'; return StreamLanguage.define(shell); },
+                'cfg': () => { this.editorLanguage = 'Config'; return StreamLanguage.define(shell); },
+                'ini': () => { this.editorLanguage = 'Config'; return StreamLanguage.define(shell); },
+                'env': () => { this.editorLanguage = 'Config'; return StreamLanguage.define(shell); },
             };
             
             if (langMap[ext]) {
@@ -3593,10 +3598,11 @@ body[arco-theme='dark'] .filetable .opt-icon{color:#3c7eff;}
     background: var(--color-bg-1, #1e1e1e); 
     color: var(--color-text-1, #ffffff);
 }
-.editor-tab.modified .tab-name::after { 
+.editor-tab.modified .tab-name::before { 
     content: ' ●'; 
     color: #e2c08d;
     font-size: 10px;
+    margin-right:2px;
 }
 .tab-name { 
     overflow: hidden; 
