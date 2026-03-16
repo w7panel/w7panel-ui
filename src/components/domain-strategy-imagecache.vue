@@ -68,8 +68,12 @@ export default {
                 const app = res?.data?.items?.[0];
                 if (!app || !app.spec) { return }
 
-                const userRole = getK8sinfo()['w7.cc/role'];
-                let roleProps = app?.spec?.['config-v2']?.props?.roleConfig?.[userRole] || {};
+                let userRole = getK8sinfo()['w7.cc/role'];
+                let roleConfig = app?.spec?.['config-v2']?.props?.roleConfig;
+                let roleProps = roleConfig?.[userRole] || {};
+                if(roleConfig.founder && !roleConfig?.[userRole]){
+                    roleProps = roleConfig.founder;
+                }
                 if (roleProps.frontend_props) {
                     roleProps = { ...roleProps, ...roleProps.frontend_props };
                 }
