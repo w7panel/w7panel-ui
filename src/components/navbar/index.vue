@@ -242,7 +242,7 @@ import { panelApi } from '@/utils/api';
                 }
             })
             console.log(topApps.value)
-            topApps.value = topApps.value.filter(i=>i.roles?.length >=2 )
+            // topApps.value = topApps.value.filter(i=>i.roles?.length >=2 )
         })
         // k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups?labelSelector=w7.cc/menu-location=top').then(res=>{
         //     let items = res.data.items;
