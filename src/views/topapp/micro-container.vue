@@ -225,7 +225,7 @@ export default{
             let props = {
                 url: /^\//.test(this.info.backendUrl)? window.location.origin + this.info.backendUrl : this.info.backendUrl,
                 Authorization: 'Basic '+ btoa(this.info.username+':'+this.info.password),
-                domain: this.domain,
+                // domain: this.domain,
                 isRegister: is_register,
                 w7PanelToken: thirdparty_cd_token,
                 paneltoken: getToken(),

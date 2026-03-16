@@ -14,7 +14,7 @@ import { k8sproxy } from '@/utils/api';
 import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
-import { getToken} from '@/utils/auth';
+import { getToken,getK8sinfo } from '@/utils/auth';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
 
 export default{
@@ -39,6 +39,7 @@ export default{
                 password: '',
                 domain: '',
             },
+            info:{},
             appData: {},
         }
     },
@@ -101,11 +102,25 @@ export default{
                     // noreplace: this.data?.metadata?.annotations?.['w7.cc/not-replace'] !== 'true',
                     destination: this.data?.metadata?.annotations?.['higress.io/destination'] || '',
                 };
+
+                
+                let userRole = getK8sinfo()['w7.cc/role'];
+                let roleProps = app?.spec?.['config-v2']?.props?.roleConfig?.[userRole] || {};
+                if(roleProps.frontend_props){
+                    roleProps = {
+                        ...roleProps,
+                        ...roleProps.frontend_props,
+                    }
+                }
+                this.info = {
+                    ...app?.spec?.config?.props,
+                    ...roleProps,
+                }
                 
                 this.microappInfo = {
                     ...this.microappInfo,
                     frontendUrl: app?.spec?.frontendUrl + '#/cache/' +  this.fileCache.ingressHost,
-// frontendUrl: 'http://218.23.2.55:9090' + app?.spec?.frontendUrl + '#/cache/' +  this.fileCache.ingressHost,
+// frontendUrl: 'http://172.16.1.162:9090' + app?.spec?.frontendUrl + '#/cache/' +  this.fileCache.ingressHost,
                     backendUrl: app?.spec?.backendUrl,
                     username: app?.spec?.config?.props?.username,
                     password: app?.spec?.config?.props?.password,
@@ -172,6 +187,7 @@ export default{
                     OAUTH_TOKEN: this.fileCache.token,
                     fileCacheOpen: this.fileCache.open,
                     paneltoken: getToken(),
+                    ...this.info,
                 },
             })
             startApp({name:'filecachemicroapp'})
