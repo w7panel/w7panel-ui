@@ -194,9 +194,9 @@
                         <div class="sidebar-content" v-else-if="file.sidebarError">
                             <div class="sidebar-error">
                                 <icon-close-circle /> {{file.sidebarError}}
-                                <div class="sidebar-error-actions">
+                                <!-- <div class="sidebar-error-actions">
                                     <a-button size="small" @click="refreshSidebar">重试</a-button>
-                                </div>
+                                </div> -->
                             </div>
                         </div>
                         <div class="sidebar-content" v-else>
@@ -517,7 +517,7 @@ import { k8sproxy } from '@/utils/api';
 import axios from 'axios'
 import {basicSetup} from "codemirror"
 import {EditorView, keymap, Decoration} from "@codemirror/view"
-import {Compartment, StateEffect} from "@codemirror/state"
+import {Compartment, StateEffect, EditorSelection} from "@codemirror/state"
 import { StreamLanguage, HighlightStyle, syntaxHighlighting } from "@codemirror/language"
 import { javascript } from "@codemirror/lang-javascript"
 import { html } from "@codemirror/lang-html"
@@ -1844,6 +1844,151 @@ export default {
                 '.cm-search-match': { backgroundColor: isDarkTheme ? '#515c6a' : '#fff8c5', color: isDarkTheme ? '#ffffff' : '#24292f' },
             }, {dark: isDarkTheme});
 
+            // 缩进函数 - 增加缩进并保持选择
+            const indentSelection = (view) => {
+                const { state } = view;
+                const { selection } = state;
+                const indentStr = '\t'; // 使用制表符缩进
+                
+                const changes = [];
+                let addedChars = 0;
+                const lineCounts = new Map(); // 记录每行增加的字符数
+                
+                selection.ranges.forEach(range => {
+                    const fromLine = state.doc.lineAt(range.from);
+                    const toLine = state.doc.lineAt(range.to);
+                    
+                    for (let lineNum = fromLine.number; lineNum <= toLine.number; lineNum++) {
+                        const line = state.doc.line(lineNum);
+                        changes.push({ from: line.from, insert: indentStr });
+                        lineCounts.set(lineNum, (lineCounts.get(lineNum) || 0) + indentStr.length);
+                    }
+                });
+                
+                // 计算新的选择范围
+                let newRanges = [];
+                let charOffset = 0;
+                let processedLines = new Set();
+                
+                selection.ranges.forEach(range => {
+                    const fromLine = state.doc.lineAt(range.from);
+                    const toLine = state.doc.lineAt(range.to);
+                    
+                    // 计算from位置的偏移
+                    let fromOffset = 0;
+                    for (let ln = 1; ln <= fromLine.number; ln++) {
+                        if (lineCounts.has(ln)) {
+                            fromOffset += lineCounts.get(ln);
+                        }
+                    }
+                    
+                    // 计算to位置的偏移
+                    let toOffset = 0;
+                    for (let ln = 1; ln <= toLine.number; ln++) {
+                        if (lineCounts.has(ln)) {
+                            toOffset += lineCounts.get(ln);
+                        }
+                    }
+                    
+                    newRanges.push(EditorSelection.range(range.from + fromOffset, range.to + toOffset));
+                });
+                
+                view.dispatch({
+                    changes,
+                    selection: EditorSelection.create(newRanges, selection.mainIndex),
+                });
+                
+                return true;
+            };
+            
+            // 取消缩进函数 - 减少缩进并保持选择
+            const unindentSelection = (view) => {
+                const { state } = view;
+                const { selection } = state;
+                
+                const changes = [];
+                const lineRemoves = new Map(); // 记录每行删除的字符数
+                
+                selection.ranges.forEach(range => {
+                    const fromLine = state.doc.lineAt(range.from);
+                    const toLine = state.doc.lineAt(range.to);
+                    
+                    for (let lineNum = fromLine.number; lineNum <= toLine.number; lineNum++) {
+                        const line = state.doc.line(lineNum);
+                        const lineContent = line.text;
+                        
+                        // 检查行开头是否有制表符或空格
+                        let removeLen = 0;
+                        if (lineContent.startsWith('\t')) {
+                            removeLen = 1;
+                        } else if (lineContent.startsWith('  ')) {
+                            removeLen = 2;
+                        } else if (lineContent.startsWith(' ')) {
+                            removeLen = 1;
+                        }
+                        
+                        if (removeLen > 0) {
+                            changes.push({ from: line.from, to: line.from + removeLen });
+                            lineRemoves.set(lineNum, removeLen);
+                        }
+                    }
+                });
+                
+                if (changes.length > 0) {
+                    // 计算新的选择范围
+                    let newRanges = [];
+                    
+                    selection.ranges.forEach(range => {
+                        const fromLine = state.doc.lineAt(range.from);
+                        const toLine = state.doc.lineAt(range.to);
+                        
+                        // 计算from位置的偏移
+                        let fromOffset = 0;
+                        for (let ln = 1; ln < fromLine.number; ln++) {
+                            if (lineRemoves.has(ln)) {
+                                fromOffset += lineRemoves.get(ln);
+                            }
+                        }
+                        // 如果from在当前行被删除的部分之后，也要减去
+                        if (lineRemoves.has(fromLine.number) && range.from > fromLine.from) {
+                            const removeLen = lineRemoves.get(fromLine.number);
+                            if (range.from >= fromLine.from + removeLen) {
+                                fromOffset += removeLen;
+                            } else {
+                                fromOffset += range.from - fromLine.from;
+                            }
+                        }
+                        
+                        // 计算to位置的偏移
+                        let toOffset = 0;
+                        for (let ln = 1; ln < toLine.number; ln++) {
+                            if (lineRemoves.has(ln)) {
+                                toOffset += lineRemoves.get(ln);
+                            }
+                        }
+                        if (lineRemoves.has(toLine.number) && range.to > toLine.from) {
+                            const removeLen = lineRemoves.get(toLine.number);
+                            if (range.to >= toLine.from + removeLen) {
+                                toOffset += removeLen;
+                            } else {
+                                toOffset += range.to - toLine.from;
+                            }
+                        }
+                        
+                        const newFrom = Math.max(0, range.from - fromOffset);
+                        const newTo = Math.max(newFrom, range.to - toOffset);
+                        newRanges.push(EditorSelection.range(newFrom, newTo));
+                    });
+                    
+                    view.dispatch({
+                        changes,
+                        selection: EditorSelection.create(newRanges, selection.mainIndex),
+                    });
+                }
+                
+                return true;
+            };
+            
             // 快捷键配置
             const saveKeymap = keymap.of([
                 {
@@ -1901,7 +2046,12 @@ export default {
                         }
                         return true;
                     }
-                }
+                },
+                {
+                    key: 'Tab',
+                    run: indentSelection,
+                    shift: unindentSelection,
+                },
             ]);
             
             // 光标和内容变化监听
@@ -3032,7 +3182,7 @@ export default {
                 this.compress.path = decodeURIComponent(this.showPath + this.compress.zipname);
             }else{
                 this.compress.row = row;
-                this.compress.zipname = decodeURIComponent(/\.\w+$/.test(row.name)? row.name.replace(/\.\w+$/, '.' + ext) : (row.name + '.' + ext));
+                this.compress.zipname = decodeURIComponent(/[^.]\.\w+$/.test(row.name)? row.name.replace(/\.\w+$/, '.' + ext) : (row.name + '.' + ext));
                 this.compress.path = decodeURIComponent(this.showPath + this.compress.zipname);
             }
             this.compress.show = true;
@@ -3762,7 +3912,7 @@ body[arco-theme='light'] .tabs-scroll-btn:hover {
 .sidebar-file-item .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .sidebar-file-item .file-size { font-size: 10px; color: var(--color-text-4, #6d6d6d); }
 .sidebar-loading, .sidebar-empty, .sidebar-error { padding: 16px; text-align: center; color: var(--color-text-4, #6d6d6d); font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.sidebar-error { color: rgb(var(--danger-6, 241, 76, 76)); }
+.sidebar-error { color: var(--color-text-3); }
 .sidebar-error-actions { margin-top: 6px; }
 .sidebar-back-empty {
     display: flex;
