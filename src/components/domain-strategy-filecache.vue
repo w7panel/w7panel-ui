@@ -99,7 +99,7 @@ export default {
                 };
 
                 let userRole = getK8sinfo()['w7.cc/role'];
-                let roleConfig = app?.spec?.['config-v2']?.props?.roleConfig;
+                let roleConfig = app?.spec?.['config-v2']?.props?.roleConfig || {};
                 let roleProps = roleConfig?.[userRole] || {};
                 if(roleConfig.founder && !roleConfig?.[userRole]){
                     roleProps = roleConfig.founder;
