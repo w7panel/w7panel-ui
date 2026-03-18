@@ -236,7 +236,10 @@ export default{
         async wujieInit(){
             let is_register = false;
             let thirdparty_cd_token = '';
-            await panelApi.get("/static/"+ this.extra.identifie +"/status?version="+this.extra.version).then(res=>{
+            await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
+                version: this.extra.version,
+                releaseName: this.extra.name,
+            }}).then(res=>{
                 this.downOk = res.data?.status !== 'no_download';
             })
             if(!this.downOk){
