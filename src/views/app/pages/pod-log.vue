@@ -27,8 +27,22 @@
                 <div class="df ai-c">
                     <div class="ml-20">容器：</div>
                     <div class="ml-10">
-                        <a-select v-model="log.container" @change="getLog" style="min-width:200px;">
+                        <a-select v-model="log.container" @change="getLog" style="min-width:150px;">
                             <a-option v-for="i in log.containerList" :key="i.name" :value="i.name">{{i.name}}</a-option>
+                        </a-select>
+                    </div>
+                </div>
+
+                <div class="df ai-c">
+                    <div class="ml-20">条数：</div>
+                    <div class="ml-10">
+                        <a-select v-model="log.tailLines" @change="getLog" style="min-width:100px;">
+                            <a-option :value="50">50条</a-option>
+                            <a-option :value="100">100条</a-option>
+                            <a-option :value="200">200条</a-option>
+                            <a-option :value="500">500条</a-option>
+                            <a-option :value="1000">1000条</a-option>
+                            <a-option :value="2000">2000条</a-option>
                         </a-select>
                     </div>
                 </div>
@@ -64,6 +78,8 @@ export default{
                 ws: null,
                 fullscreen: false,
                 containerList: [],
+                container: '',
+                tailLines: 100,
             },
             
             term: null,
@@ -121,7 +137,6 @@ export default{
             this.log.name = this.data.name;
             this.log.container = this.data.container;
             this.log.containerList = this.data.containerList;
-            console.log(this.log)
             this.getLog();
         },
         getLog(){
@@ -133,7 +148,7 @@ export default{
             }
             if(!this.log.follow){
                 k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/pods/'+this.log.name+'/log',{
-                    params: {follow: false, ...o},
+                    params: {follow: false, tailLines: this.log.tailLines, ...o},
                 }).then(res =>{
                     this.log.podcont = res.data || '';
                     if(this.log.showPod){
@@ -147,12 +162,12 @@ export default{
 
             this.log.showPod = true;
             this.log.podcont = '';
-            this?.term?.reset();
+            this.term?.reset();
             
             const controller = new AbortController();
             this.logController = controller;
             const { signal } = controller;
-            const queryString = new URLSearchParams({follow: true, ...o}).toString();
+            const queryString = new URLSearchParams({follow: true, tailLines: this.log.tailLines, ...o}).toString();
             fetch('/k8s-proxy/api/v1/namespaces/'+ this.namespaceActive +'/pods/'+this.log.name+'/log?'+queryString, {
                 signal,
                 "headers": {
@@ -179,11 +194,11 @@ export default{
                         // 将二进制数据解码为文本
                         const chunk = decoder.decode(value, { stream: true });
                         
-                        this.log.podcont = this.log.podcont + (chunk || '');
-                        if(this.log.showPod){
-                            // this.openDialog();
-                            let e = chunk;
-                            this.selectLog(e)
+                        // 增量写入终端，不累积历史
+                        if(this.log.showPod && this.term){
+                            let e = chunk.replace(/\x20+/g,' ');
+                            e = e.replace(/(?<!\r)\n/g,'\r\n');
+                            this.term.write(e);
                         }
                         // 递归读取下一块数据
                         return readStream();
@@ -212,7 +227,6 @@ export default{
         termInit(callback){
             document.getElementById(this.id).innerHTML = "";
             this.term = new Terminal({
-                rendererType: 'dom',
                 cursorBlink: false,
             });
             this.term.open(document.getElementById(this.id));
@@ -220,7 +234,6 @@ export default{
             this.fitAddon = new FitAddon();
             this.term.loadAddon(this.fitAddon);
             this.fitAddon.fit();
-            // console.log(this.term)
             callback && callback();
         },
         selectLog(e){

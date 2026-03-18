@@ -27,8 +27,21 @@
                         <div v-if="logls.containerList.length>1" class="df ai-c">
                             <div class="ml-20">容器：</div>
                             <div class="ml-10">
-                                <a-select v-model="logls.container" @change="getItemLog" style="min-width:200px;">
+                                <a-select v-model="logls.container" @change="getItemLog" style="min-width:150px;">
                                     <a-option v-for="i in logls.containerList" :key="i" :value="i">{{i}}</a-option>
+                                </a-select>
+                            </div>
+                        </div>
+                        <div class="df ai-c">
+                            <div class="ml-20">条数：</div>
+                            <div class="ml-10">
+                                <a-select v-model="logls.tailLines" @change="getItemLog" style="min-width:100px;">
+                                    <a-option :value="50">50条</a-option>
+                                    <a-option :value="100">100条</a-option>
+                                    <a-option :value="200">200条</a-option>
+                                    <a-option :value="500">500条</a-option>
+                                    <a-option :value="1000">1000条</a-option>
+                                    <a-option :value="2000">2000条</a-option>
                                 </a-select>
                             </div>
                         </div>
@@ -66,9 +79,13 @@ export default {
                 container: "",
                 containerList: [],
                 follow: false,
+                tailLines: 100,
             },
             itemTerm: null,
             itemFitAddon: null,
+            retryCount: 0,
+            maxRetries: 5,
+            currentRequest: null,
         }
     },
     watch:{
@@ -81,7 +98,6 @@ export default {
             let dom = this.$refs.termbox;
             dom.innerHTML = "";
             this.itemTerm = new Terminal({
-                rendererType: 'dom',
                 cursorBlink: false,
             });
             this.itemTerm.open(dom);
@@ -96,7 +112,8 @@ export default {
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
     },
-    beforeDestroy() {
+    beforeUnmount() {
+        this.stopLogStream();
         this.disposeTerm();
     },
     methods: {
@@ -112,10 +129,17 @@ export default {
                 this.itemFitAddon = null;
             }
         },
+        stopLogStream(){
+            if(this.currentRequest){
+                this.currentRequest.cancel();
+                this.currentRequest = null;
+            }
+        },
         init(){
             this.showHis()
         },
         closeModal(){
+            this.stopLogStream();
             this.disposeTerm();
             this.visible = false;
             this.$emit('close');
@@ -185,28 +209,50 @@ export default {
                     this.logls.container = containers[0]?.name;
                 }
                 this.getItemLog();
+            }).catch((err)=>{
+                console.error('Failed to get pod:', err);
             })
         },
         getItemLog(){
+            this.stopLogStream();
+
             let o = {};
             if(this.logls.containerList.length>1){
                 o.container = this.logls.container;
             }
+
+            // 创建取消令牌
+            const CancelToken = axios.CancelToken;
+            const source = CancelToken.source();
+            this.currentRequest = source;
+
             k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/pods/'+ this.logls.pod_name +'/log',{
                 params: {
                     follow: this.logls.follow,
+                    tailLines: this.logls.tailLines,
                     ...o,
                 },
                 noAlert: true,
+                cancelToken: source.token,
             }).then(res=>{
                 this.logls.podcont = res.data || '';
+                this.retryCount = 0;
+                this.currentRequest = null;
                 if(this.logls.open){
                     this.selectItemLog(this.logls.podcont);
                 }
-            }).catch(()=>{
+            }).catch((err)=>{
+                if (axios.isCancel(err)) {
+                    return;
+                }
+                if (this.retryCount >= this.maxRetries) {
+                    return;
+                }
+                this.retryCount++;
+                const delay = 3000 * Math.pow(2, this.retryCount - 1);
                 setTimeout(()=>{
                     this.getItemLog();
-                },3000)
+                }, delay);
             })
         },
         selectItemLog(e){

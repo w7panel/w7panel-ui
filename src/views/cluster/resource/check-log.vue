@@ -26,8 +26,21 @@
                 <div v-if="log.containerList.length>1" class="df ai-c">
                     <div class="ml-20">容器：</div>
                     <div class="ml-10">
-                        <a-select v-model="log.container" @change="getLog" style="min-width:200px;">
+                        <a-select v-model="log.container" @change="getLog" style="min-width:150px;">
                             <a-option v-for="i in log.containerList" :key="i.name" :value="i.name">{{i.name}}</a-option>
+                        </a-select>
+                    </div>
+                </div>
+                <div class="df ai-c">
+                    <div class="ml-20">条数：</div>
+                    <div class="ml-10">
+                        <a-select v-model="log.tailLines" @change="getLog" style="min-width:100px;">
+                            <a-option :value="50">50条</a-option>
+                            <a-option :value="100">100条</a-option>
+                            <a-option :value="200">200条</a-option>
+                            <a-option :value="500">500条</a-option>
+                            <a-option :value="1000">1000条</a-option>
+                            <a-option :value="2000">2000条</a-option>
                         </a-select>
                     </div>
                 </div>
@@ -61,17 +74,54 @@ export default {
                 fullscreen: false,
                 containerList: [],
                 container: null,
+                tailLines: 100,
             },
+            term: null,
+            fitAddon: null,
+            logController: null,
         }
     },
     watch: {
         show(v){
             this.visible = v;
-            if(!v){return}
+            if(!v){
+                this.stopLogStream();
+                this.disposeTerm();
+                return;
+            }
             this.openLog();
         },
+        visible(v){
+            if(!v){
+                this.stopLogStream();
+                this.disposeTerm();
+                this.$emit('close')
+            }
+        },
+    },
+    beforeUnmount(){
+        this.stopLogStream();
+        this.disposeTerm();
     },
     methods: {
+        stopLogStream(){
+            if(this.logController){
+                this.logController.abort();
+                this.logController = null;
+            }
+        },
+        disposeTerm(){
+            try{
+                if(this.term){
+                    this.term.dispose();
+                    this.term = null;
+                }
+                this.fitAddon = null;
+            }catch(e){
+                this.term = null;
+                this.fitAddon = null;
+            }
+        },
         openLog(){
             this.log.name = this.data?.name;
             this.log.follow = true;
@@ -81,6 +131,8 @@ export default {
             this.getLog();
         },
         closeModal(){
+            this.stopLogStream();
+            this.disposeTerm();
             this.visible = false;
             this.$emit('close');
         },
@@ -101,6 +153,7 @@ export default {
             // this.term?.selectAll && this.term.selectAll();
         },
         getLog(){
+            this.stopLogStream();
             this.log.podcont = '';
             this.term?.reset();
 
@@ -112,6 +165,7 @@ export default {
                 k8sproxy.get('/api/v1/namespaces/'+ this.log.namespace +'/pods/'+this.log.name+'/log',{
                     params: {
                         follow: false,
+                        tailLines: this.log.tailLines,
                         ...o,
                     },
                     customToken: this.token,
@@ -124,7 +178,7 @@ export default {
             
             const controller = new AbortController();
             const { signal } = controller;
-            fetch('/k8s-proxy/api/v1/namespaces/'+ this.log.namespace +'/pods/'+this.log.name+'/log?follow=' + this.log.follow + (o.container?'&container='+o.container : ''), {
+            fetch('/k8s-proxy/api/v1/namespaces/'+ this.log.namespace +'/pods/'+this.log.name+'/log?follow=' + this.log.follow + '&tailLines=' + this.log.tailLines + (o.container?'&container='+o.container : ''), {
                 signal,
                 "headers": {
                     "accept": "application/json, text/plain, */*",
@@ -150,13 +204,11 @@ export default {
                         // 将二进制数据解码为文本
                         const chunk = decoder.decode(value, { stream: true });
                         
-                        this.log.podcont = this.log.podcont + (chunk || '');
-                        if(this.visible){
-                            // this.openDialog();
-                            let e = chunk;
-                            e = e.replace(/\x20+/g,' ');
+                        // 增量写入终端，不累积历史
+                        if(this.visible && this.term){
+                            let e = chunk.replace(/\x20+/g,' ');
                             e = e.replace(/(?<!\r)\n/g,'\r\n');
-                            this?.term?.write(e);
+                            this.term.write(e);
                         }
                         // 递归读取下一块数据
                         return readStream();
@@ -183,7 +235,6 @@ export default {
         termInit(callback){
             document.getElementById("term").innerHTML = "";
             this.term = new Terminal({
-                rendererType: 'dom',
                 cursorBlink: false,
             });
             this.term.open(document.getElementById("term"));
