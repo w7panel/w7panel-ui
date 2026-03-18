@@ -72,7 +72,10 @@
             </a-layout-content>
             <a-layout-content v-else-if="isMicroPage" class="ml-6 df df-c">
                 <div class="bg-white routerviewbox fc ml-6" >
-                    <div id="appmicro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
+                    <div v-show="downOk" id="appmicro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
+                    <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:calc(100vh - 146px);">
+                        <div style="height:100%;" class="bg-white"></div>
+                    </a-spin>
                 </div>
             </a-layout-content>
             <a-layout-content v-else class="ml-6 df df-c">
@@ -269,6 +272,7 @@ export default {
             menus: [],
             selectMenu: [],
             info: {},
+            extra: {},
             gpustackApp: null,
 
             permission: [],
@@ -304,6 +308,7 @@ export default {
                 callback: null,
             },
             hasThirdpartyCd: false,
+            downOk: true,
         }
     },
     watch: {
@@ -402,6 +407,11 @@ export default {
         }catch{}
         // 使用统一清理函数（自动处理空值检查）
         clearAllWujieEvents();
+        
+        try{
+            this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
+        }catch{}
+
     },
     methods: {
         openApp(data){
@@ -446,6 +456,16 @@ export default {
 
             let is_register = false;
             let thirdparty_cd_token = '';
+            await panelApi.get("/static/"+ this.extra.identifie +"/status?version="+this.extra.version).then(res=>{
+                this.downOk = res.data?.status !== 'no_download';
+            })
+            if(!this.downOk){
+                panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
+                this.extra.setTimeout = setTimeout(()=>{
+                    this.wujieInit();
+                }, 5000)
+                return;
+            }
             await panelApi.get("/auth/console/info").then(res=>{
                 let data = res.data;
                 is_register = data?.is_register;
@@ -713,6 +733,12 @@ export default {
                     appImage: item?.spec?.config?.props?.image,
                     ...item?.spec?.config?.props,
                     ...roleProps,
+                }
+                this.extra = {
+                    identifie: item.metadata?.labels?.['w7.cc/identifie'] || '',
+                    version: item.metadata?.annotations?.['w7.cc/version'] || '',
+                    name: item.metadata.name,
+                    namespace: item.metadata.namespace,
                 }
 
                 this.getMenu(item?.spec?.bindings||[]);

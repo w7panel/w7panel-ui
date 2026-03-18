@@ -3526,7 +3526,7 @@ export default {
                     })
                     return;
                 };
-                reader[isImg?'readAsDataURL':'readAsArrayBuffer'](this.upload.file);
+                reader['readAsArrayBuffer'](this.upload.file);
             }catch(error){
                 console.log('上传失败',error);
             }

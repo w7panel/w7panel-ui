@@ -1,6 +1,10 @@
 <template>
     <div style="height:100%;">
-        <div id="appmicro" style="height:100%;transform:translate(0,0);"></div>
+        <div v-show="downOk" id="appmicro" style="height:100%;transform:translate(0,0);"></div>
+
+        <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:100%;">
+            <div style="height:100%;" class="bg-white"></div>
+        </a-spin>
         
         <job-log :show="joblogData.show" :name="joblogData.name" @close="joblogData.show=false"></job-log>
         
@@ -93,6 +97,7 @@ export default{
         return {
             namespaceActive: '',
             info: {},
+            extra: {},
             page: '',
 
             
@@ -123,6 +128,7 @@ export default{
                 json: null,
             },
             domainCertData: null,
+            downOk: true,
         }
     },
     created(){
@@ -164,6 +170,9 @@ export default{
     },
     beforeUnmount(){
         this.destroyMicro();
+        try{
+            this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
+        }catch{}
     },
     methods: {
         routeChange(v){
@@ -198,6 +207,12 @@ export default{
                     ...item?.spec?.config?.props,
                     ...roleProps,
                 }
+                this.extra = {
+                    identifie: item.metadata?.labels?.['w7.cc/identifie'] || '',
+                    version: item.metadata?.annotations?.['w7.cc/version'] || '',
+                    name: item.metadata.name,
+                    namespace: item.metadata.namespace,
+                }
                 this.$emit('getBindings',item?.spec?.bindings||[])
                 this.$emit('getinfo',{...this.info})
                 this.$nextTick(()=>{
@@ -221,6 +236,17 @@ export default{
         async wujieInit(){
             let is_register = false;
             let thirdparty_cd_token = '';
+            await panelApi.get("/static/"+ this.extra.identifie +"/status?version="+this.extra.version).then(res=>{
+                this.downOk = res.data?.status !== 'no_download';
+            })
+            if(!this.downOk){
+                panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
+                this.extra.setTimeout = setTimeout(()=>{
+                    this.wujieInit();
+                    clearTimeout(this.extra.setTimeout);
+                }, 5000)
+                return;
+            }
             await panelApi.get("/auth/console/info").then(res=>{
                 let data = res.data;
                 is_register = data?.is_register;
