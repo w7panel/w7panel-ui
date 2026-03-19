@@ -45,7 +45,7 @@
         <!-- yaml -->
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
         <!-- log -->
-        <PodLog :show="log.show" mode="modal" title="任务日志" :label-selector="log.label" @close="log.show=false;"></PodLog>
+        <podLog :show="log.show" mode="modal" title="任务日志" :label-selector="log.label" @close="log.show=false;"></podLog>
     </div>
 </template>
 

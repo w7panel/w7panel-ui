@@ -276,7 +276,7 @@
             <pods-charts v-if="charts.show" :list="selectedKeys"></pods-charts>
         </a-drawer> -->
 
-        <PodLog :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></PodLog>
+        <podLog :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></podLog>
     </div>
 </template>
 

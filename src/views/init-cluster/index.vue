@@ -91,7 +91,7 @@
         </div>
 
         <!-- 日志弹窗 -->
-        <PodLog 
+        <podLog 
             :show="logModal.show" 
             mode="modal" 
             title="查看日志" 
