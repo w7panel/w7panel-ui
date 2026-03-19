@@ -739,7 +739,7 @@ export default {
                 }
                 this.extra = {
                     identifie: item.metadata?.labels?.['w7.cc/identifie'] || '',
-                    version: item.metadata?.annotations?.['w7.cc/version'] || '',
+                    version: item.metadata?.labels?.['w7.cc/version'] || '',
                     name: item.metadata.name,
                     namespace: item.metadata.namespace,
                 }
