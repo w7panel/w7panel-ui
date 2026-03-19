@@ -12,8 +12,6 @@
                 <a-table 
                     :data="list" 
                     :expandable="expandable"
-                    :expanded-keys="expandedKeys"
-                    @expanded-change="onExpandedChange"
                     class="cptable app-pod-table"
                     :pagination="false"
                     :bordered="false"
@@ -365,8 +363,6 @@ export default {
 
             statusController: null,
             watchController: null,
-            metricsTimer: null,  // metrics 定时刷新
-            expandedKeys: [],  // 展开的行
         }
     },
     created(){
@@ -388,7 +384,6 @@ export default {
     beforeUnmount(){
         this.stopRequestStatus();
         this.stopWatch();
-        this.stopMetricsRefresh();
     },
     components: {yamlDrawer,webShell,podsCharts,podLog},
     methods: {
@@ -443,9 +438,8 @@ export default {
             let selector = this.data?.spec?.selector?.matchLabels || {};
             let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
             
-            // 停止之前的 watch 和 metrics 刷新
+            // 停止之前的 watch
             this.stopWatch();
-            this.stopMetricsRefresh();
             
             const controller = new AbortController();
             this.watchController = controller;
@@ -519,47 +513,10 @@ export default {
                 console.log('cache',error)
             });
 
-            // 初始化时获取一次 metrics
+            // 获取 metrics（一次性获取）
             this.fetchMetrics();
-            // 启动定时刷新 metrics（每30秒）
-            this.startMetricsRefresh();
         },
-        // 启动 metrics 定时刷新
-        startMetricsRefresh(){
-            // 只有在有展开行时才刷新 metrics
-            if (this.expandedKeys.length === 0) {
-                this.stopMetricsRefresh();
-                return;
-            }
-            this.stopMetricsRefresh();
-            this.metricsTimer = setInterval(() => {
-                // 再次检查展开状态
-                if (this.expandedKeys.length > 0) {
-                    this.fetchMetrics();
-                } else {
-                    this.stopMetricsRefresh();
-                }
-            }, 30000);  // 30秒刷新一次
-        },
-        // 展开/收起行变化时调用
-        onExpandedChange(expandedKeys){
-            this.expandedKeys = expandedKeys;
-            if (expandedKeys.length > 0) {
-                // 有展开的行，启动 metrics 刷新
-                this.startMetricsRefresh();
-            } else {
-                // 没有展开的行，停止 metrics 刷新
-                this.stopMetricsRefresh();
-            }
-        },
-        // 停止 metrics 定时刷新
-        stopMetricsRefresh(){
-            if (this.metricsTimer) {
-                clearInterval(this.metricsTimer);
-                this.metricsTimer = null;
-            }
-        },
-        // 获取 metrics（只在必要时调用）
+        // 获取 metrics（一次性获取）
         fetchMetrics(){
             let selector = this.data?.spec?.selector?.matchLabels || {};
             let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
@@ -636,13 +593,29 @@ export default {
                     this.list.push(newItem);
                 }
             }else if(option.type=='MODIFIED'){
-                // 修改 Pod
+                // 修改 Pod，保留原有的 metrics 数据
                 const nativeIndex = this.nativeList.findIndex(item => item.metadata.name === name);
                 if(nativeIndex !== -1){
                     this.nativeList[nativeIndex] = obj;
                     const listIndex = this.list.findIndex(item => item.name === name);
                     if(listIndex !== -1){
-                        this.list[listIndex] = this.transformPodItem(obj);
+                        // 保存原有的 metrics 数据
+                        const oldCtn = this.list[listIndex].ctn;
+                        const metricsMap = {};
+                        oldCtn?.forEach(c => {
+                            if(c.cpu || c.memory){
+                                metricsMap[c.name] = { cpu: c.cpu, memory: c.memory };
+                            }
+                        });
+                        // 生成新对象并恢复 metrics
+                        const newItem = this.transformPodItem(obj);
+                        newItem.ctn?.forEach(c => {
+                            if(metricsMap[c.name]){
+                                c.cpu = metricsMap[c.name].cpu;
+                                c.memory = metricsMap[c.name].memory;
+                            }
+                        });
+                        this.list[listIndex] = newItem;
                     }
                 }
             }else if(option.type=='DELETED'){
