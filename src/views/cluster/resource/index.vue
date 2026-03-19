@@ -124,7 +124,7 @@ import axios from 'axios';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore } from "@/store";
 import k8syamlDrawer from '@/components/k8syaml-drawer.vue';
-import { PodLog } from '@/components';
+import { PodLog as podLog } from '@/components';
 import webShell from "@/components/web-shell.vue";
 import { getUserInfo } from '@/utils/auth';
 // import { getToken } from '@/utils/auth';

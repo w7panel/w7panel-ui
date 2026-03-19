@@ -266,7 +266,7 @@ import axios from 'axios';
 import { useNamespaceStore,useLoadingStore } from '@/store';
 import zoneDrawer from '@/views/storage/zone-drawer.vue';
 import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
-import { JobLog } from '@/components';
+import { JobLog as jobLog } from '@/components';
 import customCheckbox from './custom-checkbox.vue';
 import { getUserInfo } from '@/utils/auth';
 import shortuuid from 'short-uuid';

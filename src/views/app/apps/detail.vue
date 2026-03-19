@@ -213,8 +213,8 @@ import gpuStack from '@/views/app/gpustack/index.vue';
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
 
-import { PodLog } from '@/components';
-import { JobLog } from '@/components';
+import { PodLog as podLog } from '@/components';
+import { JobLog as jobLog } from '@/components';
 import domainCert from '@/views/topapp/domain-cert.vue';
 import appFile from '@/views/app/pages/files.vue';
 

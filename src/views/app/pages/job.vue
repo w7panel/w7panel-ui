@@ -45,7 +45,7 @@
         <!-- yaml -->
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
         <!-- log -->
-        <podLog :show="log.show" mode="modal" title="任务日志" :label-selector="log.label" @close="log.show=false;"></podLog>
+        <jobLog :show="log.show" mode="modal" title="任务日志" :label-selector="log.label" @close="log.show=false;"></jobLog>
     </div>
 </template>
 
@@ -55,6 +55,7 @@ import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
+import { JobLog as jobLog } from '@/components';
 
 export default {
     props: ['data','title'],
@@ -77,6 +78,7 @@ export default {
     },
     components: {
         yamlDrawer,
+        jobLog,
     },
     methods: {
         getList(){

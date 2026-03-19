@@ -107,11 +107,11 @@
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
-import { PodLog } from '@/components';
+import { PodLog as podLog } from '@/components';
 
 export default {
     components: {
-        PodLog,
+        podLog,
     },
     data(){
         return {
