@@ -1,5 +1,2 @@
-/**
- * 日志组件统一导出
- */
-export { default as PodLog } from './pod-log.vue';
-export { default as JobLog } from './job-log.vue';
+export { default as podLog } from './pod-log.vue';
+export { default as jobLog } from './job-log.vue';

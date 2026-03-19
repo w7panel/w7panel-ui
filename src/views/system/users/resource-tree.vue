@@ -120,7 +120,7 @@ import { k8sproxy } from '@/utils/api';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import yamlDrawer from '@/components/yaml-drawer.vue';
-import { PodLog as podLog } from '@/components';
+import { podLog } from '@/components';
 
 export default{
     props: ['token','userInfo'],
