@@ -276,7 +276,7 @@
             <pods-charts v-if="charts.show" :list="selectedKeys"></pods-charts>
         </a-drawer> -->
 
-        <pod-log :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></pod-log>
+        <PodLog :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></PodLog>
     </div>
 </template>
 
@@ -295,7 +295,7 @@ import podsCharts from '@/components/pods-charts.vue';
 import { getToken,getUserInfo } from '@/utils/auth';
 import { getPermission } from '@/utils/auth';
 import { getWebshell } from '@/utils/auth';
-import podLog from './pod-log.vue';
+
 
 export default {
     props: ['data','title'],
@@ -387,7 +387,7 @@ export default {
         this.stopRequestStatus();
         this.stopWatch();
     },
-    components: {yamlDrawer,webShell,podsCharts,podLog},
+    components: {yamlDrawer,webShell,podsCharts},
     methods: {
         onekeyCopy(text){
             var textarea = document.createElement('textarea');

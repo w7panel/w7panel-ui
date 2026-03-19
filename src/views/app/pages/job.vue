@@ -45,7 +45,7 @@
         <!-- yaml -->
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
         <!-- log -->
-        <joblog-drawer :show="log.show" :label="log.label" @close="log.show=false;"></joblog-drawer>
+        <PodLog :show="log.show" mode="modal" title="任务日志" :label-selector="log.label" @close="log.show=false;"></PodLog>
     </div>
 </template>
 
@@ -54,7 +54,6 @@ import { k8sproxy } from '@/utils/api';
 import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
-import joblogDrawer from './joblog-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 
 export default {
@@ -78,7 +77,6 @@ export default {
     },
     components: {
         yamlDrawer,
-        joblogDrawer,
     },
     methods: {
         getList(){

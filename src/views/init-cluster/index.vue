@@ -22,7 +22,6 @@
             <div class="mt-40" style="width:1000px;">
                 <div class="bg-white" style="border: 1px solid var(--color-neutral-3);padding:0 20px;">
 
-
                     <div class="df ai-c jc-b" style="border-bottom: 1px solid var(--color-neutral-3); padding:20px 0;">
                         <div class="df-s0" style="color:var(--color-text-2);">资源可用性检测</div>
                         <div class="df ai-c lh-1">
@@ -33,7 +32,7 @@
                     </div>
                     <div class="df ai-c padding-10" style="border-bottom: 1px solid var(--color-neutral-3); padding:20px 0;">
                         <div class="df-s0" style="color:var(--color-text-2);">集群初始化</div>
-                        <div @click="logModal.show=true" class="fc ml-20 c-99 txt-overhidden cursor">{{ lastRow }}</div>
+                        <div @click="openLogModal" class="fc ml-20 c-99 txt-overhidden cursor">{{ lastRow }}</div>
                         <div class="df-s0 ml-20">
                             <div v-if="status=='complete'">
                                 <icon-check-circle-fill class="c-green fs-16" />
@@ -71,7 +70,6 @@
                 </div>
 
                 <div v-if="status=='complete'||status=='failed'" class="mt-20 df jc-c">
-                    <!-- <a-button v-if="status=='failed'||status=='unknow'" :disabled="!canInit" type="primary" size="large" @click="toInitCluster">初始化集群</a-button> -->
                     <a-button v-if="!weihuModal || !startCluster" type="outline" @click="changeWeihuModal" size="large" style="margin:0 10px;">进入救援模式</a-button>
                     <a-button v-else-if="weihuModal" type="outline" @click="changeWeihuModal" size="large" style="margin:0 10px;">退出救援模式</a-button>
 
@@ -89,70 +87,44 @@
                         </a-popconfirm>
                     </div>
                 </div>
-
-                <!-- <div class="df df-c ai-c padding-20 bg-white">
-                    <div>
-                        <icon-check-circle-fill v-if="status=='complete'" style="font-size:80px;color:rgb(var(--green-6));" />
-                        <img v-else-if="status=='running'" src="@/assets/image/loading.png" style="width:60px; height:auto;" class="loader" alt="" />
-                        <icon-close-circle-fill v-else class="c-red" style="font-size:80px;" />
-                    </div>
-                    <div class="fs-30 mt-20 c-33">
-                        <div v-if="status=='complete'">集群初始化成功</div>
-                        <div v-if="status=='running'">集群初始化中...</div>
-                        <div v-else-if="status=='failed'">集群初始化失败</div>
-                        <div v-else-if="status=='unknow'">集群未初始化</div>
-                    </div>
-
-                    <job-log :show="logs.show" :name="logs.name" @close="logs.show=false" @lastRow="v=>lastRow=v" class="mt-20"></job-log>
-                    <div class="mt-20">
-                        <a-button v-if="status=='failed'||status=='unknow'" type="primary" size="large" @click="toInitCluster">初始化集群</a-button>
-                        <a-button v-if="status=='complete'" type="primary" size="large" @click="$router.push('/')">进入管理</a-button>
-                    </div>
-                </div> -->
             </div>
         </div>
 
-        <get-job-log :name="logs.name" @podcont="podcont"></get-job-log>
-
-        <a-modal v-model:visible="logModal.show" width="800px" :hide-cancel="true" @cancel="logModal.open=false;"  @ok="logModal.open=false;" @open="logModal.open=true;">
-            <template #title>查看日志</template>
-            <div ref="termbox" style="height:300px;"></div>
-            <template #footer></template>
-        </a-modal>
+        <!-- 日志弹窗 -->
+        <PodLog 
+            :show="logModal.show" 
+            mode="modal" 
+            title="查看日志" 
+            :height="400" 
+            :local="true"
+            :pod-name="logModal.pod_name"
+            :namespace="logModal.namespace"
+            @close="logModal.show = false; logModal.pod_name = ''; logModal.namespace = '';"
+        />
     </div>
 </template>
 
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
-import jobLog from '@/views/init-cluster/job-log.vue';
-import getJobLog from '@/views/init-cluster/get-job-log.vue';
-import { getK8sinfo } from '@/utils/auth';
-
-import '@xterm/xterm/css/xterm.css';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
+import { PodLog } from '@/components';
 
 export default {
+    components: {
+        PodLog,
+    },
     data(){
         return {
             status: '',
             jobName: '',
             namespace: '',
-            logs: {
-                show: false,
-                name: '',
-            },
             lastRow: '',
             logModal: {
                 show: false,
-                open: false,
-                log: '',
+                pod_name: '',
+                namespace: '',
             },
 
-            itemTerm: null,
-            itemFitAddon: null,
             hasOverResource: false,
             canInit: false,
 
@@ -171,37 +143,12 @@ export default {
             this.toInitCluster();
         }
     },
-    components: {
-        jobLog,
-        getJobLog,
-    },
-    beforeDestroy() {
-        this.disposeTerm();
-    },
-    watch:{
-        'logModal.open'(v){
-            if(v){
-                this.terminalInit()
-            }else{
-                this.disposeTerm();
-            }
-        },
-        'logModal.log'(){
-            this.writeLog();
-        }
-    },
     methods: {
-        disposeTerm(){
-            try{
-                if(this.itemTerm){
-                    this.itemTerm.dispose();
-                    this.itemTerm = null;
-                }
-                this.itemFitAddon = null;
-            }catch(e){
-                this.itemTerm = null;
-                this.itemFitAddon = null;
-            }
+        openLogModal(){
+            if(!this.jobName || !this.namespace) return;
+            this.logModal.pod_name = this.jobName;
+            this.logModal.namespace = this.namespace;
+            this.logModal.show = true;
         },
         deleteAppgroup(item){
             k8sproxy.delete('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups/'+item.name,{noAlert:true}).then(res=>{
@@ -239,36 +186,6 @@ export default {
                 this.getStatus();
             });
         },
-        terminalInit(){
-            let dom = this.$refs.termbox;
-            dom.innerHTML = "";
-            this.itemTerm = new Terminal({
-                rendererType: 'dom',
-                cursorBlink: false,
-            });
-            this.itemTerm.open(dom);
-
-            this.itemFitAddon = new FitAddon();
-            this.itemTerm.loadAddon(this.itemFitAddon);
-            this.itemFitAddon.fit();
-            this.writeLog();
-        },
-        writeLog(){
-            if(!this.itemTerm){return}
-            this.itemTerm.reset();
-            let e = this.logModal.log;
-            e = e.replace(/\x20+/g,' ');
-            e = e.replace(/(?<!\r)\n/g,'\r\n');
-            setTimeout(()=>{this.itemFitAddon.fit();},30);
-            setTimeout(()=>{this.itemTerm.write(e);},60);
-        },
-        podcont(data){
-            this.logModal.log = data;
-            let arr = data.split('\n').filter(i=>/\w/.test(i));
-            let lastRow = arr.length? arr[arr.length-1] : '';
-            lastRow = lastRow.replace(/\u001b\[\d{1,3}(;1)?m/g,'');
-            this.lastRow = lastRow;
-        },
         getInfo(){
             return panelApi.get('/k3k/info',{loading:true}).then(res=>{
                 this.status = res?.data?.['w7.cc/k3k-job-status'];
@@ -277,12 +194,15 @@ export default {
                 this.hasOverResource = res?.data?.['w7.cc/has-over-resource'] == 'true';
                 this.canInit = res?.data?.['w7.cc/can-init-cluster'] == 'true';
                 
-                if(this.jobName){
-                    this.logs = {
-                        show: true,
-                        name: this.jobName,
-                    }
+                // 更新 lastRow
+                if(this.status == 'running'){
+                    this.lastRow = '初始化中...';
+                } else if(this.status == 'complete'){
+                    this.lastRow = '初始化完成';
+                } else if(this.status == 'failed'){
+                    this.lastRow = '初始化失败，点击查看日志';
                 }
+                
                 if(this.status == 'running'){
                     this.interval = setTimeout(this.getInfo,5000);
                 }else if(this.status == 'complete'){
@@ -295,14 +215,12 @@ export default {
                             }).then(()=>{}).catch(()=>{})
                         }
                     })
-                    // this.$router.push('/');
                 }
             })
         },
         toInitCluster(){
             panelApi.post('/k3k/init').then(res=>{
-                this.logs.show = false;
-                this.logs.name = '';
+                this.$message.success('开始初始化');
                 this.$nextTick(()=>{
                     this.getInfo();
                 })

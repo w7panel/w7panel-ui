@@ -80,12 +80,13 @@
             @cancel="yamlData.show=false;"
         ></yaml-drawer>
 
-        <check-log
+        <podLog
             :show="logs.show"
-            :data="logs"
-            @close="logs.show=false;"
+            :data="{name: logs.name, containerList: logs.containerList}"
+            :namespace="logs.namespace"
             :token="token"
-        ></check-log>
+            @close="logs.show=false;"
+        ></podLog>
         
         <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancle="ws.dialog = false;" top="10vh" :popup-container="false?'#allmodalbox':'body'">
             <template #title>webshell</template>
@@ -119,7 +120,7 @@ import { k8sproxy } from '@/utils/api';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import yamlDrawer from '@/components/yaml-drawer.vue';
-import checkLog from '@/views/cluster/resource/check-log.vue';
+import { PodLog } from '@/components';
 
 export default{
     props: ['token','userInfo'],

@@ -129,7 +129,7 @@
         </a-modal>
 
         
-        <job-log :show="joblogData.show" :name="joblogData.name" @close="joblogData.show=false"></job-log>
+        <jobLog :show="joblogData.show" :name="joblogData.name" @close="joblogData.show=false"></jobLog>
         
         <a-modal width="1200px" v-model:visible="fileDialog.show" :fullscreen="fileDialog.fullscreen" :closable="false" :footer="false" class="micro-iframe-modal">
             <template #title>
@@ -194,7 +194,7 @@
 
         <domain-cert :data="domainCertData"></domain-cert>
 
-        <pod-log :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></pod-log>
+        <podLog :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></podLog>
         
         <micro-app-form :show="maf.show" :yaml="maf.yaml" :callback="callback" @close="maf.show=false;"></micro-app-form>
 
@@ -213,10 +213,11 @@ import gpuStack from '@/views/app/gpustack/index.vue';
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
 
-import jobLog from '@/components/job-log.vue';
+import { PodLog } from '@/components';
+import { JobLog } from '@/components';
 import domainCert from '@/views/topapp/domain-cert.vue';
 import appFile from '@/views/app/pages/files.vue';
-import podLog from '@/views/app/pages/pod-log.vue';
+
 import microAppForm from '@/components/micro-app-form.vue';
 
 const ROLE_NAME = {
@@ -390,12 +391,12 @@ export default {
     },
     components: {
         jobLog,
+        podLog,
         formDrawer,
         addappDrawer,
         gpuStack,
         domainCert,
         appFile,
-        podLog,
         microAppForm,
     },
     beforeUnmount(){

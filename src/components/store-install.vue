@@ -253,7 +253,7 @@
             </div>
         </div>
         <zone-drawer :show="sdShow" @close="closeSD"></zone-drawer>
-        <job-log :show="logs.show" :name="logs.name" @close="logs.show=false"></job-log>
+        <jobLog :show="logs.show" :name="logs.name" @close="logs.show=false"></jobLog>
         <imageform-drawer :show="imgShow" @close="closeIMG"></imageform-drawer>
     </div>
 </template>
@@ -266,7 +266,7 @@ import axios from 'axios';
 import { useNamespaceStore,useLoadingStore } from '@/store';
 import zoneDrawer from '@/views/storage/zone-drawer.vue';
 import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
-import jobLog from '@/components/job-log.vue';
+import { JobLog } from '@/components';
 import customCheckbox from './custom-checkbox.vue';
 import { getUserInfo } from '@/utils/auth';
 import shortuuid from 'short-uuid';

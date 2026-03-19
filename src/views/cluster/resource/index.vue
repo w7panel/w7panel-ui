@@ -88,7 +88,7 @@
 
         <k8syaml-drawer :show="k8syaml.show" @close="closeK8syaml" ></k8syaml-drawer>
 
-        <check-log :show="logs.show" :data="logs" @close="logs.show=false;"></check-log>
+        <podLog :show="logs.show" :data="{name: logs.name, containerList: logs.containerList}" :namespace="logs.namespace" @close="logs.show=false;"></podLog>
 
         <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancle="ws.dialog = false;" top="10vh" :popup-container="false?'#allmodalbox':'body'">
             <template #title>webshell</template>
@@ -124,7 +124,7 @@ import axios from 'axios';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore } from "@/store";
 import k8syamlDrawer from '@/components/k8syaml-drawer.vue';
-import checkLog from './check-log.vue';
+import { PodLog } from '@/components';
 import webShell from "@/components/web-shell.vue";
 import { getUserInfo } from '@/utils/auth';
 // import { getToken } from '@/utils/auth';
@@ -191,7 +191,7 @@ export default {
         },
         resourceItem: "getList",
     },
-    components: { yamlDrawer, k8syamlDrawer,checkLog,webShell },
+    components: { yamlDrawer, k8syamlDrawer, podLog, webShell },
     computed: {
         webshelllink(){
             return `/fp/pod-webshell?pod=${this.ws.podName}&namespace=${this.ws.namespace}&containerName=${this.ws.container}&type=`
