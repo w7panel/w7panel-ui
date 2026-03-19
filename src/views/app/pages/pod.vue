@@ -9,16 +9,15 @@
         </div>
         <div class="bg-white ">
              <!-- :row-selection="rowSelection" v-model:selectedKeys="selectedKeys" -->
-            <a-table
-                :data="list"
-                class="mt-20 cptable app-pod-table"
-                :bordered="false"
-                :pagination="false"
-                :row-selection="rowSelection"
-                v-model:selectedKeys="selectedKeys"
-                row-key="name"
-                :expandable="expandable"
-            >
+                <a-table 
+                    :data="list" 
+                    :expandable="expandable"
+                    :expanded-keys="expandedKeys"
+                    @expanded-change="onExpandedChange"
+                    class="cptable app-pod-table"
+                    :pagination="false"
+                    :bordered="false"
+                >
                 <template #columns>
                     <a-table-column title="实例名称">
                         <template #cell="{ record }">
@@ -366,6 +365,8 @@ export default {
 
             statusController: null,
             watchController: null,
+            metricsTimer: null,  // metrics 定时刷新
+            expandedKeys: [],  // 展开的行
         }
     },
     created(){
@@ -374,19 +375,20 @@ export default {
         this.debug = getUserInfo()?.['w7.cc/debug']=='true';
         this.namespaceActive = useNamespaceStore().namespace;
         this.userInfo = getUserInfo();
-        // this.getList();
-        this.getListOld();
+        this.getList();
     },
     watch: {
         data(v,ov){
-            if(!Object.keys(ov)?.length){
-                // this.getList();
+            // data 变化时重新获取 Pod 列表（使用 watch 模式）
+            if(v && Object.keys(v)?.length){
+                this.getList();
             }
         },
     },
     beforeUnmount(){
         this.stopRequestStatus();
         this.stopWatch();
+        this.stopMetricsRefresh();
     },
     components: {yamlDrawer,webShell,podsCharts,podLog},
     methods: {
@@ -434,94 +436,19 @@ export default {
             })
             return;
         },
-        getListOld(){
-            let selector = this.data?.spec?.selector?.matchLabels || {};
-            let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
-            
-            k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/pods",{
-                params:{
-                    labelSelector: label,
-                },
-                "headers": {
-                    "accept": "application/json, text/plain, */*",
-                },
-                loading:true
-            }).then(res=>{
-                let items = res?.data?.items;
-                this.list = items.map(item=>{
-                    let podips = item?.status?.podIPs?.map(i=>i.ip) || [];
-                    let containerStatuses = item.status?.containerStatuses || [];
-                    let ctn = item?.spec?.containers || [];
-                    ctn = ctn.map(i=>{
-                        let cs = containerStatuses?.find(c=>c.name==i.name)
-                        return {
-                            name: i.name,
-                            containerID: cs?.containerID ?? '-',
-                            image: i.image,
-                            restartCount: cs?.restartCount ?? '-',
-                            reason: cs?.lastState?.terminated?.reason ?? '-',
-                            status: Object.keys(cs?.state || {})?.[0] || '-',
-                        }
-                    })
-                    return {
-                        key: item?.metadata?.name,
-                        name: item?.metadata?.name,
-                        namespace: item?.metadata?.namespace,
-                        containers: item?.spec?.containers || [],
-                        ctn: ctn,
-                        initContainers: item?.spec?.initContainers || [],
-                        containerStatuses: containerStatuses,
-                        containerName: item?.spec?.containers?.[0]?.name,
-                        creationTimestamp: window.formatDate(item?.metadata?.creationTimestamp),
-                        hostIp: item?.status?.hostIP,
-                        podIps: podips.join(' , '),
-                        startTime: window.formatDate(item?.status?.startTime),
-                        status: item?.status?.phase?.toUpperCase() || '',
-                        statusTxt: item?.status?.phase || '',
-                        uid: item?.metadata?.uid,
-                    }
-                });
-                    
-                let selector = this.data?.spec?.selector?.matchLabels || {};
-                let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
-                
-                let namespace = this.userInfo?.['k3k.io/cluster-mode']=="shared"? this.userInfo?.['w7.cc/k3k-namespace'] : this.namespaceActive;
-                k8sproxy.get("/apis/metrics.k8s.io/v1beta1/namespaces/"+ namespace +"/pods",{params:{
-                    labelSelector: label,
-                    ...(this.userInfo?.['k3k.io/cluster-mode']=="virtual"?{}:{local: 1}),
-                }}).then(res=>{
-                    let items = res?.data?.items || [];
-                    items.forEach(item=>{
-                        let listIndex = this.list.findIndex(i=>i.name==item.metadata.name);
-                        item?.containers?.map(container=>{
-                            let cpu = container?.usage?.cpu || '0';
-                            let memory = container?.usage?.memory || '0';
-                            cpu = (Number(cpu.replace(/[a-zA-z]/g,'')) / 1000 / 1000 / 1000).toFixed(2);
-                            memory = (Number(memory.replace(/[a-zA-z]/g,'')) / 1024 / 1024 ).toFixed(2);
 
-                            let ctnIndex = this.list?.[listIndex]?.ctn?.findIndex(c=>c.name==container.name) ?? -1;
-                            console.log(listIndex,ctnIndex,cpu,memory)
-                            if(ctnIndex>-1){
-                                this.list[listIndex].ctn[ctnIndex].cpu = cpu + '核';
-                                this.list[listIndex].ctn[ctnIndex].memory = memory + 'Gi';
-                            }
-                        })
-                    })
-                    // console.log(this.list)
-                }).catch(()=>{})
-            })
-        },
         getList(){
             if(!Object.keys(this.data)?.length){return}
             this.nativeList = [];
             let selector = this.data?.spec?.selector?.matchLabels || {};
             let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
             
-            // 始终使用 watch 模式
+            // 停止之前的 watch 和 metrics 刷新
             this.stopWatch();
+            this.stopMetricsRefresh();
             
             const controller = new AbortController();
-            this.watchController = controller;  // 保存到实例
+            this.watchController = controller;
             const { signal } = controller;
             const queryString = new URLSearchParams({ labelSelector: label, watch: 'true', }).toString();
             fetch("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?" + queryString, {
@@ -531,10 +458,8 @@ export default {
                     "authorization": "Bearer " + getToken(),
                 },
             }).then(response => {
-                // 检查响应是否成功
                 if (!response.ok) {
                     console.error('请求失败，状态码:', response.status);
-                    // 抛出错误让外层捕获，而不是静默返回
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 if (!response.body) {
@@ -542,123 +467,104 @@ export default {
                     throw new Error('Response body is not a readable stream');
                 }
 
-                // 获取流的读取器
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder('utf-8');
                 let buffer = '';
 
-                // 递归读取流数据（优化版）
                 const readStream = async () => {
                     try {
                         const { done, value } = await reader.read();
 
-                        // 流读取完成，处理剩余缓冲区
                         if (done) {
                             console.log('流读取完成');
-                            // 处理最后剩余的缓冲区数据
                             if (buffer.trim()) {
                                 try {
                                     const parsed = JSON.parse(buffer);
                                     this.setNativeList(parsed);
                                 } catch (e) {
-                                    console.error('处理最后缓冲区数据失败:', e, '数据内容:', buffer);
+                                    console.error('处理最后缓冲区数据失败:', e);
                                 }
                             }
                             return;
                         }
 
-                        // 解码二进制数据为文本
                         const chunk = decoder.decode(value, { stream: true });
-                        // 合并缓冲区和当前块（关键修复点）
                         const combinedData = buffer + chunk;
-                        // console.log('xxxxxxxxxxxxxxxxx')
-                        // console.log(combinedData)
                         const lines = combinedData.split('\n');
-                        
-                        // 重置缓冲区，用于存储最后不完整的行
                         buffer = lines.pop() || '';
 
-                        // 处理每一行完整数据
                         lines.forEach(line => {
                             const trimmedLine = line.trim();
-                            if (!trimmedLine) return; // 跳过空行
+                            if (!trimmedLine) return;
                             
                             try {
                                 const parsed = JSON.parse(trimmedLine);
                                 this.setNativeList(parsed);
                             } catch (e) {
-                                console.error('解析单行数据失败:', e, '数据内容:', line);
+                                console.error('解析单行数据失败:', e);
                             }
                         });
 
-                        // 继续读取下一块
                         return readStream();
                     } catch (error) {
                         console.error('读取流数据时发生错误:', error);
-                        // 释放读取器资源
                         reader.releaseLock();
                         throw error;
                     }
                 };
 
-                // 开始读取流
                 return readStream();
             }).catch((error)=>{
-                // 忽略 AbortError，这是组件卸载时正常中断请求
                 if (error.name === 'AbortError' || error.code === 20) { return; }
                 console.log('cache',error)
-            })
-        },
-        setNativeList(option){
-            if(!option?.type){return}
-            if(option.type=='ADDED'){
-                this.nativeList.push(option?.object || {})
-            }else if(option.type=='MODIFIED'){
-                const index = this.nativeList.findIndex(item => item.metadata.name === option?.object?.metadata?.name);
-                if (index !== -1) { this.nativeList[index] = option?.object; }
-            }else if(option.type=='DELETED'){
-                this.nativeList = this.nativeList.filter(i=>i.metadata.name!=option?.object?.metadata?.name);
-            }
-
-            let items = this.nativeList;
-            this.list = items.map(item=>{
-                let podips = item?.status?.podIPs?.map(i=>i.ip) || [];
-                let containerStatuses = item.status?.containerStatuses || [];
-                let ctn = item?.spec?.containers || [];
-                ctn = ctn.map(i=>{
-                    let cs = containerStatuses?.find(c=>c.name==i.name)
-                    return {
-                        name: i.name,
-                        containerID: cs?.containerID ?? '-',
-                        image: i.image,
-                        restartCount: cs?.restartCount ?? '-',
-                        reason: cs?.lastState?.terminated?.reason ?? '-',
-                        status: Object.keys(cs?.state || {})?.[0] || '-',
-                    }
-                })
-                return {
-                    key: item?.metadata?.name,
-                    name: item?.metadata?.name,
-                    namespace: item?.metadata?.namespace,
-                    containers: item?.spec?.containers || [],
-                    ctn: ctn,
-                    initContainers: item?.spec?.initContainers || [],
-                    containerStatuses: containerStatuses,
-                    containerName: item?.spec?.containers?.[0]?.name,
-                    creationTimestamp: window.formatDate(item?.metadata?.creationTimestamp),
-                    hostIp: item?.status?.hostIP,
-                    podIps: podips.join(' , '),
-                    startTime: window.formatDate(item?.status?.startTime),
-                    status: item?.status?.phase?.toUpperCase() || '',
-                    statusTxt: item?.status?.phase || '',
-                    uid: item?.metadata?.uid,
-                }
             });
-                
+
+            // 初始化时获取一次 metrics
+            this.fetchMetrics();
+            // 启动定时刷新 metrics（每30秒）
+            this.startMetricsRefresh();
+        },
+        // 启动 metrics 定时刷新
+        startMetricsRefresh(){
+            // 只有在有展开行时才刷新 metrics
+            if (this.expandedKeys.length === 0) {
+                this.stopMetricsRefresh();
+                return;
+            }
+            this.stopMetricsRefresh();
+            this.metricsTimer = setInterval(() => {
+                // 再次检查展开状态
+                if (this.expandedKeys.length > 0) {
+                    this.fetchMetrics();
+                } else {
+                    this.stopMetricsRefresh();
+                }
+            }, 30000);  // 30秒刷新一次
+        },
+        // 展开/收起行变化时调用
+        onExpandedChange(expandedKeys){
+            this.expandedKeys = expandedKeys;
+            if (expandedKeys.length > 0) {
+                // 有展开的行，启动 metrics 刷新
+                this.startMetricsRefresh();
+            } else {
+                // 没有展开的行，停止 metrics 刷新
+                this.stopMetricsRefresh();
+            }
+        },
+        // 停止 metrics 定时刷新
+        stopMetricsRefresh(){
+            if (this.metricsTimer) {
+                clearInterval(this.metricsTimer);
+                this.metricsTimer = null;
+            }
+        },
+        // 获取 metrics（只在必要时调用）
+        fetchMetrics(){
             let selector = this.data?.spec?.selector?.matchLabels || {};
             let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
-            
             let namespace = this.userInfo?.['k3k.io/cluster-mode']=="shared"? this.userInfo?.['w7.cc/k3k-namespace'] : this.namespaceActive;
+            
             k8sproxy.get("/apis/metrics.k8s.io/v1beta1/namespaces/"+ namespace +"/pods",{params:{
                 labelSelector: label,
                 ...(this.userInfo?.['k3k.io/cluster-mode']=="virtual"?{}:{local: 1}),
@@ -673,15 +579,77 @@ export default {
                         memory = (Number(memory.replace(/[a-zA-z]/g,'')) / 1024 / 1024 ).toFixed(2);
 
                         let ctnIndex = this.list?.[listIndex]?.ctn?.findIndex(c=>c.name==container.name) ?? -1;
-                        console.log(listIndex,ctnIndex,cpu,memory)
                         if(ctnIndex>-1){
                             this.list[listIndex].ctn[ctnIndex].cpu = cpu + '核';
                             this.list[listIndex].ctn[ctnIndex].memory = memory + 'Gi';
                         }
                     })
                 })
-                // console.log(this.list)
             }).catch(()=>{})
+        },
+        // 转换 Pod 对象为列表项（单个）
+        transformPodItem(item){
+            let podips = item?.status?.podIPs?.map(i=>i.ip) || [];
+            let containerStatuses = item.status?.containerStatuses || [];
+            let ctn = (item.spec?.containers || []).map(i=>{
+                let cs = containerStatuses?.find(c=>c.name==i.name)
+                return {
+                    name: i.name,
+                    containerID: cs?.containerID ?? '-',
+                    image: i.image,
+                    restartCount: cs?.restartCount ?? '-',
+                    reason: cs?.lastState?.terminated?.reason ?? '-',
+                    status: Object.keys(cs?.state || {})?.[0] || '-',
+                }
+            })
+            return {
+                key: item?.metadata?.name,
+                name: item?.metadata?.name,
+                namespace: item?.metadata?.namespace,
+                containers: item?.spec?.containers || [],
+                ctn: ctn,
+                initContainers: item?.spec?.initContainers || [],
+                containerStatuses: containerStatuses,
+                containerName: item?.spec?.containers?.[0]?.name,
+                creationTimestamp: window.formatDate(item?.metadata?.creationTimestamp),
+                hostIp: item?.status?.hostIP,
+                podIps: podips.join(' , '),
+                startTime: window.formatDate(item?.status?.startTime),
+                status: item?.status?.phase?.toUpperCase() || '',
+                statusTxt: item?.status?.phase || '',
+                uid: item?.metadata?.uid,
+            }
+        },
+        // 增量更新 Pod 列表
+        setNativeList(option){
+            if(!option?.type || !option?.object){return}
+            
+            const obj = option.object;
+            const name = obj?.metadata?.name;
+            
+            if(option.type=='ADDED'){
+                // 新增 Pod
+                const index = this.nativeList.findIndex(item => item.metadata.name === name);
+                if(index === -1){
+                    this.nativeList.push(obj);
+                    const newItem = this.transformPodItem(obj);
+                    this.list.push(newItem);
+                }
+            }else if(option.type=='MODIFIED'){
+                // 修改 Pod
+                const nativeIndex = this.nativeList.findIndex(item => item.metadata.name === name);
+                if(nativeIndex !== -1){
+                    this.nativeList[nativeIndex] = obj;
+                    const listIndex = this.list.findIndex(item => item.name === name);
+                    if(listIndex !== -1){
+                        this.list[listIndex] = this.transformPodItem(obj);
+                    }
+                }
+            }else if(option.type=='DELETED'){
+                // 删除 Pod
+                this.nativeList = this.nativeList.filter(i=>i.metadata.name!=name);
+                this.list = this.list.filter(i=>i.name!=name);
+            }
         },
         openYaml(row){
             k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/pods/"+row.name,{loading:true}).then(res=>{
