@@ -292,6 +292,7 @@ import yamlDrawer from '@/components/yaml-drawer.vue';
 
 import webShell from "@/components/web-shell.vue";
 import podsCharts from '@/components/pods-charts.vue';
+import podLog from '@/components/pod-log.vue';
 import { getToken,getUserInfo } from '@/utils/auth';
 import { getPermission } from '@/utils/auth';
 import { getWebshell } from '@/utils/auth';
@@ -387,7 +388,7 @@ export default {
         this.stopRequestStatus();
         this.stopWatch();
     },
-    components: {yamlDrawer,webShell,podsCharts},
+    components: {yamlDrawer,webShell,podsCharts,podLog},
     methods: {
         onekeyCopy(text){
             var textarea = document.createElement('textarea');
