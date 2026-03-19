@@ -517,8 +517,7 @@ export default {
                 console.log('cache',error)
             });
 
-            // 获取 metrics（首次加载获取所有，后续只更新展开行）
-            this.fetchMetrics();
+            // metrics 在展开时获取，首次加载不获取
         },
         // 获取 metrics
         // @param {boolean} onlyExpanded - 是否只更新展开行，默认 false
