@@ -229,7 +229,6 @@ export default {
         },
     },
     created() {
-        this.initData();
     },
     beforeUnmount() {
         this.cleanup();
@@ -286,8 +285,7 @@ export default {
             });
         },
         onOpen() {
-            this.initTerm();
-            this.fetchLog();
+            // 不在这里初始化，watch(show) 已处理
         },
         onClose() {
             this.cleanup();
@@ -353,6 +351,9 @@ export default {
             this.stopStream();
             this.podcont = '';
             this.term?.reset();
+            
+            // 确保终端已初始化（streamLog 不会自动初始化）
+            this.initTerm();
 
             // 构建查询参数
             const params = {
