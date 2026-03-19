@@ -424,7 +424,7 @@ import axios from 'axios'
 import { useNamespaceStore } from '@/store';
 import { getUserInfo } from '@/utils/auth';
 import CryptoJS  from 'crypto-js';
-import testResource from '@/components/test-resource.vue';
+// import testResource from '@/components/test-resource.vue';
 import appFormVolumes from '@/components/app-form-volumes.vue';
 
 export default {
@@ -482,7 +482,7 @@ export default {
         // ...mapState(['namespace','namespaceActive']),
     },
     components: {
-        testResource,
+        // testResource,
         appFormVolumes,
     },
     watch:{
