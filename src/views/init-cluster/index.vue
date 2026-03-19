@@ -107,7 +107,7 @@
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
-import { podLog } from '@/components';
+import podLog from '@/components/pod-log.vue';
 
 export default {
     components: {

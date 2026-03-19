@@ -84,8 +84,8 @@ import { useNamespaceStore,useLoadingStore } from '@/store';
 import { getToken,getK8sinfo } from '@/utils/auth';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import axios from 'axios';
-import { podLog } from '@/components';
-import { jobLog } from '@/components';
+import podLog from '@/components/pod-log.vue';
+import jobLog from '@/components/job-log.vue';
 import domainCert from '@/views/topapp/domain-cert.vue';
 import appFile from '@/views/app/pages/files.vue';
 

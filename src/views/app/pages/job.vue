@@ -55,7 +55,7 @@ import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
-import { jobLog } from '@/components';
+import jobLog from '@/components/job-log.vue';
 
 export default {
     props: ['data','title'],

@@ -144,7 +144,8 @@ import jobTable from './job-table.vue';
 import appShell from './app-shell.vue';
 import { getPermission } from '@/utils/auth';
 import { getUserInfo } from '@/utils/auth';
-import { podLog, jobLog } from '@/components';
+import podLog from '@/components/pod-log.vue';
+import jobLog from '@/components/job-log.vue';
 
 export default {
     components: {
