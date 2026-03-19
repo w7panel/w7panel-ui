@@ -213,7 +213,7 @@ export default {
     data() {
         return {
             visible: false,
-            follow: false,
+            follow: true,
             tailLinesOption: 100,
             term: null,
             fitAddon: null,
@@ -446,11 +446,6 @@ export default {
             
             // 确保终端已初始化
             this.initTerm();
-
-            // 如果是首次加载且 follow 未设置，默认跟踪
-            if (this.follow === false && !this.podcont) {
-                this.follow = true;
-            }
 
             // 构建查询参数
             const params = {
