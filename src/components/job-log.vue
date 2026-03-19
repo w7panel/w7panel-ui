@@ -15,6 +15,10 @@
             <div class="df ai-c jc-c fc log-modal-title">
                 <span class="fs-18">{{ title }}</span>
                 <div class="df ai-c btns">
+                    <div class="btn ml-20 cursor" @click="toggleFullscreen">
+                        <icon-fullscreen v-if="!fullscreen" class="fs-20 c-66" />
+                        <icon-fullscreen-exit v-else class="fs-20 c-66" />
+                    </div>
                     <div class="btn ml-20 cursor" @click="closeModal">
                         <icon-close class="fs-20 c-66" />
                     </div>
@@ -214,6 +218,7 @@ export default {
         return {
             visible: false,
             follow: true,
+            fullscreen: false,
             tailLinesOption: 100,
             term: null,
             fitAddon: null,
@@ -310,6 +315,13 @@ export default {
         },
         closeModal() {
             this.visible = false;
+        },
+        toggleFullscreen() {
+            this.fullscreen = !this.fullscreen;
+            this.$nextTick(() => {
+                this.term = null;
+                this.initTerm();
+            });
         },
         onTabChange() {
             this.stopStream();

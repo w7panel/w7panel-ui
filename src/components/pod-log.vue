@@ -325,12 +325,10 @@ export default {
         },
         toggleFullscreen() {
             this.fullscreen = !this.fullscreen;
-            if (this.fullscreen) {
-                this.$nextTick(() => {
-                    this.term = null;
-                    this.initTerm();
-                });
-            }
+            this.$nextTick(() => {
+                this.term = null;
+                this.initTerm();
+            });
         },
         fetchLog() {
             let podName = this.podName;
