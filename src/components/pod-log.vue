@@ -201,14 +201,6 @@ export default {
         currentContainer() {
             return this.container || '';
         },
-        currentTailLines: {
-            get() {
-                return this.tailLines;
-            },
-            set(val) {
-                this.$emit('update:tailLines', val);
-            },
-        },
     },
     watch: {
         show: {

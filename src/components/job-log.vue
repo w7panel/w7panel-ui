@@ -260,7 +260,6 @@ export default {
     },
     methods: {
         init() {
-            this.initTerm();
             this.fetchJobList();
         },
         onOpen() {
@@ -313,6 +312,7 @@ export default {
             this.visible = false;
         },
         onTabChange() {
+            this.stopStream();
             this.fetchLog();
         },
         fetchJobList() {
