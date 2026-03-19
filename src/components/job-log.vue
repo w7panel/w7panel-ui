@@ -50,10 +50,11 @@
                             </div>
                         </div>
                         
-                        <div v-if="containerList.length > 1" class="df ai-c">
+                        <!-- 始终显示容器选择器 -->
+                        <div class="df ai-c">
                             <div class="ml-20">容器：</div>
                             <div class="ml-10">
-                                <a-select v-model="container" @change="fetchLog" style="min-width:150px;">
+                                <a-select v-model="container" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
                                     <a-option v-for="i in containerList" :key="i" :value="i">{{ i }}</a-option>
                                 </a-select>
                             </div>
@@ -106,10 +107,11 @@
                             </div>
                         </div>
                         
-                        <div v-if="containerList.length > 1" class="df ai-c">
+                        <!-- 始终显示容器选择器 -->
+                        <div class="df ai-c">
                             <div class="ml-20">容器：</div>
                             <div class="ml-10">
-                                <a-select v-model="container" @change="fetchLog" style="min-width:150px;">
+                                <a-select v-model="container" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
                                     <a-option v-for="i in containerList" :key="i" :value="i">{{ i }}</a-option>
                                 </a-select>
                             </div>
@@ -265,6 +267,14 @@ export default {
     },
     methods: {
         init() {
+            // 重置状态
+            this.containerList = [];
+            this.container = '';
+            this.list = [];
+            this.activeIndex = 0;
+            this.currentPodName = '';
+            this.podcont = '';
+            
             this.fetchJobList();
         },
         onOpen() {
@@ -294,6 +304,14 @@ export default {
         cleanup() {
             this.stopStream();
             this.disposeTerm();
+            // 重置状态
+            this.containerList = [];
+            this.container = '';
+            this.list = [];
+            this.activeIndex = 0;
+            this.currentPodName = '';
+            this.podcont = '';
+            this.follow = true;
         },
         stopStream() {
             if (this.controller) {
@@ -530,20 +548,25 @@ export default {
         writeChunk(chunk) {
             if (!this.term) return;
             
-            let text = chunk.replace(/\x20+/g, ' ');
-            text = text.replace(/(?<!\r)\n/g, '\r\n');
-            this.term.write(text);
+            try {
+                let text = chunk.replace(/\x20+/g, ' ');
+                text = text.replace(/(?<!\r)\n/g, '\r\n');
+                this.term.write(text);
+            } catch (e) {
+                // terminal 可能已被销毁，忽略
+            }
         },
         displayLog(text) {
-            if (!this.term) {
-                this.initTerm();
-            }
+            this.initTerm();
+            
+            // initTerm 可能失败，检查 term 是否有效
+            if (!this.term) return;
             
             let displayText = text.replace(/\x20+/g, ' ');
             displayText = displayText.replace(/(?<!\r)\n/g, '\r\n');
             
-            this.term?.reset();
-            this.term?.write(displayText);
+            this.term.reset();
+            this.term.write(displayText);
             
             this.$nextTick(() => {
                 this.fitAddon?.fit();

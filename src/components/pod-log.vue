@@ -36,10 +36,11 @@
                     </div>
                 </div>
                 
-                <div v-if="containerList.length > 1" class="df ai-c">
+                <!-- 始终显示容器选择器 -->
+                <div class="df ai-c">
                     <div class="ml-20">容器：</div>
                     <div class="ml-10">
-                        <a-select v-model="container" @change="fetchLog" style="min-width:150px;">
+                        <a-select v-model="container" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
                             <a-option v-for="i in containerList" :key="i" :value="i">{{ i }}</a-option>
                         </a-select>
                     </div>
@@ -75,10 +76,11 @@
                     </div>
                 </div>
                 
-                <div v-if="containerList.length > 1" class="df ai-c">
+                <!-- 始终显示容器选择器 -->
+                <div class="df ai-c">
                     <div class="ml-20">容器：</div>
                     <div class="ml-10">
-                        <a-select v-model="container" @change="fetchLog" style="min-width:150px;">
+                        <a-select v-model="container" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
                             <a-option v-for="i in containerList" :key="i" :value="i">{{ i }}</a-option>
                         </a-select>
                     </div>
@@ -238,12 +240,14 @@ export default {
 
             if (!podName) return;
 
-            // 如果有容器列表，直接使用
+            // 如果有容器列表，直接使用，跳过 API 请求
             if (containerList && containerList.length > 0) {
                 this.containerList = containerList.map(c => typeof c === 'string' ? c : c.name);
-                this.$nextTick(() => {
-                    this.fetchContainerInfo(podName);
-                });
+                // 设置默认容器
+                if (!this.container && this.containerList.length > 0) {
+                    this.container = this.containerList[0];
+                }
+                this.fetchLog();
             } else {
                 // 自动获取容器列表
                 this.fetchContainerInfo(podName);
@@ -301,6 +305,10 @@ export default {
         cleanup() {
             this.stopStream();
             this.disposeTerm();
+            // 重置状态
+            this.containerList = [];
+            this.podcont = '';
+            this.follow = true;
         },
         stopStream() {
             if (this.controller) {
@@ -417,14 +425,21 @@ export default {
         writeChunk(chunk) {
             if (!this.term) return;
             
-            let text = chunk.replace(/\x20+/g, ' ');
-            text = text.replace(/(?<!\r)\n/g, '\r\n');
-            this.term.write(text);
+            try {
+                let text = chunk.replace(/\x20+/g, ' ');
+                text = text.replace(/(?<!\r)\n/g, '\r\n');
+                this.term.write(text);
+            } catch (e) {
+                // terminal 可能已被销毁，忽略
+            }
         },
         displayLog(text) {
-            if (!this.term) return;
+            if (!text) return;
             
             this.initTerm();
+            
+            // initTerm 可能失败，检查 term 是否有效
+            if (!this.term) return;
             
             let displayText = text.replace(/\x20+/g, ' ');
             displayText = displayText.replace(/(?<!\r)\n/g, '\r\n');
