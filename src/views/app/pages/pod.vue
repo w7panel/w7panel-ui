@@ -12,6 +12,8 @@
                 <a-table 
                     :data="list" 
                     :expandable="expandable"
+                    :expanded-keys="expandedKeys"
+                    @expanded-change="onExpandedChange"
                     class="cptable app-pod-table"
                     :pagination="false"
                     :bordered="false"
@@ -363,6 +365,7 @@ export default {
 
             statusController: null,
             watchController: null,
+            expandedKeys: [],  // 展开的行
         }
     },
     created(){
@@ -435,6 +438,7 @@ export default {
         getList(){
             if(!Object.keys(this.data)?.length){return}
             this.nativeList = [];
+            this.expandedKeys = [];  // 重置展开状态
             let selector = this.data?.spec?.selector?.matchLabels || {};
             let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
             
@@ -513,11 +517,12 @@ export default {
                 console.log('cache',error)
             });
 
-            // 获取 metrics（一次性获取）
+            // 获取 metrics（首次加载获取所有，后续只更新展开行）
             this.fetchMetrics();
         },
-        // 获取 metrics（一次性获取）
-        fetchMetrics(){
+        // 获取 metrics
+        // @param {boolean} onlyExpanded - 是否只更新展开行，默认 false
+        fetchMetrics(onlyExpanded = false){
             let selector = this.data?.spec?.selector?.matchLabels || {};
             let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
             let namespace = this.userInfo?.['k3k.io/cluster-mode']=="shared"? this.userInfo?.['w7.cc/k3k-namespace'] : this.namespaceActive;
@@ -528,6 +533,10 @@ export default {
             }}).then(res=>{
                 let items = res?.data?.items || [];
                 items.forEach(item=>{
+                    // 首次加载(onlyExpanded=false)时更新所有 Pod，展开变化/变化刷新时只更新展开行
+                    if(onlyExpanded && !this.expandedKeys.includes(item.metadata.name)){
+                        return;
+                    }
                     let listIndex = this.list.findIndex(i=>i.name==item.metadata.name);
                     item?.containers?.map(container=>{
                         let cpu = container?.usage?.cpu || '0';
@@ -543,6 +552,16 @@ export default {
                     })
                 })
             }).catch(()=>{})
+        },
+        // 展开/收起行变化时
+        onExpandedChange(expandedKeys){
+            const oldKeys = new Set(this.expandedKeys);
+            this.expandedKeys = expandedKeys;
+            // 如果有新增的展开行，获取 metrics
+            const newKeys = expandedKeys.filter(k => !oldKeys.has(k));
+            if(newKeys.length > 0){
+                this.fetchMetrics(true);
+            }
         },
         // 转换 Pod 对象为列表项（单个）
         transformPodItem(item){
@@ -593,29 +612,36 @@ export default {
                     this.list.push(newItem);
                 }
             }else if(option.type=='MODIFIED'){
-                // 修改 Pod，保留原有的 metrics 数据
+                // 修改 Pod
                 const nativeIndex = this.nativeList.findIndex(item => item.metadata.name === name);
                 if(nativeIndex !== -1){
                     this.nativeList[nativeIndex] = obj;
                     const listIndex = this.list.findIndex(item => item.name === name);
                     if(listIndex !== -1){
-                        // 保存原有的 metrics 数据
-                        const oldCtn = this.list[listIndex].ctn;
-                        const metricsMap = {};
-                        oldCtn?.forEach(c => {
-                            if(c.cpu || c.memory){
-                                metricsMap[c.name] = { cpu: c.cpu, memory: c.memory };
-                            }
-                        });
-                        // 生成新对象并恢复 metrics
-                        const newItem = this.transformPodItem(obj);
-                        newItem.ctn?.forEach(c => {
-                            if(metricsMap[c.name]){
-                                c.cpu = metricsMap[c.name].cpu;
-                                c.memory = metricsMap[c.name].memory;
-                            }
-                        });
-                        this.list[listIndex] = newItem;
+                        const isExpanded = this.expandedKeys.includes(name);
+                        if(isExpanded){
+                            // 展开状态：保留 metrics 并立即刷新
+                            const oldCtn = this.list[listIndex].ctn;
+                            const metricsMap = {};
+                            oldCtn?.forEach(c => {
+                                if(c.cpu || c.memory){
+                                    metricsMap[c.name] = { cpu: c.cpu, memory: c.memory };
+                                }
+                            });
+                            const newItem = this.transformPodItem(obj);
+                            newItem.ctn?.forEach(c => {
+                                if(metricsMap[c.name]){
+                                    c.cpu = metricsMap[c.name].cpu;
+                                    c.memory = metricsMap[c.name].memory;
+                                }
+                            });
+                            this.list[listIndex] = newItem;
+                            // 立即刷新 metrics（只更新展开行）
+                            this.fetchMetrics(true);
+                        }else{
+                            // 非展开状态：直接替换（不需要 metrics）
+                            this.list[listIndex] = this.transformPodItem(obj);
+                        }
                     }
                 }
             }else if(option.type=='DELETED'){
