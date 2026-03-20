@@ -227,7 +227,7 @@ import { useNamespaceStore } from '@/store';
 import configmapEditor from '@/views/config/configmap/form-drawer.vue'
 
 export default{
-    props: ['data','id','kind','readonly'],
+    props: ['data','kind','readonly'],
     data(){
         return {
             namespaceActive: '',

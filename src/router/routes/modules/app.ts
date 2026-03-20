@@ -3,6 +3,15 @@ import { AppRouteRecordRaw } from '../types';
 
 const DASHBOARD: AppRouteRecordRaw[] = [
     {
+        path: '/container-plugin',
+        name: 'container-plugin',
+        component: () => import('@/views/app/pages/container-plugin.vue'),
+        meta: {
+            locale: '容器插件',
+            requiresAuth: false,
+        },
+    },
+    {
         path: '/app',
         name: 'app',
         component: DEFAULT_LAYOUT,

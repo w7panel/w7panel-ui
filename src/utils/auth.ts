@@ -11,6 +11,9 @@ const isLogin = () => {
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return true;
     }
+    if(window.__POWERED_BY_WUJIE__ && window.$wujie?.props?.paneltoken){
+        return true
+    }
     return !!localStorage.getItem(TOKEN_KEY);
 };
 
@@ -18,9 +21,15 @@ const getToken = () => {
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return (window as any)?.microApp?.getData()?.token;
     }
+    if(window.__POWERED_BY_WUJIE__ && window.$wujie?.props?.paneltoken){
+        return window.$wujie?.props?.paneltoken;
+    }
     return localStorage.getItem(TOKEN_KEY);
 };
 const getRefreshToken = () => {
+    if(window.__POWERED_BY_WUJIE__ && window.$wujie?.props?.paneltoken){
+        return window.$wujie?.props?.paneltoken;
+    }
     return localStorage.getItem(REFRESH_TOKEN);
 };
 // const getExpire = () => {
