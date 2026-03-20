@@ -685,7 +685,7 @@ export default {
         }
         this.getDataVm();
         await this.first();
-        // this.getUser();
+        this.getUserByWebDAV();
     },
     beforeDestroy() {
         if (this.editor) {
@@ -829,19 +829,19 @@ export default {
         //         this.getUserByWebDAV();
         //     }
         // },
-        // getUserByWebDAV(){
-        //     let url = `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}/etc/passwd`;
-        //     axios.get(url, { timeout: 5000 }).then(res=>{
-        //         const data = res?.data || '';
-        //         if(data.includes('No such file') || data.includes('<!DOCTYPE') || data.includes('<html') || !data.includes(':') || data.length < 10){
-        //             console.warn('WebDAV returned invalid data for /etc/passwd');
-        //             return;
-        //         }
-        //         this.userArr = this.parseUserInfo(data);
-        //     }).catch(err => {
-        //         console.error('获取用户列表失败:', err);
-        //     });
-        // },
+        getUserByWebDAV(){
+            let url = `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}/etc/passwd`;
+            axios.get(url, { timeout: 5000 }).then(res=>{
+                const data = res?.data || '';
+                if(data.includes('No such file') || data.includes('<!DOCTYPE') || data.includes('<html') || !data.includes(':') || data.length < 10){
+                    console.warn('WebDAV returned invalid data for /etc/passwd');
+                    return;
+                }
+                this.userArr = this.parseUserInfo(data);
+            }).catch(err => {
+                console.error('获取用户列表失败:', err);
+            });
+        },
         // 是挂载目录 / 属于挂载目录
         testForever(path, isNotFile){
             path = '/' + path.slice(this.root.length);
@@ -1020,9 +1020,9 @@ export default {
                         this.form.path = this.root.replace(/\/$/,'') + decodeURIComponent(path);
                     }
                     localStorage.setItem('webdavToken',res.data.webdavToken)
-                    if (res.data.users && res.data.users.length > 0) {
-                        this.userArr = res.data.users;
-                    }
+                    // if (res.data.users && res.data.users.length > 0) {
+                    //     this.userArr = res.data.users;
+                    // }
                     let wsBaseUrl = `${origin}/panel-api/v1/exec`;
                     this.outEditorLink = `${origin}/ui/plugin/codeblitz/editor.html?ws-base-url=${encodeURIComponent(wsBaseUrl)}&api-url=${res.data.webdavUrl?.replace(/\/$/,'')}&api-base-path=${res.data.webdavBasePath?.replace(/\/$/,'')}&initial-path=${encodeURIComponent(this.form.path || '/')}&api-token=${encodeURIComponent(res.data.webdavToken)}`;
                 })
@@ -1117,9 +1117,9 @@ export default {
                         this.form.path = this.root.replace(/\/$/,'') + decodeURIComponent(path);
                     }
                     localStorage.setItem('webdavToken',res.data.webdavToken)
-                    if (res.data.users && res.data.users.length > 0) {
-                        this.userArr = res.data.users;
-                    }
+                    // if (res.data.users && res.data.users.length > 0) {
+                    //     this.userArr = res.data.users;
+                    // }
                     let wsBaseUrl = `${origin}/panel-api/v1/exec`;
                     this.outEditorLink = `${origin}/ui/plugin/codeblitz/editor.html?ws-base-url=${encodeURIComponent(wsBaseUrl)}&api-url=${res.data.webdavUrl?.replace(/\/$/,'')}&api-base-path=${res.data.webdavBasePath?.replace(/\/$/,'')}&initial-path=${encodeURIComponent(this.form.path || '/')}&api-token=${encodeURIComponent(res.data.webdavToken)}`;
                 })
@@ -3585,22 +3585,22 @@ export default {
         //         this.$emit('refresh');
         //     }).catch(()=>{})
         // },
-        // parseUserInfo(text) {
-        //     const lines = text.split('\n');
-        //     const userArray = [];
+        parseUserInfo(text) {
+            const lines = text.split('\n');
+            const userArray = [];
 
-        //     for (let i = 0; i < lines.length; i++) {
-        //         const line = lines[i].trim();
-        //         if (line) {
-        //             const parts = line.split(':');
-        //             const name = parts[0];
-        //             const id = parseInt(parts[2], 10);
-        //             userArray.push({ name, id });
-        //         }
-        //     }
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    const parts = line.split(':');
+                    const name = parts[0];
+                    const id = parseInt(parts[2], 10);
+                    userArray.push({ name, id });
+                }
+            }
 
-        //     return userArray;
-        // }
+            return userArray;
+        }
     },
 }
 </script>

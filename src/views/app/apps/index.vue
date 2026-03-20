@@ -395,7 +395,7 @@ export default {
         //     })
         // },
         refreshList(){
-            k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then((res)=>{
+            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then((res)=>{
                 let list = res?.data?.items || [];
                 list = list.filter(i=>!i?.metadata?.labels?.['w7.cc/parent']).map(i=>{
                     
@@ -411,6 +411,21 @@ export default {
                     let frontType = [];
                     try{
                         domain_apps = JSON.parse(i?.metadata?.annotations?.['w7.cc/domains']);
+                        const dedupeDomains = urls => {
+                            const seen = new Set();
+                            return urls.filter(url => {
+                                const parsed = new URL(url);
+                                // 提取协议后的完整内容
+                                const key = parsed.href.slice(parsed.protocol.length).toLowerCase();
+                                if (!seen.has(key)) {
+                                    seen.add(key);
+                                    return true;
+                                }
+                                return false;
+                            });
+                        };
+                        domain_apps = dedupeDomains(domain_apps);
+
                         frontType = JSON.parse(i?.metadata?.annotations?.['w7.cc/front-type']);
                     }catch(e){}
                     return {
@@ -437,46 +452,8 @@ export default {
             })
         },
         async getList(){
-            await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then((res)=>{
-                let list = res?.data?.items || [];
-                list = list.filter(i=>!i?.metadata?.labels?.['w7.cc/parent']).map(i=>{
-                    
-                    let domain_apps = [];
-                    let statusItem = i?.status?.items || [];
-                    let childrenApp = statusItem.map(si=>({
-                        title: si.title||si.name,
-                        name: si.name,
-                        kind: si.kind.toLowerCase() + 's',
-                        ready: si.ready,
-                        group: i.metadata.name,
-                    }));
-                    let frontType = [];
-                    try{
-                        domain_apps = JSON.parse(i?.metadata?.annotations?.['w7.cc/domains']);
-                        frontType = JSON.parse(i?.metadata?.annotations?.['w7.cc/front-type']);
-                    }catch(e){}
-                    return {
-                        title: i?.spec?.title || i.metadata.name,
-                        deletionTimestamp: i?.metadata?.deletionTimestamp,
-                        groupName: i.metadata.name,
-                        namespace: this.namespaceActive,
-                        icon: i?.spec?.logo,
-                        createTime: window.formatDate(i?.metadata?.creationTimestamp),
-                        creationTimestamp: new Date(i?.metadata?.creationTimestamp || 0).getTime(),
-                        status: i.status?.isZeroReplicas? 0 : (i.status?.ready? 1 : 2),
-                        deployStatus: i.status?.deployStatus,
-                        zpkurl: i?.metadata?.annotations?.['w7.cc/zpk-url'] || '',
-                        isHelm: i?.spec?.isHelm,
-                        releaseName: '',
-                        defaultDomain: '',
-                        frontType,
-                        childrenApp,
-                        domain_apps,
-                    }
-                })
-                list.sort((a,b)=>(b.creationTimestamp - a.creationTimestamp));
-                this.data = list.filter(i=>!i.deletionTimestamp);
-            })
+            await this.refreshList();
+
             let {data} = await panelApi.get('/auth/console/info?code=test');
             this.thirdparty_cd_token = data?.thirdparty_cd_token || '';
             
