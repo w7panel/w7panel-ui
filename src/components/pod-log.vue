@@ -1,6 +1,6 @@
 <template>
     <!-- 弹窗模式 -->
-    <a-modal 
+    <a-modal
         v-if="mode === 'modal'"
         v-model:visible="visible"
         :title="title"
@@ -40,7 +40,7 @@
                 <div class="df ai-c">
                     <div class="ml-20">容器：</div>
                     <div class="ml-10">
-                        <a-select v-model="container" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
+                        <a-select v-model="currentContainer" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
                             <a-option v-for="i in containerList" :key="i" :value="i">{{ i }}</a-option>
                         </a-select>
                     </div>
@@ -49,7 +49,7 @@
                 <div class="df ai-c">
                     <div class="ml-20">条数：</div>
                     <div class="ml-10">
-                        <a-select v-model="tailLines" @change="fetchLog" style="min-width:100px;">
+                        <a-select v-model="currentTailLines" @change="fetchLog" style="min-width:100px;">
                             <a-option :value="50">50条</a-option>
                             <a-option :value="100">100条</a-option>
                             <a-option :value="200">200条</a-option>
@@ -80,7 +80,7 @@
                 <div class="df ai-c">
                     <div class="ml-20">容器：</div>
                     <div class="ml-10">
-                        <a-select v-model="container" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
+                        <a-select v-model="currentContainer" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
                             <a-option v-for="i in containerList" :key="i" :value="i">{{ i }}</a-option>
                         </a-select>
                     </div>
@@ -89,7 +89,7 @@
                 <div class="df ai-c">
                     <div class="ml-20">条数：</div>
                     <div class="ml-10">
-                        <a-select v-model="tailLines" @change="fetchLog" style="min-width:100px;">
+                        <a-select v-model="currentTailLines" @change="fetchLog" style="min-width:100px;">
                             <a-option :value="50">50条</a-option>
                             <a-option :value="100">100条</a-option>
                             <a-option :value="200">200条</a-option>
@@ -194,14 +194,13 @@ export default {
             termId: 'pod-log-' + Math.random().toString(36).substring(2, 10),
             containerList: [],
             podcont: '',
+            currentContainer: '',
+            currentTailLines: 100,
         };
     },
     computed: {
         currentNamespace() {
             return this.namespace || useNamespaceStore().namespace;
-        },
-        currentContainer() {
-            return this.container || '';
         },
     },
     watch: {
@@ -229,6 +228,15 @@ export default {
     },
     methods: {
         initData() {
+            // 初始化 currentContainer（优先使用 prop）
+            if (this.container && !this.currentContainer) {
+                this.currentContainer = this.container;
+            }
+            // 初始化 currentTailLines（优先使用 prop）
+            if (this.tailLines && this.currentTailLines === 100) {
+                this.currentTailLines = this.tailLines;
+            }
+
             // 解析 data 或使用 props
             let podName = this.podName;
             let containerList = this.containers;
@@ -244,8 +252,8 @@ export default {
             if (containerList && containerList.length > 0) {
                 this.containerList = containerList.map(c => typeof c === 'string' ? c : c.name);
                 // 设置默认容器
-                if (!this.container && this.containerList.length > 0) {
-                    this.container = this.containerList[0];
+                if (!this.currentContainer && this.containerList.length > 0) {
+                    this.currentContainer = this.containerList[0];
                 }
                 this.fetchLog();
             } else {
@@ -271,8 +279,8 @@ export default {
                 this.containerList = containers.map(c => c.name);
                 
                 // 设置默认容器
-                if (!this.container && this.containerList.length > 0) {
-                    this.container = this.containerList[0];
+                if (!this.currentContainer && this.containerList.length > 0) {
+                    this.currentContainer = this.containerList[0];
                 }
                 
                 this.fetchLog();
@@ -281,14 +289,14 @@ export default {
             });
         },
         onOpen() {
-            // 不在这里初始化，watch(show) 已处理
+            this.fitAddon?.fit();
         },
         onClose() {
             this.cleanup();
         },
         initTerm() {
             if (this.term) return;
-            
+
             const dom = document.getElementById(this.termId);
             if (!dom) return;
             
@@ -300,7 +308,11 @@ export default {
 
             this.fitAddon = new FitAddon();
             this.term.loadAddon(this.fitAddon);
-            this.fitAddon.fit();
+
+            // 延迟 fit 确保 DOM 完全渲染
+            this.$nextTick(() => {
+                this.fitAddon.fit();
+            });
         },
         cleanup() {
             this.stopStream();
@@ -334,8 +346,7 @@ export default {
         toggleFullscreen() {
             this.fullscreen = !this.fullscreen;
             this.$nextTick(() => {
-                this.term = null;
-                this.initTerm();
+                this.fitAddon?.fit();
             });
         },
         fetchLog() {
@@ -356,7 +367,7 @@ export default {
             // 构建查询参数
             const params = {
                 follow: this.follow,
-                tailLines: this.tailLines,
+                tailLines: this.currentTailLines,
                 ...(this.currentContainer ? { container: this.currentContainer } : {}),
                 ...(this.local ? { local: 1 } : {}),
             };
@@ -462,6 +473,7 @@ export default {
 
 .log-terminal {
     width: 100%;
+    height: 100%;
 }
 
 .pod-log-inline {
@@ -473,7 +485,8 @@ export default {
 .pod-log-inline .log-terminal {
     flex: 1;
 }
-
+</style>
+<style>
 .log-modal .arco-modal-body {
     padding: 10px;
 }
@@ -491,7 +504,7 @@ export default {
 }
 
 .log-modal .arco-modal-fullscreen .arco-modal-body {
-    height: calc(100vh - 114px);
+    height: calc(100vh - 200px);
 }
 
 .log-modal .arco-modal-fullscreen .arco-modal-body > .df {

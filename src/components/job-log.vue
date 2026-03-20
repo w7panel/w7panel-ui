@@ -5,14 +5,15 @@
         v-model:visible="visible"
         :title="title"
         :width="width + 'px'"
+        :fullscreen="fullscreen"
         :closable="false"
         :show-close="false"
-        class="log-modal"
+        class="job-log-modal"
         @open="onOpen"
         @close="onClose"
     >
         <template #title>
-            <div class="df ai-c jc-c fc log-modal-title">
+            <div class="df ai-c jc-c fc job-log-modal-title">
                 <span class="fs-18">{{ title }}</span>
                 <div class="df ai-c btns">
                     <div class="btn ml-20 cursor" @click="toggleFullscreen">
@@ -54,7 +55,7 @@
                         <div class="df ai-c">
                             <div class="ml-20">容器：</div>
                             <div class="ml-10">
-                                <a-select v-model="container" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
+                                <a-select v-model="currentContainer" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
                                     <a-option v-for="i in containerList" :key="i" :value="i">{{ i }}</a-option>
                                 </a-select>
                             </div>
@@ -63,7 +64,7 @@
                         <div class="df ai-c">
                             <div class="ml-20">条数：</div>
                             <div class="ml-10">
-                                <a-select v-model="tailLinesOption" @change="fetchLog" style="min-width:100px;">
+                                <a-select v-model="currentTailLines" @change="fetchLog" style="min-width:100px;">
                                     <a-option :value="50">50条</a-option>
                                     <a-option :value="100">100条</a-option>
                                     <a-option :value="200">200条</a-option>
@@ -76,7 +77,7 @@
                     </div>
                 </div>
                 
-                <div class="log-terminal" ref="termbox" :style="{ height: (height - 50) + 'px' }"></div>
+                <div class="log-terminal" ref="termbox"></div>
             </div>
         </div>
     </a-modal>
@@ -111,7 +112,7 @@
                         <div class="df ai-c">
                             <div class="ml-20">容器：</div>
                             <div class="ml-10">
-                                <a-select v-model="container" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
+                                <a-select v-model="currentContainer" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
                                     <a-option v-for="i in containerList" :key="i" :value="i">{{ i }}</a-option>
                                 </a-select>
                             </div>
@@ -120,7 +121,7 @@
                         <div class="df ai-c">
                             <div class="ml-20">条数：</div>
                             <div class="ml-10">
-                                <a-select v-model="tailLinesOption" @change="fetchLog" style="min-width:100px;">
+                                <a-select v-model="currentTailLines" @change="fetchLog" style="min-width:100px;">
                                     <a-option :value="50">50条</a-option>
                                     <a-option :value="100">100条</a-option>
                                     <a-option :value="200">200条</a-option>
@@ -222,11 +223,13 @@ export default {
             follow: true,
             fullscreen: false,
             tailLinesOption: 100,
+            currentTailLines: 100,
             term: null,
             fitAddon: null,
             controller: null,
             containerList: [],
             container: '',
+            currentContainer: '',
             list: [],
             activeIndex: 0,
             currentPodName: '',
@@ -270,26 +273,40 @@ export default {
             // 重置状态
             this.containerList = [];
             this.container = '';
+            this.currentContainer = '';
             this.list = [];
             this.activeIndex = 0;
             this.currentPodName = '';
             this.podcont = '';
-            
+            // 初始化 currentContainer（优先使用 prop）
+            if (this.container && !this.currentContainer) {
+                this.currentContainer = this.container;
+            }
+            // 初始化 currentTailLines（优先使用 prop）
+            if (this.tailLines && this.currentTailLines === 100) {
+                this.currentTailLines = this.tailLines;
+            }
+
             this.fetchJobList();
         },
         onOpen() {
-            // 不在这里初始化，watch(show) 已处理
+            // 等待动画完成后重新 fit 终端
+            this.$nextTick(() => {
+                setTimeout(() => {
+                    this.fitAddon?.fit();
+                }, 300);
+            });
         },
         onClose() {
             this.cleanup();
         },
         initTerm() {
             if (this.term) return;
-            
+
             this.$nextTick(() => {
                 const dom = this.$refs.termbox;
                 if (!dom) return;
-                
+
                 dom.innerHTML = '';
                 this.term = new Terminal({
                     cursorBlink: false,
@@ -298,7 +315,11 @@ export default {
 
                 this.fitAddon = new FitAddon();
                 this.term.loadAddon(this.fitAddon);
-                this.fitAddon.fit();
+
+                // 延迟 fit 确保 DOM 完全渲染
+                this.$nextTick(() => {
+                    this.fitAddon.fit();
+                });
             });
         },
         cleanup() {
@@ -337,8 +358,7 @@ export default {
         toggleFullscreen() {
             this.fullscreen = !this.fullscreen;
             this.$nextTick(() => {
-                this.term = null;
-                this.initTerm();
+                this.fitAddon?.fit();
             });
         },
         onTabChange() {
@@ -393,7 +413,7 @@ export default {
             if (this.containers && this.containers.length > 0) {
                 this.containerList = this.containers.map(c => typeof c === 'string' ? c : c.name);
                 if (this.containerList.length > 0) {
-                    this.container = this.containerList[0];
+                    this.currentContainer = this.containerList[0];
                 }
                 this.fetchLog();
                 return;
@@ -452,8 +472,8 @@ export default {
                 ];
                 this.containerList = containers.map(c => c.name);
 
-                if (this.containerList.length > 0 && !this.container) {
-                    this.container = this.containerList[0];
+                if (this.containerList.length > 0 && !this.currentContainer) {
+                    this.currentContainer = this.containerList[0];
                 }
 
                 this.fetchLog();
@@ -480,8 +500,8 @@ export default {
             // 构建查询参数
             const params = {
                 follow: this.follow,
-                tailLines: this.tailLinesOption,
-                ...(this.container ? { container: this.container } : {}),
+                tailLines: this.currentTailLines,
+                ...(this.currentContainer ? { container: this.currentContainer } : {}),
                 ...(this.local ? { local: 1 } : {}),
             };
 
@@ -580,11 +600,12 @@ export default {
 .job-log-content {
     display: flex;
     gap: 20px;
+    height: 100%;
 }
 
 .job-log-tabs {
     width: 200px;
-    max-height: 400px;
+    min-height: 0;
     overflow: auto;
 }
 
@@ -593,14 +614,18 @@ export default {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0;
 }
 
 .log-toolbar {
     margin-bottom: 10px;
+    flex-shrink: 0;
 }
 
 .log-terminal {
     width: 100%;
+    flex: 1;
+    min-height: 0;
     border: 1px solid var(--color-neutral-3);
 }
 
@@ -622,17 +647,35 @@ export default {
 .job-log-inline .job-log-main {
     flex: 1;
 }
-
-.log-modal .arco-modal-body {
+</style>
+<style>
+.job-log-modal .arco-modal-body {
     padding: 20px;
+    height: 450px;
 }
 
-.log-modal .log-modal-title {
+.job-log-modal .arco-modal-body > div {
+    height: 100%;
+}
+
+.job-log-modal .arco-modal-fullscreen .arco-modal-body {
+    height: calc(100vh - 114px);
+}
+
+.job-log-modal .arco-modal-fullscreen .arco-modal-body > div {
+    height: 100%;
+}
+
+.job-log-modal .arco-modal-fullscreen .log-terminal {
+    height: 100%;
+}
+
+.job-log-modal .job-log-modal-title {
     position: relative;
     height: 44px;
 }
 
-.log-modal .log-modal-title .btns {
+.job-log-modal .job-log-modal-title .btns {
     position: absolute;
     right: 0;
     top: 0;
