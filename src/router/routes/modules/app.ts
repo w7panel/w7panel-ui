@@ -9,6 +9,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         meta: {
             locale: '容器插件',
             requiresAuth: false,
+            hideInMenu: true,
         },
     },
     {
