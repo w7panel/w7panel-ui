@@ -360,19 +360,19 @@ export default {
             })
         },
         getResource(){
-            let userInfo = getUserInfo();
+            // let userInfo = getUserInfo();
             
-            return k8sproxy.get(`/api/v1/namespaces/${userInfo['w7.cc/k3k-namespace']}/resourcequotas/${userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
-                let data = res.data;
-                let allocate = this.divideStorage(data.status?.used?.['requests.storage'],data.status?.hard?.['requests.storage'])
-                this.resourceUsedStatus = {
-                    hard: data.status?.hard?.['requests.storage'],
-                    used: data.status?.used?.['requests.storage'],
-                    usedAllocate: allocate,
-                    usedFs: 0,
-                    usedFsAllocate: 0,
-                }
-            }).then(res=>{
+            // return k8sproxy.get(`/api/v1/namespaces/${userInfo['w7.cc/k3k-namespace']}/resourcequotas/${userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
+            //     let data = res.data;
+            //     let allocate = this.divideStorage(data.status?.used?.['requests.storage'],data.status?.hard?.['requests.storage'])
+            //     this.resourceUsedStatus = {
+            //         hard: data.status?.hard?.['requests.storage'],
+            //         used: data.status?.used?.['requests.storage'],
+            //         usedAllocate: allocate,
+            //         usedFs: 0,
+            //         usedFsAllocate: 0,
+            //     }
+            // }).then(res=>{
                 const formatStorageSize = (bytes) => {
                     // 1 GiB = 1024 MiB = 1024*1024*1024 bytes
                     return bytes >= 1024 ** 3 
@@ -388,7 +388,7 @@ export default {
                     this.resourceUsedStatus.usedFs = usedFs;
                     this.resourceUsedStatus.usedFsAllocate = this.divideStorage(usedFs, this.resourceUsedStatus.hard);
                 })
-            })
+            // })
         },
         divideStorage(a,b){
             if(!a){a = '0'}

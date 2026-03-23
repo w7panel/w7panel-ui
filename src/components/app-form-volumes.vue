@@ -225,12 +225,13 @@ import { k8sproxy } from '@/utils/api';
 import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import configmapEditor from '@/views/config/configmap/form-drawer.vue'
+import { getToken } from '@/utils/auth';
 
 export default{
     props: ['data','kind','readonly'],
     data(){
         return {
-            namespaceActive: '',
+            namespaceActive: 'default',
             types: {
                 nfs: '使用NFS盘',
                 emptyDir: '使用临时目录',
@@ -258,9 +259,15 @@ export default{
                 type: 'configmap',
             },
             filterPvc: false,
+            token: '',
         }
     },
     created(){
+        if(window.__POWERED_BY_WUJIE__ && window?.$wujie?.props?.paneltoken){
+            this.token = window.$wujie.props.paneltoken;
+        }else{
+            this.token = getToken();
+        }
         this.namespaceActive = useNamespaceStore().namespace;
         this.appKind = this.kind;
         this.init();
@@ -358,7 +365,9 @@ export default{
             this.submit();
         },
         getDisks(){
-            k8sproxy.get('/apis/storage.k8s.io/v1/storageclasses').then(res=>{
+            k8sproxy.get('/apis/storage.k8s.io/v1/storageclasses',{
+                customToken: this.token,
+            }).then(res=>{
                 let data = res?.data || [];
                 let list = data.items || [];
                 list = list.map(item=>{
@@ -485,7 +494,10 @@ export default{
             if(this.edit.type=='pvcTemplate'){ this.getDisks(); }
         },
         getPvcs(){
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/persistentvolumeclaims',{loading:true}).then(res=>{
+            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/persistentvolumeclaims',{
+                loading:true,
+                customToken: this.token,
+            }).then(res=>{
                 let pvcs = res?.data?.items || [];
                 this.pvcs = pvcs?.map(i=>({
                     name: i.metadata.name,
@@ -496,7 +508,10 @@ export default{
         
         // 判断是否手动创建
         getCustom(){
-            return k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/longhorn-volumes-config',{noAlert:true}).then(res=>{
+            return k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/longhorn-volumes-config',{
+                customToken: this.token,
+                noAlert:true
+            }).then(res=>{
                 if(!res.data){return}
                 let arr = res.data?.data?.customs?.split(',');
                 this.pvcs.map(i=>{
@@ -505,7 +520,10 @@ export default{
             })
         },
         getConfigMaps(){
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps',{loading:true}).then(res=>{
+            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps',{
+                customToken: this.token,
+                loading:true
+            }).then(res=>{
                 let configmaps = res?.data?.items || [];
                 this.configmaps = [];
                 this.configmapKeys = {};
@@ -519,13 +537,19 @@ export default{
             })
         },
         deleteConfigmap(name){
-            k8sproxy.delete('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/'+name,{loading:true}).then(res=>{
+            k8sproxy.delete('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/'+name,{
+                customToken: this.token,
+                loading:true
+            }).then(res=>{
                 this.$message.success('操作成功');
                 this.getConfigMaps();
             })
         },
         getSecrets(){
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/secrets',{loading:true}).then(res=>{
+            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/secrets',{
+                customToken: this.token,
+                loading:true
+            }).then(res=>{
                 let secrets = res?.data?.items || [];
                 this.secrets = [];
                 this.secretKeys = {};
@@ -536,7 +560,10 @@ export default{
             })
         },
         deleteSecret(id){
-            k8sproxy.delete('/api/v1/namespaces/'+ this.namespaceActive +'/secrets/'+ id,{loading:true}).then(res=>{
+            k8sproxy.delete('/api/v1/namespaces/'+ this.namespaceActive +'/secrets/'+ id,{
+                customToken: this.token,
+                loading:true
+            }).then(res=>{
                 this.$message.success('操作成功');
                 this.getSecrets();
             });

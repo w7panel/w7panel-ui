@@ -421,7 +421,7 @@
 </template>
 <script>
 import { panelApi } from '@/utils/api';
-import { getUserInfo } from '@/utils/auth';
+import { getToken, getUserInfo } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';
 import axios from 'axios';
 import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
@@ -432,7 +432,7 @@ export default{
     props: ['data','volumes','volumeClaimTemplates','mirror'],
     data(){
         return {
-            namespaceActive: '',
+            namespaceActive: 'default',
             activeIndex: '',
             userInfo: {},
             subItemStyle: "flex:0;width:100px;min-width:100px;",
@@ -460,9 +460,15 @@ export default{
             sortable: null,
 
             showif: true,
+            token: '',
         }
     },
     async created(){
+        if(window.__POWERED_BY_WUJIE__ && window?.$wujie?.props?.paneltoken){
+            this.token = window.$wujie.props.paneltoken;
+        }else{
+            this.token = getToken();
+        }
         this.namespaceActive = useNamespaceStore().namespace;
         this.userInfo = getUserInfo();
         this.init();
@@ -524,7 +530,10 @@ export default{
             })
         },
         getConfigmap(){
-            panelApi.get('/gpu/config',{noAlert:true}).then(res=>{
+            panelApi.get('/gpu/config',{
+                noAlert:true,
+                customToken: this.token,
+            }).then(res=>{
                 this.gpuSupport = res.data?.gpuEnabled;
             });
         },

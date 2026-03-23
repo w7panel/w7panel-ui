@@ -77,9 +77,15 @@ export default{
                 name: '',
                 submit: ()=>{ this.getMirror(); }
             },
+            token: '',
         }
     },
     async created(){
+        if(window.__POWERED_BY_WUJIE__ && window?.$wujie?.props?.paneltoken){
+            this.token = window.$wujie.props.paneltoken;
+        }else{
+            this.token = getToken();
+        }
         this.namespaceActive = useNamespaceStore().namespace;
         await this.getMirror();
         this.init();
@@ -125,7 +131,9 @@ export default{
         },
         
         getMirror(){
-            return k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/secrets?fieldSelector=type=kubernetes.io/dockerconfigjson').then(res=>{
+            return k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/secrets?fieldSelector=type=kubernetes.io/dockerconfigjson',{
+                customToken: this.token,
+            }).then(res=>{
                 let list = res?.data?.items || [];
                 list = list.map(i=>{
                     let dockerconfigjson = {};
@@ -159,7 +167,10 @@ export default{
         },
         
         delMirror(name){
-            k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/secrets/"+name,{loading:true}).then(res=>{
+            k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/secrets/"+name,{
+                customToken: this.token,
+                loading:true
+            }).then(res=>{
                 if(!res?.data){return}
                 this.$message.success('删除成功');
                 this.getMirror();

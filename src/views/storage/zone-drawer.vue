@@ -95,11 +95,11 @@ export default {
         this.init();
     },
     computed:{
-        availableResourcePassed(){
-            let size = (this.form.size || '0') + 'Gi';
-            let available = (this.availableResource?.storage?.value || '0') + (this.availableResource?.storage?.unit || '');
-            return this.minusMemory(available, size)?.value >= 0;
-        }
+        // availableResourcePassed(){
+        //     let size = (this.form.size || '0') + 'Gi';
+        //     let available = (this.availableResource?.storage?.value || '0') + (this.availableResource?.storage?.unit || '');
+        //     return this.minusMemory(available, size)?.value >= 0;
+        // }
     },
     methods: {
         closeDrawer(v){

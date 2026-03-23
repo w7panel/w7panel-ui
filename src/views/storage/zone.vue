@@ -196,15 +196,15 @@ export default {
             v && this.getList();
         },
         getList(){
-            if(this.userInfo['w7.cc/user-mode']=='cluster'){
-                k8sproxy.get(`/api/v1/namespaces/${this.userInfo['w7.cc/k3k-namespace']}/resourcequotas/${this.userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
-                    let data = res.data;
-                    this.availableResource = {
-                        storage: this.minusMemory(data.status?.hard?.['requests.storage'], data.status?.used?.['requests.storage']),
-                        hard: data.status?.hard?.['requests.storage'],
-                    }
-                })
-            }
+            // if(this.userInfo['w7.cc/user-mode']=='cluster'){
+            //     k8sproxy.get(`/api/v1/namespaces/${this.userInfo['w7.cc/k3k-namespace']}/resourcequotas/${this.userInfo['w7.cc/k3k-name']}?local=1`).then(res=>{
+            //         let data = res.data;
+            //         this.availableResource = {
+            //             storage: this.minusMemory(data.status?.hard?.['requests.storage'], data.status?.used?.['requests.storage']),
+            //             hard: data.status?.hard?.['requests.storage'],
+            //         }
+            //     })
+            // }
             k8sproxy.get('/api/v1/persistentvolumeclaims').then(res=>{
                 let list = res?.data?.items;
                 list = list.map(i=>{
@@ -364,17 +364,17 @@ export default {
             this.$refs['expand'].validate((valid)=>{
                 if(valid){return}
                 
-                let availableSize = this.availableResource.storage.value + this.availableResource.storage.unit;
+                // let availableSize = this.availableResource.storage.value + this.availableResource.storage.unit;
 
-                if(this.clusterMode=="shared" && availableSize){
-                    let size = this.expand.size + 'Gi';
-                    let all = this.plusMemory(availableSize, this.expand.nativeSize);
-                    let minus = this.minusMemory(all.value+all.unit, size);
-                    if(minus.value<0){
-                        this.$message.error("剩余存储不足");
-                        return;
-                    }
-                }
+                // if(this.clusterMode=="shared" && availableSize){
+                //     let size = this.expand.size + 'Gi';
+                //     let all = this.plusMemory(availableSize, this.expand.nativeSize);
+                //     let minus = this.minusMemory(all.value+all.unit, size);
+                //     if(minus.value<0){
+                //         this.$message.error("剩余存储不足");
+                //         return;
+                //     }
+                // }
 
                 if(this.expand?.isOnlyshow){
                     panelApi.post('/k3k/storage/resize',{
