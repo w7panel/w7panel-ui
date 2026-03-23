@@ -437,6 +437,7 @@ export default {
 
         getList(){
             if(!Object.keys(this.data)?.length){return}
+            this.list = [];
             this.nativeList = [];
             this.expandedKeys = [];  // 重置展开状态
             let selector = this.data?.spec?.selector?.matchLabels || {};
