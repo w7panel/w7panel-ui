@@ -6,6 +6,7 @@
                 <a-tab-pane key="1" title="已购买云端应用">
                     <div>
                         <a-input-search v-model="searchTitle" placeholder="请输入应用名称" class="mb-10" style="width:300px" @search="getAppList" @press-enter="e=>{getAppList();e.stopPropagation()}" search-button />
+                        <span class="ml-20 c-blue cursor" @click="findSite">站点找回</span>
                     </div>
                     <div class="df df-ww mt-20">
                         <store-item v-for="item in list" :key="item" @install="testItem" :data="item" class="item" />
@@ -54,6 +55,20 @@
                 <a-button type="primary" @click="selectVerson">确定</a-button>
             </template>
         </a-modal>
+
+        <a-modal v-model:visible="w7site.show" title="站点找回" width="960px" :footer="false">
+            <div style="max-height: 450px; overflow-y: auto;">
+                <a-list size="small">
+                    <a-list-item v-for="(item,index) in w7site.list" :key="index">
+                        <span>{{item.sitename}}</span>
+                        <span v-if="item.family_text">（{{item.family_text}}）</span>
+                        <template #actions>
+                            <span class="c-blue cursor" @click="rebuildSite(item)">重新部署</span>
+                        </template>
+                    </a-list-item>
+                </a-list>
+            </div>
+        </a-modal>
     </div>
 </template>
 
@@ -87,6 +102,8 @@ export default {
             activeApp: {},
             clusterId: '',
             tpcdtoken: '',
+
+            w7site: {},
         }
     },
     components: { storeItem },
@@ -104,6 +121,26 @@ export default {
         }
     },
     methods: {
+        findSite(){
+            axios.get("https://console.w7.cc/api/thirdparty-cd/k8s-offline/w7sites/list",{
+                customToken: this.tpcdtoken,
+                loading: true,
+            }).then(res=>{
+                this.w7site = {
+                    show: true,
+                    list: res?.data || []
+                }
+            })
+        },
+        rebuildSite(row){
+            console.log(row);
+            axios.post(`https://console.w7.cc/api/thirdparty-cd/k8s-offline/w7sites/${row.key}/re-install`,{},{
+                customToken: this.tpcdtoken,
+            }).then(res=>{
+                this.$router.push(`/app/store-install?path=${encodeURIComponent(res.data.deployUrl)}&insClusterId=${row.key}&thirdpartyCDToken=${this.tpcdtoken}`)
+                
+            })
+        },
         testItem(item){
             // console.log(item);return;
             this.adminData.ok = false;
