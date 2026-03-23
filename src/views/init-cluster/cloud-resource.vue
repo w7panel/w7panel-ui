@@ -162,7 +162,7 @@ export default{
                     this.toIndex(this.$route.query);
             })
             panelApi.get('/noauth/site/beian',{noAlert:true}).then(res=>{
-                let site = res.data?.data || {};
+                let site = res.data || {};
                 this.site = site;
             })
         },

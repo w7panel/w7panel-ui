@@ -38,7 +38,7 @@ import contactUs from '@/components/contact-us.vue';
 const site = ref({});
 
 panelApi.get('/noauth/site/beian',{noAlert:true}).then(res=>{
-    let o = res.data?.data || {};
+    let o = res.data || {};
     site.value = o;
 })
 
