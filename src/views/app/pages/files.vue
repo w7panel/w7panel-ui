@@ -2072,6 +2072,9 @@ export default {
             const fileName = this.file?.openTabs?.[this.file?.activeTabIndex]?.name || '';
             const langExtension = this.getLanguageExtension(fileName);
             
+            // 初始化自动换行配置槽
+            this.wordWrapCompartment = new Compartment();
+
             this.editor = new EditorView({
                 doc: content,
                 extensions: [
@@ -2082,7 +2085,7 @@ export default {
                     saveKeymap,
                     updateListener,
                     EditorView.editable.of(!readOnly),
-                    // this.wordWrapCompartment.of(this.file.wordWrap ? EditorView.lineWrapping : []),
+                    this.wordWrapCompartment.of(this.file.wordWrap ? EditorView.lineWrapping : []),
                 ],
                 parent: document.getElementById("editor_textarea"),
             });
@@ -2369,7 +2372,7 @@ export default {
                     {
                         method: 'PROPFIND',
                         headers: {
-                            'Authorization': `Bearer ${getToken()}`,
+                            'Authorization': `Bearer ${this.outEditorInfo.webdavToken}`,
                             'Depth': '1',
                             'Content-Type': 'text/xml; charset=utf-8'
                         },
