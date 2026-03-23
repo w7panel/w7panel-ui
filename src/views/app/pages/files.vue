@@ -2369,7 +2369,7 @@ export default {
                     {
                         method: 'PROPFIND',
                         headers: {
-                            'Authorization': `Bearer ${this.outEditorInfo.webdavToken}`,
+                            'Authorization': `Bearer ${getToken()}`,
                             'Depth': '1',
                             'Content-Type': 'text/xml; charset=utf-8'
                         },
