@@ -27,6 +27,7 @@ import appFormContainer from '@/components/app-form-container.vue';
 import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
 import { useNamespaceStore } from '@/store';
 import { k8sproxy } from '@/utils/api';
+import { getToken } from '@/utils/auth';
 
 const dataTemplate = {
     apiVersion: 'apps/v1',
