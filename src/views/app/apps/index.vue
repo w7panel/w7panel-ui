@@ -468,6 +468,12 @@ export default {
                 })
                 this.data = this.data.map(i=>{
                     i.domain_apps = domains.filter(d=>d.group==i.groupName).map(d=>d.fullDomain);
+                    const set = new Set();
+                    // 去重
+                    i.domain_apps = i.domain_apps.filter(item => {
+                        const key = item.replace(/^https?:\/\//, '');
+                        return !set.has(key) && set.add(key);
+                    });
                     return i;
                 })
             })

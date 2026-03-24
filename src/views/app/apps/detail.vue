@@ -212,6 +212,7 @@ import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import gpuStack from '@/views/app/gpustack/index.vue';
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
+import { compressFiles } from '@/api/cluster';
 
 import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue';
@@ -497,7 +498,7 @@ export default {
                 name: "appmicro",
                 url: this.info.frontendUrl + (this.menuActive || ''),
 // 测试
-// url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.menuActive || ''),
+url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.menuActive || ''),
                 el: '#appmicro',
                 // alive: true,
                 sync: true,
@@ -510,15 +511,15 @@ export default {
 //     this.zip({
 //         pid: {
 //             namespace: 'default',
-//             HostIp: '10.0.0.206',
-//             containerId: 'containerd://897d10502d9a9b40361e7d6730a36093b056a3f7bdca4985ca21226d9679aa1d',
-//             containerName: 'registrycache',
-//             podName: 'w7-registrycache-kedmxcwl-7874b5cb77-c42zd',
+//             HostIp: '172.16.1.162',
+//             containerId: 'containerd://433217e458043e6760b415a791c2a9ad0757b23b66aa4d539c4a1cef7898547e',
+//             containerName: 'w7-go',
+//             podName: 'w7-go-7dc9bf7cf7-g8p4g',
 //         },
 //         output: '/home/txt.zip',
-//         input: ['/home/a.txt','/home/b.txt'],
-//     }).then(res=>{
-//         console.log(res)
+//         input: ['/home/aa.txt','/home/bb.txt'],
+//     },(v)=>{
+//         console.log(v);
 //     })
 // },3000)
         },
@@ -537,25 +538,15 @@ export default {
         },
         async zip(data,callback){
             // data {pid:{...}, output:'',input:''}
-            let input = data.input.join(' ');
-            let output = data.output;
 
             let pidData = await this.getPid(data.pid);
-            let preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
-            let command = `${preCmd} --pid=${pidData?.pid} --subPid=${pidData?.subPid} --cmd=zip --srcPath='${output}' ${input}`;
-            
-            await panelApi.post(`/exec2`,{
-                podName: pidData?.pod_name,
-                containerName: pidData?.containerName,
-                tty: false,
-                namespace: pidData?.namespace,
-                command: ['sh', '-c', command],
-            },{responseType: 'text', loading:true, noAlert:true})
 
+            await compressFiles(pidData.compressUrl, data.input, data.output);
+            
             let link = await this.downLink({
                 pidData: pidData,
-                path: output,
-                name: output.replace(/^.*\//,''),
+                path: data.output,
+                name: data.output.replace(/^.*\//,''),
             })
             
             data?.callback?.({link: link});

@@ -88,6 +88,7 @@ import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue';
 import domainCert from '@/views/topapp/domain-cert.vue';
 import appFile from '@/views/app/pages/files.vue';
+import { compressFiles } from '@/api/cluster';
 
 import microAppForm from '@/components/micro-app-form.vue';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
@@ -340,25 +341,15 @@ export default{
         },
         async zip(data,callback){
             // data {pid:{...}, output:'',input:''}
-            let input = data.input.join(' ');
-            let output = data.output;
 
             let pidData = await this.getPid(data.pid);
-            let preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
-            let command = `${preCmd} --pid=${pidData?.pid} --subPid=${pidData?.subPid} --cmd=zip --srcPath='${output}' ${input}`;
             
-            await panelApi.post(`/exec2`,{
-                podName: pidData?.pod_name,
-                containerName: pidData?.containerName,
-                tty: false,
-                namespace: pidData?.namespace,
-                command: ['sh', '-c', command],
-            },{responseType: 'text', loading:true, noAlert:true})
+            await compressFiles(pidData.compressUrl, data.input, data.output);
 
             let link = await this.downLink({
                 pidData: pidData,
-                path: output,
-                name: output.replace(/^.*\//,''),
+                path: data.output,
+                name: data.output.replace(/^.*\//,''),
             })
             
             data?.callback?.({link: link})
