@@ -838,6 +838,10 @@ export default {
                     return;
                 }
                 this.userArr = this.parseUserInfo(data);
+                this.fileList = this.fileList.map(i=>{
+                    i.user = this.userArr.find?.(item=>item.id==Number(i.user))?.name || user;
+                    return i;
+                })
             }).catch(err => {
                 console.error('获取用户列表失败:', err);
             });
@@ -1192,7 +1196,7 @@ export default {
                         let timestamp = new Date(date).getTime();
                         time = window.formatDate(timestamp);
                     }
-                    let user = prop?.getElementsByTagName('user')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'user')?.[0]?.textContent;
+                    let user = prop?.getElementsByTagName('uid')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'uid')?.[0]?.textContent;
                     let power = prop?.getElementsByTagName('mode')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'mode')?.[0]?.textContent;
                     list.push({
                         key: key,
@@ -1203,7 +1207,7 @@ export default {
                         size: size,
                         filesize: sizeTxt,
                         utime: time,
-                        user: this.userArr.find?.(i=>i.value==String(user))?.label || user,
+                        user: this.userArr.find?.(i=>i.id==Number(user))?.name || user,
                         power: power,
                     })
                 }
