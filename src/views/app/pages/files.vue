@@ -3472,6 +3472,7 @@ export default {
                 this.$message.warning("请先选择文件");
                 return;
             }
+            
 
             let isImg = /^image\//.test(this.upload.file.type)
             
