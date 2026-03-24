@@ -62,6 +62,7 @@
                     <a-list-item v-for="(item,index) in w7site.list" :key="index">
                         <span>{{item.sitename}}</span>
                         <span v-if="item.family_text">（{{item.family_text}}）</span>
+                        <span class="ml-20">{{ item.url }}</span>
                         <template #actions>
                             <span class="c-blue cursor" @click="rebuildSite(item)">重新部署</span>
                         </template>
