@@ -1203,7 +1203,7 @@ export default {
                         size: size,
                         filesize: sizeTxt,
                         utime: time,
-                        user: user,
+                        user: this.userArr.find?.(i=>i.value==String(user))?.label || user,
                         power: power,
                     })
                 }
