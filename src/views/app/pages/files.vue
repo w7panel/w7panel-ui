@@ -992,6 +992,7 @@ export default {
                     let origin = window.location.origin;
                     this.outEditorInfo = {
                         origin: origin,
+                        agentUrl: res.data.agentUrl,
                         webdavUrl: res.data.webdavUrl,
                         webdavToken: res.data.webdavToken,
                         webdavBasePath: res.data.webdavBasePath,
@@ -1066,6 +1067,7 @@ export default {
                     let origin = window.location.origin;
                     this.outEditorInfo = {
                         origin: origin,
+                        agentUrl: res.data.agentUrl,
                         webdavUrl: res.data.webdavUrl,
                         webdavToken: res.data.webdavToken,
                         webdavBasePath: res.data.webdavBasePath,
@@ -3467,7 +3469,7 @@ export default {
             }
         },
         // 上传文件提交
-        downloadzip(){
+        async downloadzip(){
             if(!this.upload.filename){
                 this.$message.warning("请先选择文件");
                 return;
@@ -3502,38 +3504,8 @@ export default {
                 return;
             }
 
-            this.upload.uploading = true;
-            try{
-                const reader = new FileReader();
-                reader.onload = ()=>{
-                    let value = reader.result;
-                    console.log(value)
-                    
-                    axios.put(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+this.upload.filename)}`, value, {
-                        headers: {
-                            "content-type": "application/octet-stream",
-                            "Authorization": `Bearer ${this.outEditorInfo.webdavToken}`,
-                            'Content-Length': this.upload.file.size // 确保传输长度和文件大小一致
-                        },
-                        transformRequest: [(data) => data],
-                    }).then(res=>{
-                        this.loading = false;
-                        this.$message.success('保存成功');
-                        // 刷新文件列表
-                        this.upload.show = false;
-                        this.getFileList();
-                    }).catch(err=>{
-                        this.loading = false;
-                        this.$message.error('保存失败: ' + (err.response?.data?.message || err.message || '未知错误'));
-                    }).finally(()=>{
-                        this.upload.uploading = false;
-                    })
-                    return;
-                };
-                reader['readAsArrayBuffer'](this.upload.file);
-            }catch(error){
-                console.log('上传失败',error);
-            }
+            const { handleFileUpload } = await import('./files.upload.js');
+            handleFileUpload(this);
 
             // let data = new FormData();
             // data.append('file',this.upload.file);
