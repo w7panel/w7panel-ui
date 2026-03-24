@@ -183,7 +183,7 @@
                             <icon-fullscreen v-if="!appDialog.fullscreen" class="fs-20 c-66" />
                             <icon-fullscreen-exit v-else class="fs-20 c-66" />
                         </div>
-                        <div class="btn ml-20 cursor" @click="appDialog.show=false;">
+                        <div class="btn ml-20 cursor" @click="closeAppDialog">
                             <icon-close class="fs-20 c-66" />
                         </div>
                     </div>
@@ -421,7 +421,15 @@ export default {
                 src: '/dialog/appgroup/'+ data.appgroup +'/micro?path='+ encodeURIComponent(data?.path||''),
                 title: data?.title || '',
                 fullscreen: false,
+                closeAlert: data?.closeAlert || '',
             }
+        },
+        closeAppDialog(){
+            if(this.appDialog.closeAlert){
+                this.$message.warning(this.appDialog.closeAlert);
+                return false;
+            }
+            this.appDialog.show = false;
         },
         openAppForm(data,callback){
             this.maf = {
