@@ -451,8 +451,30 @@ export default {
                 this.data = list.filter(i=>!i.deletionTimestamp);
             })
         },
+        getDomains(){
+            return k8sproxy.get('/apis/networking.k8s.io/v1/namespaces/'+this.namespaceActive+'/ingresses?labelSelector=group&limit=500').then(res=>{
+                let list = res?.data?.items || [];
+                let domains = [];
+                list.map(i=>{
+                    let is_auto_ssl = i?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
+                    let domain = i?.spec?.rules?.[0]?.host;
+                    
+                    i?.spec?.rules?.[0]?.http?.paths?.map((p,index)=>{
+                        domains.push({
+                            group: i.metadata.labels.group,
+                            fullDomain: (is_auto_ssl?'https://':'http://') + domain + p.path,
+                        })
+                    })
+                })
+                this.data = this.data.map(i=>{
+                    i.domain_apps = domains.filter(d=>d.group==i.groupName).map(d=>d.fullDomain);
+                    return i;
+                })
+            })
+        },
         async getList(){
             await this.refreshList();
+            this.getDomains();
 
             let {data} = await panelApi.get('/auth/console/info?code=test');
             this.thirdparty_cd_token = data?.thirdparty_cd_token || '';
