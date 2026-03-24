@@ -1,17 +1,7 @@
-import { panelApi } from '@/utils/api';
 import axios from 'axios';
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB 切片大小
+const CHUNK_SIZE = 3 * 1024 * 1024; // 3MB 切片大小
 
-/**
- * 上传单个分片
- * @param {Object} params - 上传参数
- * @param {ArrayBuffer} params.chunk - 分片数据
- * @param {number} params.offset - 分片偏移量
- * @param {number} params.totalSize - 文件总大小
- * @param {string} params.url - 上传URL
- * @param {string} params.token - 认证令牌
- */
 function uploadChunk({url, chunk, index, total, random}) {
     
     var data = new FormData();
