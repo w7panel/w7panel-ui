@@ -831,7 +831,7 @@ export default {
         // },
         getUserByWebDAV(){
             let url = `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}/etc/passwd`;
-            axios.get(url, { timeout: 5000 }).then(res=>{
+            axios.get(url, { timeout: 5000, noAlert: true }).then(res=>{
                 const data = res?.data || '';
                 if(data.includes('No such file') || data.includes('<!DOCTYPE') || data.includes('<html') || !data.includes(':') || data.length < 10){
                     console.warn('WebDAV returned invalid data for /etc/passwd');
