@@ -329,6 +329,40 @@
                                         <span>换行</span>
                                     </span>
                                 </a-tooltip>
+                                <!-- 缩进设置 -->
+                                <a-dropdown trigger="click" @select="handleIndentSelect">
+                                    <span class="toolbar-toggle" :class="{'active': file.indentMode !== 'auto'}">
+                                        <icon-align-left />
+                                        <span>{{ getIndentLabel() }}</span>
+                                        <icon-down style="font-size: 10px;" />
+                                    </span>
+                                    <template #content>
+                                        <a-doption value="auto">
+                                            <div class="df ai-c">
+                                                <icon-check v-if="file.indentMode === 'auto'" class="mr-8" />
+                                                <span :class="file.indentMode === 'auto' ? '' : 'ml-20'">智能检测</span>
+                                            </div>
+                                        </a-doption>
+                                        <a-doption value="2">
+                                            <div class="df ai-c">
+                                                <icon-check v-if="file.indentMode === '2'" class="mr-8" />
+                                                <span :class="file.indentMode === '2' ? '' : 'ml-20'">2 空格</span>
+                                            </div>
+                                        </a-doption>
+                                        <a-doption value="4">
+                                            <div class="df ai-c">
+                                                <icon-check v-if="file.indentMode === '4'" class="mr-8" />
+                                                <span :class="file.indentMode === '4' ? '' : 'ml-20'">4 空格</span>
+                                            </div>
+                                        </a-doption>
+                                        <a-doption value="tab">
+                                            <div class="df ai-c">
+                                                <icon-check v-if="file.indentMode === 'tab'" class="mr-8" />
+                                                <span :class="file.indentMode === 'tab' ? '' : 'ml-20'">Tab</span>
+                                            </div>
+                                        </a-doption>
+                                    </template>
+                                </a-dropdown>
                                 <a-dropdown trigger="click">
                                     <span class="toolbar-encoding">
                                         {{ file.encoding }}
@@ -518,7 +552,7 @@ import axios from 'axios'
 import {basicSetup} from "codemirror"
 import {EditorView, keymap, Decoration} from "@codemirror/view"
 import {Compartment, StateEffect, EditorSelection} from "@codemirror/state"
-import { StreamLanguage, HighlightStyle, syntaxHighlighting } from "@codemirror/language"
+import { StreamLanguage, HighlightStyle, syntaxHighlighting, indentOnInput, indentUnit, bracketMatching } from "@codemirror/language"
 import { javascript } from "@codemirror/lang-javascript"
 import { html } from "@codemirror/lang-html"
 import { css } from "@codemirror/lang-css"
@@ -579,6 +613,10 @@ export default {
                 fromFileCatch: false,
                 wordWrap: false,  // 自动换行
                 encoding: 'UTF-8',  // 文件编码
+                // 缩进设置
+                indentMode: 'auto',  // 'auto' | '2' | '4' | 'tab'
+                indentType: 'space', // 'space' | 'tab'
+                indentSize: 2,       // 2 或 4
             },
             editor: null,
             editorLanguage: null,  // 当前编辑器语言
@@ -2081,6 +2119,18 @@ export default {
             // 初始化自动换行配置槽
             this.wordWrapCompartment = new Compartment();
 
+            // 创建缩进配置
+            const indentConfig = (() => {
+                const settings = this.file;
+                if (settings.indentMode === 'auto') {
+                    return indentUnit.of(' '.repeat(settings.indentSize));
+                } else if (settings.indentMode === 'tab') {
+                    return indentUnit.of('\t');
+                } else {
+                    return indentUnit.of(' '.repeat(Number(settings.indentMode)));
+                }
+            })();
+
             this.editor = new EditorView({
                 doc: content,
                 extensions: [
@@ -2092,6 +2142,9 @@ export default {
                     updateListener,
                     EditorView.editable.of(!readOnly),
                     this.wordWrapCompartment.of(this.file.wordWrap ? EditorView.lineWrapping : []),
+                    indentOnInput(),
+                    indentConfig,
+                    bracketMatching(),
                 ],
                 parent: document.getElementById("editor_textarea"),
             });
@@ -2603,6 +2656,78 @@ export default {
                     )
                 });
             }
+        },
+        // 自动检测缩进
+        detectIndent(content){
+            if (!content) return { type: 'space', size: 2 };
+            
+            const lines = content.split('\n').slice(0, 50);
+            const spaceCounts = { 2: 0, 4: 0, 8: 0 };
+            let tabCount = 0;
+            let validLines = 0;
+            
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                const match = line.match(/^(\s+)/);
+                if (!match) continue;
+                
+                validLines++;
+                const indent = match[1];
+                
+                if (indent.includes('\t')) {
+                    tabCount++;
+                } else {
+                    const len = indent.length;
+                    if (len in spaceCounts) {
+                        spaceCounts[len]++;
+                    }
+                }
+            }
+            
+            if (validLines === 0) {
+                return { type: 'space', size: 2 };
+            }
+            
+            // Tab 占比超过 50% 则认为是 Tab
+            if (tabCount > validLines * 0.5) {
+                return { type: 'tab', size: 4 };
+            }
+            
+            // 找最常见的空格缩进
+            const maxSpace = Object.entries(spaceCounts)
+                .reduce((a, b) => a[1] > b[1] ? a : b);
+            
+            // 标准化为 2 或 4
+            let size = Number(maxSpace[0]);
+            if (size !== 2 && size !== 4) {
+                size = size < 3 ? 2 : 4;
+            }
+            
+            return { type: 'space', size };
+        },
+        // 获取缩进标签
+        getIndentLabel(){
+            const m = this.file.indentMode;
+            if (m === 'auto') return '智能';
+            if (m === 'tab') return 'Tab';
+            return `${m} 空格`;
+        },
+        // 处理缩进选择
+        handleIndentSelect(value){
+            this.file.indentMode = value;
+            
+            if (value === 'tab') {
+                this.file.indentType = 'tab';
+            } else if (value === 'auto') {
+                const detected = this.detectIndent(this.currentTab?.content || '');
+                this.file.indentType = detected.type;
+                this.file.indentSize = detected.size;
+            } else {
+                this.file.indentType = 'space';
+                this.file.indentSize = Number(value);
+            }
+            
+            this.initEditor();
         },
         // 改变编码
         changeEncoding(encoding){
@@ -4146,4 +4271,20 @@ body:not([arco-theme='dark']) .cm-editor .tok-invalid { color: #cf222e !importan
 
 .command-upfile{position:relative; margin:0 12px;}
 .command-upfile input[type='file']{min-width:30px; position:absolute; top:0; left:0; right:0; bottom:0; z-index:1; opacity:0;}
+
+/* 括号匹配高亮 */
+.cm-matchingBracket {
+    background-color: rgba(255, 215, 0, 0.3) !important;
+    border-radius: 2px;
+}
+
+/* 代码折叠样式 */
+.cm-foldGutter .cm-gutterElement {
+    cursor: pointer;
+    opacity: 0.6;
+}
+.cm-foldGutter .cm-gutterElement:hover {
+    opacity: 1;
+    color: #165dff;
+}
 </style>
