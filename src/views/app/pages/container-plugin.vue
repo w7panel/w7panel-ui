@@ -3,6 +3,7 @@
         <!-- 数据卷 -->
         <app-form-volumes
             :data="data"
+            :isPlugin="true"
             @submit="v=>{volumes=v.volumes;volumeClaimTemplates=v.volumeClaimTemplates;}"
         ></app-form-volumes>
         
@@ -13,6 +14,7 @@
             :volumes="volumes"
             :volumeClaimTemplates="volumeClaimTemplates"
             :mirror="mirror"
+            :isPlugin="true"
             @getMirror="getMirror"
             @editMirror="v=>{createImage.name=v;createImage.show=true;}"
             @delMirror="delMirror"

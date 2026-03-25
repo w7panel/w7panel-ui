@@ -44,7 +44,7 @@
                     </a-space>
                 </a-form-item>
 
-                <a-form-item v-if="gpuSupport" label="GPU限制">
+                <a-form-item v-if="gpuSupport || isPlugin" label="GPU限制">
                     <a-space direction="vertical" fill :size="0">
                         <a-form-item label="GPU支持状态" :label-col-style="subItemStyle" :style="form.gpuEnabled?'margin-bottom:10px;':'margin-bottom:0;'">
                             <a-switch v-model="form.gpuEnabled"></a-switch>
@@ -429,7 +429,7 @@ import healthProbe from '@/components/health-probe.vue';
 import Sortable from 'sortablejs';
 
 export default{
-    props: ['data','volumes','volumeClaimTemplates','mirror'],
+    props: ['data','volumes','volumeClaimTemplates','mirror','isPlugin'],
     data(){
         return {
             namespaceActive: 'default',

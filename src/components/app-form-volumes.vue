@@ -62,8 +62,8 @@
                         <a-option label="使用主机目录" value="hostPath"></a-option>
                         <a-option label="使用已有PVC" value="pvc"></a-option>
                         <a-option v-if="appKind=='statefulsets'" label="创建动态PVC" value="pvcTemplate" :disabled="Boolean(id)"></a-option>
-                        <a-option label="使用ConfigMap" value="configmap"></a-option>
-                        <a-option label="使用Secret" value="secret"></a-option>
+                        <a-option v-if="!isPlugin" label="使用ConfigMap" value="configmap"></a-option>
+                        <a-option v-if="!isPlugin" label="使用Secret" value="secret"></a-option>
                     </a-select>
                 </a-form-item>
             
@@ -228,7 +228,7 @@ import configmapEditor from '@/views/config/configmap/form-drawer.vue'
 import { getToken } from '@/utils/auth';
 
 export default{
-    props: ['data','kind','readonly'],
+    props: ['data','kind','readonly','isPlugin'],
     data(){
         return {
             namespaceActive: 'default',

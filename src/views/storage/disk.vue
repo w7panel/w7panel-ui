@@ -384,6 +384,9 @@ export default {
 
                     let usedFs = data?.disk?.usage || 0;
                     usedFs = formatStorageSize(usedFs);
+
+                    this.resourceUsedStatus.hard = data?.disk?.total || 0;
+                    this.resourceUsedStatus.hard = formatStorageSize(this.resourceUsedStatus.hard);
                     
                     this.resourceUsedStatus.usedFs = usedFs;
                     this.resourceUsedStatus.usedFsAllocate = this.divideStorage(usedFs, this.resourceUsedStatus.hard);

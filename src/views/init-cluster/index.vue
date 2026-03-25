@@ -30,6 +30,15 @@
                             <span class="ml-6">{{ hasOverResource? '成功':'失败' }}</span>
                         </div>
                     </div>
+                    <div class="df ai-c jc-b" style="border-bottom:1px solid var(--color-neutral-3); padding:20px 0;">
+                        <div class="df-s0" style="color:var(--color-text-2);">存储空间</div>
+                        <div class="df ai-c lh-1">
+                            <icon-check-circle-fill v-if="storageSpace.proper" class="c-green fs-16" />
+                            <icon-close-circle-fill v-if="!storageSpace.proper" class="c-red fs-16" />
+                            <span class="ml-6">{{ storageSpace.proper? '正常':'超出' }}</span>
+                            <span class="ml-6 c-red" v-if="!storageSpace.proper">({{ storageSpace.used }}/{{ storageSpace.total}})</span>
+                        </div>
+                    </div>
                     <div class="df ai-c padding-10" style="border-bottom: 1px solid var(--color-neutral-3); padding:20px 0;">
                         <div class="df-s0" style="color:var(--color-text-2);">集群初始化</div>
                         <div @click="openLogModal" class="fc ml-20 c-99 txt-overhidden cursor">{{ lastRow }}</div>
@@ -70,8 +79,10 @@
                 </div>
 
                 <div v-if="status=='complete'||status=='failed'" class="mt-20 df jc-c">
-                    <a-button v-if="!weihuModal || !startCluster" type="outline" @click="changeWeihuModal" size="large" style="margin:0 10px;">进入救援模式</a-button>
-                    <a-button v-else-if="weihuModal" type="outline" @click="changeWeihuModal" size="large" style="margin:0 10px;">退出救援模式</a-button>
+                    <template v-if="storageSpace.proper">
+                        <a-button v-if="!weihuModal || !startCluster" type="outline" @click="changeWeihuModal" size="large" style="margin:0 10px;">进入救援模式</a-button>
+                        <a-button v-else-if="weihuModal" type="outline" @click="changeWeihuModal" size="large" style="margin:0 10px;">退出救援模式</a-button>
+                    </template>
 
                     <a-button v-if="!startCluster" type="primary" @click="$router.push(`/order-base?expand=true`)" size="large" style="margin:0 10px;">扩容资源</a-button>
 
@@ -132,11 +143,17 @@ export default {
             startCluster: false,
 
             appgroups: [],
+            storageSpace: {
+                proper: true,
+                used: 0,
+                total: 0,
+            },
         }
     },
     async created(){
         await panelApi.post('/k3k/overselling/check',{},{noAlert:true}).then(()=>{}).catch(()=>{}) 
         await this.getInfo();
+        await this.getDisk();
         this.getStatus();
         
         if(this.status=='failed' || this.status=='unknow'){
@@ -144,6 +161,28 @@ export default {
         }
     },
     methods: {
+        getDisk(){
+            return panelApi.get('/metrics/usage/disk').then(res=>{
+                
+                const formatStorageSize = (bytes) => {
+                    // 1 GiB = 1024 MiB = 1024*1024*1024 bytes
+                    return bytes >= 1024 ** 3 
+                        ? `${(bytes / (1024 ** 3)).toFixed(0)}Gi` 
+                        : `${(bytes / (1024 ** 2)).toFixed(0)}Mi`;
+                };
+
+                let data = res?.data;
+                
+                this.storageSpace.total = data?.disk?.total || 0;
+                this.storageSpace.total = formatStorageSize(this.storageSpace.total);
+                
+                this.storageSpace.used = data?.disk?.usage || 0;
+                this.storageSpace.used = formatStorageSize(this.storageSpace.used);
+
+                this.storageSpace.proper = this.storageSpace.used < this.storageSpace.total;
+                
+            })
+        },
         openLogModal(){
             if(!this.jobName || !this.namespace) return;
             this.logModal.pod_name = this.jobName;
@@ -159,7 +198,7 @@ export default {
         getStatus(){
             panelApi.get('/k3k/info',{loading:true}).then(res=>{
                 this.weihuModal = res?.data?.['w7.cc/weihu'] == 'true';
-                console.log(this.weihuModal)
+                
                 if(this.weihuModal){
                     k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups',{noAlert:true}).then(res=>{
                         if(!res?.data?.items){return}
