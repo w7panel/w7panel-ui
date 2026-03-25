@@ -498,7 +498,7 @@ export default {
                 name: "appmicro",
                 url: this.info.frontendUrl + (this.menuActive || ''),
 // 测试
-url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.menuActive || ''),
+// url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.menuActive || ''),
                 el: '#appmicro',
                 // alive: true,
                 sync: true,
