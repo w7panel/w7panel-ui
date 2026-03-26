@@ -4,6 +4,7 @@
         <app-form-volumes
             :data="data"
             :isPlugin="true"
+            :pluginData="pluginData"
             @submit="v=>{volumes=v.volumes;volumeClaimTemplates=v.volumeClaimTemplates;}"
         ></app-form-volumes>
         
@@ -15,6 +16,7 @@
             :volumeClaimTemplates="volumeClaimTemplates"
             :mirror="mirror"
             :isPlugin="true"
+            :pluginData="pluginData"
             @getMirror="getMirror"
             @editMirror="v=>{createImage.name=v;createImage.show=true;}"
             @delMirror="delMirror"
@@ -81,6 +83,7 @@ export default{
                 submit: ()=>{ this.getMirror(); }
             },
             token: '',
+            pluginData: {},
         }
     },
     async created(){
@@ -106,6 +109,9 @@ export default{
     methods: {
         init(){
             this.data = JSON.parse(JSON.stringify(dataTemplate));
+            if(window.$wujie?.props?.pluginData){
+                this.pluginData = window.$wujie.props.pluginData;
+            }
             if(window.$wujie?.props?.containers){
                 this.data.spec.template.spec.containers = window.$wujie.props.containers;
             }
@@ -121,8 +127,9 @@ export default{
                 containers,
                 hostPorts, // 暴露端口
                 imagePullSecrets, // 镜像仓库
+                pluginData,
             } = this.$refs.appformcontainer.formToData();
-            
+            console.log('panel callback',{initContainers, containers, hostPorts, imagePullSecrets, pluginData})
             callback({
                 initContainers,
                 containers,
@@ -130,6 +137,7 @@ export default{
                 imagePullSecrets, // 镜像仓库
                 volumes: this.volumes,
                 volumeClaimTemplates: this.volumeClaimTemplates,
+                pluginData,
             });
         },
         

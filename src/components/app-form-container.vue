@@ -1,6 +1,6 @@
 <template>
     <div>
-        <a-tabs v-if="showif" v-model:active-key="activeIndex" type="card-gutter" class="a-form-container-tabs" :editable="true" @add="handleAdd" @delete="v=>deleteTab(v)" show-add-button auto-switch>
+        <a-tabs v-if="showif" v-model:active-key="activeIndex" type="card-gutter" :class="{isplugin:isPlugin}" class="a-form-container-tabs" :editable="true" @add="handleAdd" @delete="v=>deleteTab(v)" show-add-button auto-switch>
             <a-tab-pane v-for="(form, index) of fl" :key="form.keyid" :title="form.name" :closable="index!==0" style="padding:10px 16px 10px;">
                 <template #title>
                     <span v-if="form.isInitContainers" class="c-red">
@@ -11,6 +11,7 @@
                 </template>
                 
                 <a-form-item
+                    row-class="ac-form-item"
                     label="容器名称"
                     field="customName"
                     :help="testName(form.customName)?'':'最长63个字符，只能包含小写字母、数字及分隔符(-)，且不能以分隔符开头或结尾'"
@@ -19,7 +20,7 @@
                     <a-input v-model="form.customName" placeholder='最长63个字符，只能包含小写字母、数字及分隔符(-)，且不能以分隔符开头或结尾' @change="form.name = (testName(form.customName)?form.customName:form.name)"></a-input>
                 </a-form-item>
 
-                <a-form-item label="CPU/内存限制">
+                <a-form-item label="CPU/内存限制" row-class="ac-form-item">
                     <a-space direction="vertical" style="padding:20px;width:500px;background:var(--color-neutral-1);" fill :size="0">
                         <a-form-item label="CPU内核" :label-col-style="subItemStyle">
                             <a-input type="number" v-model="form.cpu" @blur="testLimitCpuMemory(form)" @change="testLimitCpuMemory(form)" size="large" placeholder="cpu内核">
@@ -44,9 +45,9 @@
                     </a-space>
                 </a-form-item>
 
-                <a-form-item v-if="gpuSupport" label="GPU限制">
+                <a-form-item v-if="gpuSupport || isPlugin" label="GPU限制" row-class="ac-form-item">
                     <a-space direction="vertical" fill :size="0">
-                        <a-form-item label="GPU支持状态" :label-col-style="subItemStyle" :style="form.gpuEnabled?'margin-bottom:10px;':'margin-bottom:0;'">
+                        <a-form-item label="GPU支持状态" :label-col-style="subItemStyle" row-class="ac-form-item" :style="form.gpuEnabled?'margin-bottom:10px;':'margin-bottom:0;'">
                             <a-switch v-model="form.gpuEnabled"></a-switch>
                         </a-form-item>
                         <div v-if="form.gpuEnabled" style="padding:20px;width:500px;background:var(--color-neutral-1);" >
@@ -87,11 +88,11 @@
                     </a-space>
                 </a-form-item>
                 
-                <a-form-item label="应用镜像" field="image">
+                <a-form-item label="应用镜像" field="image" row-class="ac-form-item">
                     <a-input type="text" size="large" v-model="form.image" @input="testImage(index)" :spellcheck="false" style="width:500px;" placeholder="应用镜像"></a-input>
                 </a-form-item>
 
-                <a-form-item label="镜像仓库">
+                <a-form-item label="镜像仓库" row-class="ac-form-item">
                     <a-select v-model="form.imagePullSecrets" :options="mirror" placeholder="请选择" style="width:500px;">
                         <template #label="{ data }">
                             <span>{{data?.label+(data.namespace?'/':'')+data.namespace}}</span>
@@ -109,7 +110,7 @@
                     <span class="ml-20 cursor c-blue" @click="$emit('editMirror','')">新建</span>
                 </a-form-item>
 
-                <a-form-item label="镜像拉取策略">
+                <a-form-item label="镜像拉取策略" row-class="ac-form-item">
                     <a-select v-model="form.imagePullPolicy" size="large" placeholder="请选择" style="width:500px;">
                         <a-option label="总是拉取镜像" value="Always"></a-option>
                         <a-option label="本地有不拉取" value="IfNotPresent"></a-option>
@@ -118,7 +119,7 @@
                 </a-form-item>
 
                 
-                <a-form-item label="挂载点">
+                <a-form-item label="挂载点" row-class="ac-form-item">
                     <div style="flex:1;">
                         <table class="com-table ftable mt-10"><tbody>
                             <tr class="thead">
@@ -175,7 +176,7 @@
                 
                 <div v-show="showExtra" class="mt-20">
                     
-                    <a-form-item label="环境变量" prop="env">
+                    <a-form-item label="环境变量" prop="env" row-class="ac-form-item">
                         <div class="df df-c ai-s" style="flex:1;">
                             <a-button type="primary" @click="openEnvEdit(form)">批量编辑</a-button>
                             <table class="com-table mt-10 ftable" ><tbody>
@@ -245,7 +246,7 @@
                         </div>
                     </a-form-item>
                     
-                    <a-form-item label="暴露端口" prop="ports">
+                    <a-form-item label="暴露端口" prop="ports" row-class="ac-form-item">
                         <div style="flex:1;">
                             <a-checkbox v-if="form.kind=='statefulsets'" disabled v-model="form.headless" class="mt-6">支持无头服务</a-checkbox>
                             <table class="com-table ftable mt-10"><tbody>
@@ -282,7 +283,7 @@
                         </div>
                     </a-form-item>
 
-                    <a-form-item label="运行命令">
+                    <a-form-item label="运行命令" row-class="ac-form-item">
                         <div class="df df-c ftable " style="flex:1;">
                             <div class="df ai-c mb-10" style="height:32px;">
                                 <span class="mr-10">简易模式</span>
@@ -306,7 +307,7 @@
                         </div>
                     </a-form-item>
 
-                    <a-form-item v-if="!form.easyCmd" label="运行参数">
+                    <a-form-item v-if="!form.easyCmd" label="运行参数" row-class="ac-form-item">
                         <div class="df df-c ftable">
                             <div v-for="(item,index) in form.args" :key="index" class="df ai-c" style="margin-bottom:10px;">
                                 <a-textarea v-model="form.args[index]" placeholder="请输入命令" style="height:80px;" :spellcheck="false" allow-clear/>
@@ -316,7 +317,7 @@
                         </div>
                     </a-form-item>
                     
-                    <a-form-item v-if="!form.isInitContainers" label="生命周期" prop="">
+                    <a-form-item v-if="!form.isInitContainers" label="生命周期" prop="" row-class="ac-form-item">
                         <div style=" padding: 20px; background: var(--color-neutral-1);flex:1;">
                             <div class="df">
                                 <div class="" style="width:100px;line-height:32px;">启动后执行</div>
@@ -345,22 +346,22 @@
                         </div>
                     </a-form-item>
 
-                    <a-form-item v-if="!form.isInitContainers" label="容器健康检查" prop="">
+                    <a-form-item v-if="!form.isInitContainers" label="容器健康检查" prop="" row-class="ac-form-item">
                         <health-probe :data="form.defaultHealthProbeInit" @returnData="v=>form.healthProbeInit = v"></health-probe>
                     </a-form-item>
 
                     <!-- v-if="!fl.find(i=>i.isInitContainers) || form.isInitContainers" -->
-                    <a-form-item label="初始化容器">
+                    <a-form-item label="初始化容器" row-class="ac-form-item">
                         <a-switch v-model="form.isInitContainers" @change="sortFormByInitcontoiner" />
                         <span class="fs-12 c-99 ml-20 lh-1">容器标识为init containers</span>
                     </a-form-item>
 
-                    <a-form-item label="特权容器" prop="">
+                    <a-form-item label="特权容器" prop="" row-class="ac-form-item">
                         <a-switch v-model="form.privileged" />
                         <span class="fs-12 c-99 ml-20 lh-1">容器开启特权级，将拥有宿主机的root权限</span>
                     </a-form-item>
 
-                    <a-form-item v-if="!form.privileged" label="容器权限细化" prop="">
+                    <a-form-item v-if="!form.privileged" label="容器权限细化" prop="" row-class="ac-form-item">
                         <div style=" padding: 20px; background: var(--color-neutral-1);flex:1;">
                             <div class="df">
                                 <div class="" style="width:100px;line-height:32px;">drop</div>
@@ -393,7 +394,7 @@
                         <a-input v-model="form.fsGroup" placeholder="文件组ID"></a-input>
                     </a-form-item> -->
 
-                    <a-form-item label="运行用户">
+                    <a-form-item label="运行用户" row-class="ac-form-item">
                         <!-- <a-checkbox v-model="form.allowPrivilegeEscalation" :disabled="form.privileged" >特权升级</a-checkbox> -->
                          <a-checkbox v-model="form.runAsNonRoot">禁用root用户</a-checkbox>
                         <a-input v-model="form.runAsUser" type="number" class="ml-10" style="width:200px;" placeholder="用户id" />
@@ -429,13 +430,13 @@ import healthProbe from '@/components/health-probe.vue';
 import Sortable from 'sortablejs';
 
 export default{
-    props: ['data','volumes','volumeClaimTemplates','mirror','isPlugin'],
+    props: ['data','volumes','volumeClaimTemplates','mirror','isPlugin','pluginData'],
     data(){
         return {
             namespaceActive: 'default',
             activeIndex: '',
             userInfo: {},
-            subItemStyle: "flex:0;width:100px;min-width:100px;",
+            subItemStyle: "flex:0;width:120px;min-width:120px;",
             showExtra: false,
             fieldData: [],
             fieldList: [
@@ -623,11 +624,11 @@ export default{
             arr.map(containers=>{
                 let form = {};
                 
-                let cpu = containers?.resources?.limits?.cpu || '';
+                let cpu = String(containers?.resources?.limits?.cpu || '');
                 let cpuDw = /m$/.test(cpu)? 'm' : '';
                 cpu = Number(cpu.replace('m',''));
                 
-                let memory = containers?.resources?.limits?.memory || '';
+                let memory = String(containers?.resources?.limits?.memory || '');
                 
                 let memoryDw = 'Mi';
                 if(/Mi$/.test(memory)){
@@ -645,7 +646,7 @@ export default{
                 
                 let spec = this?.data?.spec?.template?.spec;
                 // gpu
-                if(spec?.runtimeClassName=='nvidia'){
+                if(spec?.runtimeClassName=='nvidia' || (this.isPlugin && this.pluginData.runtimeClassName=='nvidia')){
                     let convertStringToNumber = (str)=>{
                         str = String(str);
                         const isK = str.toLowerCase().endsWith('k');
@@ -754,7 +755,7 @@ export default{
                 imagePS.map(i=>{
                     let find = mirror.find(mo=>mo.value==i.name);
                     let l = find?.label + '/' + find?.namespace;
-                    if(l==ctn.image || ctn.image.startsWith(l+'/')){
+                    if(l==ctn?.image || ctn?.image?.startsWith(l+'/')){
                         imagePullSecrets = i.name;
                     }
                 })
@@ -805,6 +806,7 @@ export default{
             let containers = [];
             let hostPorts = {};
             let imagePullSecrets = [];
+            let pluginData = {};
 
             this.fl.map(form=>{
                 if(form.imagePullSecrets){ imagePullSecrets.push(form.imagePullSecrets) }
@@ -931,6 +933,10 @@ export default{
                 }else{
                     containers.push(o);
                 }
+                // 制品库获取
+                pluginData = {
+                    gpu: pluginData.gpu || form.gpuEnabled,
+                }
             })
 
             imagePullSecrets = [...new Set(imagePullSecrets)];
@@ -942,6 +948,7 @@ export default{
                 containers,
                 hostPorts,
                 imagePullSecrets,
+                pluginData,
             }
         },
 
@@ -1038,4 +1045,6 @@ export default{
 <style>
 .a-form-container-tabs .arco-tabs-nav-add-btn{cursor:pointer;}
 .a-form-container-tabs .arco-tabs-nav-add-btn::after{content:'添加容器';margin-left:4px; text-wrap:nowrap;color:var(--color-text-2);}
+.isplugin.a-form-container-tabs .ac-form-item .arco-form-item-label-col{width:120px;}
+
 </style>

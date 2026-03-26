@@ -1,5 +1,5 @@
 <template>
-    <div class="item df df-c jc-b" :class="{disabeld:!info.can_install}" @click="install">
+    <div class="item df df-c jc-b" :class="{disabeld:!info.can_install}">
         <div class="df">
             <a v-if="info.url_detail" :href="info.url_detail" target="_blank" @click="(e)=>{e.stopPropagation(); return false;}">
                 <img :src="info.logo" class="img" alt="" />
@@ -9,8 +9,9 @@
                 <div class="one-hide fs-14">{{info.title}}</div>
                 <div class="mt-4 fs-12 c-99">v {{info.version}}</div>
             </div>
-            <div class="df-s0 ml-10">
-                <a-button type="primary" :disabled="!info.can_install" size="small" style="padding:0 10px;">安装{{num}}</a-button>
+            <div class="df-s0 df df-c ai-e ml-10">
+                <a-button type="primary" :disabled="!info.can_install" size="small" style="padding:0 10px;" @click="install">安装{{num}}</a-button>
+                <span class="mt-8 fs-12 c-red cursor" @click="showDeployItems">{{info.has_expire? '有过期订单' : '订单信息'}}</span>
             </div>
         </div>
         <div class="fs-12 c-99 one-hide">应用介绍：{{info.description}}</div>
@@ -19,7 +20,7 @@
 
 <script>
 export default {
-    props: ['data'],
+    props: ['data','tpcdtoken'],
     data(){
         return {
             info: {}
@@ -46,6 +47,10 @@ export default {
         install(){
             if(!this.data.can_install){return}
             this.$emit('install', this.data);
+        },
+        showDeployItems(){
+            this.$emit('showDeployItems',this.info);
+            // axios.get(`https://console.w7.cc/api/deploy/thirdparty-cd/${this.info.id}/items`,{customToken: this.tpcdtoken})
         },
     },
 }

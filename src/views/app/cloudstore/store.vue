@@ -8,8 +8,15 @@
                         <a-input-search v-model="searchTitle" placeholder="请输入应用名称" class="mb-10" style="width:300px" @search="getAppList" @press-enter="e=>{getAppList();e.stopPropagation()}" search-button />
                         <span class="ml-20 c-blue cursor" @click="findSite">站点找回</span>
                     </div>
-                    <div class="df df-ww mt-20">
-                        <store-item v-for="item in list" :key="item" @install="testItem" :data="item" class="item" />
+                    <div class="df df-ww mt-20 list">
+                        <store-item
+                            v-for="item in list"
+                            :key="item"
+                            @showDeployItems="showDeployItems"
+                            @install="testItem"
+                            :data="item"
+                            class="item"
+                        />
                         <a-empty v-if="!list || !list.length" class="mt-40" />
                     </div>
                 </a-tab-pane>
@@ -17,8 +24,15 @@
                     <div>
                         <a-input-search v-model="searchTitle" placeholder="请输入应用名称" class="mb-10" style="width:300px" @search="getAppList" @press-enter="e=>{getAppList();e.stopPropagation()}" search-button />
                     </div>
-                    <div class="df df-ww mt-20">
-                        <store-item v-for="item in freeList" :key="item" @install="testItem" :data="item" class="item" />
+                    <div class="df df-ww mt-20 list">
+                        <store-item
+                            v-for="item in freeList"
+                            :key="item"
+                            @showDeployItems="showDeployItems"
+                            @install="testItem"
+                            :data="item"
+                            class="item"
+                        />
                         <a-empty v-if="!freeList || !freeList.length" class="mt-40" />
                     </div>
                 </a-tab-pane>
@@ -58,18 +72,53 @@
 
         <a-modal v-model:visible="w7site.show" title="站点找回" width="960px" :footer="false">
             <div style="max-height: 450px; overflow-y: auto;">
-                <a-list size="small">
-                    <a-list-item v-for="(item,index) in w7site.list" :key="index">
-                        <span>{{item.sitename}}</span>
-                        <span v-if="item.family_text">（{{item.family_text}}）</span>
-                        <span class="ml-20">{{ item.url }}</span>
-                        <template #actions>
-                            <span class="c-blue cursor" @click="rebuildSite(item)">重新部署</span>
-                        </template>
-                    </a-list-item>
-                </a-list>
+                
+            </div>
+            <template #footer>
+                <a-button @click="adminItem.dialog=false;nextStep(adminItem);">跳过</a-button>
+                <a-button type="primary" @click="selectVerson">确定</a-button>
+            </template>
+        </a-modal>
+
+        
+        <a-modal :visible="deployItems.show" title="订单信息" width="960px" :footer="false" @cancel="deployItems.show = false">
+            <table class="com-table"><tbody>
+                <tr>
+                    <td>订单号</td>
+                    <td>服务费到期时间</td>
+                    <td>操作</td>
+                </tr>
+                <tr v-for="(item,index) in deployItems.list" :key="index">
+                    <td>{{ item.order_sn }}</td>
+                    <td>{{ item.expire_time_format }}</td>
+                    <td>
+                        <span v-if="item.need_buy_service" class="c-blue cursor" @click="toRenew(item)">续费</span>
+                    </td>
+                </tr>
+            </tbody></table>
+        </a-modal>
+
+        <a-modal :visible="renew.show" title="续费" width="960px" @ok="renewSubmit" @cancel="renew.show = false">
+            <div class="df df-ww service">
+                <div>
+                    <a-radio-group v-model="renew.activeIndex">
+                        <a-radio :value="index" v-for="(item,index) in renew.list" :key="index">
+                            <template #radio="{ checked }">
+                                <div class="item" :class="{active:index==renew.activeIndex}">
+                                    <span class="fs-16 b">{{item.month%12==0?item.month/12+'年':item.month+'月'}} / </span>
+                                    <span class="" style="color:var(--color-text-2);">{{'￥'+item.price}}</span>
+                                </div>
+                            </template>
+                        </a-radio>
+                    </a-radio-group>
+                </div>
             </div>
         </a-modal>
+        
+        <a-modal :width="1000" title="支付" @cancel="payDrawer.show=false;" @close="getAppList" :visible="payDrawer.show" :footer="false" :mask-closable="false" class="pay-modal">
+            <iframe :src="payDrawer.url" frameborder="0" style="width:100%;height:660px;"></iframe>
+        </a-modal>
+
     </div>
 </template>
 
@@ -78,6 +127,7 @@ import { panelApi } from '@/utils/api';
 import axios from 'axios'
 import storeItem from './store-item.vue'
 import { getUserInfo } from '@/utils/auth';
+import dayjs from 'dayjs';
 
 export default {
     data() {
@@ -105,6 +155,21 @@ export default {
             tpcdtoken: '',
 
             w7site: {},
+            deployItems: {
+                show: false,
+                item: null,
+                list: [],
+            },
+            renew: {
+                show: false,
+                list: [],
+                item: null,
+                activeIndex: 0,
+            },
+            payDrawer: {
+                show: false,
+                url: '',
+            },
         }
     },
     components: { storeItem },
@@ -122,6 +187,60 @@ export default {
         }
     },
     methods: {
+        // 续费
+        toRenew(row){
+            axios.get('https://console.w7.cc/api/deploy/thirdparty-cd/module-service-fee/info',{
+                customToken: this.tpcdtoken,
+                loading: true,
+                params: {
+                    module_name: this.deployItems.item.module_name,
+                }
+            }).then(res=>{
+                let list = res.data?.data || [];
+                list = list.filter(i=>i.enabled==2);
+                this.renew.list = list;
+                this.renew.show = true;
+                this.renew.item = row;
+                this.renew.activeIndex = 0;
+            })
+        },
+        // 续费提交
+        renewSubmit(){
+            axios.post('https://console.w7.cc/api/deploy/thirdparty-cd/module-service-fee-order/create',{
+                module_name: this.deployItems.item.module_name,
+                from_order_id: this.renew.item.order_sn,
+                service_fee_id: this.renew.list[this.renew.activeIndex].id,
+            },{
+                customToken: this.tpcdtoken,
+                loading: true,
+            }).then(res=>{
+                this.renew.show = false;
+                this.deployItems.show = false;
+                let ticket = res.data?.payinfo?.ticket;
+                this.toPay(ticket)
+            })
+        },
+        toPay(ticket){
+            let url = `https://ip.w7.cc/pay/${ticket}?header=false&footer=false&paid_callback=https%3A%2F%2Fuser.w7.cc%2Forder`;
+            this.payDrawer = {
+                show: true,
+                url: url,
+            }
+        },
+        // 订单信息
+        showDeployItems(row){
+            axios.get(`https://console.w7.cc/api/deploy/thirdparty-cd/${row.id}/items`,{
+                customToken: this.tpcdtoken,
+                loading: true
+            }).then(res=>{
+                this.deployItems.show = true;
+                this.deployItems.list = res.data?.items || [];
+                this.deployItems.list.forEach(item=>{
+                    item.expire_time_format = dayjs(item.expire_time*1000).format('YYYY-MM-DD HH:mm:ss');
+                })
+                this.deployItems.item = row;
+            })
+        },
         findSite(){
             axios.get("https://console.w7.cc/api/thirdparty-cd/k8s-offline/w7sites/list",{
                 customToken: this.tpcdtoken,
@@ -248,5 +367,22 @@ export default {
 </script>
 
 <style scoped>
-.item{margin-right:20px; margin-bottom:20px;}
+.list .item{margin-right:20px; margin-bottom:20px;}
+.service .item{
+    padding: 10px 16px;
+    border: 1px solid var(--color-border-2);
+    border-radius: 4px;
+    width: 150px;
+    box-sizing: border-box;
+    color: var(--color-text-1);
+}
+
+.service .item.active{
+    background-color: var(--color-primary-light-1);
+    border-color: rgb(var(--primary-6));
+    color: rgb(var(--primary-6));
+}
+</style>
+<style>
+.pay-modal .arco-modal-body{padding:0;}
 </style>
