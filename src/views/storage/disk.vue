@@ -6,7 +6,7 @@
                 <template #icon><icon-plus /></template>
                 <span>新建</span>
             </a-button>
-            <a-button v-if="usermode!=='cluster'" type="outline" class="ml-20" @click="openLoad()">添加负载</a-button>
+            <a-button v-if="usermode!=='cluster' && hasLonghornSystem" type="outline" class="ml-20" @click="openLoad()">添加负载</a-button>
             <!-- <a-button type="primary" :disabled="!selectedKeys.length" @click="bindNode()">绑定Node</a-button> -->
         </div>
         <div class="bg-white padding-20">

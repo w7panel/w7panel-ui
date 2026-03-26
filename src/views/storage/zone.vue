@@ -417,6 +417,7 @@ export default {
         getDisks(){
             k8sproxy.get(`/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/nodes`,{
                 headers: {Accept: 'application/json',},
+                noAlert: true,
             }).then(res=>{
                 let result = res.data.data || [];
                 this.diskTags = [];
