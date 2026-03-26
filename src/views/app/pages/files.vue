@@ -43,11 +43,11 @@
                             <a-button type="outline" class="ml-20" size="small" @click="submitCatch">立即生效</a-button>
                         </div>
                         <a-button-group v-if="selectedKeys.length>0 || copy || shear" class="btn-groups ml-20" size="small" type="outline" status="normal">
-                            <a-button v-if="selectedKeys.length>0" :disabled="selectedKeys.length!=1" @click="copyAct({name:selectedKeys[0]})">
+                            <a-button v-if="selectedKeys.length>0" :disabled="selectedKeys.length!=1 || fileList.find(f=>f.key===selectedKeys[0])?.editable === false" @click="copyAct({name:selectedKeys[0]})">
                                 <icon-copy />
                                 <span class="ml-4">复制</span>
                             </a-button>
-                            <a-button v-if="selectedKeys.length>0" :disabled="selectedKeys.length!=1" @click="shearAct({name:selectedKeys[0]})">
+                            <a-button v-if="selectedKeys.length>0" :disabled="selectedKeys.length!=1 || fileList.find(f=>f.key===selectedKeys[0])?.editable === false" @click="shearAct({name:selectedKeys[0]})">
                                 <icon-cut />
                                 <span class="ml-4">剪切</span>
                             </a-button>
@@ -55,7 +55,7 @@
                                 <icon-paste />
                                 <span class="ml-4">粘贴</span>
                             </a-button>
-                            <a-button v-if="selectedKeys.length>0" @click="compressAct(null, true)">
+                            <a-button v-if="selectedKeys.length>0" @click="compressAct(null, true)" :disabled="!fileList.some(f=>selectedKeys.includes(f.key) && f.editable !== false)">
                                 <icon-import />
                                 <span class="ml-4">压缩</span>
                             </a-button>
@@ -112,19 +112,19 @@
                         <a-table-column title="操作" :width="320">
                             <template #cell="{ record }">
                                 <div class="options">
-                                    <a-tooltip v-if="record.type=='file' && !record.fromFileCatch" content="下载">
+                                    <a-tooltip v-if="record.editable !== false && record.type=='file' && !record.fromFileCatch" content="下载">
                                         <i class="opt-icon" @click="downzip(record)"><icon-download /></i>
                                     </a-tooltip>
-                                    <a-tooltip v-if="!record.fromFileCatch" content="复制">
+                                    <a-tooltip v-if="record.editable !== false && !record.fromFileCatch" content="复制">
                                         <i class="opt-icon" @click="copyAct(record)"><icon-copy /></i>
                                     </a-tooltip>
-                                    <a-tooltip v-if="!record.fromFileCatch" content="剪切">
+                                    <a-tooltip v-if="record.editable !== false && !record.fromFileCatch" content="剪切">
                                         <i class="opt-icon" @click="shearAct(record)"><icon-scissor /></i>
                                     </a-tooltip>
                                     <a-tooltip content="重命名">
                                         <i class="opt-icon" @click="renameEdit(record)"><icon-pen /></i>
                                     </a-tooltip>
-                                    <a-tooltip v-if="!record.fromFileCatch" content="压缩">
+                                    <a-tooltip v-if="record.editable !== false && !record.fromFileCatch" content="压缩">
                                         <i class="opt-icon" @click="compressAct(record)"><icon-import /></i>
                                     </a-tooltip>
                                     <a-tooltip v-if="record.is_zip" content="解压">
@@ -1235,18 +1235,24 @@ export default {
                         time = window.formatDate(timestamp);
                     }
                     let user = prop?.getElementsByTagName('uid')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'uid')?.[0]?.textContent;
+                    let group = prop?.getElementsByTagName('gid')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'gid')?.[0]?.textContent;
                     let power = prop?.getElementsByTagName('mode')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'mode')?.[0]?.textContent;
+                    let editable = prop?.getElementsByTagName('editable')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'editable')?.[0]?.textContent;
+                    let fileType = prop?.getElementsByTagName('type')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'type')?.[0]?.textContent;
+                    let type = fileType || (href.endsWith('/')? 'directory' : 'file');
                     list.push({
                         key: key,
                         name: key,
-                        type: href.endsWith('/')? 'directory' : 'file',
+                        type: type,
                         is_dir: href.endsWith('/'),
                         is_zip: /\.(zip|tar|tgz|tar\.gz|tbz2|tar\.bz2|txz|tar\.xz)$/.test(path),
                         size: size,
                         filesize: sizeTxt,
                         utime: time,
                         user: this.userArr.find?.(i=>i.id==Number(user))?.name || user,
+                        group: group,
                         power: power,
+                        editable: editable !== 'false',
                     })
                 }
                 list.sort((a,b)=>a.key.localeCompare(b.key));
@@ -1477,7 +1483,7 @@ export default {
         async intoFile(row){
             if(row.type == 'directory'){
                 this.form.path = this.partPath + row.name;
-            }else if(row.type == 'file'){
+            }else if(row.type == 'file' && row.editable !== false){
                 if(row.size && row.size > 1024 * 1024){ this.$message.warning('当前文件大小超过1M，不支持在线编辑，请下载编辑后重新上传！'); return; }
                 if(row.fromFileCatch){
                     this.file.dialog = true;
@@ -2451,8 +2457,9 @@ export default {
                 // 显示文件和子目录
                 this.file.sidebarFiles = files.map(f => ({
                     name: f.name,
-                    is_dir: f.isDir,
-                    is_symlink: f.isSymlink || false,
+                    type: f.type,
+                    is_dir: f.type === 'directory',
+                    is_symlink: f.type === 'symlink',
                     size: f.size || 0
                 }));
                 
@@ -2507,7 +2514,24 @@ export default {
                 const contentLength = prop?.getElementsByTagNameNS('DAV:', 'getcontentlength')[0]?.textContent;
                 const size = contentLength ? parseInt(contentLength, 10) : 0;
                 
-                files.push({ name, isDir: isDirectory, size });
+                const typeEl = prop?.getElementsByTagName('type')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'type')?.[0]?.textContent;
+                const editableEl = prop?.getElementsByTagName('editable')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'editable')?.[0]?.textContent;
+                const fileType = typeEl || (isDirectory ? 'directory' : 'file');
+                
+                const uidEl = prop?.getElementsByTagName('uid')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'uid')?.[0]?.textContent;
+                const gidEl = prop?.getElementsByTagName('gid')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'gid')?.[0]?.textContent;
+                const modeEl = prop?.getElementsByTagName('mode')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'mode')?.[0]?.textContent;
+                
+                files.push({ 
+                    name, 
+                    isDir: isDirectory, 
+                    size, 
+                    type: fileType, 
+                    editable: editableEl !== 'false',
+                    uid: uidEl,
+                    gid: gidEl,
+                    mode: modeEl,
+                });
             }
             
             // 排序：目录在前，然后按名称排序
@@ -2569,12 +2593,6 @@ export default {
                 let content = await response.text();
                 let readOnly = false;
                 
-                // 检查是否是特殊文件
-                if (content.includes('seeker can\'t seek') || content.includes('operation not supported')) {
-                    content = `# 此文件是特殊文件，不支持直接读取\n# 文件: ${item.name}\n# 类型: ${item.is_symlink ? '符号链接' : '特殊文件'}`;
-                    readOnly = true;
-                }
-                
                 this.file.openTabs.push({
                     name: item.name,
                     path: filePath,
@@ -2632,7 +2650,9 @@ export default {
                     
                     this.file.sidebarFiles = files.map(f => ({
                         name: f.name,
-                        is_dir: f.isDir,
+                        type: f.type,
+                        is_dir: f.type === 'directory',
+                        is_symlink: f.type === 'symlink',
                         size: f.size || 0
                     }));
                     
