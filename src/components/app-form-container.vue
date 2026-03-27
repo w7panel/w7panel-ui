@@ -837,7 +837,7 @@ export default{
                             resourceFieldRef: {
                                 containerName: form.name,
                                 resource: v.value,
-                                divisor: Number(v.divisor || 0),
+                                divisor: v.divisor || 0,
                             }
                         }
                     }

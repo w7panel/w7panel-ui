@@ -93,8 +93,12 @@
                     <td>{{ item.order_sn }}</td>
                     <td>{{ item.expire_time_format }}</td>
                     <td>
-                        <span v-if="item.need_buy_service" class="c-blue cursor" @click="toRenew(item)">续费</span>
-                        <span v-if="item.need_buy_demo" class="c-blue cursor ml-10" @click="toBuypackage(item)">购买模块</span>
+                        <a-tooltip content="服务费到期需要续费">
+                            <span v-if="item.need_buy_service" class="c-blue cursor" @click="toRenew(item)">续费<icon-question-circle-fill class="ml-2" /></span>
+                        </a-tooltip>
+                        <a-tooltip content="演示到期 需要购买使用">
+                            <span v-if="item.need_buy_demo" class="c-blue cursor ml-10" @click="toBuypackage(item)">购买模块<icon-question-circle-fill class="ml-2" /></span>
+                        </a-tooltip>
                     </td>
                 </tr>
             </tbody></table>
