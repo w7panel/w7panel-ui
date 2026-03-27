@@ -97,9 +97,11 @@ export default{
         this.init();
         
         window.$wujie?.bus.$on("submit", this.submit);
+        window.$wujie?.bus.$on("changeData", this.changeData);
     },
     beforeUnmount(){
         window.$wujie?.bus.$off("submit", this.submit);
+        window.$wujie?.bus.$off("changeData", this.changeData);
     },
     components: {
         appFormVolumes,
@@ -115,11 +117,28 @@ export default{
             if(window.$wujie?.props?.containers){
                 this.data.spec.template.spec.containers = window.$wujie.props.containers;
             }
+            if(window.$wujie?.props?.initContainers){
+                this.data.spec.template.spec.initContainers = window.$wujie.props.initContainers;
+            }
             if(window.$wujie?.props?.volumes){
                 if(this.data?.spec?.template?.spec){
                     this.data.spec.template.spec.volumes = window.$wujie.props.volumes;
                 }
             }
+        },
+        changeData({containers,initContainers,volumes}){
+            if(containers){
+                this.data.spec.template.spec.containers = containers;
+            }
+            if(initContainers){
+                this.data.spec.template.spec.initContainers = initContainers;
+            }
+            if(volumes){
+                if(this.data?.spec?.template?.spec){
+                    this.data.spec.template.spec.volumes = volumes;
+                }
+            }
+            this.data = JSON.parse(JSON.stringify(this.data));
         },
         submit(callback){
             let {

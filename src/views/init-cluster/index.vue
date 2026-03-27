@@ -179,7 +179,7 @@ export default {
                 this.storageSpace.used = data?.disk?.usage || 0;
                 this.storageSpace.used = formatStorageSize(this.storageSpace.used);
 
-                this.storageSpace.proper = this.storageSpace.used < this.storageSpace.total;
+                this.storageSpace.proper = data?.disk?.usage < data?.disk?.total;
                 
             })
         },

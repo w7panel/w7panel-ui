@@ -567,7 +567,8 @@ export default {
         transformPodItem(item){
             let podips = item?.status?.podIPs?.map(i=>i.ip) || [];
             let containerStatuses = item.status?.containerStatuses || [];
-            let ctn = (item.spec?.containers || []).map(i=>{
+            let ctnlist = (item.spec?.containers || []).concat(item?.spec?.initContainers || []);
+            let ctn = ctnlist.map(i=>{
                 let cs = containerStatuses?.find(c=>c.name==i.name)
                 return {
                     name: i.name,
