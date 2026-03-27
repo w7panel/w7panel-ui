@@ -959,7 +959,7 @@ export default {
                         }
                     })
                 }else{
-                    let url = k8sproxy.get('/apis/batch/v1/namespaces/'+this.namespaceActive+'/cronjobs');
+                    let url = '/k8s-proxy/apis/batch/v1/namespaces/'+this.namespaceActive+'/cronjobs';
                     if(this.form.runtype=='2'){
                         // url = '/k8s-proxy/api/v1/namespaces/'+this.namespaceActive+'/podtemplates';
                         url = '/k8s-proxy/apis/batch/v1/namespaces/'+this.namespaceActive+'/jobs';

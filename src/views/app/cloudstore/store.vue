@@ -283,6 +283,7 @@ export default {
             }).then(res=>{
                 this.buypackage.show = true,
                 this.buypackage.row = row;
+                this.buypackage.activeIndex = 0;
                 this.buypackage.branch = res.data?.branch || {};
                 this.buypackage.module_name = res.data?.module_name || '';
                 this.buypackage.logo = res.data?.logo || '';
