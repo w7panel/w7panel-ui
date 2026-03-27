@@ -20,7 +20,7 @@ export default {
         }
     },
     created(){
-        const routeType = (this.$route.query.type || this.$route.query.shelltype || '').toString().trim();
+        const routeType = (this.$route.query.type || '').toString().trim();
         const normalized = routeType.replace(/^\/+/, '');
         if(normalized === 'bin/bash'){
             this.type = 'bin/bash';
