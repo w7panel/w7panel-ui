@@ -67,43 +67,13 @@ export default {
             if (normalized === 'bin/bash') return '/bin/bash';
             return '/bin/sh';
         },
-        splitCommandArgs(command){
+        buildDefaultCommandArgs(command){
             const input = String(command || '').trim();
-            if (!input) return [];
-            const result = [];
-            let current = '';
-            let quote = '';
-            let escape = false;
-            for (let i = 0; i < input.length; i++) {
-                const ch = input[i];
-                if (escape) {
-                    current += ch;
-                    escape = false;
-                    continue;
-                }
-                if (ch === '\\') {
-                    escape = true;
-                    continue;
-                }
-                if ((ch === '"' || ch === "'") && !quote) {
-                    quote = ch;
-                    continue;
-                }
-                if (ch === quote) {
-                    quote = '';
-                    continue;
-                }
-                if (!quote && /\s/.test(ch)) {
-                    if (current) {
-                        result.push(current);
-                        current = '';
-                    }
-                    continue;
-                }
-                current += ch;
+            if (!input) {
+                return [this.normalizeShellPath(this.type)];
             }
-            if (current) result.push(current);
-            return result;
+            const shellPath = this.normalizeShellPath(this.type);
+            return [shellPath, '-c', input];
         },
         initSocket(callback){
             this.ready = false;
@@ -120,7 +90,7 @@ export default {
             if(this.origin=='nodes'){
                 // nodes 场景直接走 nodetty，不需要 command 参数
             }else if(this.defaultCommand){
-                this.splitCommandArgs(this.defaultCommand).forEach((item) => {
+                this.buildDefaultCommandArgs(this.defaultCommand).forEach((item) => {
                     commandArgs.push(item);
                 });
             }else{
