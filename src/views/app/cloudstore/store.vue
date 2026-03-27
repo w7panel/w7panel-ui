@@ -28,6 +28,7 @@
                         <store-item
                             v-for="item in freeList"
                             :key="item"
+                            :isfree="true"
                             @showDeployItems="showDeployItems"
                             @install="testItem"
                             :data="item"
@@ -93,6 +94,7 @@
                     <td>{{ item.expire_time_format }}</td>
                     <td>
                         <span v-if="item.need_buy_service" class="c-blue cursor" @click="toRenew(item)">续费</span>
+                        <span v-if="item.need_buy_demo" class="c-blue cursor ml-10" @click="toBuypackage(item)">购买模块</span>
                     </td>
                 </tr>
             </tbody></table>
@@ -100,19 +102,49 @@
 
         <a-modal :visible="renew.show" title="续费" width="960px" @ok="renewSubmit" @cancel="renew.show = false">
             <div class="df df-ww service">
-                <div>
-                    <a-radio-group v-model="renew.activeIndex">
-                        <a-radio :value="index" v-for="(item,index) in renew.list" :key="index">
-                            <template #radio="{ checked }">
-                                <div class="item" :class="{active:index==renew.activeIndex}">
-                                    <span class="fs-16 b">{{item.month%12==0?item.month/12+'年':item.month+'月'}} / </span>
-                                    <span class="" style="color:var(--color-text-2);">{{'￥'+item.price}}</span>
-                                </div>
-                            </template>
-                        </a-radio>
-                    </a-radio-group>
-                </div>
+                <a-radio-group v-model="renew.activeIndex">
+                    <a-radio :value="index" v-for="(item,index) in renew.list" :key="index">
+                        <template #radio="{ checked }">
+                            <div class="item" :class="{active:index==renew.activeIndex}">
+                                <span class="fs-16 b">{{item.month%12==0?item.month/12+'年':item.month+'月'}} / </span>
+                                <span class="" style="color:var(--color-text-2);">{{'￥'+item.price}}</span>
+                            </div>
+                        </template>
+                    </a-radio>
+                </a-radio-group>
             </div>
+        </a-modal>
+
+        <a-modal :visible="buypackage.show" title="购买模块" width="960px" @ok="buypackageSubmit" @cancel="buypackage.show = false">
+            <a-form auto-label-width>
+                <a-form-item label="应用名称">
+                    <div class="df ai-c">
+                        <img :src="buypackage.logo" alt="" style="width:36px; height:36px; border-radius:4px;" />
+                        <div class="ml-10">
+                            <div class="fs-14" style="line-height:20px;">{{buypackage.title}}</div>
+                            <div class="fs-12 fs-12 c-99" style="line-height:16px;">{{buypackage.module_name}}</div>
+                        </div>
+                    </div>
+                </a-form-item>
+                <a-form-item label="选择套餐">
+                    <div class="buypackage" style="flex:1;">
+                        <a-radio-group v-model="buypackage.activeIndex">
+                            <a-radio :value="index" v-for="(item,index) in (buypackage.branch && buypackage.branch.service_packages)" :key="index">
+                                <template #radio="{ checked }">
+                                    <div class="item" :class="{active:index==buypackage.activeIndex}">
+                                        <div>{{ item.package_title }}</div>
+                                        <span class="fs-16 b">{{item.package_month%12==0?item.package_month/12+'年':item.package_month+'月'}} / </span>
+                                        <span class="" style="color:var(--color-text-2);">{{'￥'+item.package_version_price}}</span>
+                                    </div>
+                                </template>
+                            </a-radio>
+                        </a-radio-group>
+                    </div>
+                </a-form-item>
+                <a-form-item label="总价">
+                    <span>￥{{ add(buypackage.branch?.front_version_total, buypackage?.branch?.service_packages?.[buypackage.activeIndex]?.package_version_price) }}</span>
+                </a-form-item>
+            </a-form>
         </a-modal>
         
         <a-modal :width="1000" title="支付" @cancel="payDrawer.show=false;" @close="getAppList" :visible="payDrawer.show" :footer="false" :mask-closable="false" class="pay-modal">
@@ -170,6 +202,16 @@ export default {
                 show: false,
                 url: '',
             },
+            buypackage: {
+                show: false,
+                list: [],
+                activeIndex: 0,
+                row: {},
+                branch: {},
+                module_name: '',
+                logo: '',
+                title: '',
+            },
         }
     },
     components: { storeItem },
@@ -187,6 +229,19 @@ export default {
         }
     },
     methods: {
+        add(a, b) {
+            const n1 = isFinite(a) ? Number(a) : 0;
+            const n2 = isFinite(b) ? Number(b) : 0;
+
+            // 避免小数精度问题
+            const p = Math.max(
+                (n1.toString().split('.')[1] || '').length,
+                (n2.toString().split('.')[1] || '').length
+            );
+            const mul = 10 ** p;
+
+            return (n1 * mul + n2 * mul) / mul;
+        },
         // 续费
         toRenew(row){
             axios.get('https://console.w7.cc/api/deploy/thirdparty-cd/module-service-fee/info',{
@@ -215,6 +270,35 @@ export default {
                 loading: true,
             }).then(res=>{
                 this.renew.show = false;
+                this.deployItems.show = false;
+                let ticket = res.data?.payinfo?.ticket;
+                this.toPay(ticket)
+            })
+        },
+        toBuypackage(row){
+            axios.get(`https://console.w7.cc/api/deploy/thirdparty-cd/deployitem/shop-info`,{
+                customToken: this.tpcdtoken,
+                loading: true,
+                params: row.buy_demo_params,
+            }).then(res=>{
+                this.buypackage.show = true,
+                this.buypackage.row = row;
+                this.buypackage.branch = res.data?.branch || {};
+                this.buypackage.module_name = res.data?.module_name || '';
+                this.buypackage.logo = res.data?.logo || '';
+                this.buypackage.title = res.data?.title || '';
+            })
+        },
+        buypackageSubmit(){
+            axios.post(`https://console.w7.cc/api/deploy/thirdparty-cd/branch-ip-order/create`,{
+                ...this.buypackage.row.buy_demo_params,
+                branch_service_package_id: this.buypackage.branch?.service_packages?.[this.buypackage.activeIndex]?.package_id,
+                branch_service_package_quantity: 1,
+            },{
+                customToken: this.tpcdtoken,
+                loading: true,
+            }).then(res=>{
+                this.buypackage.show = false;
                 this.deployItems.show = false;
                 let ticket = res.data?.payinfo?.ticket;
                 this.toPay(ticket)
@@ -368,6 +452,7 @@ export default {
 
 <style scoped>
 .list .item{margin-right:20px; margin-bottom:20px;}
+.buypackage .item,
 .service .item{
     padding: 10px 16px;
     border: 1px solid var(--color-border-2);
@@ -377,6 +462,7 @@ export default {
     color: var(--color-text-1);
 }
 
+.buypackage .item.active,
 .service .item.active{
     background-color: var(--color-primary-light-1);
     border-color: rgb(var(--primary-6));

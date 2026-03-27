@@ -75,6 +75,10 @@
 
         <micro-app-form :show="maf.show" :yaml="maf.yaml" :callback="callback" @close="maf.show=false;"></micro-app-form>
 
+        <a-modal :visible="appDialogConfirm.show" @ok="appDialog.show=false;appDialogConfirm.show=false;" @cancel="appDialogConfirm.show=false;">
+            <template #title>提示</template>
+            <div>{{ appDialogConfirm.txt }}</div>
+        </a-modal>
     </div>
 </template>
 <script>
@@ -119,6 +123,10 @@ export default{
                 show: false,
                 src: '',
                 title: '',
+            },
+            appDialogConfirm: {
+                show: false,
+                txt: '',
             },
             logCpn: {
                 show: false,
@@ -434,7 +442,10 @@ export default{
         },
         closeAppDialog(){
             if(this.appDialog.closeAlert){
-                this.$message.warning(this.appDialog.closeAlert);
+                this.appDialogConfirm = {
+                    show: true,
+                    txt: this.appDialog.closeAlert,
+                }
                 return false;
             }
             this.appDialog.show = false;

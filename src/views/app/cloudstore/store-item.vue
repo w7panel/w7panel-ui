@@ -11,7 +11,7 @@
             </div>
             <div class="df-s0 df df-c ai-e ml-10">
                 <a-button type="primary" :disabled="!info.can_install" size="small" style="padding:0 10px;" @click="install">安装{{num}}</a-button>
-                <span class="mt-8 fs-12 c-red cursor" @click="showDeployItems">{{info.has_expire? '有过期订单' : '订单信息'}}</span>
+                <span v-if="!isfree" class="mt-8 fs-12 c-red cursor" @click="showDeployItems">{{info.has_expire? '有过期订单' : '订单信息'}}</span>
             </div>
         </div>
         <div class="fs-12 c-99 one-hide">应用介绍：{{info.description}}</div>
@@ -20,7 +20,7 @@
 
 <script>
 export default {
-    props: ['data','tpcdtoken'],
+    props: ['data','tpcdtoken','isfree'],
     data(){
         return {
             info: {}

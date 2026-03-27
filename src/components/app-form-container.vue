@@ -717,7 +717,7 @@ export default{
                     name: i.name,
                     containerPort: i.containerPort,
                     protocol: i.protocol, // || 'TCP'
-                    hostPort: hostPorts[i.containerPort] || 0,
+                    hostPort: hostPorts[i.containerPort] || i.hostPort || 0,
                 }))
                 // env
                 let env = ctn?.env || [];
@@ -817,6 +817,7 @@ export default{
                         containerPort: Number(v.containerPort),
                         name: v.name || "port-"+v.containerPort,
                         protocol: v.protocol,
+                        hostPort: Number(v.hostPort),
                     }
                 })
                 

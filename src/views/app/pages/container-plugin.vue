@@ -84,9 +84,11 @@ export default{
             },
             token: '',
             pluginData: {},
+            wujieId: '',
         }
     },
     async created(){
+        this.wujieId = window?.__WUJIE?.id;
         if(window.__POWERED_BY_WUJIE__ && window?.$wujie?.props?.paneltoken){
             this.token = window.$wujie.props.paneltoken;
         }else{
@@ -96,12 +98,12 @@ export default{
         await this.getMirror();
         this.init();
         
-        window.$wujie?.bus.$on("submit", this.submit);
-        window.$wujie?.bus.$on("changeData", this.changeData);
+        window.$wujie?.bus.$on("submit"+this.wujieId, this.submit);
+        window.$wujie?.bus.$on("changeData"+this.wujieId, this.changeData);
     },
     beforeUnmount(){
-        window.$wujie?.bus.$off("submit", this.submit);
-        window.$wujie?.bus.$off("changeData", this.changeData);
+        window.$wujie?.bus.$off("submit"+this.wujieId, this.submit);
+        window.$wujie?.bus.$off("changeData"+this.wujieId, this.changeData);
     },
     components: {
         appFormVolumes,
