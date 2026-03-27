@@ -1,5 +1,5 @@
 <template>
-    <div id="xtermcontent" ref="terminal" style="height:100%; width: 100%"></div>
+    <div ref="terminal" style="height:100%; width: 100%"></div>
 </template>
 
 <script>
@@ -25,6 +25,7 @@ export default {
             decoder: null,
             // token: '',
             firstMessage: true,
+            resizeHandler: null,
         }
     },
     created(){
@@ -32,10 +33,20 @@ export default {
     },
     beforeUnmount(){
         if(this.socket){
+            try {
+                if (!this.socketClose && this.socket.readyState === WebSocket.OPEN) {
+                    this.socket.send('exit\n');
+                }
+            } catch (e) {
+                console.error(e);
+            }
             this.socket.close();
         }
         this.term?.dispose();
-        window.removeEventListener('resize', this.resize);
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = null;
+        }
     },
     mounted(){
         setTimeout(()=>{
@@ -44,6 +55,12 @@ export default {
         },300)
     },
     methods: {
+        normalizeShellPath(shell){
+            const raw = String(shell || 'bin/sh').trim();
+            const normalized = raw.replace(/^\/+/, '');
+            if (normalized === 'bin/bash') return '/bin/bash';
+            return '/bin/sh';
+        },
         initSocket(callback){
             this.ready = false;
 
@@ -54,7 +71,11 @@ export default {
             if(window.__MICRO_APP_ENVIRONMENT__){
                 baseURL = window?.microApp?.getData()?.requestUrl || '';
             }
-            this.socket = new WebSocket(`${baseURL.replace(/\/$/,'')}${this.socketUrl}?api-token=${this.token}&command=${this.type||'/bin/sh'}&tty=true`);
+            const shellPath = this.normalizeShellPath(this.type);
+            const params = new URLSearchParams();
+            params.set('api-token', this.token || '');
+            params.set('shell', shellPath);
+            this.socket = new WebSocket(`${baseURL.replace(/\/$/,'')}${this.socketUrl}?${params.toString()}`);
             this.socket.onopen = () => {
                 this.socketClose = false;
                 this.messageSocket();
@@ -75,10 +96,11 @@ export default {
             this.xtermfit = fitAddon;
             term.loadAddon(fitAddon);
             fitAddon.fit();
-            window.addEventListener('resize', () => {
+            this.resizeHandler = () => {
                 if(this.show===false){return}
                 fitAddon.fit();
-            });
+            };
+            window.addEventListener('resize', this.resizeHandler);
             
             term.onResize((size) => {
                 this.colrows(size.rows, size.cols);

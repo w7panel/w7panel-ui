@@ -1,6 +1,6 @@
 <template>
     <div style="width: 100%; height:100%;">
-        <div id="xtermcontent" ref="terminal" style="height:100%; width: 100%"></div>
+        <div ref="terminal" style="height:100%; width: 100%"></div>
         <!-- <iframe id="term" src="/testxterm.html" style="height:100%; width: 100%; border: 0" border=0></iframe> -->
     </div>
    
@@ -28,6 +28,7 @@ export default {
             ready: false,
             decoder: null,
             token: '',
+            resizeHandler: null,
         }
     },
     created(){
@@ -38,19 +39,72 @@ export default {
     },
     beforeUnmount(){
         if(this.socket){
+            try {
+                if (!this.socketClose && this.socket.readyState === WebSocket.OPEN) {
+                    this.socket.send('exit\n');
+                }
+            } catch (e) {
+                console.error(e);
+            }
             this.socket.close();
         }
         this.term?.dispose();
-        window.removeEventListener('resize', this.resize);
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = null;
+        }
     },
     mounted(){
         setTimeout(()=>{
-            let ele = document.getElementById('xtermcontent');
             this.initTerm();
             this.initSocket();
         },300)
     },
     methods: {
+        normalizeShellPath(shell){
+            const raw = String(shell || 'bin/sh').trim();
+            const normalized = raw.replace(/^\/+/, '');
+            if (normalized === 'bin/bash') return '/bin/bash';
+            return '/bin/sh';
+        },
+        splitCommandArgs(command){
+            const input = String(command || '').trim();
+            if (!input) return [];
+            const result = [];
+            let current = '';
+            let quote = '';
+            let escape = false;
+            for (let i = 0; i < input.length; i++) {
+                const ch = input[i];
+                if (escape) {
+                    current += ch;
+                    escape = false;
+                    continue;
+                }
+                if (ch === '\\') {
+                    escape = true;
+                    continue;
+                }
+                if ((ch === '"' || ch === "'") && !quote) {
+                    quote = ch;
+                    continue;
+                }
+                if (ch === quote) {
+                    quote = '';
+                    continue;
+                }
+                if (!quote && /\s/.test(ch)) {
+                    if (current) {
+                        result.push(current);
+                        current = '';
+                    }
+                    continue;
+                }
+                current += ch;
+            }
+            if (current) result.push(current);
+            return result;
+        },
         initSocket(callback){
             this.ready = false;
 
@@ -61,27 +115,34 @@ export default {
             if(window.__MICRO_APP_ENVIRONMENT__){
                 baseURL = window?.microApp?.getData()?.requestUrl || '';
             }
-            let command = '';
+            const shellPath = this.normalizeShellPath(this.type);
+            const commandArgs = [];
             if(this.origin=='nodes'){
-                let str = 'nsenter -t 1 --mount --uts --ipc --net --pid --';
-                str.split(' ').forEach((item)=>{
-                    command = command + `&command=${item}`;
-                })
-                command = command + `&command=/${this.type||'bin/sh'}`;
+                // nodes 场景直接走 nodetty，不需要 command 参数
             }else if(this.defaultCommand){
-                this.defaultCommand.split(' ').forEach(item=>{
-                    command = command + `&command=${item}`;
-                })
+                this.splitCommandArgs(this.defaultCommand).forEach((item) => {
+                    commandArgs.push(item);
+                });
             }else{
-                command = command + `&command=/${this.type||'bin/sh'}`;
+                commandArgs.push(shellPath);
             }
-            console.log(command)
 
             let src = '';
             if(this.origin=='nodes'){
-                src = `${baseURL.replace(/\/$/,'')}/panel-api/v1/nodetty?hostIp=${this.ip}&api-token=${this.api_token}&shell=${this.type||'bin/sh'}`;
+                const params = new URLSearchParams();
+                params.set('hostIp', this.ip || '');
+                params.set('api-token', this.token || '');
+                params.set('shell', shellPath);
+                src = `${baseURL.replace(/\/$/,'')}/panel-api/v1/nodetty?${params.toString()}`;
             }else{
-                src = `${baseURL.replace(/\/$/,'')}${this.socketUrl}?podName=${this.pod}&namespace=${this.namespace}&containerName=${this.containerName}${command}&tty=true&api-token=${this.token}`;
+                const params = new URLSearchParams();
+                params.set('podName', this.pod || '');
+                params.set('namespace', this.namespace || '');
+                params.set('containerName', this.containerName || '');
+                commandArgs.forEach((arg) => params.append('command', arg));
+                params.set('tty', 'true');
+                params.set('api-token', this.token || '');
+                src = `${baseURL.replace(/\/$/,'')}${this.socketUrl}?${params.toString()}`;
             }
             this.socket = new WebSocket(src);
             // this.socket = new WebSocket("wss://iwd2s3pd-pfcthd7s-0dsjeiz8pcg0.c2.mcprev.cn/k8s/exec?podName=tradition-php-app-cfyqghij0a-66d4d6c8b9-vm7jd&namespace=default&containerName=app-cfyqghij0a&command=/bin/sh&tty=true");
@@ -108,12 +169,13 @@ export default {
             this.xtermfit = fitAddon;
             term.loadAddon(fitAddon);
             fitAddon.fit();
-            window.addEventListener('resize', () => {
+            this.resizeHandler = () => {
                 if(this.show===false){return}
                 fitAddon.fit();
                 // let xv = document.querySelector('#xtermcontent .xterm-viewport');
                 // xv && (xv.style.width = 'auto');
-            });
+            };
+            window.addEventListener('resize', this.resizeHandler);
             
             term.onResize((size) => {
                 // console.log("resize")
