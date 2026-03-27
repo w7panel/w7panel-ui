@@ -549,7 +549,7 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import axios from 'axios'
-import {basicSetup} from "codemirror"
+import {basicSetup} from "@codemirror/basic-setup"
 import {EditorView, keymap, Decoration} from "@codemirror/view"
 import {Compartment, StateEffect, EditorSelection} from "@codemirror/state"
 import { StreamLanguage, HighlightStyle, syntaxHighlighting, indentOnInput, indentUnit, bracketMatching } from "@codemirror/language"
@@ -2747,7 +2747,7 @@ export default {
                 this.file.indentSize = Number(value);
             }
             
-            this.initEditor();
+            this.createEditor(this.currentTab?.content || '', this.currentTab?.readOnly);
         },
         // 改变编码
         changeEncoding(encoding){
