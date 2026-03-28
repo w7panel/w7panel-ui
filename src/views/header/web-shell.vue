@@ -12,7 +12,12 @@
             justify
         >
             <a-tab-pane v-for="(item, index) of data" :key="item.key" :title="item.name" :closable="index!==0">
-                <webshell-tty :token="token" :show="item.key===activeIndex" :type="$route.name=='fp-webshell'?'/bin/bash':''"></webshell-tty>
+                <webshell-tty
+                    :ref="(el) => setShellRef(item.key, el)"
+                    :token="token"
+                    :show="item.key===activeIndex"
+                    :type="$route.name=='fp-webshell'?'/bin/bash':''"
+                ></webshell-tty>
             </a-tab-pane>
         </a-tabs>
     </div>
@@ -29,6 +34,7 @@ export default {
             token: '',
             activeIndex: '',
             data: [],
+            shellRefs: {},
         }
     },
     components: {webshellTty},
@@ -47,6 +53,20 @@ export default {
         this.activeIndex = this.data[0].key;
     },
     methods: {
+        setShellRef(key, el){
+            if (el) {
+                this.shellRefs[key] = el;
+                return;
+            }
+            delete this.shellRefs[key];
+        },
+        closeShellByKey(key){
+            const shell = this.shellRefs[key];
+            if (shell && typeof shell.closeSocketGracefully === 'function') {
+                shell.closeSocketGracefully();
+            }
+            delete this.shellRefs[key];
+        },
         handleAdd(){
             this.data.push({
                 key: 'ws'+Date.now(),
@@ -56,9 +76,14 @@ export default {
             this.activeIndex = this.data[this.data.length-1].key;
         },
         handleDelete(key){
-            this.activeIndex = this.data[0].key;
-            let index = this.data.findIndex(i=>i.key===key);
+            this.closeShellByKey(key);
+            const index = this.data.findIndex(i => i.key === key);
+            if (index < 0) return;
+            const fallback = this.data.find(i => i.key !== key);
             this.data.splice(index, 1);
+            if (fallback) {
+                this.activeIndex = fallback.key;
+            }
         },
     },
 }

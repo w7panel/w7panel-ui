@@ -19,6 +19,7 @@
         >
             <a-tab-pane v-for="(item, index) of tabs" :key="item.key" :title="item.name" :closable="index!==0">
                 <web-shell
+                    :ref="(el) => setShellRef(item.key, el)"
                     :show="item.key===activeIndex"
                     :type="data.type"
                     :api_token="token"
@@ -54,6 +55,7 @@ export default {
                 containerName: ''
             },
             defaultCommand: '',
+            shellRefs: {},
         }
     },
     components: {webShell},
@@ -80,6 +82,20 @@ export default {
         // }
     },
     methods: {
+        setShellRef(key, el){
+            if (el) {
+                this.shellRefs[key] = el;
+                return;
+            }
+            delete this.shellRefs[key];
+        },
+        closeShellByKey(key){
+            const shell = this.shellRefs[key];
+            if (shell && typeof shell.closeSocketGracefully === 'function') {
+                shell.closeSocketGracefully();
+            }
+            delete this.shellRefs[key];
+        },
         handleAdd(){
             this.tabs.push({
                 key: 'ws'+Date.now(),
@@ -89,9 +105,14 @@ export default {
             this.activeIndex = this.tabs[this.tabs.length-1].key;
         },
         handleDelete(key){
-            this.activeIndex = this.tabs[0].key;
-            let index = this.tabs.findIndex(i=>i.key===key);
+            this.closeShellByKey(key);
+            const index = this.tabs.findIndex(i => i.key === key);
+            if (index < 0) return;
+            const fallback = this.tabs.find(i => i.key !== key);
             this.tabs.splice(index, 1);
+            if (fallback) {
+                this.activeIndex = fallback.key;
+            }
         },
     },
 }
