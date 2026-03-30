@@ -822,7 +822,7 @@ export default {
             let ip = item.internalIP;
             let token = getToken();
             this.webshelllink = window.microApp?.getData()?.originUrl || '';
-            this.webshelllink = this.webshelllink.replace(/\/$/,'') + `/fp/pod-webshell?type=/bin/sh&ip=${ip}&api_token=${token}&origin=nodes`;
+            this.webshelllink = this.webshelllink.replace(/\/$/,'') + `/fp/pod-webshell?type=bin/sh&ip=${ip}&api_token=${token}&origin=nodes`;
             let isopen = window.open(this.webshelllink);
             if(!isopen){
                 console.log("请在新窗口打开");

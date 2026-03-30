@@ -604,12 +604,13 @@ export default {
                 }
                 let command = cmds[this.info.dbType];
                 if(primary && command){
+                    const encodedCommand = encodeURIComponent(command);
                     if(this.inMicro){
                         let token = getToken();
                         this.databaseLink = window.microApp?.getData()?.originUrl || '';
-                        this.databaseLink = this.databaseLink.replace(/\/$/,'') + `/fp/pod-webshell?type=bin/sh&command=${command}&pod=${primary.name}&namespace=${primary.namespace}&containerName=${primary.containerName}&api_token=${token}`;
+                        this.databaseLink = this.databaseLink.replace(/\/$/,'') + `/fp/pod-webshell?type=bin/sh&command=${encodedCommand}&pod=${primary.name}&namespace=${primary.namespace}&containerName=${primary.containerName}&api_token=${token}`;
                     }else{
-                        this.databaseLink = `/fp/pod-webshell?command=${command}&pod=${primary.name}&namespace=${primary.namespace}&containerName=${primary.containerName}&type=bin/sh`;
+                        this.databaseLink = `/fp/pod-webshell?command=${encodedCommand}&pod=${primary.name}&namespace=${primary.namespace}&containerName=${primary.containerName}&type=bin/sh`;
                     }
                 }
             }).then(()=>{

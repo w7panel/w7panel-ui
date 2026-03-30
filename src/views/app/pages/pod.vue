@@ -413,7 +413,11 @@ export default {
                     this.statusController?.abort();
                     this.statusController = null;
                 }
-            }catch{}
+            }catch(e){
+                if(e.name !== 'AbortError'){
+                    console.error(e);
+                }
+            }
         },
         stopWatch(){
             try{
@@ -421,7 +425,12 @@ export default {
                     this.watchController?.abort();
                     this.watchController = null;
                 }
-            }catch{}
+            }catch(e){
+                // 忽略 AbortError，这是请求取消的正常行为
+                if(e.name !== 'AbortError'){
+                    console.error('stopWatch error:', e);
+                }
+            }
         },
         deleteMultiple(){
             Promise.all(this.selectedKeys.map(i=>{
@@ -507,8 +516,12 @@ export default {
 
                         return readStream();
                     } catch (error) {
+                        if (error?.name === 'AbortError' || error?.code === 20) {
+                            try { reader.releaseLock(); } catch (e) { if (e?.name !== 'AbortError') { console.error(e); } }
+                            return;
+                        }
                         console.error('读取流数据时发生错误:', error);
-                        reader.releaseLock();
+                        try { reader.releaseLock(); } catch (e) { if (e?.name !== 'AbortError') { console.error(e); } }
                         throw error;
                     }
                 };
@@ -552,7 +565,9 @@ export default {
                         }
                     })
                 })
-            }).catch(()=>{})
+            }).catch((error)=>{
+                if (error?.name !== 'AbortError') { console.error(error); }
+            })
         },
         // 展开/收起行变化时
         onExpandedChange(expandedKeys){
@@ -674,7 +689,9 @@ export default {
                 // setTimeout(()=>{
                 //     this.getList();
                 // },600)
-            }).catch(()=>{})
+            }).catch((error)=>{
+                if (error?.name !== 'AbortError') { console.error(error); }
+            })
             // this.$confirm('是否确定销毁容器并重建', '提示', {confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning'}).then(()=>{
             // }).catch(()=>{})
         },

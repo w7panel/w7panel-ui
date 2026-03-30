@@ -20,8 +20,12 @@ export default {
         }
     },
     created(){
-        if(this.$route.query.shelltype == 'bin/bash'){
+        const routeType = (this.$route.query.type || '').toString().trim();
+        const normalized = routeType.replace(/^\/+/, '');
+        if(normalized === 'bin/bash'){
             this.type = 'bin/bash';
+        } else {
+            this.type = 'bin/sh';
         }
         this.wsShow = true;
     },
