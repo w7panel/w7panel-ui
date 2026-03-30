@@ -549,7 +549,7 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import axios from 'axios'
-import {basicSetup} from "@codemirror/basic-setup"
+import {basicSetup} from "codemirror"
 import {EditorView, keymap, Decoration} from "@codemirror/view"
 import {Compartment, StateEffect, EditorSelection} from "@codemirror/state"
 import { StreamLanguage, HighlightStyle, syntaxHighlighting, indentOnInput, indentUnit, bracketMatching } from "@codemirror/language"
@@ -965,6 +965,9 @@ export default {
             //     window.open('/panel-api/v1/download/'+row.name+'?api-token='+token).focus()
             // })
 
+            let src = `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}?api-token=${getToken()}`
+            window.open(src).focus();
+            return;
             axios.get(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}`,{
                 responseType: 'blob'
             }).then(async res=>{
