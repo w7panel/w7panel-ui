@@ -221,7 +221,7 @@
                                             @search="v=>fieldData=v?fieldList.filter(i=>i.startsWith(v)):fieldList"
                                         />
 
-                                        <a-select v-if="item.type=='resource_field'" :disabled="item.disabled" v-model="item.value" placeholder="请选择" size="large" style="width:170px;">
+                                        <a-select v-if="item.type=='resource_field'" :disabled="item.disabled" @change="v=>item.divisorAppend=(v=='limits.cpu'||v=='requests.cpu')?'':'Gi'" v-model="item.value" placeholder="请选择" size="large" style="width:170px;">
                                             <a-option value="limits.cpu" label="limits.cpu"></a-option>
                                             <a-option value="limits.memory" label="limits.memory"></a-option>
                                             <a-option value="limits.ephemeral-storage" label="limits.ephemeral-storage"></a-option>
@@ -231,8 +231,16 @@
                                     </td>
                                     <td>
                                         <span v-if="item.type!=='resource_field'">-</span>
-                                        <a-input v-else v-model="item.divisor" style="width:170px;" placeholder="请输入">
-                                            <template #prepend>divisor</template>
+                                        <a-input v-else v-model="item.divisor" style="width:180px;" placeholder="请输入">
+                                            <!-- <template #prepend>divisor</template> -->
+                                            <template #append>
+                                                <a-select v-model="item.divisorAppend" style="width:70px;">
+                                                    <a-option v-if="item.value=='limits.cpu'||item.value=='requests.cpu'" value="m" label="毫核"></a-option>
+                                                    <a-option v-if="item.value=='limits.cpu'||item.value=='requests.cpu'" value="" label="核"></a-option>
+                                                    <a-option v-if="item.value!='limits.cpu'&&item.value!='requests.cpu'" value="Mi" label="Mi"></a-option>
+                                                    <a-option v-if="item.value!='limits.cpu'&&item.value!='requests.cpu'" value="Gi" label="Gi"></a-option>
+                                                </a-select>
+                                            </template>
                                         </a-input>
                                     </td>
                                     <td>
@@ -731,11 +739,20 @@ export default{
                         type = 'resource_field';
                     }
                     let divisor = v.valueFrom?.resourceFieldRef?.divisor;
+                    let divisorAppend = '';
+                    let matchDivisor = divisor.match(/^([\d.]+)(m|mi|gi)$/i);
+                    if(matchDivisor){
+                        divisor = matchDivisor[1];
+                        divisorAppend = matchDivisor[2];
+                    }
                     let o = {
                         name: v.name,
                         value: v.value || v?.valueFrom?.fieldRef?.fieldPath || v?.valueFrom?.resourceFieldRef?.resource,
                         type: type,
-                        ...(divisor?{divisor:divisor}:{}),
+                        ...(divisor?{
+                            divisor:divisor,
+                            divisorAppend:divisorAppend,
+                        }:{}),
                     }
                     if(o.name == 'RELEASE_NAME_SUFFIX' && o.value){
                         o.disabled = true;
@@ -837,7 +854,7 @@ export default{
                             resourceFieldRef: {
                                 containerName: form.name,
                                 resource: v.value,
-                                divisor: v.divisor || 0,
+                                divisor: (v.divisor || 0) + (v.divisorAppend || ''),
                             }
                         }
                     }

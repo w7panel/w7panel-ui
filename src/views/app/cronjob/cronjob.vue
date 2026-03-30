@@ -122,7 +122,7 @@
             :show="jobLogModal.show" 
             mode="modal" 
             title="执行记录"
-            :name="jobLogModal.jobName"
+            :jobList="jobLogModal.jobList"
             :label-selector="jobLogModal.labelSelector"
             :namespace="namespaceActive"
             :tail-lines="100"
@@ -180,7 +180,7 @@ export default {
             // Job 日志弹窗（带执行记录）
             jobLogModal: {
                 show: false,
-                jobName: '',
+                jobList: [],
                 labelSelector: '',
             },
 
@@ -236,11 +236,34 @@ export default {
             // 获取 Job 列表
             k8sproxy.get('/apis/batch/v1/namespaces/'+ this.namespaceActive +'/jobs?labelSelector=searchJob='+item.searchJob).then(res=>{
                 let data = res?.data?.items || [];
-                if(data.length === 0) return;
                 
-                // 使用第一个 Job
-                const firstJob = data[0];
-                this.jobLogModal.jobName = firstJob.metadata.name;
+                let list = data.map(i=>{
+                    let durationInSeconds = '';
+                    if(i.status.completionTime && i.status.startTime){
+                        let st = new Date(i.status.startTime);
+                        let ct = new Date(i.status.completionTime);
+                        durationInSeconds = Math.floor((ct - st) / 1000) + '秒';
+                    }
+                    let status_class = i.spec?.suspend? 'c-99' : (i.status?.succeeded? 'c-green' : 'c-red');
+                    let status_text = i.spec?.suspend? '挂起' : (i.status?.succeeded? '成功' : '失败');
+                    
+                    return {
+                        title: i.metadata.annotations.title || i.metadata.name,
+                        name: i.metadata.name,
+                        startTime: window.formatDate(i.status.startTime),
+                        stimes: new Date(i.status.startTime).getTime(),
+                        completionTime: window.formatDate(i.status.completionTime),
+                        durationInSeconds: durationInSeconds,
+                        suspend: i.spec?.suspend,
+                        status_text: status_text,
+                        status_class: status_class,
+                        dataItem: i,
+                        type: 'jobs',
+                    }
+                })
+                list.sort((i,j)=>j.stimes-i.stimes);
+
+                this.jobLogModal.jobList = list;
                 this.jobLogModal.labelSelector = '';
                 this.jobLogModal.show = true;
             });

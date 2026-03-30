@@ -45,7 +45,7 @@
         <!-- yaml -->
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
         <!-- log -->
-        <jobLog :show="log.show" mode="modal" title="任务日志" :label-selector="log.label" @close="log.show=false;"></jobLog>
+        <jobLog :show="log.show" title="任务日志" :name="name" @close="log.show=false;"></jobLog>
     </div>
 </template>
 
@@ -67,6 +67,7 @@ export default {
             log: {
                 show: false,
                 label: '',
+                name: '',
             },
             debug: false,
         }
@@ -119,10 +120,10 @@ export default {
         toLog(item){
             let selector = item?.selector;
             if(!selector){return;}
-            let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
+            // let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
             this.log = {
                 show: true,
-                label: label,
+                name: item.name,
             }
         },
         exeImt(row, type, suspend){

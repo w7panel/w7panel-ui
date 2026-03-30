@@ -160,6 +160,10 @@ export default {
             type: String,
             default: '',
         },
+        jobList: {
+            type: Array,
+            default: () => [],
+        },
         // 兼容原有 name prop
         name: {
             type: String,
@@ -234,17 +238,24 @@ export default {
             activeIndex: 0,
             currentPodName: '',
             podcont: '',
+            currentJobName: '',
         };
     },
     computed: {
         currentNamespace() {
             return this.namespace || useNamespaceStore().namespace;
         },
-        currentJobName() {
-            return this.jobName || this.name;
-        },
+        // currentJobName() {
+        //     return this.jobName || this.name;
+        // },
     },
     watch: {
+        name(){
+            this.currentJobName = this.jobName || this.name;
+        },
+        jobName(){
+            this.currentJobName = this.jobName || this.name;
+        },
         show: {
             immediate: true,
             handler(val) {
@@ -263,6 +274,7 @@ export default {
         },
     },
     created() {
+        this.currentJobName = this.jobName || this.name;
         this.tailLinesOption = this.tailLines;
     },
     beforeUnmount() {
@@ -362,10 +374,19 @@ export default {
             });
         },
         onTabChange() {
-            this.stopStream();
-            this.fetchLog();
+            this.currentJobName = this.list[this.activeIndex].name;
+            this.fetchPodInfo();
+            // this.stopStream();
+            // this.fetchLog();
         },
         fetchJobList() {
+            if(this.jobList.length>0){
+                this.list = this.jobList;
+                this.activeIndex = 0;
+                this.currentJobName = this.list[0].name;
+                this.fetchPodInfo();
+                return;
+            }
             if (!this.currentJobName) return;
 
             const params = { local: this.local ? 1 : undefined };

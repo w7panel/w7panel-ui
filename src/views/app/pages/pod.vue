@@ -146,13 +146,14 @@
                                 <td>{{ ctn.name }}</td>
                                 <td>
                                     <div class="df ai-c">
-                                        <a-popover position="bl" content-style="padding:6px 10px 10px;">
+                                        <a-popover v-if="ctn.containerID!='-'" position="bl" content-style="padding:6px 10px 10px;">
                                             <span class="cursor one-hide" style="max-width:200px;">{{ ctn.containerID }}</span>
                                             <template #content>
                                                 <span>{{ ctn.containerID }}</span>
                                             </template>
                                         </a-popover>
-                                        <a-tooltip content="复制">
+                                        <span v-else>{{ ctn.containerID }}</span>
+                                        <a-tooltip v-if="ctn.containerID!='-'" content="复制">
                                             <i class="opt-icon ml-4" @click="onekeyCopy(ctn.containerID)"><icon-copy /></i>
                                         </a-tooltip>
                                     </div>
