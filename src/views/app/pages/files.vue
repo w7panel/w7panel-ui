@@ -964,24 +964,25 @@ export default {
             //     const token = getToken();
             //     window.open('/panel-api/v1/download/'+row.name+'?api-token='+token).focus()
             // })
-
-            let src = `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}?api-token=${getToken()}`
-            window.open(src).focus();
-            return;
-            axios.get(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}`,{
-                responseType: 'blob'
-            }).then(async res=>{
-                try{
-                    const urlObj = URL.createObjectURL(res.data);
-                    const a = document.createElement('a');
-                    a.href = urlObj;
-                    a.download = row.name; // 自定义文件名（带后缀，如test.xlsx）
-                    a.click();
-                    URL.revokeObjectURL(urlObj);
-                }catch(error){
-                    console.log('下载失败',error)
-                }
-            })
+            if(row.size < 50 * 1024 * 1024 ){
+                axios.get(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}`,{
+                    responseType: 'blob'
+                }).then(async res=>{
+                    try{
+                        const urlObj = URL.createObjectURL(res.data);
+                        const a = document.createElement('a');
+                        a.href = urlObj;
+                        a.download = row.name; // 自定义文件名（带后缀，如test.xlsx）
+                        a.click();
+                        URL.revokeObjectURL(urlObj);
+                    }catch(error){
+                        console.log('下载失败',error)
+                    }
+                })
+            }else{
+                let src = `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}?api-token=${getToken()}`
+                window.open(src).focus();
+            }
 
         },
         // 容器列表
