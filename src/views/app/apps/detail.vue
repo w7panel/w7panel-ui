@@ -189,7 +189,7 @@
                     </div>
                 </div>
             </template>
-            <iframe v-if="appDialog.show" :src="appDialog.src" frameborder="0" style="width:100%;display:block;" :style="{height:appDialog.fullscreen?'100%':'600px'}"></iframe>
+            <iframe v-if="appDialog.show" ref="openappIframe" :src="appDialog.src" frameborder="0" style="width:100%;display:block;" :style="{height:appDialog.fullscreen?'100%':'600px'}"></iframe>
         </a-modal>
 
         <domain-cert :data="domainCertData"></domain-cert>
@@ -434,15 +434,14 @@ export default {
             }
         },
         closeAppDialog(){
-            if(this.appDialog.closeAlert){
-                let str = this.appDialog.closeAlert?.() || '';
-                if(str){
-                    this.appDialogConfirm = {
-                        show: true,
-                        txt: str,
-                    }
-                    return false;
+            let str = this.$refs?.openappIframe?.contentWindow?.microDialogCloseAlertText;
+            console.log(this.$refs?.openappIframe?.contentWindow)
+            if(str){
+                this.appDialogConfirm = {
+                    show: true,
+                    txt: str,
                 }
+                return false;
             }
             this.appDialog.show = false;
         },
