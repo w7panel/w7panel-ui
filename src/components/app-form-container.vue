@@ -740,7 +740,7 @@ export default{
                     }
                     let divisor = v.valueFrom?.resourceFieldRef?.divisor;
                     let divisorAppend = '';
-                    let matchDivisor = divisor.match(/^([\d.]+)(m|mi|gi)$/i);
+                    let matchDivisor = divisor?.match?.(/^([\d.]+)(m|mi|gi)$/i);
                     if(matchDivisor){
                         divisor = matchDivisor[1];
                         divisorAppend = matchDivisor[2];
