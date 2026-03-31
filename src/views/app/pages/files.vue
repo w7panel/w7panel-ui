@@ -308,9 +308,9 @@
                             <!-- 左侧设置 -->
                             <div class="toolbar-right">
                                 
-                                <a-checkbox v-if="!file.fromFileCatch&&origin!='nodes'" v-model="file.forever" :disabled="form.isMount && !file.mf">
+                                <a-checkbox v-if="!file.fromFileCatch&&origin!='nodes'" v-model="file.openTabs[file.activeTabIndex].checkForever" :disabled="file.openTabs[file.activeTabIndex].isMount && !file.openTabs[file.activeTabIndex].mf">
                                     <template #checkbox="{ checked }">
-                                        <span class="toolbar-toggle" :class="{'active': checked, 'disabled':form.isMount && !file.mf}">
+                                        <span class="toolbar-toggle" :class="{'active': checked, 'disabled':file.openTabs[file.activeTabIndex].isMount && !file.openTabs[file.activeTabIndex].mf}">
                                             <span style="font-size:11px;">永久文件</span>
                                         </span>
                                     </template>
@@ -1057,7 +1057,7 @@ export default {
 
                     this.form.subPid = res.data.subPid;
                     this.form.preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
-                    this.form.path = res.data?.pwd.trim() || '/';
+                    this.form.path = res.data?.pwd?.trim?.() || '/';
                     this.root = '/';
 
                     if(this.$route.query.path){
@@ -1144,7 +1144,7 @@ export default {
 
                     this.form.subPid = res.data.subPid;
                     this.form.preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
-                    this.form.path = res.data?.pwd.trim() || '/';
+                    this.form.path = res.data?.pwd?.trim?.() || '/';
                     this.root = '/';
 
                     // if(this.$route.query.path){
@@ -1381,6 +1381,7 @@ export default {
             })
             this.mfDirs = mounts;
             this.mfList = mountsFile;
+            
             this.mfEdit = false;
             this.form.isMount = this.testForever(this.form.path, true);
         },
@@ -1653,7 +1654,7 @@ export default {
             this.file.title = currentTab.name;
             this.file.currentFile = currentTab.name;
             
-            if(this.file.fromFileCatch){
+            if(this.currentTab.fromFileCatch){
                 let find = this.fileCatch.find(i=>i.fileName == currentTab.name && i.path == this.showPath);
                 if(find){
                     find.fileValue = txt;
@@ -1662,10 +1663,10 @@ export default {
                 }
                 return;
             }
-            if(this.file.mf){
-                if(this.file.forever){
+            if(this.currentTab.mf){
+                if(this.currentTab.checkForever){
                     // 永久文件
-                    let find = this.mfList?.find(i=>i.name==this.file.mf);
+                    let find = this.mfList?.find(i=>i.name==this.currentTab.mf);
                     find.edit = true;
                     find.editValue = txt;
                     this.mfEdit = true;
@@ -1674,14 +1675,14 @@ export default {
                     return;
                 }else{
                     // 永久文件转普通文件
-                    let find = this.mfList.find(i=>i.name==this.file.mf);
+                    let find = this.mfList.find(i=>i.name==this.currentTab.mf);
                     if(find){
                         find.delete = true;
                         this.mfEdit = true;
                         this.refreshCatch();
                     }
                 }
-            }else if(this.file.forever && !this.form.isMount){
+            }else if(this.currentTab.checkForever && !this.currentTab.isMount){
                 // 普通文件转永久文件
                 let ct = this.partPath + currentTab.name;
                 ct = decodeURIComponent(ct);
@@ -1796,6 +1797,12 @@ export default {
         init(callback){
             // 初始化标签页
             const filePath = decodeURIComponent(this.showPath) + this.file.title;
+            
+            // 挂载文件
+            const mf = this.mfList.find(m => filePath === `/${m.mountPath.replace(/^\//, '')}`)?.name || '';
+            // 挂载目录下
+            const isMount = this.testForever(filePath,false);
+
             this.file.openTabs = [{
                 name: this.file.title,
                 path: filePath,
@@ -1803,7 +1810,13 @@ export default {
                 modified: false,
                 readOnly: false,
                 is_symlink: false,
-                size: 0
+                fromFileCatch: this.file.fromFileCatch,
+                size: 0,
+                
+                isMount: isMount,
+                mf: mf,
+                checkForever: mf || isMount || false,
+                forever: mf || isMount || false,
             }];
             this.file.activeTabIndex = 0;
             
@@ -2596,7 +2609,11 @@ export default {
                 
                 let content = await response.text();
                 let readOnly = false;
-                
+                // 挂载文件
+                const mf = this.mfList.find(m => filePath === `/${m.mountPath.replace(/^\//, '')}`)?.name || '';
+                // 挂载目录下
+                const isMount = this.testForever(filePath,false);
+
                 this.file.openTabs.push({
                     name: item.name,
                     path: filePath,
@@ -2604,7 +2621,11 @@ export default {
                     modified: false,
                     readOnly: readOnly,
                     is_symlink: item.is_symlink || false,
-                    size: item.size
+                    size: item.size,
+                    isMount: isMount,
+                    mf: mf,
+                    checkForever: mf || isMount || false,
+                    forever: mf || isMount || false,
                 });
                 this.file.activeTabIndex = this.file.openTabs.length - 1;
                 
