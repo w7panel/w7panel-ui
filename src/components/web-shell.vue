@@ -52,13 +52,22 @@ export default {
         if(this.api_token){
             this.token = this.api_token;
         }
+        if (this.show === true && !this.socket) {
+            this.$nextTick(()=>{
+                this.initTerm();
+                this.initSocket();
+            })
+        }
     },
     watch: {
         show(v){
             if(v === false){
                 this.closeSocketGracefully();
             } else if (v === true && !this.socket) {
-                this.initSocket();
+                this.$nextTick(()=>{
+                    this.initTerm();
+                    this.initSocket();
+                })
             }
         }
     },
@@ -134,29 +143,23 @@ export default {
             this.initSocket();
         },
         closeSocketGracefully(){
-        this.manualClose = true;
-        this.stopHeartbeat();
-        this.clearReconnectTimer();
-        this.clearAbnormalDisconnectHint();
-        if(this.socket){
-            try {
-                if (!this.socketClose && this.socket.readyState === WebSocket.OPEN) {
-                    this.socket.send('exit\n');
+            this.manualClose = true;
+            this.stopHeartbeat();
+            this.clearReconnectTimer();
+            this.clearAbnormalDisconnectHint();
+            if(this.socket){
+                try {
+                    if (!this.socketClose && this.socket.readyState === WebSocket.OPEN) {
+                        this.socket.send('exit\n');
+                    }
+                } catch (e) {
+                    console.error(e);
                 }
-            } catch (e) {
-                console.error(e);
+                this.socket.close();
+                this.socketClose = true;
+                this.socket = null;
             }
-            this.socket.close();
-            this.socketClose = true;
-            this.socket = null;
-        }
         },
-    mounted(){
-        setTimeout(()=>{
-            this.initTerm();
-            this.initSocket();
-        },300)
-    },
         normalizeShellPath(shell){
             const raw = String(shell || 'bin/sh').trim();
             const normalized = raw.replace(/^\/+/, '');
@@ -258,7 +261,6 @@ export default {
             });
             term.focus();
             this.term = term;
-            
         },
         colrows(rows,cols){
             const buffer = new ArrayBuffer(4); // 2 bytes per number, total 4 bytes  
