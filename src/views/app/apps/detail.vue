@@ -430,16 +430,19 @@ export default {
                 src: '/dialog/appgroup/'+ data.appgroup +'/micro?path='+ encodeURIComponent(data?.path||''),
                 title: data?.title || '',
                 fullscreen: false,
-                closeAlert: data?.closeAlert || '',
+                closeAlert: data?.closeAlert,
             }
         },
         closeAppDialog(){
             if(this.appDialog.closeAlert){
-                this.appDialogConfirm = {
-                    show: true,
-                    txt: this.appDialog.closeAlert,
+                let str = this.appDialog.closeAlert?.() || '';
+                if(str){
+                    this.appDialogConfirm = {
+                        show: true,
+                        txt: str,
+                    }
+                    return false;
                 }
-                return false;
             }
             this.appDialog.show = false;
         },
