@@ -1837,6 +1837,11 @@ export default {
         },
         // 创建编辑器
         createEditor(content, readOnly = false){
+            if (this.editor) {
+                this.editor.destroy();
+                this.editor = null;
+            }
+
             document.getElementById("editor_textarea").innerHTML = "";
             
             // 标记为初始化中，避免触发 modified 状态
@@ -1915,11 +1920,21 @@ export default {
                 '.cm-search-match': { backgroundColor: isDarkTheme ? '#515c6a' : '#fff8c5', color: isDarkTheme ? '#ffffff' : '#24292f' },
             }, {dark: isDarkTheme});
 
+            const getIndentString = () => {
+                const mode = this.file?.indentMode;
+                if (mode === 'tab') return '\t';
+                if (mode === '2' || mode === '4') return ' '.repeat(Number(mode));
+
+                const size = Number(this.file?.indentSize) || 2;
+                const type = this.file?.indentType === 'tab' ? 'tab' : 'space';
+                return type === 'tab' ? '\t' : ' '.repeat(size);
+            };
+
             // 缩进函数 - 增加缩进并保持选择
             const indentSelection = (view) => {
                 const { state } = view;
                 const { selection } = state;
-                const indentStr = '\t'; // 使用制表符缩进
+                const indentStr = getIndentString();
                 
                 const changes = [];
                 let addedChars = 0;
@@ -1988,9 +2003,14 @@ export default {
                         const line = state.doc.line(lineNum);
                         const lineContent = line.text;
                         
-                        // 检查行开头是否有制表符或空格
+                        const indentStr = getIndentString();
+                        const spaceIndent = indentStr === '\t' ? '' : indentStr;
+
+                        // 检查行开头是否有当前缩进、制表符或空格
                         let removeLen = 0;
-                        if (lineContent.startsWith('\t')) {
+                        if (spaceIndent && lineContent.startsWith(spaceIndent)) {
+                            removeLen = spaceIndent.length;
+                        } else if (lineContent.startsWith('\t')) {
                             removeLen = 1;
                         } else if (lineContent.startsWith('  ')) {
                             removeLen = 2;
@@ -2299,7 +2319,7 @@ export default {
         },
         doCloseTab(index){
             // 保存当前内容
-            if (this.editor && this.file.openTabs[index]) {
+            if (this.editor && this.file.openTabs[index] && index === this.file.activeTabIndex) {
                 this.file.openTabs[index].content = this.editor.state.doc.toString();
             }
             
@@ -2307,6 +2327,10 @@ export default {
             this.file.openTabs.splice(index, 1);
             
             // 调整活动标签索引
+            if (index < this.file.activeTabIndex) {
+                this.file.activeTabIndex -= 1;
+            }
+
             if (this.file.activeTabIndex >= this.file.openTabs.length) {
                 this.file.activeTabIndex = this.file.openTabs.length - 1;
             }
@@ -2763,12 +2787,18 @@ export default {
         },
         // 处理缩进选择
         handleIndentSelect(value){
+            const currentContent = this.editor?.state.doc.toString() ?? this.currentTab?.content ?? '';
+
+            if (this.currentTab) {
+                this.currentTab.content = currentContent;
+            }
+
             this.file.indentMode = value;
             
             if (value === 'tab') {
                 this.file.indentType = 'tab';
             } else if (value === 'auto') {
-                const detected = this.detectIndent(this.currentTab?.content || '');
+                const detected = this.detectIndent(currentContent);
                 this.file.indentType = detected.type;
                 this.file.indentSize = detected.size;
             } else {
@@ -2776,7 +2806,7 @@ export default {
                 this.file.indentSize = Number(value);
             }
             
-            this.createEditor(this.currentTab?.content || '', this.currentTab?.readOnly);
+            this.createEditor(currentContent, this.currentTab?.readOnly);
         },
         // 改变编码
         changeEncoding(encoding){
@@ -3728,6 +3758,9 @@ export default {
             if(!this.editor){return}
             let txt = this.editor.state.doc.toString();
             this.editor.dispatch({ changes: {from: 0, to:txt.length, insert:String(file)}});
+            if (this.currentTab) {
+                this.currentTab.content = String(file);
+            }
         },
         
         // reloadApp(){
