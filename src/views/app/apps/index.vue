@@ -486,7 +486,7 @@ export default {
             this.thirdparty_cd_token = data?.thirdparty_cd_token || '';
             
             // 使用批量请求替代串行请求，提升性能
-            if (this.data.length > 0 && this.thirdparty_cd_token) {
+            if (this.data.length > 0) {
                 const batchSize = 10;
                 const batches = [];
                 for (let i = 0; i < this.data.length; i += batchSize) {

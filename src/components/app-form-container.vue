@@ -196,7 +196,7 @@
                                         </a-select>
                                     </td>
                                     <td>
-                                        <a-input v-model="item.name" :disabled="item.disabled" @paste="envPaste($event,index)" size="large" style="width:170px;" placeholder="变量名" />
+                                        <a-input v-model="item.name" :disabled="item.disabled" @paste="envPaste($event,index,form)" size="large" style="width:170px;" placeholder="变量名" />
                                     </td>
                                     <td>
                                         <a-input v-if="item.type=='custom'" :disabled="item.disabled" v-model="item.value" size="large" style="width:170px;" placeholder="变量值" />
@@ -1059,7 +1059,7 @@ export default{
         },
         
         // 粘贴 环境变量
-        envPaste(e,index){
+        envPaste(e,index,form){
             let value = e.clipboardData.getData('text/plain');
             if(!/^\s*(\S+\s?[=:]\s?\S+\s*)+$/.test(value)){return}
             e.preventDefault();
@@ -1073,7 +1073,7 @@ export default{
                     value:o.replace(/\S+\s?[=:]\s?/,''),
                 });
             }
-            this.form.env.splice(index,this.form.env.length-index,...obj);
+            form.env.splice(index,form.env.length-index,...obj);
         },
     }
 }
