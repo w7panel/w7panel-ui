@@ -582,7 +582,7 @@ export default {
         // 转换 Pod 对象为列表项（单个）
         transformPodItem(item){
             let podips = item?.status?.podIPs?.map(i=>i.ip) || [];
-            let containerStatuses = item.status?.containerStatuses || [];
+            let containerStatuses = (item.status?.containerStatuses || []).concat(item?.status?.initContainerStatuses || []);
             let ctnlist = (item.spec?.containers || []).concat(item?.spec?.initContainers || []);
             let ctn = ctnlist.map(i=>{
                 let cs = containerStatuses?.find(c=>c.name==i.name)
