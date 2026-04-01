@@ -1057,6 +1057,24 @@ export default{
             }
             return p;
         },
+        
+        // 粘贴 环境变量
+        envPaste(e,index){
+            let value = e.clipboardData.getData('text/plain');
+            if(!/^\s*(\S+\s?[=:]\s?\S+\s*)+$/.test(value)){return}
+            e.preventDefault();
+            let arr = value.match(/(\S+\s?[=:]\s?\S+)/g);
+            let obj = [];
+            for(let i=0; i<arr.length; i++){
+                let o = arr[i];
+                obj.push({
+                    type:'custom',
+                    name:o.replace(/\s?[=:]\s?\S+/,''),
+                    value:o.replace(/\S+\s?[=:]\s?/,''),
+                });
+            }
+            this.form.env.splice(index,this.form.env.length-index,...obj);
+        },
     }
 }
 </script>
