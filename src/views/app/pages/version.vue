@@ -177,7 +177,7 @@ export default {
                     if(this.$route.params.kind=='daemonsets'){
                         return {
                             name: item?.metadata?.name,
-                            revision: item?.revision,
+                            revision: String(item?.revision),
                             namespace: item?.metadata?.namespace,
                             pod: item?.data?.spec?.template?.spec?.containers[0]?.name,
                             image: item?.data?.spec?.template?.spec?.containers[0]?.image?.split(':')?.[0],
@@ -213,9 +213,13 @@ export default {
             // let old = this.list.find(i=>i.revision == item.revision - 1);
             // if(!old){this.$message.error("没有上一个版本");return;}
             this.compare.loading = true;
-            k8sproxy.get(`/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${this.compare.name}`,{loading:true}).then(res=>{
+            let kind = 'replicasets';
+            if(this.$route.params.kind=='daemonsets'){
+                kind = 'controllerrevisions';
+            }
+            k8sproxy.get(`/apis/apps/v1/namespaces/${this.namespaceActive}/${kind}/${this.compare.name}`,{loading:true}).then(res=>{
                 let data = res.data;
-                k8sproxy.get(`/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${oldname}`,{loading:true}).then(res=>{
+                k8sproxy.get(`/apis/apps/v1/namespaces/${this.namespaceActive}/${kind}/${oldname}`,{loading:true}).then(res=>{
                     let oldData = res.data;        
                     this.compare.show = false;
                     this.versiondiff = {
