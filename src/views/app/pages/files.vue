@@ -831,7 +831,7 @@ export default {
     },
     methods:{
         canEditContent(record){
-            return record?.type === 'file' && record?.editable !== false && !record?.fromFileCatch;
+            return record?.type === 'file' && record?.editable === true && !record?.fromFileCatch;
         },
         canOperateNode(record){
             return !!record && !record.fromFileCatch && ['file', 'directory', 'symlink'].includes(record.type);
@@ -1282,7 +1282,7 @@ export default {
                     let power = prop?.getElementsByTagName('mode')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'mode')?.[0]?.textContent;
                     let editable = prop?.getElementsByTagName('editable')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'editable')?.[0]?.textContent;
                     let fileType = prop?.getElementsByTagName('type')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'type')?.[0]?.textContent;
-                    let type = fileType || (href.endsWith('/')? 'directory' : 'file');
+                    let type = href.endsWith('/') ? 'directory' : (fileType || 'unknown');
                     list.push({
                         key: key,
                         name: key,
@@ -1295,7 +1295,7 @@ export default {
                         user: this.userArr.find?.(i=>i.id==Number(user))?.name || user,
                         group: group,
                         power: power,
-                        editable: editable !== 'false',
+                        editable: editable === 'true',
                     })
                 }
                 list.sort((a,b)=>a.key.localeCompare(b.key));
@@ -1527,7 +1527,7 @@ export default {
         async intoFile(row){
             if(row.type == 'directory'){
                 this.form.path = this.partPath + row.name;
-            }else if(row.type == 'file' && row.editable !== false){
+            }else if(row.type == 'file' && row.editable === true){
                 if(row.size && row.size > 1024 * 1024){ this.$message.warning('当前文件大小超过1M，不支持在线编辑，请下载编辑后重新上传！'); return; }
                 if(row.fromFileCatch){
                     this.file.dialog = true;
@@ -2596,7 +2596,7 @@ export default {
                 
                 const typeEl = prop?.getElementsByTagName('type')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'type')?.[0]?.textContent;
                 const editableEl = prop?.getElementsByTagName('editable')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'editable')?.[0]?.textContent;
-                const fileType = typeEl || (isDirectory ? 'directory' : 'file');
+                const fileType = isDirectory ? 'directory' : (typeEl || 'unknown');
                 
                 const uidEl = prop?.getElementsByTagName('uid')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'uid')?.[0]?.textContent;
                 const gidEl = prop?.getElementsByTagName('gid')?.[0]?.textContent || prop?.getElementsByTagNameNS('w7panel', 'gid')?.[0]?.textContent;
@@ -2607,7 +2607,7 @@ export default {
                     isDir: isDirectory, 
                     size, 
                     type: fileType, 
-                    editable: editableEl !== 'false',
+                    editable: editableEl === 'true',
                     uid: uidEl,
                     gid: gidEl,
                     mode: modeEl,
