@@ -834,7 +834,7 @@ export default{
                         containerPort: Number(v.containerPort),
                         name: v.name || "port-"+v.containerPort,
                         protocol: v.protocol,
-                        hostPort: Number(v.hostPort),
+                        // hostPort: Number(v.hostPort),
                     }
                 })
                 
