@@ -30,7 +30,7 @@ import { getUserInfo } from '@/utils/auth';
 import dayjs from 'dayjs'
 
 export default {
-    props: ['list','node','activeType','noMonitor','pickerValue','step'],
+    props: ['list','node','activeType','noMonitor','pickerValue','step','virtualDiskFilterCache'],
     data(){
         return {
             // activeType: 'cpu',
@@ -67,6 +67,9 @@ export default {
         }
     },
     created(){
+        if(this.virtualDiskFilterCache){
+            this._virtualDiskFilterCache = this.virtualDiskFilterCache;
+        }
         this.userInfo = getUserInfo();
     },
     mounted(){
@@ -76,6 +79,9 @@ export default {
         window.removeEventListener("resize",  this.resize);
     },
     watch: {
+        virtualDiskFilterCache(v){
+            this._virtualDiskFilterCache = v;
+        },
         node(){this.init();},
         list(){this.init();},
         pickerValue(){

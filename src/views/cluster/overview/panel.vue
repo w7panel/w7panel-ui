@@ -328,20 +328,20 @@
                 <div v-if="!noMonitor" class="mt-20">
                     <ol-charts v-if="chartActive==1&&chartNodeActive" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" :list="nodelist" activeType="load"></ol-charts>
                     <div v-if="chartActive==2&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-write" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-write" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==3&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-in" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-out" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-in" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-out" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==4&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read-bytes" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-written-bytes" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read-bytes" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-written-bytes" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==5&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-receive-bytes" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-transmit-bytes" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-receive-bytes" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-transmit-bytes" class="ml-20 fc"></ol-charts>
                     </div>
                 </div>
             </div>
@@ -609,6 +609,8 @@ export default {
             maxBandwidth: 1000,
 
             webshell: 'false',
+
+            virtualDiskFilterCache: [],
         }
     },
     async created(){
@@ -616,8 +618,18 @@ export default {
         
         await this.initInfo();
 
-        await panelApi.get('/metrics/state').then(res=>{
+        await panelApi.get('/metrics/state').then(async res=>{
             this.metricsState = res.data;
+            if(this.metricsState?.canShowNodeMetrics){
+                
+                this.virtualDiskFilterCache = await k8sproxy.get('/api/v1/namespaces/default/services/vmsingle-w7panel-metrics-k8s-offline-metrics-single:8429/proxy/prometheus/api/v1/query_range',{
+                    params: {
+                        query: '(node_disk_info{model="VIRTUAL-DISK"})'
+                    }
+                }).then(res=>{
+                    return res?.data?.data?.result?.map(i=>i.metric?.device) || [];
+                }).catch(()=>[]);
+            }
         })
         await panelApi.get('/helm/releases/w7panel-metrics',{noAlert:true}).then(res=>{
             this.noMonitor = false;
