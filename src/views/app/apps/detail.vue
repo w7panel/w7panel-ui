@@ -434,13 +434,13 @@ export default {
             }
         },
         closeAppDialog(){
-            let str = this.$refs?.openappIframe?.contentWindow?.microDialogCloseAlertText;
-            console.log(this.$refs?.openappIframe?.contentWindow)
+            let str = localStorage.microDialogCloseAlertText;
             if(str){
                 this.appDialogConfirm = {
                     show: true,
                     txt: str,
                 }
+                localStorage.setItem('microDialogCloseAlertText','')
                 return false;
             }
             this.appDialog.show = false;
