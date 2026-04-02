@@ -207,7 +207,7 @@ export default {
                 let items = res?.data?.items || [];
                 let o = {};
                 let versions = {};
-                for(let v of items[0].versions){
+                for(let v of items?.[0]?.versions){
                     let kinds = {};
                     for(let k of v.resources){
                         kinds[k.responseKind.kind] = {
@@ -313,6 +313,7 @@ export default {
             if(api.length==1){
                 api = ['core',row.api];
             }
+            console.log(row,this.apis)
             let kind = this.apis[api[0]][api[1]][row.kind].resource;
             let namespace = this.apis[api[0]][api[1]][row.kind].scope == 'Namespaced'? 'namespaces/'+this.namespaceActive+'/' : '';
 

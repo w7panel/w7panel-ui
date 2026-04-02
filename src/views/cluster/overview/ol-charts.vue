@@ -35,6 +35,7 @@ export default {
         return {
             // activeType: 'cpu',
             dark: useDarkStore(),
+            _virtualDiskFilterCache: null,
             timeType: 'minute',
             timeRange: [], 
 
@@ -314,15 +315,19 @@ export default {
                         smooth: true,
                     })
                 }
+                const needFilter = ['disk-read','disk-write','network-in','network-out','disk-read-bytes','disk-written-bytes'].includes(chartType);
                 let filterArr = [];
-                if(chartType=='disk-read' || chartType=='disk-write' || chartType=='network-in'||chartType=='network-out'||chartType=='disk-read-bytes'||chartType=='disk-written-bytes'){
-                    filterArr = await k8sproxy.get('/api/v1/namespaces/default/services/vmsingle-w7panel-metrics-k8s-offline-metrics-single:8429/proxy/prometheus/api/v1/query_range',{
-                        params: {
-                            query: '(node_disk_info{model="VIRTUAL-DISK"})'
-                        }
-                    }).then(res=>{
-                        return res?.data?.data?.result?.map(i=>i.metric?.device) || [];
-                    })
+                if(needFilter){
+                    if(!this._virtualDiskFilterCache){
+                        this._virtualDiskFilterCache = await k8sproxy.get('/api/v1/namespaces/default/services/vmsingle-w7panel-metrics-k8s-offline-metrics-single:8429/proxy/prometheus/api/v1/query_range',{
+                            params: {
+                                query: '(node_disk_info{model="VIRTUAL-DISK"})'
+                            }
+                        }).then(res=>{
+                            return res?.data?.data?.result?.map(i=>i.metric?.device) || [];
+                        }).catch(()=>[]);
+                    }
+                    filterArr = this._virtualDiskFilterCache;
                 }
                 if(chartType=='disk-read' || chartType=='disk-write'){
                     let { data } = await this.getChart(node, chartType, filterArr).catch(()=>{
