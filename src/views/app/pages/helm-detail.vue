@@ -179,7 +179,7 @@ export default {
         },
         async getSearchData(){
             await k8sproxy.get('/apis',{
-                headers:{"Accept": "g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
+                headers:{"Accept": "application/json;g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
                 loading: true,
             }).then(res=>{
                 let items = res?.data?.items || [];
