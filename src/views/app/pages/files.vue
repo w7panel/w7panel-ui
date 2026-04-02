@@ -43,11 +43,11 @@
                             <a-button type="outline" class="ml-20" size="small" @click="submitCatch">立即生效</a-button>
                         </div>
                         <a-button-group v-if="selectedKeys.length>0 || copy || shear" class="btn-groups ml-20" size="small" type="outline" status="normal">
-                            <a-button v-if="selectedKeys.length>0" :disabled="selectedKeys.length!=1 || fileList.find(f=>f.key===selectedKeys[0])?.editable === false" @click="copyAct({name:selectedKeys[0]})">
+                            <a-button v-if="selectedKeys.length>0" :disabled="selectedKeys.length!=1 || !canOperateNode(selectedRecord)" @click="copyAct({name:selectedKeys[0]})">
                                 <icon-copy />
                                 <span class="ml-4">复制</span>
                             </a-button>
-                            <a-button v-if="selectedKeys.length>0" :disabled="selectedKeys.length!=1 || fileList.find(f=>f.key===selectedKeys[0])?.editable === false" @click="shearAct({name:selectedKeys[0]})">
+                            <a-button v-if="selectedKeys.length>0" :disabled="selectedKeys.length!=1 || !canOperateNode(selectedRecord)" @click="shearAct({name:selectedKeys[0]})">
                                 <icon-cut />
                                 <span class="ml-4">剪切</span>
                             </a-button>
@@ -55,17 +55,18 @@
                                 <icon-paste />
                                 <span class="ml-4">粘贴</span>
                             </a-button>
-                            <a-button v-if="selectedKeys.length>0" @click="compressAct(null, true)" :disabled="!fileList.some(f=>selectedKeys.includes(f.key) && f.editable !== false)">
+                            <a-button v-if="selectedKeys.length>0" @click="compressAct(null, true)" :disabled="!allSelectedOperable">
                                 <icon-import />
                                 <span class="ml-4">压缩</span>
                             </a-button>
-                            <a-button v-if="selectedKeys.length>0" @click="authorityEdit(null, true)">
+                            <a-button v-if="selectedKeys.length>0" @click="authorityEdit(null, true)" :disabled="!allSelectedOperable">
                                 <icon-user-group />
                                 <span class="ml-4">权限</span>
                             </a-button>
-                            <a-popconfirm v-if="selectedKeys.length>0" :content="'确认要删除选中内容吗'" @ok="deleteFile(null, true)" position="lt">
+                            <a-popconfirm v-if="selectedKeys.length>0 && allSelectedOperable" :content="'确认要删除选中内容吗'" @ok="deleteFile(null, true)" position="lt">
                                 <a-button><icon-delete /><span class="ml-4">删除</span></a-button>
                             </a-popconfirm>
+                            <a-button v-else-if="selectedKeys.length>0" disabled><icon-delete /><span class="ml-4">删除</span></a-button>
                         </a-button-group>
                     </div>
                 </div>
@@ -112,28 +113,28 @@
                         <a-table-column title="操作" :width="320">
                             <template #cell="{ record }">
                                 <div class="options">
-                                    <a-tooltip v-if="record.editable !== false && record.type=='file' && !record.fromFileCatch" content="下载">
+                                    <a-tooltip v-if="canEditContent(record)" content="下载">
                                         <i class="opt-icon" @click="downzip(record)"><icon-download /></i>
                                     </a-tooltip>
-                                    <a-tooltip v-if="record.editable !== false && !record.fromFileCatch" content="复制">
+                                    <a-tooltip v-if="canOperateNode(record)" content="复制">
                                         <i class="opt-icon" @click="copyAct(record)"><icon-copy /></i>
                                     </a-tooltip>
-                                    <a-tooltip v-if="record.editable !== false && !record.fromFileCatch" content="剪切">
+                                    <a-tooltip v-if="canOperateNode(record)" content="剪切">
                                         <i class="opt-icon" @click="shearAct(record)"><icon-scissor /></i>
                                     </a-tooltip>
-                                    <a-tooltip content="重命名">
+                                    <a-tooltip v-if="canOperateNode(record)" content="重命名">
                                         <i class="opt-icon" @click="renameEdit(record)"><icon-pen /></i>
                                     </a-tooltip>
-                                    <a-tooltip v-if="record.editable !== false && !record.fromFileCatch" content="压缩">
+                                    <a-tooltip v-if="canOperateNode(record)" content="压缩">
                                         <i class="opt-icon" @click="compressAct(record)"><icon-import /></i>
                                     </a-tooltip>
                                     <a-tooltip v-if="record.is_zip" content="解压">
                                         <i class="opt-icon" @click="uncompressAct(record)"><icon-export /></i>
                                     </a-tooltip>
-                                    <a-tooltip content="权限">
+                                    <a-tooltip v-if="canOperateNode(record)" content="权限">
                                         <i class="opt-icon" @click="authorityEdit(record)"><icon-user-group /></i>
                                     </a-tooltip>
-                                    <a-popconfirm :content="'确认要删除'+ record.name +'吗'" @ok="deleteFile(record)" position="lt">
+                                    <a-popconfirm v-if="canOperateNode(record)" :content="'确认要删除'+ record.name +'吗'" @ok="deleteFile(record)" position="lt">
                                         <a-tooltip content="删除">
                                             <i class="opt-icon"><icon-delete /></i>
                                         </a-tooltip>
@@ -737,6 +738,16 @@ export default {
     },
     // components: { aShit },
     computed:{
+        selectedRecord(){
+            return this.fileList.find(f=>f.key===this.selectedKeys?.[0]) || null;
+        },
+        allSelectedOperable(){
+            if(!this.selectedKeys?.length){ return false; }
+            return this.selectedKeys.every(key=>{
+                const row = this.fileList.find(f=>f.key===key);
+                return this.canOperateNode(row);
+            });
+        },
         pathArr(){
             if(!this.form.path){ return []; }
             let re = new RegExp('^'+this.root);
@@ -819,6 +830,30 @@ export default {
         },
     },
     methods:{
+        canEditContent(record){
+            return record?.type === 'file' && record?.editable !== false && !record?.fromFileCatch;
+        },
+        canOperateNode(record){
+            return !!record && !record.fromFileCatch && ['file', 'directory', 'symlink'].includes(record.type);
+        },
+        normalizeWebdavPath(path, trimTrailing=false){
+            let normalized = ('/' + String(path || '').replace(/^\/+/, '')).replace(/\/+/g, '/');
+            if(trimTrailing){
+                normalized = normalized.replace(/\/+$/, '');
+            }
+            return normalized || '/';
+        },
+        encodeWebdavPath(path, trimTrailing=false){
+            return encodeURI(this.normalizeWebdavPath(path, trimTrailing));
+        },
+        buildWebdavRequestUrl(path, trimTrailing=false){
+            return `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${this.encodeWebdavPath(path, trimTrailing)}`;
+        },
+        buildDestinationHeader(path){
+            const base = ('/' + (this.outEditorInfo?.webdavBasePath || '')).replace(/^\/+/, '/').replace(/\/$/, '');
+            const normalizedPath = this.encodeWebdavPath(path);
+            return `${base}${normalizedPath}`;
+        },
         getData(){
             if(this.origin=='nodes'){return}
             let kind = this.is_component? this.componentData.kind : this.$route.params.kind;
@@ -939,7 +974,7 @@ export default {
             list = list.sort((i,j)=>{
                 if(i.type!="directory" && j.type=="directory"){return 1;}
                 else if(i.type=="directory" && j.type!="directory"){return -1;}
-                return i>j;
+                return String(i.key || i.name || '').localeCompare(String(j.key || j.name || ''));
             })
             this.fileList = list;
         },
@@ -1321,7 +1356,7 @@ export default {
             list = list.sort((i,j)=>{
                 if(i.type!="directory" && j.type=="directory"){return 1;}
                 else if(i.type=="directory" && j.type!="directory"){return -1;}
-                return i>j;
+                return String(i.key || i.name || '').localeCompare(String(j.key || j.name || ''));
             })
             this.fileList = list;
             // item.mf 永久文件
@@ -1837,6 +1872,11 @@ export default {
         },
         // 创建编辑器
         createEditor(content, readOnly = false){
+            if (this.editor) {
+                this.editor.destroy();
+                this.editor = null;
+            }
+
             document.getElementById("editor_textarea").innerHTML = "";
             
             // 标记为初始化中，避免触发 modified 状态
@@ -1915,11 +1955,21 @@ export default {
                 '.cm-search-match': { backgroundColor: isDarkTheme ? '#515c6a' : '#fff8c5', color: isDarkTheme ? '#ffffff' : '#24292f' },
             }, {dark: isDarkTheme});
 
+            const getIndentString = () => {
+                const mode = this.file?.indentMode;
+                if (mode === 'tab') return '\t';
+                if (mode === '2' || mode === '4') return ' '.repeat(Number(mode));
+
+                const size = Number(this.file?.indentSize) || 2;
+                const type = this.file?.indentType === 'tab' ? 'tab' : 'space';
+                return type === 'tab' ? '\t' : ' '.repeat(size);
+            };
+
             // 缩进函数 - 增加缩进并保持选择
             const indentSelection = (view) => {
                 const { state } = view;
                 const { selection } = state;
-                const indentStr = '\t'; // 使用制表符缩进
+                const indentStr = getIndentString();
                 
                 const changes = [];
                 let addedChars = 0;
@@ -1988,9 +2038,14 @@ export default {
                         const line = state.doc.line(lineNum);
                         const lineContent = line.text;
                         
-                        // 检查行开头是否有制表符或空格
+                        const indentStr = getIndentString();
+                        const spaceIndent = indentStr === '\t' ? '' : indentStr;
+
+                        // 检查行开头是否有当前缩进、制表符或空格
                         let removeLen = 0;
-                        if (lineContent.startsWith('\t')) {
+                        if (spaceIndent && lineContent.startsWith(spaceIndent)) {
+                            removeLen = spaceIndent.length;
+                        } else if (lineContent.startsWith('\t')) {
                             removeLen = 1;
                         } else if (lineContent.startsWith('  ')) {
                             removeLen = 2;
@@ -2299,7 +2354,7 @@ export default {
         },
         doCloseTab(index){
             // 保存当前内容
-            if (this.editor && this.file.openTabs[index]) {
+            if (this.editor && this.file.openTabs[index] && index === this.file.activeTabIndex) {
                 this.file.openTabs[index].content = this.editor.state.doc.toString();
             }
             
@@ -2307,6 +2362,10 @@ export default {
             this.file.openTabs.splice(index, 1);
             
             // 调整活动标签索引
+            if (index < this.file.activeTabIndex) {
+                this.file.activeTabIndex -= 1;
+            }
+
             if (this.file.activeTabIndex >= this.file.openTabs.length) {
                 this.file.activeTabIndex = this.file.openTabs.length - 1;
             }
@@ -2763,12 +2822,18 @@ export default {
         },
         // 处理缩进选择
         handleIndentSelect(value){
+            const currentContent = this.editor?.state.doc.toString() ?? this.currentTab?.content ?? '';
+
+            if (this.currentTab) {
+                this.currentTab.content = currentContent;
+            }
+
             this.file.indentMode = value;
             
             if (value === 'tab') {
                 this.file.indentType = 'tab';
             } else if (value === 'auto') {
-                const detected = this.detectIndent(this.currentTab?.content || '');
+                const detected = this.detectIndent(currentContent);
                 this.file.indentType = detected.type;
                 this.file.indentSize = detected.size;
             } else {
@@ -2776,7 +2841,7 @@ export default {
                 this.file.indentSize = Number(value);
             }
             
-            this.createEditor(this.currentTab?.content || '', this.currentTab?.readOnly);
+            this.createEditor(currentContent, this.currentTab?.readOnly);
         },
         // 改变编码
         changeEncoding(encoding){
@@ -3249,16 +3314,15 @@ export default {
             }
             
             // 使用 WebDAV MOVE 替代 exec2 mv
-            const srcPath = decodeURIComponent(this.partPath + oldname);
-            const dstPath = decodeURIComponent(this.partPath + this.rename.name);
+            const srcPath = this.normalizeWebdavPath(this.partPath + oldname);
+            const dstPath = this.normalizeWebdavPath(this.partPath + this.rename.name);
             
             try {
-                let base = ('/' + this.outEditorInfo.webdavBasePath).replace(/^\/+/,'/');
                 await axios({
-                    url: `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${srcPath}`,
+                    url: this.buildWebdavRequestUrl(srcPath),
                     method: 'MOVE',
                     headers: {
-                        'Destination': `${base}${dstPath}`,
+                        'Destination': this.buildDestinationHeader(dstPath),
                         'Overwrite': 'T'
                     }
                 });
@@ -3453,30 +3517,37 @@ export default {
         // 粘贴 - 使用 WebDAV COPY/MOVE 替代 exec2
         async toPaste(){
             const isCopy = !!this.copy;
-            // 先编码再解码，确保中文路径正确处理
-            const srcPath = decodeURIComponent(encodeURI(this.copy || this.shear));
-            const fileName = srcPath.replace(/^.*\//, '');
-            const dstPath = decodeURIComponent(encodeURI(this.form.path.replace(/\/$/, '') + '/' + fileName));
-            const webdavUrl = `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}`;
+            const rawSrcPath = this.copy || this.shear;
+            if(!rawSrcPath){
+                this.$message.warning('没有可粘贴的内容');
+                return;
+            }
+            const srcPath = this.normalizeWebdavPath(rawSrcPath, true);
+            const fileName = srcPath.split('/').pop();
+            if(!fileName){
+                this.$message.warning('粘贴路径无效');
+                return;
+            }
+            const dstPath = this.normalizeWebdavPath(this.form.path + '/' + fileName);
             
             try {
                 if (isCopy) {
                     // 复制操作 - 使用 WebDAV COPY
                     await axios({
-                        url: `${webdavUrl}${srcPath}`,
+                        url: this.buildWebdavRequestUrl(srcPath),
                         method: 'COPY',
                         headers: {
-                            'Destination': `${webdavUrl}${dstPath}`,
+                            'Destination': this.buildDestinationHeader(dstPath),
                             'Overwrite': 'T'
                         }
                     });
                 } else {
                     // 剪切操作 - 使用 WebDAV MOVE
                     await axios({
-                        url: `${webdavUrl}${srcPath}`,
+                        url: this.buildWebdavRequestUrl(srcPath),
                         method: 'MOVE',
                         headers: {
-                            'Destination': `${webdavUrl}${dstPath}`,
+                            'Destination': this.buildDestinationHeader(dstPath),
                             'Overwrite': 'T'
                         }
                     });
@@ -3494,8 +3565,8 @@ export default {
         copyAct(row){
             this.copy = this.partPath + row.name;
             let record = this.fileList.find(i=>i.name==row.name);
-            this.csChmod = record.power;
-            this.csChown = record.user;
+            this.csChmod = record?.power || '';
+            this.csChown = record?.user || '';
             this.shear = null;
             this.$message.success('复制成功');
         },
@@ -3503,8 +3574,8 @@ export default {
             this.copy = null;
             this.shear = this.partPath + row.name;
             let record = this.fileList.find(i=>i.name==row.name);
-            this.csChmod = record.power;
-            this.csChown = record.user;
+            this.csChmod = record?.power || '';
+            this.csChown = record?.user || '';
             this.$message.success('剪切成功');
         },
         // 权限
@@ -3728,6 +3799,9 @@ export default {
             if(!this.editor){return}
             let txt = this.editor.state.doc.toString();
             this.editor.dispatch({ changes: {from: 0, to:txt.length, insert:String(file)}});
+            if (this.currentTab) {
+                this.currentTab.content = String(file);
+            }
         },
         
         // reloadApp(){
