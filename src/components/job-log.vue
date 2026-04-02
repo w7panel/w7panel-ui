@@ -282,6 +282,8 @@ export default {
     },
     methods: {
         init() {
+            this.currentJobName = this.jobName || this.name;
+            this.currentJobName = this.jobName || this.name;
             // 重置状态
             this.containerList = [];
             this.container = '';

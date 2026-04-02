@@ -7,8 +7,8 @@
                 <a-button type="primary" :disabled="!selectedKeys.length">销毁重建</a-button>
             </a-popconfirm>
         </div>
-        <div class="bg-white ">
-             <!-- :row-selection="rowSelection" v-model:selectedKeys="selectedKeys" -->
+        <div class="bg-white mt-20">
+             <!--  -->
                 <a-table 
                     :data="list" 
                     :expandable="expandable"
@@ -17,6 +17,9 @@
                     class="cptable app-pod-table"
                     :pagination="false"
                     :bordered="false"
+                    
+                    :row-selection="rowSelection"
+                    v-model:selectedKeys="selectedKeys"
                 >
                 <template #columns>
                     <a-table-column title="实例名称">
