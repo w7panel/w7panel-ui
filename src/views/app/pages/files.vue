@@ -101,7 +101,7 @@
                                     <img v-else src="@/assets/image/_file.png" style="width:20px;height:20px;" class="icon" />
 
                                     <input v-if="rename.row && rename.row === record" type="text" class="renameinput" v-model="rename.name" @blur="renameSubmit" @keydown.enter="renameSubmit" :spellcheck="false" />
-                                    <span v-else class="ml-10 filename fs-14 one-hide" :title="record.name" style="display:-webkit-box;" @click="intoFile(record)">{{ record.name }}</span>
+                                    <span v-else class="ml-10 filename fs-14 one-hide" :title="record.name" style="display:-webkit-box;" :class="{'disabled-file': !canOpenRecord(record)}" @click="canOpenRecord(record) && intoFile(record)">{{ record.name }}</span>
                                 </div>
                             </template>
                         </a-table-column>
@@ -128,7 +128,7 @@
                                     <a-tooltip v-if="canOperateNode(record)" content="压缩">
                                         <i class="opt-icon" @click="compressAct(record)"><icon-import /></i>
                                     </a-tooltip>
-                                    <a-tooltip v-if="record.is_zip" content="解压">
+                                    <a-tooltip v-if="record.type === 'file' && record.is_zip" content="解压">
                                         <i class="opt-icon" @click="uncompressAct(record)"><icon-export /></i>
                                     </a-tooltip>
                                     <a-tooltip v-if="canOperateNode(record)" content="权限">
@@ -835,6 +835,20 @@ export default {
         },
         canOperateNode(record){
             return !!record && !record.fromFileCatch && ['file', 'directory', 'symlink'].includes(record.type);
+        },
+        canOpenRecord(record){
+            return record?.type === 'directory' || record?.type === 'symlink' || this.canEditContent(record);
+        },
+        getTransportName(recordOrName, type=''){
+            const rawName = typeof recordOrName === 'string' ? recordOrName : (recordOrName?.name || '');
+            const rawType = typeof recordOrName === 'string' ? type : (recordOrName?.type || type);
+            if(rawType === 'symlink'){
+                return rawName.replace(/\s*->\s*.*$/, '').trim();
+            }
+            return rawName;
+        },
+        getTransportPath(recordOrName, type=''){
+            return `${this.partPath}${this.getTransportName(recordOrName, type)}`;
         },
         normalizeWebdavPath(path, trimTrailing=false){
             let normalized = ('/' + String(path || '').replace(/^\/+/, '')).replace(/\/+/g, '/');
@@ -1625,43 +1639,43 @@ export default {
                 //     });
                 // });
             }else if(row.type=='symlink'){
-                let toname = row.name.replace(/^\s*(\S*)\s*->.*$/,'$1');
-                let fp = this.partPath + toname;
-                // if(/^\//.test(toname)){ fp = toname;}
-                
+                const toname = this.getTransportName(row);
+                const fp = this.getTransportPath(row);
                 if(row.is_dir){ this.form.path = fp; return; }
-                this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=du --srcPath='${decodeURIComponent(fp)}'`,(res)=>{
-                    let data = res?.data || '';
-                    let size = data.replace(/^\s*(\d+)\s+.*/,'$1');
-                    if(size && size > 50 * 1024){ this.$message.warning('请下载修改'); return; }
-                    // 获取内容打开编辑器
-                    this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=cat --srcPath='${decodeURIComponent(fp)}'`,(res)=>{
-                        let data = res?.data || '';
-                        if(typeof data!="string"){
-                            try{
-                                data = JSON.stringify(data, null, 4);
-                            }catch(e){
-                                data = data.toString();
-                            }
-                        }
-                        this.file.dialog = true;
-                        this.file.title = toname.replace(/^\//,'');
-                        this.file.power = row.power;
-                        
-                        let file = this.showPath + toname;
-                        this.mfList.map(m=>{
-                            let mp = '/' + m.mountPath.replace(/^\//,'');
-                            if(file == mp){
-                                this.file.mf = m.name;
-                            }
-                        })
+                axios.get(this.buildWebdavRequestUrl(fp)).then(res=>{
+                    let data = res?.data;
+                    this.file.dialog = true;
+                    this.file.row = row;
+                    this.file.title = toname.replace(/^\//,'');
+                    this.file.power = row.power;
+                    this.file.sidebarPath = '';
+                    this.file.forever = row.mf || this.form.isMount || false;
 
-                        this.init(()=>{
+                    let file = this.showPath + toname;
+                    this.file.mf = '';
+                    this.mfList.map(m=>{
+                        let mp = '/' + m.mountPath.replace(/^\//,'');
+                        if(file == mp){
+                            this.file.mf = m.name;
+                        }
+                    })
+
+                    this.init(()=>{
+                        if(typeof data=='object'){
+                            try{
+                                data = JSON.stringify(data,false,4);
+                                this.inputContent(data);
+                            }catch(e){
+                                console.log(e)
+                            }
+                        }else{
                             this.inputContent(data);
-                        });
+                        }
                     });
-                });
-                
+                }).catch((e)=>{
+                    console.log(e)
+                })
+                return;
             }
         },
         // 跳转路径
@@ -1687,7 +1701,6 @@ export default {
             
             // 更新标签内容
             currentTab.content = txt;
-            currentTab.modified = false;
             
             // 更新文件标题（用于兼容旧代码）
             this.file.title = currentTab.name;
@@ -1697,6 +1710,7 @@ export default {
                 let find = this.fileCatch.find(i=>i.fileName == currentTab.name && i.path == this.showPath);
                 if(find){
                     find.fileValue = txt;
+                    currentTab.modified = false;
                     this.$message.success('保存成功');
                     this.refreshCatch();
                 }
@@ -1708,6 +1722,7 @@ export default {
                     let find = this.mfList?.find(i=>i.name==this.currentTab.mf);
                     find.edit = true;
                     find.editValue = txt;
+                    currentTab.modified = false;
                     this.mfEdit = true;
                     this.refreshCatch();
                     this.$message.success('保存成功');
@@ -1723,9 +1738,8 @@ export default {
                 }
             }else if(this.currentTab.checkForever && !this.currentTab.isMount){
                 // 普通文件转永久文件
-                let ct = this.partPath + currentTab.name;
-                ct = decodeURIComponent(ct);
-                this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=rm ${decodeURIComponent(ct)}`, (res)=>{
+                const deletePath = encodeURI(this.getTransportPath(currentTab.name, currentTab.is_symlink ? 'symlink' : 'file'));
+                axios.delete(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${deletePath}`).then(()=>{
                     this.getFileList();
                     this.fileCatch.push({
                         fileName: currentTab.name,
@@ -1734,8 +1748,11 @@ export default {
                         prower: this.file.power || '777',
                         user: 'root',
                     })
+                    currentTab.modified = false;
                     this.refreshCatch();
                     this.$message.success('保存成功');
+                }).catch(err=>{
+                    this.$message.error('保存失败: ' + (err.response?.data?.message || err.message || '未知错误'));
                 });
                 return;
             }
@@ -1753,6 +1770,7 @@ export default {
                 transformRequest: [(data) => data],
             }).then(res=>{
                 this.loading = false;
+                currentTab.modified = false;
                 this.$message.success('保存成功');
                 // 刷新文件列表
                 this.getFileList();
@@ -2540,7 +2558,8 @@ export default {
                     type: f.type,
                     is_dir: f.type === 'directory',
                     is_symlink: f.type === 'symlink',
-                    size: f.size || 0
+                    size: f.size || 0,
+                    editable: f.editable === true,
                 }));
                 
                 if (this.file.sidebarFiles.length === 0) {
@@ -2652,6 +2671,11 @@ export default {
             // 保存当前编辑器内容
             if (this.editor && this.currentTab) {
                 this.currentTab.content = this.editor.state.doc.toString();
+            }
+
+            if (item.type !== 'file' || item.editable !== true) {
+                this.$message.warning('当前文件类型不支持在线打开');
+                return;
             }
             
             const filePath = this.file.sidebarPath + item.name;
@@ -3351,12 +3375,12 @@ export default {
                             this.refreshCatch();
                         }
                     }else{
-                        arr.push(encodeURI(`${this.partPath + item}`));
+                        arr.push(encodeURI(this.getTransportPath(fdrow || item, fdrow?.type)));
                     }
                 })
                 ct = arr;//.join(' ');
             }else{
-                ct = encodeURI(`${this.partPath + row.name}`);
+                ct = encodeURI(this.getTransportPath(row));
                 // 如果是挂载文件
                 if(row?.mf){
                     let mf = this.mfList.find(i=>i.name == row.mf);
@@ -3380,11 +3404,23 @@ export default {
             if(!ct){return}
             if(!Array.isArray(ct)){ ct = [ct]; }
 
+            const failed = [];
+
             for(let i in ct){
-                await axios.delete(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${ct[i]}`).catch(()=>{})
+                await axios.delete(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${ct[i]}`).catch(()=>{
+                    failed.push(ct[i]);
+                })
             }
 
-            this.$message.success("删除成功");
+            if(failed.length === ct.length){
+                this.$message.error("删除失败");
+                return;
+            }
+            if(failed.length > 0){
+                this.$message.warning(`部分删除失败（${failed.length}/${ct.length}）`);
+            }else{
+                this.$message.success("删除成功");
+            }
             this.getFileList();
 
 
@@ -3461,10 +3497,11 @@ export default {
             }
             
             if(this.compress.row){
-                sources.push(this.partPath + this.compress.row.name);
+                sources.push(this.getTransportPath(this.compress.row));
             }else{
                 this.selectedKeys.forEach(item=>{
-                    sources.push(this.partPath + item);
+                    const row = this.fileList.find(i=>i.key == item);
+                    sources.push(this.getTransportPath(row || item, row?.type));
                 })
             }
             
@@ -3486,6 +3523,10 @@ export default {
             }
         },
         uncompressAct(row){
+            if (row?.type !== 'file' || !row?.is_zip) {
+                this.$message.warning('当前文件类型不支持解压');
+                return;
+            }
             this.uncompress = {
                 row: row,
                 show: true,
@@ -3496,6 +3537,10 @@ export default {
         // 解压 - 使用 Go 后端接口
         async unzipAct(){
             let row = this.uncompress.row;
+            if (row?.type !== 'file' || !row?.is_zip) {
+                this.$message.warning('当前文件类型不支持解压');
+                return;
+            }
             
             let match = this.uncompress.path.match(/^((\/[^/]+)*\/?)|\/$/);
             if(!match){ this.$message.warning('解压路径格式有误'); return; }
@@ -3563,6 +3608,10 @@ export default {
             }
         },
         copyAct(row){
+            if (!this.canOperateNode(row)) {
+                this.$message.warning('当前文件类型不支持复制');
+                return;
+            }
             this.copy = this.partPath + row.name;
             let record = this.fileList.find(i=>i.name==row.name);
             this.csChmod = record?.power || '';
@@ -3571,6 +3620,10 @@ export default {
             this.$message.success('复制成功');
         },
         shearAct(row){
+            if (!this.canOperateNode(row)) {
+                this.$message.warning('当前文件类型不支持剪切');
+                return;
+            }
             this.copy = null;
             this.shear = this.partPath + row.name;
             let record = this.fileList.find(i=>i.name==row.name);
@@ -3604,6 +3657,22 @@ export default {
         },
         // 权限修改
         async changeAuthority(){
+            if (this.authority.row && !this.canOperateNode(this.authority.row)) {
+                this.$message.warning('当前文件类型不支持权限修改');
+                this.authority.show = false;
+                return;
+            }
+            if (!this.authority.row) {
+                const hasInvalid = this.selectedKeys.some(item => {
+                    const row = this.fileList.find(i => i.key == item);
+                    return !this.canOperateNode(row);
+                });
+                if (hasInvalid) {
+                    this.$message.warning('选中内容包含不支持权限修改的文件类型');
+                    this.authority.show = false;
+                    return;
+                }
+            }
             let chmod = false;
             let chown = false;
             let ct = '';
@@ -3628,7 +3697,7 @@ export default {
                     }
                     return;
                 }
-                ct = `'${this.partPath}${this.authority.row.name}'`;
+                ct = `'${this.getTransportPath(this.authority.row)}'`;
             }else{
                 let arr = [];
                 this.selectedKeys.forEach(item=>{
@@ -3641,7 +3710,7 @@ export default {
                             this.refreshCatch();
                         }
                     }else{
-                        arr.push(`'${this.partPath}${item}'`);
+                        arr.push(`'${this.getTransportPath(fdrow || item, fdrow?.type)}'`);
                     }
                 })
                 ct = arr.join(' ');
@@ -3661,9 +3730,12 @@ export default {
                 // 处理单个文件或多个文件
                 let paths = [];
                 if (this.authority.row) {
-                    paths = [encodeURI(this.partPath + this.authority.row.name)];
+                    paths = [this.getTransportPath(this.authority.row)];
                 } else {
-                    paths = this.selectedKeys.map(item => encodeURI(this.partPath + item));
+                    paths = this.selectedKeys.map(item => {
+                        const row = this.fileList.find(i => i.key == item);
+                        return this.getTransportPath(row || item, row?.type);
+                    });
                 }
                 
                 // 并行执行 chmod 和 chown
@@ -3690,9 +3762,9 @@ export default {
                 chmod = chmodResults.every(r => r);
                 chown = chownResults.every(r => r);
             } else {
-                // 兼容：如果没有 permissionUrl，回退到旧的 exec2 方式
-                await this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=chmod ${this.authority.chmod} ${ct}`, ()=>{ chmod = true; });
-                await this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=chown ${this.authority.chown} ${ct}`, ()=>{ chown = true; });
+                this.$message.error('当前环境不支持权限修改');
+                this.authority.show = false;
+                return;
             }
             
             chmod && chown && this.$message.success("操作成功");
@@ -4137,6 +4209,7 @@ body[arco-theme='light'] .tabs-scroll-btn:hover {
 .sidebar-file-item.active { background: rgba(var(--primary-6, 9, 71, 113), 0.1); color: rgb(var(--primary-6, 255, 255, 255)); }
 .sidebar-file-item.is-dir { color: var(--color-text-2, #c5c5c5); }
 .sidebar-file-item.is-symlink { color: var(--color-text-4, #6d6d6d); font-style: italic; }
+.filename.disabled-file { cursor: default; color: var(--color-text-3, #86909c); }
 .sidebar-file-item .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .sidebar-file-item .file-size { font-size: 10px; color: var(--color-text-4, #6d6d6d); }
 .sidebar-loading, .sidebar-empty, .sidebar-error { padding: 16px; text-align: center; color: var(--color-text-4, #6d6d6d); font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
