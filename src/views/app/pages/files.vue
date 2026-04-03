@@ -4,7 +4,7 @@
         <div class="padding-20 bg-white">
             <!-- <route-breadcrumb :data="{id:title}" /> -->
             
-            <div v-if="noCommand || appStatus!=1" class="bg-white ">
+            <div v-if="appStatus!=1" class="bg-white ">
                 <div class="df df-c ai-c c-99 fs-18" style="margin-top:90px;">
                     <icon-exclamation-circle class="c-cc" style="font-size:60px;" />
                     <div class="mt-20">暂无数据</div>
@@ -709,8 +709,6 @@ export default {
 
             root: '/',
 
-            noCommand: false,
-
             userArr: [],
             outEditorInfo: null,
             outEditorLink: '',
@@ -900,23 +898,6 @@ export default {
         //     }
         //     this.getUserByExec();
         // },
-        // getUserByExec(){
-        //     let cmd = `cat /etc/passwd`;
-        //     if (this.form.pod_name && this.form.namespace) {
-        //         panelApi.post(`/exec2`,{
-        //             podName: this.form.pod_name,
-        //             containerName: this.form.containerName,
-        //             tty: false,
-        //             namespace: this.form.namespace,
-        //             command: ['sh', '-c', cmd],
-        //         },{responseType: 'text', noAlert:true}).then(res=>{
-        //             if(res?.data){
-        //                 this.userArr = this.parseUserInfo(res.data || '');
-        //             }
-        //         }).catch(()=>{
-        //             this.getUserByWebDAV();
-        //         });
-        //     } else {
         //         this.getUserByWebDAV();
         //     }
         // },
@@ -1109,7 +1090,6 @@ export default {
                     
 
                     this.form.subPid = res.data.subPid;
-                    this.form.preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
                     this.form.path = res.data?.pwd?.trim?.() || '/';
                     this.root = '/';
 
@@ -1196,7 +1176,6 @@ export default {
                     }
 
                     this.form.subPid = res.data.subPid;
-                    this.form.preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
                     this.form.path = res.data?.pwd?.trim?.() || '/';
                     this.root = '/';
 
@@ -1324,8 +1303,6 @@ export default {
             this.form.containerName = pod?.spec?.containers?.[0]?.name;
             this.form.namespace = pod?.metadata?.namespace;
             this.form.pid = 1;
-            this.form.preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
-
             if(!this.is_component && /path=[^&]+(&|$)/.test(this.$route.hash)){
                 this.form.path = this.$route.hash.match(/path=([^&]+)/)?.[1];
             }else if(this.origin!='nodes' && this.is_component && this.componentData.path){
@@ -1350,8 +1327,6 @@ export default {
             //     let list = await this.getDir();
             //     this.parseList(list);
             // }else{
-            //     let command = `${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=ls --srcPath='${this.showPath}'`;
-            //     this.command(command, res=>{
             //         this.loading = false;
             //         let data = res?.data;
             //         if(!data){return}
@@ -1507,35 +1482,6 @@ export default {
             });
 
             return result;
-        },
-        // 命令
-        command(command, callback, error){
-            // let pre = this.origin=='nodes'? 'nsenter -t 1 --mount --uts --ipc --net --pid -- ' : '';
-            command = `${command}`;
-
-            // let cmd = command.split(' ');
-            // cmd = cmd.map(i=>('command='+i));
-            // cmd = cmd.join('&');
-            
-            this.loading = true;
-            // let params = `podName=${this.form.pod_name}&containerName=${this.form.containerName}&tty=false&namespace=${this.form.namespace}&${cmd}`;
-            return panelApi.post(`/exec2`,{
-                podName: this.form.pod_name,
-                containerName: this.form.containerName,
-                tty: false,
-                namespace: this.form.namespace,
-                command: ['sh', '-c', command],
-            },{responseType: 'text', loading:true, noAlert:true}).then(res=>{
-                this.loading = false;
-                callback && callback(res);
-            }).catch((e)=>{
-                this.loading = false;
-                let msg = e.response?.data?.error;
-                if(msg.includes('failed to start exec')){
-                    this.noCommand = true;
-                }
-                error && error();
-            });
         },
         // 点击文件
         async intoFile(row){
@@ -1792,8 +1738,6 @@ export default {
             //         let chomd = row.power;
             //         let ct = `'${this.partPath}${row.name}'`;
             //         ct = decodeURIComponent(ct);
-            //         await this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=chown ${chown} ${ct}`);
-            //         await this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=chmod ${chomd} ${ct}`);
             //     }).then(res=>{
             //         this.loading = false;
             //         this.$message.success('操作成功')
