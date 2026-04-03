@@ -1617,27 +1617,6 @@ export default {
                         console.log(e)
                     })
                     return;
-                // }
-                // // 获取内容打开编辑器
-                // this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=cat --srcPath='${this.partPath+row.name}'`,(res)=>{
-                //     let data = res?.data || '';
-                //     if(typeof data!="string"){
-                //         try{
-                //             data = JSON.stringify(data, null, 4);
-                //         }catch(e){
-                //             data = data.toString();
-                //         }
-                //     }
-                //     this.file.dialog = true;
-                //     this.file.row = row;
-                //     this.file.title = row.name;
-                //     this.file.mf = row.mf;
-                //     this.file.power = row.power;
-                //     this.file.forever = row.mf || this.form.isMount || false;
-                //     this.init(()=>{
-                //         this.inputContent(data);
-                //     });
-                // });
             }else if(row.type=='symlink'){
                 const toname = this.getTransportName(row);
                 const fp = this.getTransportPath(row);
@@ -3159,7 +3138,7 @@ export default {
                 return;
             }
 
-            axios.put(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+this.createFilePrompt.name)}`, '', {
+            axios.put(this.buildWebdavRequestUrl(this.getTransportPath(this.createFilePrompt.name, 'file')), '', {
                 headers: {
                     "content-type": "application/octet-stream",
                 },
@@ -3169,12 +3148,6 @@ export default {
                 this.createFilePrompt.show = false;
                 this.getFileList();
             })
-
-            // this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=touch --srcPath='${decodeURIComponent(this.partPath+this.createFilePrompt.name)}'`,(res)=>{
-            //     this.$message.success('操作成功');
-            //     this.createFilePrompt.show = false;
-            //     this.getFileList();
-            // });
         },
         // 立即生效
         submitCatch(){
@@ -3422,13 +3395,6 @@ export default {
                 this.$message.success("删除成功");
             }
             this.getFileList();
-
-
-            // ct = decodeURIComponent(ct);
-            // this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=rm ${ct}`,(res)=>{
-            //     this.$message.success("删除成功");
-            //     this.getFileList();
-            // });
         },
         // 新建文件夹
         openCreateDir(){
@@ -3445,16 +3411,12 @@ export default {
             if(/\//.test(this.createFilePrompt.name)){this.$message.warning('文件夹名称格式有误'); return;}
             
             axios({
-                url: `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${this.partPath+ this.createFilePrompt.name}/`,
+                url: this.buildWebdavRequestUrl(this.getTransportPath(this.createFilePrompt.name, 'directory') + '/', true),
                 method: 'MKCOL',
             }).then(()=>{                
                 this.$message.success('操作成功');
                 this.getFileList();
             })
-            // this.command(`${this.form.preCmd} --pid=${this.form.pid} --subPid=${this.form.subPid} --cmd=mkdir --srcPath='${decodeURIComponent( this.partPath+ this.createFilePrompt.name )}'`,(res)=>{
-            //     this.$message.success('操作成功');
-            //     this.getFileList();
-            // });
         },
         // 打开压缩dialog
         compressAct(row,multiple){
