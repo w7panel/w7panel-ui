@@ -186,6 +186,9 @@ export default {
             let baseURL = '';
             if(window.__MICRO_APP_ENVIRONMENT__){
                 baseURL = window?.microApp?.getData()?.requestUrl || '';
+            }else{
+                const loc = window.location;
+                baseURL = loc.protocol === 'https:' ? 'wss://' + loc.host : 'ws://' + loc.host;
             }
             const shellPath = this.normalizeShellPath(this.type);
             const commandArgs = [];

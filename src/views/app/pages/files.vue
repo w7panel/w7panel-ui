@@ -786,7 +786,7 @@ export default {
             if(/\/\.\.(\/|$)/.test(v)){ this.form.path = v.replace(/(\/[^/]+)?\/\.\.(\/|$)/,'$2') || '/'; return; }
             this.form.isMount = this.testForever(v, true);
             this.getFileList();
-            if(!this.is_component){
+            if(!this.is_component || this.origin=='nodes'){
                 this.$router.push({query:this.$route.query,hash:'#path='+ encodeURIComponent(this.form.path)});
             }
             let o = this.outEditorInfo;
