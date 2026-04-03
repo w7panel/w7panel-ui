@@ -509,9 +509,26 @@
                             <a-option v-for="item in tlsForm.list" :key="item.name" :label="(item.autoSsl?'https://':'http://')+item.domain" :value="item.name"></a-option>
                         </a-select>
                         <!-- <a-input v-model="tlsForm.domain" disabled></a-input> -->
-                        <div>
-                            <a-checkbox v-model="tlsForm.auto_ssl" class="mt-16">自动https</a-checkbox>
-                            <span class="c-99">（如果您想使用自有证书，请先关闭https功能）</span>
+                        <div class="df ai-c mt-16">
+                            <a-checkbox v-model="tlsForm.auto_ssl">自动https</a-checkbox>
+                            <span v-if="tlsForm.testStatus" class="ml-10">
+                                <icon-check-circle v-if="tlsForm.testStatus.status=='success'" class="c-green fs-16"/>
+                                <span v-else-if="tlsForm.testStatus.status=='warning'" class="df ai-c">
+                                    <icon-info-circle class="c-orange fs-16"/>
+                                    <span class="c-orange ml-2">签发中</span>
+                                </span>
+                                <a-popover v-else-if="tlsForm.testStatus.status=='error'" position="bottom">
+                                    <span class="cursor df ai-c" @click="retryTestStatus">
+                                        <icon-close-circle class="c-red lh-1 fs-16"/>
+                                        <span class="c-red ml-2 lh-1 fs-12">重试</span>
+                                    </span>
+                                    <template #content>
+                                        <div>时间：{{ tlsForm.testStatus.time }}</div>
+                                        <div>原因：{{ tlsForm.testStatus.reason }}</div>
+                                    </template>
+                                </a-popover>
+                            </span>
+                            <span class="c-99 ml-10">（如果您想使用自有证书，请先关闭https功能）</span>
                         </div>
                     </div>
                 </a-form-item>
@@ -570,6 +587,7 @@ import { getUserInfo } from '@/utils/auth';
 import CryptoJS  from 'crypto-js';
 import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
+import dayjs from 'dayjs';
 
 const templateData = {
     data: {
@@ -711,6 +729,57 @@ export default {
         },
     },
     methods: {
+        async retryTestStatus(){
+            let operation1 = [{
+                op: 'remove',
+                path: '/metadata/annotations/cert-manager.io~1cluster-issuer',
+            },{
+                op: 'remove',
+                path: '/metadata/annotations/cert-manager.io~1renew-before',
+            }]
+            let operation2 = [{
+                op: 'replace',
+                path: '/metadata/annotations/cert-manager.io~1cluster-issuer',
+                value: 'w7-letsencrypt-prod'
+            },{
+                op: 'replace',
+                path: '/metadata/annotations/cert-manager.io~1renew-before',
+                value: '30m'
+            }];
+            let url = "/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.tlsForm.domainName;
+            
+            useLoadingStore().loading = true;
+
+            await k8sproxy.patch(url, operation1,{
+                headers: {'Content-Type': 'application/json-patch+json'},
+            }).then(()=>{}).catch(()=>{})
+
+            await new Promise(r => setTimeout(r, 2000));
+
+            await k8sproxy.patch(url, operation2, {
+                headers: {'Content-Type': 'application/json-patch+json'},
+            }).then(()=>{}).catch(()=>{})
+            
+            useLoadingStore().loading = false;
+
+            let secretName = this.tlsForm.tlsName;
+            k8sproxy.get('/apis/cert-manager.io/v1/namespaces/'+ this.namespaceActive +'/certificates/'+secretName, {noAlert:true,loading:true}).then(res=>{
+                let readyItem = res.data?.status?.conditions?.find?.(i=>i.type == 'Ready');
+                let status = 'warning';
+                if(readyItem){
+                    status = readyItem.status.toLowerCase() == 'true' ? 'success' : 'error';
+                }
+                this.tlsForm = {
+                    ...this.tlsForm,
+                    testStatus: {
+                        status: status,
+                        reason: readyItem?.message || '',
+                        time: dayjs(readyItem?.lastTransitionTime || '').format('YYYY-MM-DD HH:mm:ss'),
+                    }
+                }
+            })
+
+        },
         openBind(row){
             this.bindDomain = {
                 show: true,
@@ -1117,7 +1186,22 @@ export default {
                 }
                 return;
             }
-            
+
+            k8sproxy.get('/apis/cert-manager.io/v1/namespaces/'+ this.namespaceActive +'/certificates/'+secretName, {noAlert:true,loading:true}).then(res=>{
+                let readyItem = res.data?.status?.conditions?.find?.(i=>i.type == 'Ready');
+                let status = 'warning';
+                if(readyItem){
+                    status = readyItem.status.toLowerCase() == 'true' ? 'success' : 'error';
+                }
+                this.tlsForm = {
+                    ...this.tlsForm,
+                    testStatus: {
+                        status: status,
+                        reason: readyItem?.message || '',
+                        time: dayjs(readyItem?.lastTransitionTime || '').format('YYYY-MM-DD HH:mm:ss'),
+                    }
+                }
+            })
             k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/secrets/'+secretName, {noAlert:true,loading:true}).then(res=>{
                 if(!res?.data){return}
                 this.tlsForm.crt = atob(res?.data?.data?.['tls.crt'] || '');
