@@ -9,7 +9,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
     // redirect: '/system/cloud',
 
     meta: {
-        locale: '制品管理',
+        locale: '制品开发',
         requiresAuth: true,
         icon: 'icon-archive',
         order: 3,
