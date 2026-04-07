@@ -48,14 +48,9 @@ export async function handleFileUpload(context) {
         await axios.post(outEditorInfo.agentUrl + '/panel-api/v1/files/merge-chunks',{
             totalChunks: totalChunks,
             identifier: random,
-            fileName: upload.filename,
-        })
-        
-        await axios.post(outEditorInfo.agentUrl + '/panel-api/v1/files/mvtopod',{
             pid: form.pid,
             subpid: form.subPid,
-            fromPath: upload.filename,
-            toPath: partPath + upload.filename,
+            fileName: partPath + upload.filename,
         })
 
         context.loading = false;
