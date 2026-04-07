@@ -708,6 +708,8 @@ export default {
             mfEdit: false,
 
             root: '/',
+            isInitializingFileList: false,
+            hasLoadedFileListInInit: false,
 
             userArr: [],
             outEditorInfo: null,
@@ -783,6 +785,9 @@ export default {
             if(/\/\.(\/|$)/.test(v)){this.form.path = v.replace(/\/\.(\/|$)/,'$1') || '/'; return; }
             if(/\/\.\.(\/|$)/.test(v)){ this.form.path = v.replace(/(\/[^/]+)?\/\.\.(\/|$)/,'$2') || '/'; return; }
             this.form.isMount = this.testForever(v, true);
+            if(this.isInitializingFileList){
+                this.hasLoadedFileListInInit = true;
+            }
             this.getFileList();
             if(!this.is_component || this.origin=='nodes'){
                 this.$router.push({query:this.$route.query,hash:'#path='+ encodeURIComponent(this.form.path)});
@@ -877,8 +882,14 @@ export default {
             })
         },
         first(){
+            this.isInitializingFileList = true;
+            this.hasLoadedFileListInInit = false;
             return this.getContList2().then(res=>{
-                this.getFileList()
+                if(!this.hasLoadedFileListInInit){
+                    return this.getFileList();
+                }
+            }).finally(()=>{
+                this.isInitializingFileList = false;
             });
             // if(this.$route.name==fileRouteName){
             //     this.getContList2().then(res=>{
