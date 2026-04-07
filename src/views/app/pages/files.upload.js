@@ -56,7 +56,7 @@ export async function handleFileUpload(context) {
         context.loading = false;
         context.$message.success('保存成功');
         context.upload.show = false;
-        context.getFileList();
+        context?.getFileList?.();
     } catch (error) {
         context.loading = false;
         console.error('上传失败', error);
