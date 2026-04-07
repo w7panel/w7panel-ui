@@ -22,7 +22,7 @@
                                 <a-tooltip content="修改名称">
                                     <icon-edit class="c-blue fs-16 ml-6 cursor df-s0" @click="openChangeName(record)"></icon-edit>
                                 </a-tooltip>
-                                <a-tooltip :content="record.isDefault?'取消默认':'设置为默认'">
+                                <a-tooltip :content="'设置为PINNNED后，镜像文件不会受到GC影响被自动删除'">
                                     <icon-bookmark class="fs-16 ml-6 df-s0 cursor" @click="setDefault(record)" :class="{'c-orange':record.isDefault,'c-99':!record.isDefault}" />
                                 </a-tooltip>
                             </div>
