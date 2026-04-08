@@ -2,7 +2,7 @@
     <div class="padding-20" style="height:calc(100vh - 60px); overflow:auto;">
         
         <route-breadcrumb />
-        
+
         <div class="bg-white padding-20">
             <div class="df ai-c ">
                 <div class="df ai-c">
@@ -26,7 +26,7 @@
                                     <icon-edit class="c-blue fs-16 ml-6 cursor df-s0 default-text" @click="openChangeName(record)"></icon-edit>
                                 </a-tooltip>
                                 <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
-                                    <icon-bookmark class="fs-16 ml-6 df-s0 cursor default-text" @click="setDefault(record)" :class="{'c-orange':record.isDefault,'c-99':!record.isDefault}" />
+                                    <icon-lock class="fs-16 ml-6 df-s0 cursor default-text" @click="setDefault(record)" :class="{'c-orange':record.isDefault,'c-99':!record.isDefault}" />
                                 </a-tooltip>
                             </div>
                         </template>
@@ -193,7 +193,7 @@ export default {
         },
         openImport(){
             this.importDialog.show = true;
-            this.importDialog.imageName = 'ccr.ccs.tencentyun.com/afan-public/nginx:latest';
+            this.importDialog.imageName = '';
             this.importDialog.filename = '';
             this.upload.file = null;
             this.upload.filename = '';
