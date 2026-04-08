@@ -10,7 +10,11 @@
         </a-drawer> -->
             
         <div>
-            <a-form :model="data" auto-label-width class="padding-10">
+            
+            <div v-if="!isInstall" class="mt-40">
+                <a-empty>GPU未安装，<span class="c-blue cursor" @click="toInstall">点击安装</span></a-empty>
+            </div>
+            <a-form v-else :model="data" auto-label-width class="padding-10">
                 <a-form-item label="启用GPU" style="margin-bottom:20px;">
                      <!-- :disabled="!data.canEnabledGpu" -->
                     <a-switch v-model="data.gpu" @change="gpuSwitch"></a-switch>
@@ -120,6 +124,7 @@ export default {
     props: ['show'],
     data(){
         return {
+            isInstall: false,
             namespaceActive: '',
             visible: false,
             data: {
@@ -154,8 +159,9 @@ export default {
             v && this.init();
         },
     },
-    created(){
+    async created(){
         this.namespaceActive = useNamespaceStore().namespace;
+        await this.testInstall();
         this.init();
     },
     beforeUnmount(){
@@ -167,6 +173,11 @@ export default {
         storeInstallDrawer,
     },
     methods: {
+        async testInstall(){
+            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/nvidia-gpuoperator',{noAlert:true}).then(res=>{
+                this.isInstall = true;
+            }).catch(()=>{})
+        },
         async init(){
             let hamiMode = '0';
             let gpuOperatorMode = '0';

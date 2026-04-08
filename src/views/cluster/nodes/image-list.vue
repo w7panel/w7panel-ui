@@ -67,6 +67,11 @@
                         <input ref="importDialogFileInput" type="file" accept=".tar" @change="selectFile" />
                     </div>
                 </a-form-item>
+                <a-form-item label="PINNED">
+                    <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
+                        <a-checkbox v-model="importDialog.pinned">设置为PINNED</a-checkbox>
+                    </a-tooltip>
+                </a-form-item>
             </a-form>
         </a-modal>
 
@@ -103,6 +108,7 @@ export default {
                 show: false,
                 imageName: '',
                 filename: '',
+                pinned: false,
             },
             rules: {
                 imageName: [{required:true, message:'请输入镜像名称'}],
@@ -195,8 +201,10 @@ export default {
             this.importDialog.show = true;
             this.importDialog.imageName = '';
             this.importDialog.filename = '';
+            this.importDialog.pinned = false;
             this.upload.file = null;
             this.upload.filename = '';
+            this.upload.noAlert = true;
             // 清空input
             this.$nextTick(()=>{
                 this.$refs.importDialogFileInput.value = '';
@@ -220,6 +228,17 @@ export default {
                     axios.post(this.outEditorInfo.agentUrl + '/panel-api/v1/registry/patch/images/import',{
                         name: this.importDialog.imageName,
                         path: this.partPath + this.upload.filename,
+                    }).then(res=>{
+                        let name = res.data.name;
+                        if(this.importDialog.pinned){
+                            return axios.post(this.outEditorInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
+                                "name": name,
+                                "labels": {"io.cri.containerd.pinned":"pinned", "io.cattle.k3s.pinned":"pinned"},
+                                "replace": true,
+                            })
+                        }else{
+                            return Promise.resolve();
+                        }
                     }).then(res=>{
                         useLoadingStore().loading = false;
                         this.$message.success('导入成功');

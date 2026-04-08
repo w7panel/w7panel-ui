@@ -54,7 +54,9 @@ export async function handleFileUpload(context) {
         })
 
         context.loading = false;
-        context.$message.success('保存成功');
+        if(context.upload?.noAlert!==true){
+            context.$message.success('保存成功');
+        }
         context.upload.show = false;
         context?.getFileList?.();
     } catch (error) {
