@@ -26,7 +26,8 @@
                 <a-tabs v-model:active-key="form.ctActive" type="card-gutter" :editable="true" @add="addContiner" @delete="deleteContiner" show-add-button auto-switch>
                     <a-tab-pane v-for="item in form.container" :key="item.key" :title="'item'+(item.key+1)" style="padding:0 20px;" :closable="item.key!=0">
                         <a-form-item label="选择应用">
-                            <a-select v-model="item.app" size="large" @change="changeApp(item)" placeholder="请选择应用" >
+                            <select-container @complete="onSelectContainer" />
+                            <a-select v-model="item.app" size="large" @change="changeApp(item)" placeholder="请选择应用" class="mt-10">
                                 <a-option label="默认应用" value=""></a-option>
                                 <a-option v-for="item in apps" :key="item.name" :label="item.title" :value="item.name"></a-option>
                             </a-select>
@@ -242,6 +243,7 @@
 import { k8sproxy } from '@/utils/api';
 
 import cronJob from "@/components/cron-job.vue"
+import selectContainer from '@/components/select-container.vue';
 import axios from "axios"
 import {useNamespaceStore} from "@/store";
 import {basicSetup, EditorView} from "codemirror"
@@ -337,6 +339,7 @@ export default {
     },
     components: {
         cronJob,
+        selectContainer,
         appForm,
         formDrawer,
     },
@@ -381,6 +384,9 @@ export default {
         this.getConfigmap();
     },
     methods: {
+        onSelectContainer(val){
+            console.log('select-container:', val);
+        },
         delConfigmap(name){
             k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+name,{loading:true}).then(res=>{
                 if(!res?.data){return}
