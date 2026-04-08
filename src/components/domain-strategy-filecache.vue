@@ -1,6 +1,11 @@
 <template>
     <div>
         <div v-show="fileCache.exist" id="filecachemicroapp"></div>
+        
+        <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:300px;">
+            <div style="height:100%;" class="bg-white"></div>
+        </a-spin>
+
         <div v-show="!fileCache.exist" class="mt-40 df df-c ai-c">
             <div>文件缓存应用未安装</div>
             <div class="mt-20">
@@ -11,7 +16,7 @@
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import { setupApp, startApp, destroyApp } from "wujie";
 import { getToken, getK8sinfo } from '@/utils/auth';
@@ -42,6 +47,8 @@ export default {
             },
             roleProps: {},
             appData: {},
+            extra: {},
+            downOk: true,
         }
     },
     created() {
@@ -97,6 +104,12 @@ export default {
                     token: app?.spec?.config?.props?.OAUTH_TOKEN,
                     destination: this.data?.metadata?.annotations?.['higress.io/destination'] || '',
                 };
+                this.extra = {
+                    identifie: app.metadata?.labels?.['w7.cc/identifie'] || '',
+                    version: app.metadata?.labels?.['w7.cc/version'] || '',
+                    name: app.metadata.name,
+                    namespace: app.metadata.namespace,
+                }
 
                 let userRole = getK8sinfo()['w7.cc/role'];
                 let roleConfig = app?.spec?.['config-v2']?.props?.roleConfig || {};
@@ -118,13 +131,28 @@ export default {
                 };
             }).catch(() => {});
         },
-        wujieInit() {
+        async wujieInit() {
             if (!this.fileCache.exist) { return }
 
             let endpoint = '';
             let rewrite_path = '';
             let rewrite_host = '';
             let path_match_type = '';
+
+            await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
+                version: this.extra.version,
+                releaseName: this.extra.name,
+            }}).then(res=>{
+                this.downOk = res.data?.status !== 'no_download';
+            })
+            if(!this.downOk){
+                panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
+                this.extra.setTimeout = setTimeout(()=>{
+                    this.wujieInit();
+                    clearTimeout(this.extra.setTimeout);
+                }, 5000)
+                return;
+            }
 
             if (this.data?.metadata?.annotations?.['higress.io/enable-rewrite'] === 'true') {
                 rewrite_host = this.data?.metadata?.annotations?.['higress.io/upstream-vhost'];
@@ -156,6 +184,8 @@ export default {
 
             setupApp({
                 name: "filecachemicroapp",
+// 测试
+// url: 'http://172.16.1.162:9090' + this.microappInfo.frontendUrl
                 url: this.microappInfo.frontendUrl
                     + '?path_prefix=' + encodeURIComponent(this.data?.spec?.rules?.[0]?.http?.paths?.[0]?.path)
                     + '&endpoint=' + encodeURIComponent(endpoint)
@@ -176,7 +206,7 @@ export default {
                     ...this.roleProps,
                 },
             });
-            console.log('filecache',this.roleProps)
+            
             startApp({ name: 'filecachemicroapp' });
         },
         getAllAgent() {
