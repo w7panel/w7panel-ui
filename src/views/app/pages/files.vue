@@ -708,6 +708,8 @@ export default {
             mfEdit: false,
 
             root: '/',
+            isInitializingFileList: false,
+            hasLoadedFileListInInit: false,
 
             userArr: [],
             outEditorInfo: null,
@@ -783,6 +785,9 @@ export default {
             if(/\/\.(\/|$)/.test(v)){this.form.path = v.replace(/\/\.(\/|$)/,'$1') || '/'; return; }
             if(/\/\.\.(\/|$)/.test(v)){ this.form.path = v.replace(/(\/[^/]+)?\/\.\.(\/|$)/,'$2') || '/'; return; }
             this.form.isMount = this.testForever(v, true);
+            if(this.isInitializingFileList){
+                this.hasLoadedFileListInInit = true;
+            }
             this.getFileList();
             if(!this.is_component || this.origin=='nodes'){
                 this.$router.push({query:this.$route.query,hash:'#path='+ encodeURIComponent(this.form.path)});
@@ -877,8 +882,14 @@ export default {
             })
         },
         first(){
+            this.isInitializingFileList = true;
+            this.hasLoadedFileListInInit = false;
             return this.getContList2().then(res=>{
-                this.getFileList()
+                if(!this.hasLoadedFileListInInit){
+                    return this.getFileList();
+                }
+            }).finally(()=>{
+                this.isInitializingFileList = false;
             });
             // if(this.$route.name==fileRouteName){
             //     this.getContList2().then(res=>{
@@ -2476,14 +2487,7 @@ export default {
                 const files = this.parseWebDAVResponse(text, `${this.outEditorInfo.webdavUrl}${encodedPath}`);
                 
                 // 显示文件和子目录
-                this.file.sidebarFiles = files.map(f => ({
-                    name: f.name,
-                    type: f.type,
-                    is_dir: f.type === 'directory',
-                    is_symlink: f.type === 'symlink',
-                    size: f.size || 0,
-                    editable: f.editable === true,
-                }));
+                this.file.sidebarFiles = this.buildSidebarFiles(files);
                 
                 if (this.file.sidebarFiles.length === 0) {
                     this.file.sidebarError = '当前目录为空';
@@ -2562,6 +2566,19 @@ export default {
                 return a.name.localeCompare(b.name);
             });
         },
+        buildSidebarFiles(files){
+            return files.map(f => ({
+                name: f.name,
+                type: f.type,
+                is_dir: f.type === 'directory',
+                is_symlink: f.type === 'symlink',
+                size: f.size || 0,
+                editable: f.editable === true,
+                uid: f.uid,
+                gid: f.gid,
+                mode: f.mode,
+            }));
+        },
         // 从侧边栏打开文件
         async openSidebarFile(item){
             if (item.is_dir) {
@@ -2582,6 +2599,27 @@ export default {
                 await this.loadSidebarFiles();
                 return;
             }
+
+            if (item.is_symlink) {
+                const sidebarRow = {
+                    name: item.name,
+                    type: 'symlink',
+                    is_dir: false,
+                    power: item.mode,
+                    mf: '',
+                };
+                this.intoFile(sidebarRow);
+                return;
+            }
+
+            if (!this.canOpenRecord({
+                type: item.type,
+                editable: item.editable,
+                fromFileCatch: false,
+            })) {
+                this.$message.warning('当前文件类型不支持在线打开');
+                return;
+            }
             
             // 检查是否已在标签页中打开
             const existingTabIndex = this.file.openTabs.findIndex(t => t.name === item.name && t.path === this.file.sidebarPath + item.name);
@@ -2595,12 +2633,6 @@ export default {
             if (this.editor && this.currentTab) {
                 this.currentTab.content = this.editor.state.doc.toString();
             }
-
-            if (item.type !== 'file' || item.editable !== true) {
-                this.$message.warning('当前文件类型不支持在线打开');
-                return;
-            }
-            
             const filePath = this.file.sidebarPath + item.name;
             
             try {
@@ -2683,13 +2715,7 @@ export default {
                     const text = await response.text();
                     const files = this.parseWebDAVResponse(text, `${this.outEditorInfo.webdavUrl}${encodedPath}`);
                     
-                    this.file.sidebarFiles = files.map(f => ({
-                        name: f.name,
-                        type: f.type,
-                        is_dir: f.type === 'directory',
-                        is_symlink: f.type === 'symlink',
-                        size: f.size || 0
-                    }));
+                    this.file.sidebarFiles = this.buildSidebarFiles(files);
                     
                     // 更新路径
                     this.file.sidebarPath = parentPath;
