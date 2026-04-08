@@ -222,7 +222,7 @@ export default {
                     }
                 })
                 return list;
-            }).then(list=>{
+            }).then(async list=>{
                 
                 const formatStorageSize = (bytes) => {
                     // 1 GiB = 1024 MiB = 1024*1024*1024 bytes
@@ -231,63 +231,67 @@ export default {
                         : `${(bytes / (1024 ** 2)).toFixed(0)} Mi`;
                 };
 
-                panelApi.get('/longhorn/volumes/status',{noAlert:true}).then(res=>{
-                    let data = res?.data || {};
-
-                    list = list.map(i=>{
-                        let translateKey = this.translateToHostName(i.name, this.namespaceActive, this.userInfo?.['w7.cc/k3k-name']) + ':' + this.userInfo['w7.cc/k3k-namespace'];
+                try{
+                    await panelApi.get('/longhorn/volumes/status',{noAlert:true}).then(res=>{
+                        let data = res?.data || {};
+    
+                        list = list.map(i=>{
+                            let translateKey = this.translateToHostName(i.name, this.namespaceActive, this.userInfo?.['w7.cc/k3k-name']) + ':' + this.userInfo['w7.cc/k3k-namespace'];
+                            
+                            let obj = data?.[this.clusterMode=='shared'? translateKey : i.key] || {};
+                            if(obj.actualSize){
+                                obj.usedSize = this.btog(obj.actualSize);
+                                obj.usedSizeNum = Number(obj.actualSize);
+                            }else{
+                                obj.usedSize = 0;
+                                obj.usedSizeNum = 0;
+                            }
+    
+                            return {
+                                ...i,
+                                ...obj,
+                            }
+                        })
                         
-                        let obj = data?.[this.clusterMode=='shared'? translateKey : i.key] || {};
-                        if(obj.actualSize){
-                            obj.usedSize = this.btog(obj.actualSize);
-                            obj.usedSizeNum = Number(obj.actualSize);
-                        }else{
-                            obj.usedSize = 0;
-                            obj.usedSizeNum = 0;
-                        }
-
-                        return {
-                            ...i,
-                            ...obj,
-                        }
-                    })
-                    
-                    let syspvc = data?.[this.userInfo?.['w7.cc/sys-pvc-name']+':'+this.userInfo?.['w7.cc/k3k-namespace']] || '';
-                    if(syspvc){
-                        this.syspvc = {
-                            show: true,
-                            numberOfReplicas: syspvc.numberOfReplicas,
-                            robustness: syspvc.robustness,
-                            
-                            actualSize: syspvc.actualSize,
-                            actualSizeTxt: formatStorageSize(syspvc.actualSize),
-                            size: Number(syspvc.size),
-                            sizeTxt: formatStorageSize(Number(syspvc.size)),
-
-                            
-                            actualSize: syspvc.actualSize,
-                            actualSizeTxt: formatStorageSize(syspvc.actualSize),
-                            size: Number(syspvc.size),
-                            sizeTxt: formatStorageSize(Number(syspvc.size)),
-                        }
-                        this.syspvc.progress = Number( (syspvc.actualSize / Number(syspvc.size)).toFixed(2) );
-                        if(this.clusterMode=="shared"){
-                            list.unshift({
-                                onlyshow: true,
-                                name: this.userInfo?.['w7.cc/sys-pvc-name'],
-                                numberOfReplicas: 1,
+                        let syspvc = data?.[this.userInfo?.['w7.cc/sys-pvc-name']+':'+this.userInfo?.['w7.cc/k3k-namespace']] || '';
+                        if(syspvc){
+                            this.syspvc = {
+                                show: true,
+                                numberOfReplicas: syspvc.numberOfReplicas,
+                                robustness: syspvc.robustness,
                                 
-                                usedSizeNum: syspvc.actualSize,
-                                usedSize: formatStorageSize(syspvc.actualSize),
-                                storageSizeNum: Number(syspvc.size),
-                                storageSize: formatStorageSize(Number(syspvc.size)),
-                            })
+                                actualSize: syspvc.actualSize,
+                                actualSizeTxt: formatStorageSize(syspvc.actualSize),
+                                size: Number(syspvc.size),
+                                sizeTxt: formatStorageSize(Number(syspvc.size)),
+    
+                                
+                                actualSize: syspvc.actualSize,
+                                actualSizeTxt: formatStorageSize(syspvc.actualSize),
+                                size: Number(syspvc.size),
+                                sizeTxt: formatStorageSize(Number(syspvc.size)),
+                            }
+                            this.syspvc.progress = Number( (syspvc.actualSize / Number(syspvc.size)).toFixed(2) );
+                            if(this.clusterMode=="shared"){
+                                list.unshift({
+                                    onlyshow: true,
+                                    name: this.userInfo?.['w7.cc/sys-pvc-name'],
+                                    numberOfReplicas: 1,
+                                    
+                                    usedSizeNum: syspvc.actualSize,
+                                    usedSize: formatStorageSize(syspvc.actualSize),
+                                    storageSizeNum: Number(syspvc.size),
+                                    storageSize: formatStorageSize(Number(syspvc.size)),
+                                })
+                            }
                         }
-                    }
+                        this.list = list;
+                        this.getCustom();
+                    })
+                }catch{
                     this.list = list;
-
                     this.getCustom();
-                })
+                }
             });
         },
         // 判断是否手动创建

@@ -6,7 +6,6 @@
             <a-button v-if="permission.includes('cluster-nodes-registries')&&usermode!='cluster'" type="outline" class="ml-10" @click="openImgorigin">修改镜像源</a-button>
             <!-- <a-button v-if="permission.includes('cluster-nodes-gpu')" type="outline" class="ml-10" @click="clscf.dialog=true;">GPU管理</a-button> -->
             <!-- <a-button type="outline" class="ml-10" @click="nodebindshow=true;">专用存储管理</a-button> -->
-            <a-button v-if="permission.includes('cluster-nodes-memory')" type="outline" class="ml-10" @click="openOptimize">内存优化</a-button>
             <a-button type="outline" class="ml-10" @click="openClusterInfo">集群信息</a-button>
         </div>
         
@@ -154,7 +153,10 @@
                     </template>
                 </a-table>
                 <div v-if="selectMenu[0]=='2'">
-                    <a-tabs default-active-key="1">
+                    <div v-if="!hasLonghornSystem" class="mt-40">
+                        <a-empty>longhorn组件未安装，<span class="c-blue cursor" @click="insLonghorn">点击安装</span></a-empty>
+                    </div>
+                    <a-tabs v-else default-active-key="1">
                         <a-tab-pane key="1" title="节点规划">
                             <div v-if="hasLonghornSystem">
                                 <a-alert class="mt-10">
@@ -223,18 +225,6 @@
                 <a-button type="primary" @click="delfuu">确定</a-button>
             </template>
         </a-modal>
-
-        <a-drawer v-model:visible="optimize.dialog" @ok="submitOptimize" @cancel="form.show=false;" title="内存优化管理" width="800px">
-            <template #title>内存优化管理</template>
-            <a-form auto-label-width>
-                <a-form-item label="K3S服务优化" extra="启用后会有效减少k3s服务的内存使用率，但会增加CPU和负载的波动，小配置服务器可开启。">
-                    <a-switch v-model="optimize.on" ></a-switch>
-                </a-form-item>
-                <a-form-item label="内存压缩" extra="启用后可提升内存水位防止应用OOM，但会占用硬盘I/O造成负载波动，小配置服务器可开启。">
-                    <a-switch v-model="optimize.swap" ></a-switch>
-                </a-form-item>
-            </a-form>
-        </a-drawer>
 
         <a-drawer :visible="form.show" width="800px" @ok="submitForm" @cancel="form.show=false;" :popup-container="false?'#allmodalbox':'body'">
             <template #title>注册节点</template>
@@ -320,16 +310,14 @@
         </a-modal> -->
         <a-drawer :visible="checkClusterInfo.show" width="800px" @cancel="checkClusterInfo.show=false;" :popup-container="false?'#allmodalbox':'body'">
             <template #title>集群信息</template>
-            <div>
-                <a-form auto-label-width>
-                    <a-form-item label="">
-                        <a-select v-model="checkClusterInfo.ip" placeholder="请选择" @change="getKubeconfig">
-                            <a-option v-for="(item,index) in clusterInfo.ips" :key="index" :value="item.ip" :label="item.ip"></a-option>
-                        </a-select>
-                    </a-form-item>
-                </a-form>
-                
-                <yaml-editor v-if="checkClusterInfo.yaml" :yaml="checkClusterInfo.yaml" :disabled="true" :nofooter="true"></yaml-editor>
+            <div style="height:100%;">
+                <a-select v-model="checkClusterInfo.ip" placeholder="请选择" @change="getKubeconfig">
+                    <a-option v-for="(item,index) in clusterInfo.ips" :key="index" :value="item.ip" :label="item.ip"></a-option>
+                </a-select>
+
+                <div class="mt-20" style="height:calc(100% - 52px);">
+                    <yaml-editor v-if="checkClusterInfo.yaml" :yaml="checkClusterInfo.yaml" :disabled="true" :nofooter="true"></yaml-editor>
+                </div>
             </div>
             <template #footer>
                 <a-button @click="checkClusterInfo.show=false;">取消</a-button>
@@ -456,13 +444,7 @@ export default {
             clscf: {
                 dialog: false,
             },
-            // 内存优化
-            optimize: {
-                dialog: false,
-                on: false,
-                val: '10',
-                swap: false,
-            },
+            
             permission: [],
             debug: false,
             webshell: '',
@@ -675,40 +657,6 @@ export default {
                     this.getList();
                 },3600);
             });
-        },
-        async submitOptimize(){
-            await panelApi.post('/k3s/env/gogc',{
-                gogcEnabled: this.optimize.on.toString(),
-                gogcVal: this.optimize.val,
-            },{loading:true});
-
-            let arr = this.list.filter(i=>i.swap==String(!this.optimize.swap));
-            useLoadingStore().loading = true;
-            for(let i in arr){
-                await k8sproxy.patch('/api/v1/nodes/'+arr[i].name,{
-                    metadata: {
-                        annotations: {
-                            'w7.cc.swap': String(this.optimize.swap),
-                            'w7.cc.swap/last-modify': 'w7panel',
-                        }
-                    }
-                },{
-                    headers: {'Content-Type': 'application/strategic-merge-patch+json'},
-                    noAlert: true,
-                })
-            }
-            useLoadingStore().loading = false;
-            this.getList();
-        },
-        openOptimize(){
-            panelApi.get('/k3s/env/gogc',{loading:true}).then(res=>{
-                this.optimize = {
-                    ...this.optimize,
-                    swap: Boolean(this.list?.filter(i=>i.swap=='true')?.length),
-                    dialog: true,
-                    on: res?.data?.gogcEnabled,
-                }
-            })
         },
         getConfig(){
             // config
