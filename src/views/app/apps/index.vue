@@ -164,7 +164,7 @@
                                 <span class="c-blue cursor operation" @click="toAppMenu(record,'app-detail-domain')">域名管理</span>
                                  <!-- v-if="permission.includes('app-apps-files')" -->
                                 <span v-if="fileeditor" class="c-blue cursor operation ml-10" @click="toAppMenu(record,'app-detail-files')">文件管理</span>
-                                <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel\-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel' && permission.includes('app-apps-delete') " :content="'确认要删除吗'" @ok="del(record)" position="lt">
+                                <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel\-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel-offline' && record.groupName!=='w7panel' && permission.includes('app-apps-delete') " :content="'确认要删除吗'" @ok="del(record)" position="lt">
                                     <span :id="'app-'+record.groupName" class="c-blue cursor operation ml-10">删除</span>
                                 </a-popconfirm>
                             </div>
