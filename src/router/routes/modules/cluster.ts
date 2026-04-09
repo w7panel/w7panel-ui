@@ -56,8 +56,9 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             meta: {
                 locale: '镜像管理',
                 requiresAuth: true,
-                hideInMenu: true,
+                hideInMenu: false,
                 roles: ['*'],
+                key: 'cluster-nodes-image-list',
             },
         },
         {
