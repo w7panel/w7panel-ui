@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" >
+    <a-drawer :width="800" :visible="visible" @ok="submit" @cancel="closeDrawer()" >
         <template #title>构建镜像</template>
         <div>
             <a-form ref="form" :model="form" :rules="rules" auto-label-width>
@@ -8,19 +8,22 @@
                 </a-form-item>
                 <a-form-item label="构建源" field="downloadUrl">
                     <a-input v-model="form.downloadUrl" placeholder="请输入"></a-input>
-                </a-form-item>
-                <a-form-item label="推送配置">
-                    <div class="df df-c" style="flex:1;">
-                        <a-form-item label="推送地址" field="address">
-                            <a-input v-model="form.address" placeholder="请输入"></a-input>
-                        </a-form-item>
-                        <a-form-item label="用户名">
-                            <a-input v-model="form.username" placeholder="请输入"></a-input>
-                        </a-form-item>
-                        <a-form-item label="密码">
-                            <a-input v-model="form.password" placeholder="请输入"></a-input>
-                        </a-form-item>
+                    
+                    <div class="upload ml-10">
+                        <!-- <span v-if="form.filename" class="c-blue">{{form.filename}}</span> -->
+                        <a-button type="primary">上传</a-button>
+                        <input ref="buildImageFileInput" type="file" accept="" @change="selectFile" />
                     </div>
+                </a-form-item>
+                
+                <a-form-item label="推送地址" field="address">
+                    <a-input v-model="form.address" placeholder="请输入"></a-input>
+                </a-form-item>
+                <a-form-item label="用户名">
+                    <a-input v-model="form.username" placeholder="请输入"></a-input>
+                </a-form-item>
+                <a-form-item label="密码">
+                    <a-input v-model="form.password" placeholder="请输入"></a-input>
                 </a-form-item>
             </a-form>
         </div>
@@ -28,7 +31,8 @@
 </template>
 <script>
 import { k8sproxy } from '@/utils/api';
-import {useNamespaceStore} from "@/store";
+import {useLoadingStore, useNamespaceStore} from "@/store";
+import { getToken } from '@/utils/auth';
 
 let templateData = {
     apiVersion: "buildimage.w7.cc/v1alpha1",
@@ -41,7 +45,7 @@ let templateData = {
         taskId: "",
         namespace: "default",
         source: {
-            dockerfilePath: "",
+            dockerfilePath: "Dockerfile",
             downloadUrl: "",
             dockerContext: ".",
         },
@@ -63,6 +67,11 @@ export default{
             visible: false,
             currentData: {},
             form: {},
+            upload: {},
+            outEditorInfo: {
+                agentUrl: '',
+            },
+            partPath: '',
 
             rules: {
                 dockerfilePath: [{ required: true, message: '请输入DockerfilePath' }],
@@ -82,6 +91,17 @@ export default{
     },
     methods: {
         init(){
+            this.upload.file = null;
+            this.upload.filename = '';
+            this.upload.noAlert = true;
+            this.form.filename = '';
+            this.form.pid = '';
+            this.form.subPid = '';
+            // 清空input
+            this.$nextTick(()=>{
+                this.$refs.buildImageFileInput.value = '';
+            })
+
             if(this.data){
                 this.currentData = JSON.parse(JSON.stringify(this.data));
             }else{
@@ -106,6 +126,28 @@ export default{
         closeDrawer(v){
             this.visible = false;
             this.$emit('close',v);
+        },
+        
+        async selectFile(event){
+            let files = event.target.files;
+            if(!files.length){return}
+            this.upload.file = files[0];
+            this.upload.filename = files[0].name.replace(/\s/g,'');
+            this.form.filename = files[0].name.replace(/\s/g,'');
+
+            useLoadingStore().loading = true;
+            try{
+                const { handleFileUpload } = await import('@/views/app/pages/files.upload.js');
+                await handleFileUpload(this);
+                
+                this.form.downloadUrl = `${window.location.origin}/panel-api/v1/download/${this.upload.filename}?api-token=${getToken()}`
+
+                useLoadingStore().loading = false;
+            }catch(err){
+                useLoadingStore().loading = false;
+                this.$message.error('导入失败');
+                console.log(err);
+            }
         },
         submit(){
             this.$refs.form.validate((err) => {
@@ -171,4 +213,8 @@ export default{
 }
 </script>
 <style scoped>
+
+.upload{position:relative;}
+.upload input[type='file']{min-width:0; position:absolute; top:0; left:0; right:0; bottom:0; z-index:1; opacity:0; cursor:pointer;}
+
 </style>

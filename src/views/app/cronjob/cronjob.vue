@@ -2,7 +2,7 @@
     <div class="padding-20">
         <route-breadcrumb />
         <div v-if="permission.includes('app-cronjob-add')" class="mb-20">
-            <a-button v-if="activekey!='3'" type="primary" @click="form.show=true;form.id='';"><template #icon><icon-plus /></template>新增</a-button>
+            <a-button v-if="activekey!='3'" type="primary" @click="openCronjobDrawer()"><template #icon><icon-plus /></template>新增</a-button>
             <a-button v-else type="primary" @click="$refs.buildimage.openAdd()"><template #icon><icon-plus /></template>新增构建镜像</a-button>
         </div>
         <div class="bg-white padding-20">
@@ -162,6 +162,7 @@ export default {
         appShell,
         podLog,
         jobLog,
+        buildImage,
     },
     data(){
         return {
@@ -191,7 +192,7 @@ export default {
             },
 
             form: {
-                show: "",
+                show: false,
                 id: '',
                 type: '',
                 defaultData: null,
@@ -213,10 +214,11 @@ export default {
             this.getData();
         },
     },
-    components: {
-        buildImage,
-    },
     methods: {
+        openCronjobDrawer(){
+            this.form.show = true;
+            this.form.id = '';
+        },
         toApp(item){
             this.$router.push({path: '/app/deployments/'+item.sourceName});
         },
@@ -333,9 +335,9 @@ export default {
                             key: i.metadata.name,
                             title: i.metadata?.annotations?.title || i.metadata.name,
                             name: i.metadata.name,
-                            sourceName: i.metadata.annotations['w7.cc/job-source-name'],
-                            sourceTitle: i.metadata.annotations['w7.cc/job-source-title'],
-                            source: i.metadata.annotations['w7.cc/job-source'],
+                            sourceName: i.metadata?.annotations?.['w7.cc/job-source-name'],
+                            sourceTitle: i.metadata?.annotations?.['w7.cc/job-source-title'],
+                            source: i.metadata?.annotations?.['w7.cc/job-source'],
                             searchJob: i.metadata?.labels?.searchJob,
 
                             startTime: window.formatDate(i.status.startTime),
