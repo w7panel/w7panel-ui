@@ -13,6 +13,14 @@
                 </div>
 
                 <a-button type="primary" class="ml-20" @click="openImport">导入镜像</a-button>
+
+                <build-image
+                    class="ml-20"
+                    :hideList="true"
+                    :showCreateBtn="true"
+                    :nodeName="node"
+                    :nodeIp="nodeIp"
+                ></build-image>
             </div>
             
             <a-table :data="list" :pagination="false" class="mt-20 nodeimagelisttable" :bordered="false">
@@ -34,7 +42,7 @@
                     <a-table-column title="标签">
                         <template #cell="{ record }">
                             <div>
-                                <div v-for="(value,key) in record.Labels">{{ key + ':' + value }}</div>
+                                <div v-for="(value,key) in record.Labels" :key="key">{{ key + ':' + value }}</div>
                             </div>
                         </template>
                     </a-table-column>
@@ -90,6 +98,7 @@ import { useLoadingStore, useNamespaceStore } from '@/store';
 import { k8sproxy, panelApi } from '@/utils/api';
 import axios from 'axios';
 import dayjs from 'dayjs';
+import buildImage from '@/views/cluster/nodes/build-image.vue';
 
 export default {
     data(){
@@ -127,9 +136,22 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.getNodes();
     },
+    components: {
+        buildImage,
+    },
+    computed: {
+        nodeIp(){
+            return this.nodeList?.find?.(i=>i.name==this.node)?.internalIP || '';
+        }
+    },
     mounted(){
     },
     methods: {
+        openBuildImage(){
+            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=true`).then(res=>{
+                let list = res.data?.items || [];
+            })
+        },
         getNodes(){
             k8sproxy.get('/api/v1/nodes',{loading:true}).then(res=>{
                 if(!res?.data){return}

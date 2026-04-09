@@ -1,6 +1,9 @@
 <template>
     <div>
-        <a-table :data="list" class="cptable" :pagination="false" :bordered="false">
+        
+        <a-button v-if="showCreateBtn" type="primary" @click="openAdd">构建镜像</a-button>
+
+        <a-table v-if="!hideList" :data="list" class="cptable" :pagination="false" :bordered="false">
             <template #columns>
                 <a-table-column title="DockerfilePath">
                     <template #cell="{ record }">{{record.dockerfilePath}}</template>
@@ -31,8 +34,17 @@
                 </a-table-column>
             </template>
         </a-table>
-        <build-image-drawer :show="biModal.show" :data="biModal.data" @close="v=>{biModal.show=false;v&&getList()}"></build-image-drawer>
+
+        <build-image-drawer
+            :show="biModal.show"
+            :data="biModal.data"
+            :nodeName="nodeName"
+            :nodeIp="nodeIp"
+            @close="v=>{biModal.show=false;v&&getList()}"
+        ></build-image-drawer>
+
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
+
         <job-log
             :show="logModal.show"
             mode="modal"
@@ -43,17 +55,30 @@
             :tail-lines="500"
             @close="logModal.show = false; logModal.jobName = '';"
         />
+
+        <a-modal
+            width="600px"
+            v-model:visible="runningTask.exist"
+            title="提示"
+            cancel-text="删除"
+            ok-text="查看"
+            @ok="runningTask.log"
+            @cancel="runningTask.delete"
+        >
+            <div class="padding-20 txt-c">有正在执行的构建任务</div>
+        </a-modal>
     </div>
 </template>
 <script>
 import { useNamespaceStore } from '@/store'
-import buildImageDrawer from './build-image-drawer.vue'
+import buildImageDrawer from '@/components/build-image-drawer.vue'
 import yamlDrawer from '@/components/yaml-drawer.vue'
 import jobLog from '@/components/job-log.vue'
 import { k8sproxy } from '@/utils/api'
 import { getPermission, getUserInfo } from '@/utils/auth'
 
 export default{
+    props: ['hideList','showCreateBtn','nodeName','nodeIp'],
     data(){
         return {
             namespaceActive: '',
@@ -74,13 +99,22 @@ export default{
                 show: false,
                 jobName: '',
             },
+
+            runningTask: {
+                exist: false,
+                name: '',
+                log: ()=>{},
+                delete: ()=>{},
+            },
         }
     },
     created(){
         this.debug = getUserInfo()?.['w7.cc/debug']=='true';
         this.permission = getPermission() || [];
         this.namespaceActive = useNamespaceStore().namespace;
-        this.getList();
+        if(!this.hideList){
+            this.getList();
+        }
     },
     components: {
         buildImageDrawer,
@@ -127,8 +161,32 @@ export default{
             this.logModal.jobName = record.jobName;
         },
         openAdd(){
-            this.biModal.show = true;
-            this.biModal.data = null;
+            this.runningTask.exist = false;
+            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false`,{loading:true}).then(res=>{
+                let list = res?.data?.items || [];
+                if(!list.length){
+                    this.biModal.show = true;
+                    this.biModal.data = null;
+                }else{
+                    let name = list[0]?.metadata?.name;
+                    let jobName = list[0]?.status?.jobName || '';
+                    this.runningTask = {
+                        exist: true,
+                        log: ()=>{
+                            this.showLog({jobName:jobName})
+                        },
+                        delete: ()=>{
+                            this.$modal.confirm({
+                                title: '提示',
+                                content: '确定要删除吗？',
+                                onOk: () => {
+                                    this.delItem({name:name})
+                                }
+                            });
+                        },
+                    }
+                }
+            })
         },
         openEdit(record){
             this.biModal.show = true;

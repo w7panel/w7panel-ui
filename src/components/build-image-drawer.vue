@@ -17,14 +17,16 @@
                 </a-form-item>
                 
                 <a-form-item label="推送地址" field="address">
-                    <a-input v-model="form.address" placeholder="请输入"></a-input>
+                    <a-input v-model="form.address" placeholder="xxx:xxx">
+                        <template #prepend>{{preAddress}}</template>
+                    </a-input>
                 </a-form-item>
-                <a-form-item label="用户名">
+                <!-- <a-form-item label="用户名">
                     <a-input v-model="form.username" placeholder="请输入"></a-input>
                 </a-form-item>
                 <a-form-item label="密码">
                     <a-input v-model="form.password" placeholder="请输入"></a-input>
-                </a-form-item>
+                </a-form-item> -->
             </a-form>
         </div>
     </a-drawer>
@@ -39,7 +41,13 @@ let templateData = {
     kind: "BuildImage",
     metadata: {
         name: "",
-        namespace: "default"
+        namespace: "default",
+        labels: {
+            "w7.cc/node": ""
+        },
+        annotations:{
+            "w7.cc/node-ip": ""
+        }
     },
     spec: {
         taskId: "",
@@ -60,12 +68,14 @@ let templateData = {
 }
 
 export default{
-    props: ['show','data'],
+    props: ['show','data','nodeName','nodeIp'],
     data(){
         return {
             namespaceActive: '',
             visible: false,
             currentData: {},
+
+            preAddress: 'registry.local.w7.cc/w7build/',
             form: {},
             upload: {},
             outEditorInfo: {
@@ -107,10 +117,13 @@ export default{
             }else{
                 this.currentData = JSON.parse(JSON.stringify(templateData));
                 this.currentData.metadata.name = 'buildimage-' + this.createName();
+                this.currentData.metadata.annotations['w7.cc/node-ip'] = this.nodeIp || '';
+                this.currentData.metadata.labels['w7.cc/node'] = this.nodeName || '';
                 this.currentData.spec.taskId = this.currentData.metadata.name;
                 this.currentData.metadata.namespace = this.namespaceActive;
                 this.currentData.spec.namespace = this.namespaceActive;
             }
+            console.log(this.currentData)
             this.dataToForm();
         },
         dataToForm(){
@@ -118,7 +131,7 @@ export default{
                 ...this.form,
                 dockerfilePath: this.currentData?.spec?.source?.dockerfilePath || '',
                 downloadUrl: this.currentData?.spec?.source?.downloadUrl || '',
-                address: this.currentData?.spec?.targetImage?.address || '',
+                address: this.currentData?.spec?.targetImage?.address?.replace(/^registry\.local\.w7\.cc\/w7build\//,'') || '',
                 username: this.currentData?.spec?.targetImage?.auth?.username || '',
                 password: this.currentData?.spec?.targetImage?.auth?.password || '',
             }
@@ -167,7 +180,7 @@ export default{
                         {
                             op: 'replace',
                             path: '/spec/targetImage/address',
-                            value: this.form.address,
+                            value: this.preAddress + this.form.address,
                         },
                         {
                             op: 'replace',
@@ -190,7 +203,7 @@ export default{
                     
                     this.currentData.spec.source.dockerfilePath = this.form.dockerfilePath;
                     this.currentData.spec.source.downloadUrl = this.form.downloadUrl;
-                    this.currentData.spec.targetImage.address = this.form.address;
+                    this.currentData.spec.targetImage.address = this.preAddress + this.form.address;
                     this.currentData.spec.targetImage.auth.username = this.form.username;
                     this.currentData.spec.targetImage.auth.password = this.form.password;
                     k8sproxy.post('/apis/buildimage.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/buildimages',this.currentData).then(res=>{

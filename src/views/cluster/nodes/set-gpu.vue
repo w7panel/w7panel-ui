@@ -12,7 +12,7 @@
         <div>
             
             <div v-if="!isInstall" class="mt-40">
-                <a-empty>GPU未安装，<span class="c-blue cursor" @click="toInstall">点击安装</span></a-empty>
+                <a-empty>GPU虚拟化应用未安装，<span class="c-blue cursor" @click="toInstallGPU">点击安装</span></a-empty>
             </div>
             <a-form v-else :model="data" auto-label-width class="padding-10">
                 <a-form-item label="启用GPU" style="margin-bottom:20px;">
@@ -174,7 +174,7 @@ export default {
     },
     methods: {
         async testInstall(){
-            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/nvidia-gpuoperator',{noAlert:true}).then(res=>{
+            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/vgpu-hami',{noAlert:true}).then(res=>{
                 this.isInstall = true;
             }).catch(()=>{})
         },
@@ -232,6 +232,12 @@ export default {
                 }
             }
             if(complete){ clearInterval(this.statusInterval); }
+        },
+        toInstallGPU(){
+            this.installCpn = {
+                show: true,
+                path: 'https://zpk.w7.cc/zpk/respo/info/vgpu_hami',
+            }
         },
         toInstall(){
             this.installCpn = {
