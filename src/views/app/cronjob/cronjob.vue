@@ -2,12 +2,14 @@
     <div class="padding-20">
         <route-breadcrumb />
         <div v-if="permission.includes('app-cronjob-add')" class="mb-20">
-            <a-button type="primary" @click="form.show=true;form.id='';"><template #icon><icon-plus /></template>新增</a-button>
+            <a-button v-if="activekey!='3'" type="primary" @click="form.show=true;form.id='';"><template #icon><icon-plus /></template>新增</a-button>
+            <a-button v-else type="primary" @click="$refs.buildimage.openAdd()"><template #icon><icon-plus /></template>新增构建镜像</a-button>
         </div>
         <div class="bg-white padding-20">
              <a-tabs v-model:active-key="activekey">
                 <a-tab-pane key="1" title="周期执行"></a-tab-pane>
                 <a-tab-pane key="2" title="单次执行"></a-tab-pane>
+                <a-tab-pane key="3" title="构建镜像"></a-tab-pane>
             </a-tabs>
 
             <div v-if="activekey=='1'" >
@@ -104,6 +106,9 @@
                     </template>
                 </a-table>
             </div>
+            <div v-else-if="activekey=='3'">
+                <build-image ref="buildimage"></build-image>
+            </div>
         </div>
 
         <!-- Pod 日志弹窗 -->
@@ -147,6 +152,7 @@ import { getUserInfo } from '@/utils/auth';
 import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue';
 import {useNamespaceStore} from "@/store";
+import buildImage from './build-image.vue';
 
 export default {
     components: {
@@ -206,6 +212,9 @@ export default {
         activekey(){
             this.getData();
         },
+    },
+    components: {
+        buildImage,
     },
     methods: {
         toApp(item){
