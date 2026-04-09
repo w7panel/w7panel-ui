@@ -307,7 +307,7 @@ export default {
                     list = list.map(i=>{
                         return {
                             statusSuccess: Boolean(!i.spec?.suspend && i.status?.succeeded),
-                            sourceName: i.metadata.annotations['w7.cc/job-source-name'],
+                            sourceName: i.metadata?.annotations?.['w7.cc/job-source-name'] || '',
                             startTime: new Date(i.status.startTime).getTime(),
                             searchJob: i.metadata?.labels?.searchJob,
                         }
@@ -331,7 +331,7 @@ export default {
                         let status_text = i.spec?.suspend? '挂起' : (i.status?.succeeded? '成功' : '失败');
                         let o = {
                             key: i.metadata.name,
-                            title: i.metadata.annotations.title,
+                            title: i.metadata?.annotations?.title || i.metadata.name,
                             name: i.metadata.name,
                             sourceName: i.metadata.annotations['w7.cc/job-source-name'],
                             sourceTitle: i.metadata.annotations['w7.cc/job-source-title'],
