@@ -60,8 +60,8 @@ let templateData = {
         targetImage: {
             address: "",
             auth: {
-                username: "",
-                password: ""
+                username: "w7panel",
+                password: "w7panel"
             }
         }
     }
@@ -131,7 +131,7 @@ export default{
                 ...this.form,
                 dockerfilePath: this.currentData?.spec?.source?.dockerfilePath || '',
                 downloadUrl: this.currentData?.spec?.source?.downloadUrl || '',
-                address: this.currentData?.spec?.targetImage?.address?.replace(/^registry\.local\.w7\.cc\/w7build\//,'') || '',
+                address: this.currentData?.spec?.targetImage?.address?.replace(/^registry\.local\.w7\.cc\/w7build\//,'') || `build:${this.createName()}`,
                 username: this.currentData?.spec?.targetImage?.auth?.username || '',
                 password: this.currentData?.spec?.targetImage?.auth?.password || '',
             }
