@@ -1,7 +1,13 @@
 <template>
     <div>
         
-        <a-button v-if="showCreateBtn" type="primary" @click="openAdd">构建镜像</a-button>
+        <a-button v-if="showCreateBtn" type="primary" @click="openForm">
+            <template v-if="runningTask.exist">
+                <icon-loading />
+                <span class="ml-4">任务执行中</span>
+            </template>
+            <span v-else>构建镜像</span>
+        </a-button>
 
         <a-table v-if="!hideList" :data="list" class="cptable" :pagination="false" :bordered="false">
             <template #columns>
@@ -40,7 +46,7 @@
             :data="biModal.data"
             :nodeName="nodeName"
             :nodeIp="nodeIp"
-            @close="v=>{biModal.show=false;v&&getList()}"
+            @close="v=>{biModal.show=false;v&&getList();v&&testIsBuilding();}"
         ></build-image-drawer>
 
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
@@ -56,7 +62,7 @@
             @close="logModal.show = false; logModal.jobName = '';"
         />
 
-        <a-modal
+        <!-- <a-modal
             width="600px"
             v-model:visible="runningTask.exist"
             title="提示"
@@ -66,7 +72,7 @@
             @cancel="runningTask.delete"
         >
             <div class="padding-20 txt-c">有正在执行的构建任务</div>
-        </a-modal>
+        </a-modal> -->
     </div>
 </template>
 <script>
@@ -106,6 +112,8 @@ export default{
                 log: ()=>{},
                 delete: ()=>{},
             },
+
+            setInterval: null,
         }
     },
     created(){
@@ -114,6 +122,17 @@ export default{
         this.namespaceActive = useNamespaceStore().namespace;
         if(!this.hideList){
             this.getList();
+        }
+        if(this.showCreateBtn){
+            this.testIsBuilding();
+            this.setInterval = setInterval(()=>{
+                this.testIsBuilding();
+            },5000)
+        }
+    },
+    beforeUnmount(){
+        if(this.setInterval){
+            clearInterval(this.setInterval);
         }
     },
     components: {
@@ -160,31 +179,24 @@ export default{
             this.logModal.show = true;
             this.logModal.jobName = record.jobName;
         },
-        openAdd(){
-            this.runningTask.exist = false;
-            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`,{loading:true}).then(res=>{
-                let list = res?.data?.items || [];
-                if(!list.length){
-                    this.biModal.show = true;
-                    this.biModal.data = null;
-                }else{
-                    let name = list[0]?.metadata?.name;
-                    let jobName = list[0]?.status?.jobName || '';
-                    this.runningTask = {
-                        exist: true,
-                        log: ()=>{
-                            this.showLog({jobName:jobName})
-                        },
-                        delete: ()=>{
-                            this.$modal.confirm({
-                                title: '提示',
-                                content: '确定要删除吗？',
-                                onOk: () => {
-                                    this.delItem({name:name})
-                                }
-                            });
-                        },
+        openForm(){
+            if(this.runningTask.exist){
+                this.runningTask.log();
+            }else{
+                this.biModal.show = true;
+                this.biModal.data = null;
+            }
+        },
+        testIsBuilding(){
+            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`).then(res=>{
+                this.runningTask.exist = (res?.data?.items || [])?.length>0;
+                if(this.runningTask.exist){
+                    let jobName = res.data.items[0]?.status?.jobName || '';
+                    this.runningTask.log = () => {
+                        this.showLog({jobName});
                     }
+                }else{
+                    this.runningTask.log = () => {};
                 }
             })
         },

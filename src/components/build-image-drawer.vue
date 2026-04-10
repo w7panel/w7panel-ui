@@ -210,7 +210,10 @@ export default{
                         headers: {'Content-Type': 'application/json-patch+json'},
                     }).then(()=>{
                         this.$message.success('操作成功');
-                        this.closeDrawer(true);
+                        this.closeDrawer({
+                            ...this.form,
+                            address: this.preAddress + this.form.address,
+                        });
                     });
                 }else{
                     
@@ -222,7 +225,10 @@ export default{
                     this.currentData.spec.targetImage.auth.password = this.form.password;
                     k8sproxy.post('/apis/buildimage.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/buildimages',this.currentData).then(res=>{
                         this.$message.success('操作成功')
-                        this.closeDrawer(true);
+                        this.closeDrawer({
+                            ...this.form,
+                            address: this.preAddress + this.form.address,
+                        });
                     });
                 }
             });

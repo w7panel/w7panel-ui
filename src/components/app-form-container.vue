@@ -90,6 +90,8 @@
                 
                 <a-form-item label="应用镜像" field="image" row-class="ac-form-item">
                     <a-input type="text" size="large" v-model="form.image" @input="testImage(index)" :spellcheck="false" style="width:500px;" placeholder="应用镜像"></a-input>
+                    
+                    <span class="ml-20 cursor c-blue" @click="openBuildImage(form)">代码包构建</span>
                 </a-form-item>
 
                 <a-form-item label="镜像仓库" row-class="ac-form-item">
@@ -426,16 +428,23 @@
                 :input-style="{lineHeight:'24px'}"
             />
         </a-modal>
+
+        <build-image-drawer
+            :show="biModal.show"
+            @close="v=>{biModal.show=false;biModal.callback(v)}"
+        ></build-image-drawer>
+
     </div>
 </template>
 <script>
-import { panelApi } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import { getToken, getUserInfo } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';
 import axios from 'axios';
 import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
 import healthProbe from '@/components/health-probe.vue';
 import Sortable from 'sortablejs';
+import buildImageDrawer from '@/components/build-image-drawer.vue'
 
 export default{
     props: ['data','volumes','volumeClaimTemplates','mirror','isPlugin','pluginData'],
@@ -470,6 +479,11 @@ export default{
 
             showif: true,
             token: '',
+
+            biModal: {
+                show: false,
+                callback: ()=>{},
+            },
         }
     },
     async created(){
@@ -491,6 +505,7 @@ export default{
     components: {
         imageformDrawer,
         healthProbe,
+        buildImageDrawer,
     },
     unmounted(){
         if(this.sortable){
@@ -498,6 +513,22 @@ export default{
         }
     },
     methods: {
+        openBuildImage(form){
+            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`).then(res=>{
+                let runningTaskExist = (res?.data?.items || [])?.length>0;
+                if(runningTaskExist){
+                    this.$message.warning('有正在运行的构建任务，请稍候');
+                }else{
+                    this.biModal.show = true;
+                    this.biModal.callback = (v)=>{
+                        if(v?.address){
+                            form.image = v.address;
+                            // form.imagePullPolicy = 'Always';
+                        }
+                    }
+                }
+            })
+        },
         startDrag(){
             let el = document.querySelector('.a-form-container-tabs .arco-tabs-nav-tab-list');
             if(!el){return}
