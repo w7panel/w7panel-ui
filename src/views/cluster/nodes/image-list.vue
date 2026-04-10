@@ -21,6 +21,8 @@
                     :nodeName="node"
                     :nodeIp="nodeIp"
                 ></build-image>
+
+                <!-- <a-button type="primary" class="ml-20" @click="openBuildContainer">打包容器镜像</a-button> -->
             </div>
             
             <a-table :data="list" :pagination="false" class="mt-20 nodeimagelisttable" :bordered="false">
@@ -90,6 +92,22 @@
                 </a-form-item>
             </a-form>
         </a-modal>
+
+        <a-drawer :width="800" :visible="buildContainer.show" title="打包容器镜像" @ok="toBuildContainer" @cancel="buildContainer.show=false" >
+            <a-form ref="buildContainer" :rules="bcRules" :model="buildContainer" auto-label-width style="padding:10px;">
+                <a-form-item label="容器" field="container">
+                    <select-container @complete="v=>buildContainer.container=v.containerObj"></select-container>
+                </a-form-item>
+                <a-form-item label="自定义命令" field="cmd">
+                    <a-textarea v-model="buildContainer.cmd" placeholder="请输入" style="width:620px;height:80px;" :spellcheck="false"/>
+                </a-form-item>
+                <a-form-item label="PINNED">
+                    <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
+                        <a-checkbox v-model="buildContainer.pinned">设置为PINNED</a-checkbox>
+                    </a-tooltip>
+                </a-form-item>
+            </a-form>
+        </a-drawer>
     </div>
 </template>
 
@@ -99,6 +117,7 @@ import { k8sproxy, panelApi } from '@/utils/api';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import buildImage from '@/views/cluster/nodes/build-image.vue';
+import selectContainer from '@/components/select-container.vue';
 
 export default {
     data(){
@@ -130,6 +149,17 @@ export default {
                 row: null,
                 newName: '',
             },
+
+            buildContainer: {
+                show: false,
+                container: '',
+                cmd: '',
+                pinned: false,
+            },
+            bcRules: {
+                container: [{required:true, message:'请选择容器'}],
+                cmd: [{required:true, message:'请输入命令'}],
+            },
         }
     },
     created(){
@@ -138,6 +168,7 @@ export default {
     },
     components: {
         buildImage,
+        selectContainer,
     },
     computed: {
         nodeIp(){
@@ -147,6 +178,18 @@ export default {
     mounted(){
     },
     methods: {
+        openBuildContainer(){
+            this.buildContainer = {
+                show: true,
+                container: '',
+                cmd: '',
+                pinned: false,
+            }
+        },
+        toBuildContainer(){
+
+        },
+
         openBuildImage(){
             k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=true`).then(res=>{
                 let list = res.data?.items || [];
@@ -173,16 +216,14 @@ export default {
             let node = this.nodeList.find(i=>i.name==this.node);
             if(!node){return}
             let ip = node.internalIP;
-            panelApi.get('/pid',{
-                params:{
-                    namespace: this.namespaceActive,
-                    HostIp: ip,
-                },
+            
+            panelApi.get('/registry/server-info',{
+                params:{hostIp: ip},
                 loading: true,
             }).then(res=>{
-                this.form.pid = res.data.pid;
-                this.form.subPid = res.data.subPid;
-                this.outEditorInfo = {agentUrl: res.data.agentUrl};
+                let url = res.data.requestUrl;
+                
+                this.outEditorInfo = {agentUrl: url};
                 this.getList();
             })
         },

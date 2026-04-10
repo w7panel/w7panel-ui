@@ -485,8 +485,10 @@
                                 placeholder="输入用户名或UID搜索"
                             >
                                 <template #suffix>
-                                    <icon-search />
-                                    <span class="ml-2">选择用户</span>
+                                    <div class="df ai-c cursor" @click="authority.chown='';">
+                                        <icon-search />
+                                        <span class="ml-2">选择用户</span>
+                                    </div>
                                 </template>
                             </a-auto-complete>
                         </a-form-item>

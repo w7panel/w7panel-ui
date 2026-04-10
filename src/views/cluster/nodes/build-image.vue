@@ -162,7 +162,7 @@ export default{
         },
         openAdd(){
             this.runningTask.exist = false;
-            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false`,{loading:true}).then(res=>{
+            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`,{loading:true}).then(res=>{
                 let list = res?.data?.items || [];
                 if(!list.length){
                     this.biModal.show = true;

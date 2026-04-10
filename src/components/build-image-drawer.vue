@@ -3,10 +3,10 @@
         <template #title>构建镜像</template>
         <div>
             <a-form ref="form" :model="form" :rules="rules" auto-label-width>
-                <a-form-item label="DockerfilePath" field="dockerfilePath">
+                <!-- <a-form-item label="DockerfilePath" field="dockerfilePath">
                     <a-input v-model="form.dockerfilePath" placeholder="请输入"></a-input>
-                </a-form-item>
-                <a-form-item label="构建源" field="downloadUrl">
+                </a-form-item> -->
+                <a-form-item label="代码包" field="downloadUrl">
                     <a-input v-model="form.downloadUrl" placeholder="请输入"></a-input>
                     
                     <div class="upload ml-10">
@@ -14,6 +14,10 @@
                         <a-button type="primary">上传</a-button>
                         <input ref="buildImageFileInput" type="file" accept="" @change="selectFile" />
                     </div>
+                </a-form-item>
+
+                <a-form-item label="构建目录" field="dockerContext">
+                    <a-input v-model="form.dockerContext" placeholder="请输入构建目录"></a-input>
                 </a-form-item>
                 
                 <a-form-item label="推送地址" field="address">
@@ -43,7 +47,9 @@ let templateData = {
         name: "",
         namespace: "default",
         labels: {
-            "w7.cc/node": ""
+            "w7.cc/node": "",
+            "w7.cc/build-finish": "false",
+            "w7.cc/build-from": "image-manager",
         },
         annotations:{
             "w7.cc/node-ip": ""
@@ -55,7 +61,7 @@ let templateData = {
         source: {
             dockerfilePath: "Dockerfile",
             downloadUrl: "",
-            dockerContext: ".",
+            dockerContext: "./",
         },
         targetImage: {
             address: "",
@@ -87,6 +93,7 @@ export default{
                 dockerfilePath: [{ required: true, message: '请输入DockerfilePath' }],
                 downloadUrl: [{ required: true, message: '请输入构建源' }],
                 address: [{ required: true, message: '请输入推送地址' }],
+                dockerContext: [{ required: true, message: '请输入构建目录' }],
             }
         }
     },
@@ -134,6 +141,7 @@ export default{
                 address: this.currentData?.spec?.targetImage?.address?.replace(/^registry\.local\.w7\.cc\/w7build\//,'') || `build:${this.createName()}`,
                 username: this.currentData?.spec?.targetImage?.auth?.username || '',
                 password: this.currentData?.spec?.targetImage?.auth?.password || '',
+                dockerContext: this.currentData?.spec?.source?.dockerContext || '',
             }
         },
         closeDrawer(v){
@@ -179,6 +187,11 @@ export default{
                         },
                         {
                             op: 'replace',
+                            path: '/spec/source/dockerContext',
+                            value: this.form.dockerContext,
+                        },
+                        {
+                            op: 'replace',
                             path: '/spec/targetImage/address',
                             value: this.preAddress + this.form.address,
                         },
@@ -203,6 +216,7 @@ export default{
                     
                     this.currentData.spec.source.dockerfilePath = this.form.dockerfilePath;
                     this.currentData.spec.source.downloadUrl = this.form.downloadUrl;
+                    this.currentData.spec.source.dockerContext = this.form.dockerContext;
                     this.currentData.spec.targetImage.address = this.preAddress + this.form.address;
                     this.currentData.spec.targetImage.auth.username = this.form.username;
                     this.currentData.spec.targetImage.auth.password = this.form.password;
