@@ -94,8 +94,8 @@
         </a-modal>
 
         <a-drawer :width="800" :visible="buildContainer.show" title="打包容器镜像" @ok="toBuildContainer" @cancel="buildContainer.show=false" >
-            <a-form ref="buildContainer" :rules="bcRules" :model="buildContainer" auto-label-width style="padding:10px;">
-                <a-form-item label="容器" field="container">
+            <a-form ref="bcForm" :rules="bcRules" :model="buildContainer" auto-label-width style="padding:10px;">
+                <a-form-item label="容器" field="container" :validate-trigger="[]">
                     <select-container @complete="v=>buildContainer.container=v.containerObj"></select-container>
                 </a-form-item>
                 <a-form-item label="自定义命令" field="cmd">
@@ -178,6 +178,23 @@ export default {
     mounted(){
     },
     methods: {
+        
+        // async exec(data){
+        //     // data: {pid:{...}, command:'...'}
+        //     let pidData = await this.getPid(data.pid);
+            
+        //     let preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
+        //     let command = `${preCmd} --pid=${pidData?.pid} --subPid=${pidData?.subPid} ${data.command}`;
+            
+        //     return panelApi.post(`/exec2`,{
+        //         podName: pidData?.pod_name,
+        //         containerName: pidData?.containerName,
+        //         tty: false,
+        //         namespace: pidData?.namespace,
+        //         command: ['sh', '-c', command],
+        //     },{responseType: 'text', loading:true, noAlert:true})
+        // },
+
         openBuildContainer(){
             this.buildContainer = {
                 show: true,
@@ -187,7 +204,10 @@ export default {
             }
         },
         toBuildContainer(){
-
+            this.$refs.bcForm.validate((err)=>{
+                if(err){return;}
+                
+            });
         },
 
         openBuildImage(){
@@ -221,14 +241,14 @@ export default {
                 params:{hostIp: ip},
                 loading: true,
             }).then(res=>{
-                let url = res.data.requestUrl;
+                let url = res.data?.requestUrl || '';
                 
                 this.outEditorInfo = {agentUrl: url};
                 this.getList();
             })
         },
         getList(){
-            axios.get(this.outEditorInfo.agentUrl+'/panel-api/v1/registry/patch/images/list',{
+            axios.get(this.outEditorInfo.agentUrl.replace(/\/$/,'')+'/panel-api/v1/registry/patch/images/list',{
                 loading: true,
             }).then(res=>{
                 this.list = res.data.map(i=>{
