@@ -95,8 +95,8 @@
 
         <a-drawer :width="800" :visible="buildContainer.show" title="打包容器镜像" @ok="toBuildContainer" @cancel="buildContainer.show=false" >
             <a-form ref="bcForm" :rules="bcRules" :model="buildContainer" auto-label-width style="padding:10px;">
-                <a-form-item label="容器" field="container" :validate-trigger="[]">
-                    <select-container @complete="v=>buildContainer.container=v.containerObj"></select-container>
+                <a-form-item label="容器" field="containerName" :validate-trigger="[]">
+                    <select-container @complete="v=>{buildContainer.appName=v.app;buildContainer.containerName=v.container;}"></select-container>
                 </a-form-item>
                 <a-form-item label="自定义命令" field="cmd">
                     <a-textarea v-model="buildContainer.cmd" placeholder="请输入" style="width:620px;height:80px;" :spellcheck="false"/>
@@ -128,7 +128,9 @@ export default {
             list: [],
             
             // 上传
-            outEditorInfo: {},
+            outEditorInfo: {
+                agentUrl: '',
+            },
             upload: {},
             partPath: '/tmp/',
             form: {},
@@ -152,12 +154,14 @@ export default {
 
             buildContainer: {
                 show: false,
-                container: '',
+                appName: '',
+                containerName: '',
+                podName: '',
                 cmd: '',
                 pinned: false,
             },
             bcRules: {
-                container: [{required:true, message:'请选择容器'}],
+                containerName: [{required:true, message:'请选择容器'}],
                 cmd: [{required:true, message:'请输入命令'}],
             },
         }
@@ -179,34 +183,57 @@ export default {
     },
     methods: {
         
-        // async exec(data){
-        //     // data: {pid:{...}, command:'...'}
-        //     let pidData = await this.getPid(data.pid);
-            
-        //     let preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
-        //     let command = `${preCmd} --pid=${pidData?.pid} --subPid=${pidData?.subPid} ${data.command}`;
-            
-        //     return panelApi.post(`/exec2`,{
-        //         podName: pidData?.pod_name,
-        //         containerName: pidData?.containerName,
-        //         tty: false,
-        //         namespace: pidData?.namespace,
-        //         command: ['sh', '-c', command],
-        //     },{responseType: 'text', loading:true, noAlert:true})
-        // },
+        async exec(data){
+            return panelApi.post(`/exec2`,{
+                podName: data?.podName,
+                containerName: data?.containerName,
+                tty: false,
+                namespace: this.namespaceActive,
+                command: ['sh', '-c', data.command],
+            },{responseType: 'text', loading:true, noAlert:true})
+        },
 
         openBuildContainer(){
             this.buildContainer = {
                 show: true,
-                container: '',
+                podName: '',
+                appName: '',
+                containerName: '',
                 cmd: '',
                 pinned: false,
             }
         },
         toBuildContainer(){
-            this.$refs.bcForm.validate((err)=>{
+            this.$refs.bcForm.validate(async (err)=>{
                 if(err){return;}
                 
+                // 获取pod名称
+                let podName = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=app=" + this.buildContainer.appName,{
+                    loading: true,
+                }).then(res=>{
+                    return res?.data?.items?.[0]?.metadata?.name;
+                }).catch(()=>{});
+                if(!podName){
+                    this.$message.error('未找到应用对应的pod');
+                    return;
+                }
+                // 执行命令
+                try{
+                    await this.exec({
+                        podName: podName,
+                        containerName: this.buildContainer.containerName,
+                        command: this.buildContainer.cmd,
+                        namespace: this.namespaceActive,
+                    });
+                }catch{
+                    this.$message.error('执行命令失败');
+                    return;
+                }
+                
+                axios.post(this.outEditorInfo.agentUrl.replace(/\/$/,'')+'/panel-api/v1/containers/image/export-push',{
+                    
+                });
+
             });
         },
 
