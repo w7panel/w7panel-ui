@@ -6,7 +6,7 @@
             title-align="start"
             width="1000px"
             :footer="false"
-            @cancel="closeDrawer()"
+            @cancel="closeDrawer(true)"
             :mask-closable="false"
         >
             <div class="df df-c ai-c" style="height:360px;">
@@ -27,7 +27,7 @@
                     <div class="item df ai-c">
                         <div class="fc df ai-c" style="overflow:hidden;">
                             <span class="df-s0">执行命令</span>
-                            <span class="fc ml-20 c-99 one-hide txt-overhidden cursor">{{exec.result}}</span>
+                            <span class="fc ml-20 c-99 one-hide txt-overhidden cursor" @click="log.type='exec';openLog();">{{exec.result}}</span>
                         </div>
                         <div class="df-s0 ml-20">
                             <icon-check-circle-fill v-if="exec.status==1" class="c-green" />
@@ -42,7 +42,7 @@
                     <div class="item df ai-c">
                         <div class="fc df ai-c" style="overflow:hidden;">
                             <span class="df-s0">镜像推送</span>
-                            <span class="fc ml-20 c-99 txt-overhidden cursor"></span>
+                            <span class="fc ml-20 c-99 one-hide txt-overhidden cursor" @click="log.type='imagePush';openLog();">{{imagePush.lastRow}}</span>
                         </div>
                         <div class="df-s0 ml-20">
                             <icon-check-circle-fill v-if="imagePush.status==1" class="c-green" />
@@ -58,7 +58,7 @@
             </div>
         </a-modal>
 
-        <a-modal v-model:visible="log.show">
+        <a-modal title="详情" width="900px" v-model:visible="log.show" :footer="false">
             <div class="log-terminal" ref="bislog"></div>
         </a-modal>
     </div>
@@ -66,8 +66,12 @@
 <script>
 import { useNamespaceStore } from '@/store';
 import { panelApi } from '@/utils/api';
+import { Terminal } from '@xterm/xterm';
+import '@xterm/xterm/css/xterm.css';
+import { FitAddon } from '@xterm/addon-fit';
+import axios from 'axios';
 export default{
-    props: ['show','data'],
+    props: ['show','data','outEditorInfo'],
     data(){
         return {
             namespaceActive: 'default',
@@ -79,11 +83,16 @@ export default{
             },
             imagePush: {
                 status: 3,
+                result: '',
+                lastRow: '',
             },
             log: {
                 show: false,
                 data: '',
+                type: '',
             },
+            term: null,
+            fitAddon: null,
         }
     },
     computed: {
@@ -96,7 +105,7 @@ export default{
     watch: {
         show(v){
             this.visible = v;
-            this.init();
+            v && this.init();
         },
     },
     created(){
@@ -125,7 +134,6 @@ export default{
         },
         async getStatus(){
             let buildContainer = this.data;
-            console.log('ccccccccc',this.data)
             // 执行命令
             if(buildContainer.cmd){
                 try{
@@ -135,6 +143,7 @@ export default{
                         command: buildContainer.cmd,
                     });
                     this.exec.result = data;
+                    this.exec.status = 1;
                 }catch{
                     this.exec.status = 2;
                 }
@@ -142,48 +151,108 @@ export default{
                 this.exec.status = 1;
                 this.exec.result = '';
             }
-            return;
+            
             try{
+                this.imagePush.result = '';
                 await axios.post(this.outEditorInfo.agentUrl.replace(/\/$/,'')+'/panel-api/v1/containers/image/export-push',{
                     containerID: buildContainer.containerID?.replace?.(/^containerd:\/\//,''),
                     imageName: buildContainer.imageName?.replace?.(/^registry\.local\.w7\.cc\/w7build\//,''),
                     registryDomain: this.outEditorInfo.registryDomain,
                 },{
-                    loading: true,
+                    // loading: true,
                     timeout: 0,
+                    // 👇 关键：开启流式响应，实时获取返回数据
+                    responseType: 'stream',
+                    onDownloadProgress: async (progressEvent) => {
+                        try {
+                            // 实时获取返回的文本内容
+                            const chunk = progressEvent.target.responseText;
+                            if (chunk) {
+                                this.imagePush.result += chunk;
+                                this.imagePush.lastRow = chunk.split('\n').filter(Boolean).pop();
+
+                                if(this.log.show && this.log.type=='imagePush'){
+                                    this.writeChunk(chunk);
+                                }
+                            }
+                        } catch (e) {}
+                    },
                 }).then(async res=>{
-
-                    if(buildContainer.pinned){
-                        
-                        await axios.post(this.outEditorInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
-                            "name": buildContainer.imageName?.replace?.(/^registry\.local\.w7\.cc\/w7build\//,''),
-                            "labels": {"io.cri.containerd.pinned":"pinned", "io.cattle.k3s.pinned":"pinned"},
-                            "replace": true,
-                        },{
-                            loading: true,
-                        }).then(()=>{}).catch(()=>{});
-                    }
-
-                    this.$message.success('操作成功');
-                    buildContainer.show = false;
-                    this.getList();
-                })
+                    this.imagePush.status = 1;
+                    console.log('镜像推送成功');
+                }).catch(err=>{ 
+                    console.log('镜像推送失败: ' + (err.response?.data?.message || err.message || '未知错误'));
+                    this.imagePush.status = 2;
+                });
             }catch(err){
                 console.log('镜像推送失败: ' + (err.response?.data?.message || err.message || '未知错误'));
+                this.imagePush.status = 2;
                 return;
+            }
+            
+            if(buildContainer.pinned){
+                await axios.post(this.outEditorInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
+                    "name": buildContainer.imageName?.replace?.(/^registry\.local\.w7\.cc\/w7build\//,''),
+                    "labels": {"io.cri.containerd.pinned":"pinned", "io.cattle.k3s.pinned":"pinned"},
+                    "replace": true,
+                },{
+                    noAlert: true,
+                    // loading: true,
+                }).then(()=>{}).catch(()=>{});
             }
         },
         openLog(){
-
+            this.log.show = true;
+            if(this.log.type=='exec'){
+                this.log.data = this.exec.result;
+            }else if(this.log.type=='imagePush'){
+                this.log.data = this.imagePush.result;
+            }
+            this.$nextTick(()=>{
+                this.initTerm();
+                if(this.log.data){
+                    let text = this.log.data.replace(/\x20+/g, ' ');
+                    text = text.replace(/(?<!\r)\n/g, '\r\n');
+                    this.$nextTick(()=>{
+                        this.term?.write(text);
+                        this.fitAddon?.fit();
+                    });
+                }
+            });
         },
         initTerm(){
-
+            if(this.term){
+                try { this.term.dispose(); } catch{}
+                this.term = null;
+                this.fitAddon = null;
+            }
+            let dom = this.$refs.bislog;
+            if(!dom) return;
+            dom.innerHTML = '';
+            this.term = new Terminal({
+                cursorBlink: false,
+            });
+            this.term.open(dom);
+            this.fitAddon = new FitAddon();
+            this.term.loadAddon(this.fitAddon);
+            this.$nextTick(()=>{
+                this.fitAddon.fit();
+            });
         },
-        writeChunk(){
-            
+        writeChunk(chunk){
+            if(!this.term) return;
+            try {
+                let text = chunk.replace(/\x20+/g, ' ');
+                text = text.replace(/(?<!\r)\n/g, '\r\n');
+                this.term.write(text);
+            } catch{}
         },
         closeDrawer(v){
             this.visible = false;
+            this.log.show = false;
+            try {
+                if(this.term){ this.term.dispose(); this.term = null; this.fitAddon = null; }
+            } catch{}
             this.$emit('close',v);
         },
     }

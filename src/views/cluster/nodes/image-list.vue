@@ -96,7 +96,7 @@
         <a-drawer :width="800" :visible="buildContainer.show" title="打包容器镜像" @ok="toBuildContainer" @cancel="buildContainer.show=false" >
             <a-form ref="bcForm" :rules="bcRules" :model="buildContainer" auto-label-width style="padding:10px;">
                 <a-form-item label="容器" field="containerName" :validate-trigger="[]">
-                    <select-container @change="handleSelectContainer"></select-container>
+                    <select-container v-if="buildContainer.show" @change="handleSelectContainer"></select-container>
                 </a-form-item>
                 <a-form-item label="自定义命令" field="cmd">
                     <a-textarea v-model="buildContainer.cmd" placeholder="请输入" style="width:620px;height:80px;" :spellcheck="false"/>
@@ -113,7 +113,8 @@
         <build-image-status
             :show="buildImageStatus.show"
             :data="buildImageStatus.data"
-            @close="buildImageStatus.show=false"
+            :outEditorInfo="outEditorInfo"
+            @close="buildImageStatus.show=false;getList()"
         ></build-image-status>
 
     </div>
