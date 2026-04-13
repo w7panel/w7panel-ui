@@ -53,19 +53,34 @@
                             </template>
                         </a-table-column>
 
-                        <a-table-column v-if="usermode!=='cluster' && hasLonghornSystem" title="副本数">
+                        <a-table-column v-if="usermode!=='cluster' && hasLonghornSystem" title="副本数" width="100">
                             <template #cell="{ record }">{{record.numberOfReplicas}}</template>
                         </a-table-column>
-                        <a-table-column v-if="usermode!=='cluster' && hasLonghornSystem" title="已使用/分配">
+                        <a-table-column v-if="usermode!=='cluster' && hasLonghornSystem" title="已使用/分配" align="center">
                             <template #cell="{ record }">
-                                <div class="df df-inline df-c ai-c">
-                                    <a-progress :percent="record.usedSizeNum / record.storageSizeNum" style="width:100px;" :status="(record.usedSizeNum / record.storageSizeNum)>=1?'danger':'normal'" :stroke-width="10" trackColor="rgb(var(--primary-2))" :show-text="false" />
-                                    <span class="fs-12 mt-4 lh-1">{{record.usedSize}} / {{record.storageSize}}</span>
+                                <div class="df df-c ai-c">
+                                    <!-- <a-progress :percent="record.usedSizeNum / record.storageSizeNum" style="width:100px;" :status="(record.usedSizeNum / record.storageSizeNum)>=1?'danger':'normal'" :stroke-width="10" trackColor="rgb(var(--primary-2))" :show-text="false" /> -->
+                                    <div class="custom-progress">
+                                        <div v-if="record.snapShotNum" class="progress-wraning" :style="{width:(record.snapShotNum / record.storageSizeNum * 100)+'%' }"></div>
+                                        <div class="progress-primary" :style="{width:(record.usedSizeNum / record.storageSizeNum * 100)+'%'}"></div>
+                                    </div>
+                                    <span class="fs-12 mt-4 lh-1">{{record.snapShotNum?`${record.snapShot} / `:''}}{{record.usedSize}} / {{record.storageSize}}</span>
                                 </div>
                             </template>
                         </a-table-column>
                         <a-table-column v-if="usermode=='cluster' && hasLonghornSystem" title="已使用">
                             <template #cell="{ record }">{{record.usedSize}}</template>
+                        </a-table-column>
+
+                        <a-table-column title="快照总大小">
+                            <template #title>
+                                <span>快照总大小</span>
+                                
+                                <a-tooltip content="快照大小会占用分配的容量">
+                                    <icon-question-circle-fill class="ml-4 c-99 cursor" />
+                                </a-tooltip>
+                            </template>
+                            <template #cell="{ record }">{{record.snapShotNum?record.snapShot:'-'}}</template>
                         </a-table-column>
 
                         <a-table-column title="访问模式">
@@ -216,6 +231,7 @@ export default {
                         accessModes: i.spec?.accessModes?.join(',') || '',
                         storageSize: this.btog(size),
                         storageSizeNum: this.gtob(size),
+
                         storageClassName: i.spec?.storageClassName,
                         create: window.formatDate(i?.metadata?.creationTimestamp),
                         status: i.status?.phase,
@@ -246,6 +262,8 @@ export default {
                                 obj.usedSize = 0;
                                 obj.usedSizeNum = 0;
                             }
+                            obj.snapShot = this.btog(obj.snapShotSize);
+                            obj.snapShotNum = Number(obj.snapShotSize);
     
                             return {
                                 ...i,
@@ -461,7 +479,7 @@ export default {
             
             // 提取数值和单位
             const match = String(input).match(/^(\d+\.?\d*)\s*(\D*)$/);
-            if (!match) return '无效输入';
+            if (!match) return '-';
             
             const [, num, unit] = match;
             const bytes = parseFloat(num) * (units[unit] || 1);
@@ -598,6 +616,37 @@ export default {
 .point.c-green{background:#00A870;}
 .point.c-blue{color:rgb(var(--primary-6));}
 .point.c-brown{color:#C37937;}
+
+/* custom-progress styles to match a-progress */
+.custom-progress {
+    position: relative;
+    width: 120px; /* Match the width used in template */
+    height: 10px; /* Match stroke-width */
+    background-color: rgb(var(--primary-2));
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    vertical-align: middle;
+    margin: 0 8px;
+}
+
+.custom-progress .progress-primary {
+    height: 100%;
+    background-color: rgb(var(--primary-6));
+    transition: width 0.6s ease;
+}
+
+.custom-progress .progress-wraning {
+    height: 100%;
+    background-color: rgb(var(--orange-5));
+    transition: width 0.6s ease;
+}
+.custom-progress :first-child{
+    border-radius: 10px 0 0 10px;
+}
+.custom-progress :last-child { 
+    border-radius: 0 10px 10px 0;
+}
 
 /* 默认状态 - 始终显示图标 */
 .default-status {

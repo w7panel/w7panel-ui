@@ -247,7 +247,7 @@ export default {
                 this.buildContainer.podName = podName;
                 this.buildContainer.containerID = containerID;
                 
-                console.table({podName,imageName,containerID})
+                // console.table({podName,imageName,containerID})
             }catch{
                 this.$message.error('未找到应用对应的pod');
                 return;

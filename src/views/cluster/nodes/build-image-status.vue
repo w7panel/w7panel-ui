@@ -27,7 +27,7 @@
                     <div class="item df ai-c">
                         <div class="fc df ai-c" style="overflow:hidden;">
                             <span class="df-s0">执行命令</span>
-                            <span class="fc ml-20 c-99 one-hide txt-overhidden cursor" @click="log.type='exec';openLog();">{{exec.result}}</span>
+                            <span class="fc ml-20 c-99 one-hide txt-overhidden cursor" @click="log.type='exec';openLog();">{{exec.lastRow}}</span>
                         </div>
                         <div class="df-s0 ml-20">
                             <icon-check-circle-fill v-if="exec.status==1" class="c-green" />
@@ -36,6 +36,7 @@
                             <span v-if="exec.status==2" class="ml-6">失败</span>
                             <icon-loading v-if="exec.status==3" />
                             <span v-if="exec.status==3" class="ml-6">执行中...</span>
+                            <span v-if="exec.status==0" class="ml-6">未执行</span>
                         </div>
                     </div>
 
@@ -51,6 +52,7 @@
                             <span v-if="imagePush.status==2" class="ml-6">失败</span>
                             <icon-loading v-if="imagePush.status==3" />
                             <span v-if="imagePush.status==3" class="ml-6">执行中...</span>
+                            <span v-if="imagePush.status==0" class="ml-6">未执行</span>
                         </div>
                     </div>
                 </div>
@@ -70,6 +72,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { FitAddon } from '@xterm/addon-fit';
 import axios from 'axios';
+import { getToken } from '@/utils/auth';
 export default{
     props: ['show','data','outEditorInfo'],
     data(){
@@ -78,11 +81,12 @@ export default{
             title: "打包容器镜像",
             visible: false,
             exec: {
-                status: 3,
+                status: 0,
                 result: '',
+                lastRow: '',
             },
             imagePush: {
-                status: 3,
+                status: 0,
                 result: '',
                 lastRow: '',
             },
@@ -93,6 +97,9 @@ export default{
             },
             term: null,
             fitAddon: null,
+
+            socket: null,
+            socketClose: false,
         }
     },
     computed: {
@@ -124,25 +131,58 @@ export default{
         },
         
         async runExec(data){
-            return panelApi.post(`/exec2`,{
-                podName: data?.podName,
-                containerName: data?.containerName,
-                tty: false,
-                namespace: this.namespaceActive,
-                command: ['sh', '-c', data.command],
-            },{responseType: 'text', loading:true, noAlert:true})
+            let baseURL = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host;
+            let url = baseURL + '/panel-api/v1/exec';
+            
+            const params = new URLSearchParams();
+            params.set('podName', data?.podName || '');
+            params.set('namespace', this.namespaceActive);
+            params.set('containerName', data?.containerName || '');
+            params.append('command', '/bin/sh');
+            params.append('command', '-c');
+            params.append('command', data.command);
+            params.set('tty', 'false');
+            params.set('api-token', getToken());
+            
+            return new Promise((resolve, reject) => { 
+                let result = '';
+                this.socket = new WebSocket(`${url}?${params.toString()}`);
+                this.socket.onopen = () => {
+                    this.socketClose = false;
+                }
+                this.socket.onmessage = (res) => {
+                    let chunk = res?.data;
+                    result += chunk;
+                    this.exec.result = result;
+                    this.exec.lastRow = chunk.split('\n').filter(Boolean).pop();
+                    // 日志弹窗打开且类型匹配时实时写入终端
+                    if(this.log.show && this.log.type == 'exec'){
+                        this.writeChunk(chunk);
+                    }
+                }
+                this.socket.onclose = ()=>{
+                    this.socketClose = true;
+                    resolve({data: result});
+                }
+                this.socket.onerror = (e)=>{
+                    this.socketClose = true;
+                    reject(e);
+                }
+            });
         },
         async getStatus(){
             let buildContainer = this.data;
+            this.exec.status = 0;
+            this.imagePush.status = 0;
+            
             // 执行命令
             if(buildContainer.cmd){
                 try{
-                    let { data } = await this.runExec({
+                    await this.runExec({
                         podName: buildContainer.podName,
                         containerName: buildContainer.containerName,
                         command: buildContainer.cmd,
                     });
-                    this.exec.result = data;
                     this.exec.status = 1;
                 }catch{
                     this.exec.status = 2;
@@ -166,7 +206,7 @@ export default{
                     onDownloadProgress: async (progressEvent) => {
                         try {
                             // 实时获取返回的文本内容
-                            const chunk = progressEvent.target.responseText;
+                            const chunk = progressEvent?.target?.responseText || progressEvent?.event?.target?.responseText;
                             if (chunk) {
                                 this.imagePush.result += chunk;
                                 this.imagePush.lastRow = chunk.split('\n').filter(Boolean).pop();
@@ -250,6 +290,11 @@ export default{
         closeDrawer(v){
             this.visible = false;
             this.log.show = false;
+            if(this.socket && !this.socketClose){
+                try { this.socket.close(); } catch{}
+                this.socketClose = true;
+                this.socket = null;
+            }
             try {
                 if(this.term){ this.term.dispose(); this.term = null; this.fitAddon = null; }
             } catch{}
