@@ -138,7 +138,7 @@ export default{
                 ...this.form,
                 dockerfilePath: this.currentData?.spec?.source?.dockerfilePath || '',
                 downloadUrl: this.currentData?.spec?.source?.downloadUrl || '',
-                address: this.currentData?.spec?.targetImage?.address?.replace(/^registry\.local\.w7\.cc\/w7build\//,'') || `build:${this.createName()}`,
+                address: this.currentData?.spec?.targetImage?.address?.replace?.(/^registry\.local\.w7\.cc\/w7build\//,'') || `build:${this.createName()}`,
                 username: this.currentData?.spec?.targetImage?.auth?.username || '',
                 password: this.currentData?.spec?.targetImage?.auth?.password || '',
                 dockerContext: this.currentData?.spec?.source?.dockerContext || '',

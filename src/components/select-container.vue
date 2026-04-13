@@ -81,6 +81,15 @@ export default {
             this.selectedContainer = '';
             this.appList = [];
             this.containerList = [];
+
+            this.$emit('change', {
+                group: val || '',
+                app: '',
+                kind: '',
+                container: '',
+                containerObj: {},
+            });
+
             if (!val) return;
             this.getAppList(val);
         },
@@ -103,8 +112,17 @@ export default {
         onAppChange(val) {
             this.selectedContainer = '';
             this.containerList = [];
-            if (!val) return;
             let app = this.appList.find(i => i.key === val);
+
+            this.$emit('change', {
+                group: this.selectedGroup,
+                app: app?.name || '',
+                kind: app?.kind || '',
+                container: '',
+                containerObj: {},
+            });
+
+            if (!val) return;
             if (app) {
                 this.getContainerList(app.kind, app.name);
             }
@@ -129,13 +147,15 @@ export default {
             if (!val || !this.selectedApp) return;
             let app = this.appList.find(i => i.key === this.selectedApp);
             let containerObj = this.containerList.find(i => i.name === val);
-            this.$emit('complete', {
+            let obj = {
                 group: this.selectedGroup,
                 app: app?.name || '',
                 kind: app?.kind || '',
                 container: val,
                 containerObj: containerObj || {},
-            });
+            }
+            this.$emit('change', obj);
+            this.$emit('complete', obj);
         },
     }
 }

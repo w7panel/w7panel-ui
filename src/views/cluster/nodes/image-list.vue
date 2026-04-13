@@ -22,7 +22,7 @@
                     :nodeIp="nodeIp"
                 ></build-image>
 
-                <!-- <a-button type="primary" class="ml-20" @click="openBuildContainer">打包容器镜像</a-button> -->
+                <a-button type="primary" class="ml-20" @click="openBuildContainer">打包容器镜像</a-button>
             </div>
             
             <a-table :data="list" :pagination="false" class="mt-20 nodeimagelisttable" :bordered="false">
@@ -96,11 +96,12 @@
         <a-drawer :width="800" :visible="buildContainer.show" title="打包容器镜像" @ok="toBuildContainer" @cancel="buildContainer.show=false" >
             <a-form ref="bcForm" :rules="bcRules" :model="buildContainer" auto-label-width style="padding:10px;">
                 <a-form-item label="容器" field="containerName" :validate-trigger="[]">
-                    <select-container @complete="v=>{buildContainer.appName=v.app;buildContainer.containerName=v.container;}"></select-container>
+                    <select-container @change="handleSelectContainer"></select-container>
                 </a-form-item>
                 <a-form-item label="自定义命令" field="cmd">
                     <a-textarea v-model="buildContainer.cmd" placeholder="请输入" style="width:620px;height:80px;" :spellcheck="false"/>
                 </a-form-item>
+                <a-form-item v-if="buildContainer.imageName" label="镜像名称">{{buildContainer.imageName}}</a-form-item>
                 <a-form-item label="PINNED">
                     <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
                         <a-checkbox v-model="buildContainer.pinned">设置为PINNED</a-checkbox>
@@ -108,6 +109,13 @@
                 </a-form-item>
             </a-form>
         </a-drawer>
+        
+        <build-image-status
+            :show="buildImageStatus.show"
+            :data="buildImageStatus.data"
+            @close="buildImageStatus.show=false"
+        ></build-image-status>
+
     </div>
 </template>
 
@@ -118,6 +126,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import buildImage from '@/views/cluster/nodes/build-image.vue';
 import selectContainer from '@/components/select-container.vue';
+import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';
 
 export default {
     data(){
@@ -156,13 +165,19 @@ export default {
                 show: false,
                 appName: '',
                 containerName: '',
-                podName: '',
                 cmd: '',
                 pinned: false,
+                imageName: '',
+                podName: '',
+                containerID: '',
             },
             bcRules: {
                 containerName: [{required:true, message:'请选择容器'}],
-                cmd: [{required:true, message:'请输入命令'}],
+                // cmd: [{required:true, message:'请输入命令'}],
+            },
+
+            buildImageStatus: {
+                show: false,
             },
         }
     },
@@ -173,6 +188,7 @@ export default {
     components: {
         buildImage,
         selectContainer,
+        buildImageStatus,
     },
     computed: {
         nodeIp(){
@@ -196,43 +212,60 @@ export default {
         openBuildContainer(){
             this.buildContainer = {
                 show: true,
-                podName: '',
                 appName: '',
                 containerName: '',
                 cmd: '',
                 pinned: false,
+                imageName: '',
+                podName: '',
+                containerID: '',
+            }
+        },
+        async handleSelectContainer(v){
+
+            this.buildContainer.appName = v?.app || '';
+            this.buildContainer.containerName = v?.container || '';
+            this.buildContainer.imageName = '';
+            this.buildContainer.podName = '';
+            this.buildContainer.containerID = '';
+            if(!v.app || !v.container){return;}
+
+            // 获取pod名称
+            try{
+                let {podName,imageName,containerID} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=app=" + this.buildContainer.appName,{
+                    loading: true,
+                }).then(res=>{
+                    return {
+                        podName: res?.data?.items?.[0]?.metadata?.name,
+                        imageName: res?.data?.items?.[0]?.spec?.containers?.[0]?.image + '-' + dayjs().unix(),
+                        containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
+                    };
+                }).catch(()=>{});
+    
+                this.buildContainer.imageName = imageName;
+                this.buildContainer.podName = podName;
+                this.buildContainer.containerID = containerID;
+                
+                console.table({podName,imageName,containerID})
+            }catch{
+                this.$message.error('未找到应用对应的pod');
+                return;
             }
         },
         toBuildContainer(){
             this.$refs.bcForm.validate(async (err)=>{
                 if(err){return;}
-                
-                // 获取pod名称
-                let podName = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=app=" + this.buildContainer.appName,{
-                    loading: true,
-                }).then(res=>{
-                    return res?.data?.items?.[0]?.metadata?.name;
-                }).catch(()=>{});
-                if(!podName){
+
+                if(!this.buildContainer.podName){
                     this.$message.error('未找到应用对应的pod');
                     return;
                 }
-                // 执行命令
-                try{
-                    await this.exec({
-                        podName: podName,
-                        containerName: this.buildContainer.containerName,
-                        command: this.buildContainer.cmd,
-                        namespace: this.namespaceActive,
-                    });
-                }catch{
-                    this.$message.error('执行命令失败');
-                    return;
-                }
+
                 
-                axios.post(this.outEditorInfo.agentUrl.replace(/\/$/,'')+'/panel-api/v1/containers/image/export-push',{
-                    
-                });
+                this.buildImageStatus = {
+                    show: true,
+                    data: this.buildContainer
+                }
 
             });
         },
@@ -270,7 +303,10 @@ export default {
             }).then(res=>{
                 let url = res.data?.requestUrl || '';
                 
-                this.outEditorInfo = {agentUrl: url};
+                this.outEditorInfo = {
+                    agentUrl: url,
+                    registryDomain: res.data?.requestHost || '',
+                };
                 this.getList();
             })
         },
