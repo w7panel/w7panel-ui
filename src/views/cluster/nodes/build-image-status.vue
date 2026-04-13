@@ -177,6 +177,8 @@ export default{
             
             // 执行命令
             if(buildContainer.cmd){
+                this.exec.result = '';
+                this.exec.status = 3;
                 try{
                     await this.runExec({
                         podName: buildContainer.podName,
@@ -192,11 +194,13 @@ export default{
                 this.exec.result = '';
             }
             
+            // 镜像推送
             try{
+                this.imagePush.status = 3;
                 this.imagePush.result = '';
                 await axios.post(this.outEditorInfo.agentUrl.replace(/\/$/,'')+'/panel-api/v1/containers/image/export-push',{
                     containerID: buildContainer.containerID?.replace?.(/^containerd:\/\//,''),
-                    imageName: buildContainer.imageName?.replace?.(/^registry\.local\.w7\.cc\/w7build\//,''),
+                    imageName: buildContainer.imageName,
                     registryDomain: this.outEditorInfo.registryDomain,
                 },{
                     // loading: true,
@@ -232,7 +236,7 @@ export default{
             
             if(buildContainer.pinned){
                 await axios.post(this.outEditorInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
-                    "name": buildContainer.imageName?.replace?.(/^registry\.local\.w7\.cc\/w7build\//,''),
+                    "name": buildContainer.imageName,
                     "labels": {"io.cri.containerd.pinned":"pinned", "io.cattle.k3s.pinned":"pinned"},
                     "replace": true,
                 },{

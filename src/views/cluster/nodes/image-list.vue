@@ -101,7 +101,7 @@
                 <a-form-item label="自定义命令" field="cmd">
                     <a-textarea v-model="buildContainer.cmd" placeholder="请输入" style="width:620px;height:80px;" :spellcheck="false"/>
                 </a-form-item>
-                <a-form-item v-if="buildContainer.imageName" label="镜像名称">{{buildContainer.imageName}}</a-form-item>
+                <a-form-item v-if="buildContainer.imageName" label="镜像名称">registry.local.w7.cc/{{buildContainer.imageName}}</a-form-item>
                 <a-form-item label="PINNED">
                     <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
                         <a-checkbox v-model="buildContainer.pinned">设置为PINNED</a-checkbox>
@@ -243,7 +243,7 @@ export default {
                     };
                 }).catch(()=>{});
     
-                this.buildContainer.imageName = imageName;
+                this.buildContainer.imageName = imageName?.replace?.(/^registry\.local\.w7\.cc\//,'') || '';
                 this.buildContainer.podName = podName;
                 this.buildContainer.containerID = containerID;
                 
