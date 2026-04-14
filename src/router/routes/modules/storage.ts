@@ -53,6 +53,18 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     key: 'storage-zone',
                 },
             },
+            {
+                path:'zone-snapshot/:id',
+                name:'storage-zone-snapshot',
+                component: () => import('@/views/storage/zone-snapshot.vue'),
+                meta: {
+                    locale: '快照管理',
+                    hideInMenu:true,
+                    requiresAuth: true,
+                    roles: ['*'],
+                },
+            },
+            
             // {
             //     path:'storage',
             //     name:'storage-storage',

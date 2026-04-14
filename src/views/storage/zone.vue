@@ -80,7 +80,10 @@
                                     <icon-question-circle-fill class="ml-4 c-99 cursor" />
                                 </a-tooltip>
                             </template>
-                            <template #cell="{ record }">{{record.snapShotNum?record.snapShot:'-'}}</template>
+                            <template #cell="{ record }">
+                                <span v-if="record.snapShotNum" class="c-blue cursor" @click="$router.push('/storage/zone-snapshot/'+record.volumeName)">{{record.snapShot}}</span>
+                                <span v-else >-</span>
+                            </template>
                         </a-table-column>
 
                         <a-table-column title="访问模式">
@@ -235,6 +238,8 @@ export default {
                         storageClassName: i.spec?.storageClassName,
                         create: window.formatDate(i?.metadata?.creationTimestamp),
                         status: i.status?.phase,
+
+                        volumeName: i.spec?.volumeName,
                     }
                 })
                 return list;
