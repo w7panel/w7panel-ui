@@ -236,9 +236,11 @@ export default {
                 let {podName,imageName,containerID} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=app=" + this.buildContainer.appName,{
                     loading: true,
                 }).then(res=>{
+                    let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
+                    imageName = imageName.replace(/-\d{10}$/,'');
                     return {
                         podName: res?.data?.items?.[0]?.metadata?.name,
-                        imageName: res?.data?.items?.[0]?.spec?.containers?.[0]?.image + '-' + dayjs().unix(),
+                        imageName: imageName + '-' + dayjs().unix(),
                         containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
                     };
                 }).catch(()=>{});

@@ -32,9 +32,9 @@
                 <a-tab-pane title="单机限流" key="routelimit">
                     <div class="c-99 fs-14 lh-14">支持针对路由级别的单机限流策略，在设定的时间周期内，限制每个网关副本匹配在某个路由上的请求数量不大于阈值。</div>
                 </a-tab-pane> -->
-                <a-tab-pane title="文件缓存" key="fileCache"></a-tab-pane>
-                <a-tab-pane title="镜像缓存" key="imageCache"></a-tab-pane>
-                <a-tab-pane title="更多" key="plugin">
+                <a-tab-pane v-if="!isMicroComponents" title="文件缓存" key="fileCache"></a-tab-pane>
+                <a-tab-pane v-if="!isMicroComponents" title="镜像缓存" key="imageCache"></a-tab-pane>
+                <a-tab-pane v-if="!isMicroComponents" title="更多" key="plugin">
                     <template #title>
                         <a-badge v-if="plugin.badge>0" :count="plugin.badge"><span style="padding:0 16px;">更多</span></a-badge>
                         <span v-else>更多</span>
@@ -325,7 +325,7 @@ import domainStrategyFilecache from './domain-strategy-filecache.vue';
 import domainStrategyImagecache from './domain-strategy-imagecache.vue';
 
 export default {
-    props: ['title', 'show', 'data', 'hideRewrite','multiple'],
+    props: ['title', 'show', 'data', 'hideRewrite','multiple','isMicroComponents'],
     emits: ['cancel', 'submit', 'refresh'],
 
     data() {
@@ -506,8 +506,13 @@ export default {
             });
         },
         getData(){
-            if(!this.data || !this.data.spec){return}
-            this.appData = JSON.parse(JSON.stringify(this.data?.metadata?.annotations||{}));
+            if(this.isMicroComponents){
+                // 兼容制品库
+                this.appData = JSON.parse(JSON.stringify(this.data || {}));
+            }else{
+                if(!this.data || !this.data.spec){return}
+                this.appData = JSON.parse(JSON.stringify(this.data?.metadata?.annotations||{}));
+            }
 
             let a = this.appData || {};
             this.rewrite.enable = a['higress.io/enable-rewrite']=='true' || false;

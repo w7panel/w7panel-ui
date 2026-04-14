@@ -79,6 +79,27 @@
             <template #title>提示</template>
             <div>{{ appDialogConfirm.txt }}</div>
         </a-modal>
+
+        <!-- 修改域名 -->
+        <domain-micro-edit
+            :show="editDomain.show"
+            :ingress="editDomain.data"
+            :appList="editDomain.appList"
+            :appPorts="editDomain.appPorts"
+            @submit="handleDomainEditSubmit"
+            @close="editDomain.show=false;"
+        ></domain-micro-edit>
+
+        <!-- 策略 -->
+        <domain-strategy
+            :show="strategy.show"
+            :data="strategy.data"
+            :hideRewrite="true"
+            :isMicroComponents="true"
+            @submit="handleStrategySubmit"
+            @cancel="strategy.show=false;"
+        ></domain-strategy>
+
     </div>
 </template>
 <script>
@@ -96,6 +117,8 @@ import { compressFiles } from '@/api/cluster';
 
 import microAppForm from '@/components/micro-app-form.vue';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
+import domainMicroEdit from '@/components/domain-micro-edit.vue';
+import domainStrategy from '@/components/domain-strategy.vue';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -139,6 +162,15 @@ export default{
             },
             domainCertData: null,
             downOk: true,
+
+            editDomain: {
+                show: false,
+                data: null,
+            },
+            strategy: {
+                show: false,
+                data: null,
+            },
         }
     },
     created(){
@@ -158,6 +190,8 @@ export default{
         registerWujieEvent('domainCert', this.setDomainCert);
         registerWujieEvent('podLog', this.openPodLog);
         registerWujieEvent('openAppForm', this.openAppForm);
+        registerWujieEvent('ingressEdit', this.openDomainEdit);
+        registerWujieEvent('ingressStrategy', this.openStrategy);
     },
     mounted(){
         if(this.appgroup){
@@ -170,6 +204,8 @@ export default{
         domainCert,
         appFile,
         microAppForm,
+        domainMicroEdit,
+        domainStrategy,
     },
     watch: {
         appgroup(v){
@@ -185,6 +221,33 @@ export default{
         }catch{}
     },
     methods: {
+        openDomainEdit(data){
+            this.editDomain = {
+                show: true,
+                data: data.ingress,
+                appList: data.appList,
+                appPorts: data.appPorts,
+                callback: data.callback,
+            }
+        },
+        handleDomainEditSubmit(v){
+            this.editDomain.show = false;
+            this.editDomain?.callback && this.editDomain.callback(v);
+        },
+
+        openStrategy(data){
+            this.strategy = {
+                show: true,
+                data: data.ingress?.backend?.strategy || {},
+                callback: data.callback,
+            }
+        },
+        handleStrategySubmit(v){
+            let data = v[0].value;
+            this.strategy.data = data;
+            this.strategy.callback && this.strategy.callback(data);
+        },
+
         routeChange(v){
             bus.$emit("routeChange", v);
         },
@@ -280,6 +343,7 @@ export default{
                 url: this.info.frontendUrl + this.page,
 // // 测试
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.page || ''),
+// url: 'http://localhost:8080' + (this.page || ''),
                 exec: true,
                 el: '#appmicro',
                 sync: true,
