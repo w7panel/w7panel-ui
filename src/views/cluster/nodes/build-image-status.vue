@@ -236,7 +236,7 @@ export default{
             
             if(buildContainer.pinned){
                 await axios.post(this.outEditorInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
-                    "name": buildContainer.imageName,
+                    "name": 'registry.local.w7.cc/' + buildContainer.imageName,
                     "labels": {"io.cri.containerd.pinned":"pinned", "io.cattle.k3s.pinned":"pinned"},
                     "replace": true,
                 },{

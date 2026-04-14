@@ -114,7 +114,7 @@
             :show="buildImageStatus.show"
             :data="buildImageStatus.data"
             :outEditorInfo="outEditorInfo"
-            @close="buildImageStatus.show=false;getList()"
+            @close="buildImageStatus.show=false;buildContainer.show=false;getList()"
         ></build-image-status>
 
     </div>

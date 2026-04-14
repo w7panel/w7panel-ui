@@ -2,7 +2,14 @@
     <div class="padding-20">
         <Breadcrumb :routes="topbc" />
         <div class="bg-white padding-20">
-            <a-table :data="list" class="cptable" :bordered="false" :pagination="false">
+            <a-descriptions :data="descriptions" size="large"  layout="inline-vertical" bordered>
+                <template #label={label}>{{label}}</template>
+                <template #value={value}>
+                    <div class="mt-10 fs-22">{{value}}</div>
+                </template>
+            </a-descriptions>
+
+            <a-table :data="list" class="cptable mt-20" :bordered="false" :pagination="false">
                 <template #columns>
                     <a-table-column title="名称">
                         <template #cell="{ record }">
@@ -46,6 +53,10 @@ export default{
                 {name: "storage-zone", label: "存储分区"},
                 {name: "storage-zone-snapshot", label: "快照管理"},
             ],
+            descriptions: [
+                {label: '快照数量', value: 0},
+                {label: '快照总大小', value: 0},
+            ],
             list: [],
             namespaceActive: '',
         }
@@ -72,6 +83,8 @@ export default{
                     restoreSizeNum: Number(i.status?.restoreSize),
                     restoreSize: this.btog(i.status?.restoreSize),
                 }));
+                this.descriptions[0].value = this.list.length;
+                this.descriptions[1].value = this.btog(this.list.reduce((a,b)=>a+b.readyToUseNum,0));
             });
         },
         del(row){
