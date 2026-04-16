@@ -74,7 +74,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import axios from 'axios';
 import { getToken } from '@/utils/auth';
 export default{
-    props: ['show','data','outEditorInfo'],
+    props: ['show','data','serverInfo'],
     data(){
         return {
             namespaceActive: 'default',
@@ -198,10 +198,10 @@ export default{
             try{
                 this.imagePush.status = 3;
                 this.imagePush.result = '';
-                await axios.post(this.outEditorInfo.agentUrl.replace(/\/$/,'')+'/panel-api/v1/containers/image/export-push',{
+                await axios.post(this.serverInfo.agentUrl.replace(/\/$/,'')+'/panel-api/v1/containers/image/export-push',{
                     containerID: buildContainer.containerID?.replace?.(/^containerd:\/\//,''),
                     imageName: buildContainer.imageName,
-                    registryDomain: this.outEditorInfo.registryDomain,
+                    registryDomain: this.serverInfo.registryDomain,
                 },{
                     // loading: true,
                     timeout: 0,
@@ -235,7 +235,7 @@ export default{
             }
             
             if(buildContainer.pinned){
-                await axios.post(this.outEditorInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
+                await axios.post(this.serverInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
                     "name": 'registry.local.w7.cc/' + buildContainer.imageName,
                     "labels": {"io.cri.containerd.pinned":"pinned", "io.cattle.k3s.pinned":"pinned"},
                     "replace": true,

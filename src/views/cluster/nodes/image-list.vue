@@ -113,7 +113,7 @@
         <build-image-status
             :show="buildImageStatus.show"
             :data="buildImageStatus.data"
-            :outEditorInfo="outEditorInfo"
+            :serverInfo="bisServerInfo"
             @close="buildImageStatus.show=false;buildContainer.show=false;getList()"
         ></build-image-status>
 
@@ -139,6 +139,9 @@ export default {
             
             // 上传
             outEditorInfo: {
+                agentUrl: '',
+            },
+            bisServerInfo:{
                 agentUrl: '',
             },
             upload: {},
@@ -233,7 +236,7 @@ export default {
 
             // 获取pod名称
             try{
-                let {podName,imageName,containerID} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=app=" + this.buildContainer.appName,{
+                let {podName,imageName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=app=" + this.buildContainer.appName,{
                     loading: true,
                 }).then(res=>{
                     let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
@@ -242,9 +245,19 @@ export default {
                         podName: res?.data?.items?.[0]?.metadata?.name,
                         imageName: imageName + '-' + dayjs().unix(),
                         containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
+                        ip: res?.data?.items?.[0]?.status?.podIP,
                     };
                 }).catch(()=>{});
-    
+                
+                await panelApi.get('/registry/server-info',{
+                    params:{hostIp: ip},
+                    loading: true,
+                }).then(res=>{
+                    this.bisServerInfo = {
+                        agentUrl: res.data?.requestUrl || '',
+                        registryDomain: res.data?.requestHost || '',
+                    };
+                })
                 this.buildContainer.imageName = imageName?.replace?.(/^registry\.local\.w7\.cc\//,'') || '';
                 this.buildContainer.podName = podName;
                 this.buildContainer.containerID = containerID;
