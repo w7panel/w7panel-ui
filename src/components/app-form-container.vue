@@ -10,6 +10,124 @@
                     <span v-else>{{ form.name }}</span>
                 </template>
                 
+                <div v-if="layout=='cronjob'" >
+                    
+                    <a-form-item label="环境变量" prop="env" row-class="ac-form-item">
+                        <div class="df df-c ai-s" style="flex:1;">
+                            <a-button type="primary" @click="openEnvEdit(form)">批量编辑</a-button>
+                            <table class="com-table mt-10 ftable" ><tbody>
+                                <tr class="thead"><td>类型</td><td>名称</td><td>默认值</td><td>基数单位</td><td>操作</td></tr>
+                                <tr><td colspan="5" style="box-sizing:border-box; cursor:pointer;background:var(--color-neutral-1);" @click="form.env.push({name:'',value:'', type:'custom'})">
+                                    <div class="df ai-c jc-c">
+                                        <icon-plus :size="14" class="c-99" />
+                                        <span class="c-99 lh-1" style="margin-left:6px;">添加环境变量</span>
+                                    </div>
+                                </td></tr>
+                                <tr v-for="(item,index) in form.env" :key="index" style="background:var(--color-neutral-1);">
+                                    <td>
+                                        <a-select v-model="item.type" :disabled="item.disabled" style="width:120px" size="large" @change="item.value=''">
+                                            <a-option label="自定义" value="custom"></a-option>
+                                            <a-option label="Field" value="field"></a-option>
+                                            <a-option label="ResourceField" value="resource_field"></a-option>
+                                        </a-select>
+                                    </td>
+                                    <td>
+                                        <a-input v-model="item.name" :disabled="item.disabled" @paste="envPaste($event,index,form)" size="large" style="width:170px;" placeholder="变量名" />
+                                    </td>
+                                    <td>
+                                        <a-input v-if="item.type=='custom'" :disabled="item.disabled" v-model="item.value" size="large" style="width:170px;" placeholder="变量值" />
+                                        
+                                        <!-- <a-select v-if="item.type=='field'" :disabled="item.disabled" v-model="item.value" size="large" placeholder="请选择" style="width:170px;">
+                                            <a-option value="metadata.name" label="metadata.name"></a-option>
+                                            <a-option value="metadata.namespace" label="metadata.namespace"></a-option>
+                                            <a-option value="spec.serviceAccountName" label="spec.serviceAccountName"></a-option>
+                                            <a-option value="status.hostIP" label="status.hostIP"></a-option>
+                                            <a-option value="status.podIP" label="status.podIP"></a-option>
+                                            <a-option value="status.podIPs" label="status.podIPs"></a-option>
+                                            <a-option value="spec.nodeName" label="spec.nodeName"></a-option>
+                                        </a-select> -->
+                                        <a-auto-complete
+                                            v-if="item.type=='field'"
+                                            :disabled="item.disabled"
+                                            :data="fieldData"
+                                            v-model="item.value"
+                                            size="large"
+                                            placeholder="请输入"
+                                            style="width:170px;"
+                                            @search="v=>fieldData=v?fieldList.filter(i=>i.startsWith(v)):fieldList"
+                                        />
+
+                                        <a-select v-if="item.type=='resource_field'" :disabled="item.disabled" @change="v=>item.divisorAppend=(v=='limits.cpu'||v=='requests.cpu')?'':'Gi'" v-model="item.value" placeholder="请选择" size="large" style="width:170px;">
+                                            <a-option value="limits.cpu" label="limits.cpu"></a-option>
+                                            <a-option value="limits.memory" label="limits.memory"></a-option>
+                                            <a-option value="limits.ephemeral-storage" label="limits.ephemeral-storage"></a-option>
+                                            <a-option value="requests.cpu" label="requests.cpu"></a-option>
+                                            <a-option value="requests.memory" label="requests.memory"></a-option>
+                                        </a-select>
+                                    </td>
+                                    <td>
+                                        <span v-if="item.type!=='resource_field'">-</span>
+                                        <a-input v-else v-model="item.divisor" style="width:180px;" placeholder="请输入">
+                                            <!-- <template #prepend>divisor</template> -->
+                                            <template #append>
+                                                <a-select v-model="item.divisorAppend" style="width:70px;">
+                                                    <a-option v-if="item.value=='limits.cpu'||item.value=='requests.cpu'" value="m" label="毫核"></a-option>
+                                                    <a-option v-if="item.value=='limits.cpu'||item.value=='requests.cpu'" value="" label="核"></a-option>
+                                                    <a-option v-if="item.value!='limits.cpu'&&item.value!='requests.cpu'" value="Mi" label="Mi"></a-option>
+                                                    <a-option v-if="item.value!='limits.cpu'&&item.value!='requests.cpu'" value="Gi" label="Gi"></a-option>
+                                                </a-select>
+                                            </template>
+                                        </a-input>
+                                    </td>
+                                    <td>
+                                        <span v-if="!item.disabled" class="c-blue cursor lh-1" style="text-wrap:nowrap;" @click="form.env.splice(index,1);">删除</span>
+                                    </td>
+                                </tr>
+                            </tbody></table>
+                            <div class="fs-12 mt-10 df ai-c jc-b">
+                                <span style="color:#bbbbbb;">变量名为空时，在变量名称中粘贴一行或多行 key=value 的键值对可以实现快速批量输入</span>
+                            </div>
+                        </div>
+                    </a-form-item>
+
+                    <a-form-item label="运行命令" row-class="ac-form-item">
+                        <div class="df df-c ftable " style="flex:1;">
+                            <div class="df ai-c mb-10" style="height:32px;">
+                                <span class="mr-10">简易模式</span>
+                                
+                                <a-popover v-if="!testEasyCmd(form).pass" position="top">
+                                    <a-switch :disabled="true"></a-switch>
+                                    <template #content>{{testEasyCmd(form).reason}}</template>
+                                </a-popover>
+                                <a-switch v-else v-model="form.easyCmd" @change="form.command.length==1?form.command=['sh','-c'].concat(form.command):null;"></a-switch>
+                            </div>
+                            <div v-if="form.easyCmd">
+                                <a-textarea v-model="form.command[2]" placeholder="请输入命令" style="height:80px;width:760px;" :spellcheck="false" allow-clear/>
+                            </div>
+                            <div v-else style="width:760px;">
+                                <div v-for="(item,index) in form.command" :key="index" class="df ai-c" style="margin-bottom:10px;">
+                                    <a-textarea v-model="form.command[index]" placeholder="请输入命令" style="height:80px;" :spellcheck="false" allow-clear/>
+                                    <icon-close class="ml-20 cursor fs-20" @click="form.command.splice(index,1)" />
+                                </div>
+                                <a-button type="outline" style="width:100%;margin-top:10px;" @click="form.command.push('')">新增</a-button>
+                            </div>
+                        </div>
+                    </a-form-item>
+                </div>
+
+
+                <!-- cronjob高级设置按钮 -->
+                <div v-if="layout=='cronjob'" class="df jc-c mb-20">
+                    <a-button type="text" @click="showExtra=!showExtra">
+                        <span>高级设置</span>
+                        <icon-up v-if="showExtra" class="fs-16 ml-4" />
+                        <icon-down v-else class="fs-16 ml-4" />
+                    </a-button>
+                </div>
+
+                <!-- cronjob 高级配置 -->
+                <div v-show="showExtra || layout!='cronjob'">
+                    
                 <a-form-item
                     row-class="ac-form-item"
                     label="容器名称"
@@ -167,7 +285,7 @@
                 </a-form-item>
                 
                 <!-- 高级设置 -->
-                 <div class="df jc-c">
+                 <div v-if="layout!='cronjob'" class="df jc-c">
                      <a-button type="text" @click="showExtra=!showExtra">
                          <span>高级设置</span>
                          <icon-up v-if="showExtra" class="fs-16 ml-4" />
@@ -176,9 +294,9 @@
                  </div>
 
                 
-                <div v-show="showExtra" class="mt-20">
+                <div v-show="showExtra || layout=='cronjob'" :class="{'mt-20':layout!='cronjob'}">
                     
-                    <a-form-item label="环境变量" prop="env" row-class="ac-form-item">
+                    <a-form-item v-if="layout!='cronjob'" label="环境变量" prop="env" row-class="ac-form-item">
                         <div class="df df-c ai-s" style="flex:1;">
                             <a-button type="primary" @click="openEnvEdit(form)">批量编辑</a-button>
                             <table class="com-table mt-10 ftable" ><tbody>
@@ -256,7 +374,7 @@
                         </div>
                     </a-form-item>
                     
-                    <a-form-item label="暴露端口" prop="ports" row-class="ac-form-item">
+                    <a-form-item  label="暴露端口" prop="ports" row-class="ac-form-item">
                         <div style="flex:1;">
                             <a-checkbox v-if="form.kind=='statefulsets'" disabled v-model="form.headless" class="mt-6">支持无头服务</a-checkbox>
                             <table class="com-table ftable mt-10"><tbody>
@@ -293,7 +411,7 @@
                         </div>
                     </a-form-item>
 
-                    <a-form-item label="运行命令" row-class="ac-form-item">
+                    <a-form-item v-if="layout!='cronjob'" label="运行命令" row-class="ac-form-item">
                         <div class="df df-c ftable " style="flex:1;">
                             <div class="df ai-c mb-10" style="height:32px;">
                                 <span class="mr-10">简易模式</span>
@@ -412,6 +530,8 @@
                     </a-form-item>
                 </div>
 
+                <!-- cronjob 高级配置 -->
+                </div>
             </a-tab-pane>
         </a-tabs>
         
@@ -447,7 +567,7 @@ import Sortable from 'sortablejs';
 import buildImageDrawer from '@/components/build-image-drawer.vue'
 
 export default{
-    props: ['data','volumes','volumeClaimTemplates','mirror','isPlugin','pluginData'],
+    props: ['data','volumes','volumeClaimTemplates','mirror','isPlugin','pluginData','layout'],
     data(){
         return {
             namespaceActive: 'default',

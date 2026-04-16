@@ -23,23 +23,17 @@
                     </a-radio-group>
                 </a-form-item>
 
-                <!-- <app-form-volumes
-                    :data=""
-                /> -->
+                <app-form-volumes
+                    @submit="v=>containerEditor.volumes = v.volumes"
+                />
 
-                <a-tabs v-model:active-key="form.ctActive" type="card-gutter" :editable="true" @add="addContiner" @delete="deleteContiner" show-add-button auto-switch>
-                    <a-tab-pane v-for="item in form.container" :key="item.key" :title="'item'+(item.key+1)" style="padding:0 20px;" :closable="item.key!=0">
-                        <a-form-item label="选择应用">
-                            <select-container @complete="onSelectContainer" />
-                            <a-select v-model="item.app" size="large" @change="changeApp(item)" placeholder="请选择应用" class="mt-10">
-                                <a-option label="默认应用" value=""></a-option>
-                                <a-option v-for="item in apps" :key="item.name" :label="item.title" :value="item.name"></a-option>
-                            </a-select>
-                        </a-form-item>
-                        
-                        
-                    </a-tab-pane>
-                </a-tabs>
+                <app-form-container
+                    ref="appformcontainer"
+                    layout="cronjob"
+                    :data="containerEditor.data"
+                    :volumes="containerEditor.volumes"
+                ></app-form-container>
+
             </a-form>
         </div>
 
@@ -59,6 +53,7 @@ import appForm from '@/components/app-form.vue';
 import appFormVolumes from '@/components/app-form-volumes.vue';
 import CryptoJS  from 'crypto-js';
 import formDrawer from '@/views/config/configmap/form-drawer.vue';
+import appFormContainer from '@/components/app-form-container.vue';
 
 const dataTemplate = {
     apiVersion: 'apps/v1',
@@ -86,6 +81,17 @@ const dataTemplate = {
                 containers: [{}],
                 imagePullSecrets: [{"name": ""}],
                 volumes: [],
+            }
+        }
+    }
+}
+const containerTemplate = {
+    spec: {
+        template: {
+            spec: {
+                containers: [{
+                    name: 'my-container'
+                }]
             }
         }
     }
@@ -118,6 +124,11 @@ export default {
                 show: false,
                 id: '',
             },
+
+            containerEditor: {
+                data: null,
+                volumes: [],
+            },
         }
     },
     components: {
@@ -126,6 +137,7 @@ export default {
         appForm,
         appFormVolumes,
         formDrawer,
+        appFormContainer,
     },
     watch: {
         show(v){
@@ -280,12 +292,14 @@ export default {
             this.form.runtype = this.type=='job'?'2':'1';
             if(!this.id){
                 if(!this.defaultData){
+                    this.containerEditor.data = JSON.parse(JSON.stringify(containerTemplate));
                 }else{
                     let data = this.defaultData;
                     this.data = JSON.parse(JSON.stringify(this.defaultData));
                     this.form.title = data?.metadata?.annotations?.title || '';
                     this.form.recordApp = JSON.parse(data?.metadata?.annotations?.recordApp || '[]');
                     this.form.template = data;
+                    this.containerEditor.data = JSON.parse(JSON.stringify(this.defaultData));
                 }
                 return;
             }
@@ -299,6 +313,7 @@ export default {
                     this.form.recordApp = JSON.parse(data?.metadata?.annotations?.recordApp || '[]');
                     this.form.template = data?.spec?.jobTemplate;
                     this.form.schedule = data?.spec?.schedule;
+                    this.containerEditor.data = this.data?.spec?.jobTemplate;
                     
                 })
             }else if(this.type=='job'){
@@ -308,6 +323,7 @@ export default {
                     this.form.title = data?.metadata?.annotations?.title || '';
                     this.form.recordApp = JSON.parse(data?.metadata?.annotations?.recordApp || '[]');
                     this.form.template = data;
+                    this.containerEditor.data = this.data;
                 })
             }
         },
@@ -368,53 +384,20 @@ export default {
             data.metadata.annotations.recordApp = JSON.stringify(this.form.recordApp);
             data.metadata.annotations.title = this.form.title;
 
-            let cts = this.form.container.map((i,index)=>{
-                i.commandInput = i.editor?.state?.doc?.toString();
-                let o = this.form.ctnData[index];
-                o = {
-                    ...o,
-                    name: 'job'+i.key,
-                    image: o?.image || 'alpine/curl', //'ccr.ccs.tencentyun.com/afan-public/busybox:curl',
-                    command: i.commandInput? ["/bin/sh","-c",i.commandInput] : [],
-                    volumeMounts: o?.volumeMounts || [],
-                }
-                return o
-            })
-            // console.log(cts);
 
-            let volumes = [];
-            let volumesNames = [];
-            let vname = 'lsml-'+ this.createName();
-
-            this.form.container.map((i,index)=>{
-                let o = this.mergeVolumeMounts(i);
-                volumes = volumes.concat(o.volumes||[]);
-                cts[index].volumeMounts = o.volumeMounts || [];
-            })
-            
-            this.form.container.map((i,index)=>{
-                let cvn = cts[index].volumeMounts.map(vm=>vm.name) || [];
-                volumesNames = volumesNames.concat(cvn);
-                volumes = volumes.concat(i?.appVolumes||[]);
-                // 新建container或修改后的container 添加临时目录/data
-                let vmdata = cts[index].volumeMounts?.find(i=>i.mountPath=='/tmp-w7-data');
-                //  || !volumes?.find(i=>i.name==vmdata.name)?.emptyDir
-                if(!vmdata){
-                    cts[index].volumeMounts.push({name: vname, mountPath: '/tmp-w7-data'});
-                    volumes.push({name: vname, emptyDir: {}})
-                    volumesNames.push(vname);
-                }
-                // console.log('container'+index, cts[index].volumeMounts)
-            })
-            volumes = volumes.filter(i=>volumesNames.includes(i.name));
-            volumes = Array.from(new Set(volumes.map(JSON.stringify))).map(JSON.parse);
+            let {
+                initContainers,
+                containers,
+                hostPorts,
+                imagePullSecrets,
+            } = this.$refs.appformcontainer.formToData();
             
             let jobSpec = {
                 template: {
                     spec: {
-                        initContainers: (this.form.sequence==1||cts.length<2)? [] : cts.slice(0,cts.length-1) ,
-                        containers: this.form.sequence==1? cts : [cts[cts.length-1]],
-                        volumes: volumes,
+                        initContainers: initContainers ,
+                        containers: containers,
+                        volumes: this.containerEditor.volumes || [],
                         restartPolicy: "Never",
                         imagePullSecrets: this.mirror,
                     },
