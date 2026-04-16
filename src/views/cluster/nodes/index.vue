@@ -925,7 +925,11 @@ export default {
                 if(!res?.data){return}
                 let list = res.data?.items || [];
                 list = list.filter(i=>{
-                    return i.status.hostIP == row.internalIP && i.metadata?.labels?.app != 'w7panel' && i.metadata?.namespace != 'kube-system' && i.metadata?.namespace != 'higress-system'
+                    return i.status.hostIP == row.internalIP
+                        && i.metadata?.labels?.app != 'w7panel'
+                        && i.metadata?.labels?.app != 'w7panel-offline'
+                        && i.metadata?.namespace != 'kube-system'
+                        && i.metadata?.namespace != 'higress-system'
                 })
                 // console.log(list.length)
                 this.fuu.list = list.map(i=>{
