@@ -245,7 +245,7 @@ export default {
                         podName: res?.data?.items?.[0]?.metadata?.name,
                         imageName: imageName + '-' + dayjs().unix(),
                         containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
-                        ip: res?.data?.items?.[0]?.status?.podIP,
+                        ip: res?.data?.items?.[0]?.status?.hostIP,
                     };
                 }).catch(()=>{});
                 
