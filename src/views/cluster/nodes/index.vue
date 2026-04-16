@@ -928,6 +928,7 @@ export default {
                     return i.status.hostIP == row.internalIP
                         && i.metadata?.labels?.app != 'w7panel'
                         && i.metadata?.labels?.app != 'w7panel-offline'
+                        && i.metadata?.annotations?.['w7.cc/deny-delete'] != 'true'
                         && i.metadata?.namespace != 'kube-system'
                         && i.metadata?.namespace != 'higress-system'
                 })
