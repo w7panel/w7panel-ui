@@ -1,6 +1,11 @@
 <template>
     <div>
         <div v-show="imageCache.exist" id="imagecachemicroapp"></div>
+        
+        <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:300px;">
+            <div style="height:100%;" class="bg-white"></div>
+        </a-spin>
+
         <div v-show="!imageCache.exist" class="mt-40 df df-c ai-c">
             <div>镜像缓存应用未安装</div>
             <div class="mt-20">
@@ -11,7 +16,7 @@
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import { setupApp, startApp, destroyApp } from "wujie";
 import { getToken, getK8sinfo } from '@/utils/auth';
@@ -30,6 +35,8 @@ export default {
                 password: '',
             },
             roleProps: {},
+            downOk: true,
+            extra: {},
         }
     },
     created() {
@@ -91,14 +98,37 @@ export default {
                     ...app?.spec?.config?.props,
                     ...roleProps,
                 };
+                this.extra = {
+                    identifie: app.metadata?.labels?.['w7.cc/identifie'] || '',
+                    version: app.metadata?.labels?.['w7.cc/version'] || '',
+                    name: app.metadata.name,
+                    namespace: app.metadata.namespace,
+                }
             }).catch(() => {});
         },
-        wujieInit() {
+        async wujieInit() {
             if (!this.imageCache.exist) { return }
+
+            await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
+                version: this.extra.version,
+                releaseName: this.extra.name,
+            }}).then(res=>{
+                this.downOk = res.data?.status !== 'no_download';
+            })
+            if(!this.downOk){
+                panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
+                this.extra.setTimeout = setTimeout(()=>{
+                    this.wujieInit();
+                    clearTimeout(this.extra.setTimeout);
+                }, 5000)
+                return;
+            }
 
             setupApp({
                 name: "imagecachemicroapp",
                 url: this.imageCache.frontendUrl,
+// 测试
+// url: 'http://172.16.1.162:9090' + this.imageCache.frontendUrl,
                 exec: true,
                 el: '#imagecachemicroapp',
                 sync: true,

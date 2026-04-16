@@ -2,12 +2,13 @@
     <div class="padding-20">
         <route-breadcrumb />
         <div v-if="permission.includes('app-cronjob-add')" class="mb-20">
-            <a-button type="primary" @click="form.show=true;form.id='';"><template #icon><icon-plus /></template>新增</a-button>
+            <a-button type="primary" @click="openCronjobDrawer()"><template #icon><icon-plus /></template>新增</a-button>
         </div>
         <div class="bg-white padding-20">
              <a-tabs v-model:active-key="activekey">
                 <a-tab-pane key="1" title="周期执行"></a-tab-pane>
                 <a-tab-pane key="2" title="单次执行"></a-tab-pane>
+                <!-- <a-tab-pane key="3" title="构建镜像"></a-tab-pane> -->
             </a-tabs>
 
             <div v-if="activekey=='1'" >
@@ -185,7 +186,7 @@ export default {
             },
 
             form: {
-                show: "",
+                show: false,
                 id: '',
                 type: '',
                 defaultData: null,
@@ -208,6 +209,10 @@ export default {
         },
     },
     methods: {
+        openCronjobDrawer(){
+            this.form.show = true;
+            this.form.id = '';
+        },
         toApp(item){
             this.$router.push({path: '/app/deployments/'+item.sourceName});
         },
@@ -298,7 +303,7 @@ export default {
                     list = list.map(i=>{
                         return {
                             statusSuccess: Boolean(!i.spec?.suspend && i.status?.succeeded),
-                            sourceName: i.metadata.annotations['w7.cc/job-source-name'],
+                            sourceName: i.metadata?.annotations?.['w7.cc/job-source-name'] || '',
                             startTime: new Date(i.status.startTime).getTime(),
                             searchJob: i.metadata?.labels?.searchJob,
                         }
@@ -322,11 +327,11 @@ export default {
                         let status_text = i.spec?.suspend? '挂起' : (i.status?.succeeded? '成功' : '失败');
                         let o = {
                             key: i.metadata.name,
-                            title: i.metadata.annotations.title,
+                            title: i.metadata?.annotations?.title || i.metadata.name,
                             name: i.metadata.name,
-                            sourceName: i.metadata.annotations['w7.cc/job-source-name'],
-                            sourceTitle: i.metadata.annotations['w7.cc/job-source-title'],
-                            source: i.metadata.annotations['w7.cc/job-source'],
+                            sourceName: i.metadata?.annotations?.['w7.cc/job-source-name'],
+                            sourceTitle: i.metadata?.annotations?.['w7.cc/job-source-title'],
+                            source: i.metadata?.annotations?.['w7.cc/job-source'],
                             searchJob: i.metadata?.labels?.searchJob,
 
                             startTime: window.formatDate(i.status.startTime),

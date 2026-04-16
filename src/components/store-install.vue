@@ -107,14 +107,14 @@
                                         </div>
                                     </a-form-item>
                                     
-                                    <a-form-item v-if="ingressclassList.length > 1" label="ingressClass" field="ingressclass" :rules="[{required:true,validator:(value,cb)=>{!form.ingressclass?cb('请选择ingressclass'):cb()}}]">
+                                    <!-- <a-form-item v-if="ingressclassList.length > 1" label="ingressClass" field="ingressclass" :rules="[{required:true,validator:(value,cb)=>{!form.ingressclass?cb('请选择ingressclass'):cb()}}]">
                                         <template #label>
                                             <span class="ingressClass">镜像仓库</span>
                                         </template>
                                         <a-select v-model="form.ingressclass" placeholder="请选择ingressClass">
                                             <a-option v-for="i in ingressclassList" :key="i" :label="i" :value="i"></a-option>
                                         </a-select>
-                                    </a-form-item>
+                                    </a-form-item> -->
                                 </div>
 
                                 <!-- <a-form-item v-if="item.requireParentReleaseName" label="选择主应用" field="parentReleaseName" :rules="[{required:true,message:'请选择主应用'}]">

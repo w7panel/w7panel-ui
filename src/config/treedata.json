@@ -13,9 +13,6 @@
         },{
             "title": "修改镜像源",
             "key": "cluster-nodes-registries"
-        },{
-            "title": "内存优化",
-            "key": "cluster-nodes-memory"
         }]
     },{
         "title": "资源对象浏览器",

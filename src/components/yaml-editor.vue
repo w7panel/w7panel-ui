@@ -62,7 +62,6 @@ export default {
             });
         },
         init(){
-            if(this.detail){return}
             let height = document.getElementById('yamleditordom').offsetHeight - (this.nofooter===true? 0 : 54);
             
             let myTheme = EditorView.theme({

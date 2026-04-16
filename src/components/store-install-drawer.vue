@@ -27,7 +27,7 @@ export default {
     watch:{
         show(v){
             this.visible = v;
-            this.init();
+            v && this.init();
         },
     },
     components: { storeInstall,installDrawer },

@@ -109,7 +109,6 @@ export default{
         },
         init(){
             if(!this.list?.length){return}
-            console.log('lllllllllll',this.list)
             this.nodes = this.list.map(i=>{
                 let isStorage = i.taints?.find?.(t=>t.key=='node.kubernetes.io/storage'&&t.effect=='NoSchedule');
                 this.storages[i.name] = Boolean(isStorage);

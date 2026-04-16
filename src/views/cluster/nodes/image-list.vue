@@ -1,5 +1,8 @@
 <template>
     <div class="padding-20" style="height:calc(100vh - 60px); overflow:auto;">
+        
+        <route-breadcrumb />
+
         <div class="bg-white padding-20">
             <div class="df ai-c ">
                 <div class="df ai-c">
@@ -10,6 +13,16 @@
                 </div>
 
                 <a-button type="primary" class="ml-20" @click="openImport">导入镜像</a-button>
+
+                <build-image
+                    class="ml-20"
+                    :hideList="true"
+                    :showCreateBtn="true"
+                    :nodeName="node"
+                    :nodeIp="nodeIp"
+                ></build-image>
+
+                <a-button type="primary" class="ml-20" @click="openBuildContainer">打包容器镜像</a-button>
             </div>
             
             <a-table :data="list" :pagination="false" class="mt-20 nodeimagelisttable" :bordered="false">
@@ -20,10 +33,10 @@
                             <div class="df ai-c">
                                 <span>{{record.Name}}</span>
                                 <a-tooltip content="修改名称">
-                                    <icon-edit class="c-blue fs-16 ml-6 cursor df-s0" @click="openChangeName(record)"></icon-edit>
+                                    <icon-edit class="c-blue fs-16 ml-6 cursor df-s0 default-text" @click="openChangeName(record)"></icon-edit>
                                 </a-tooltip>
-                                <a-tooltip :content="'设置为PINNNED后，镜像文件不会受到GC影响被自动删除'">
-                                    <icon-bookmark class="fs-16 ml-6 df-s0 cursor" @click="setDefault(record)" :class="{'c-orange':record.isDefault,'c-99':!record.isDefault}" />
+                                <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
+                                    <icon-lock class="fs-16 ml-6 df-s0 cursor default-text" @click="setDefault(record)" :class="{'c-orange':record.isDefault,'c-99':!record.isDefault}" />
                                 </a-tooltip>
                             </div>
                         </template>
@@ -31,7 +44,7 @@
                     <a-table-column title="标签">
                         <template #cell="{ record }">
                             <div>
-                                <div v-for="(value,key) in record.Labels">{{ key + ':' + value }}</div>
+                                <div v-for="(value,key) in record.Labels" :key="key">{{ key + ':' + value }}</div>
                             </div>
                         </template>
                     </a-table-column>
@@ -64,6 +77,11 @@
                         <input ref="importDialogFileInput" type="file" accept=".tar" @change="selectFile" />
                     </div>
                 </a-form-item>
+                <a-form-item label="PINNED">
+                    <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
+                        <a-checkbox v-model="importDialog.pinned">设置为PINNED</a-checkbox>
+                    </a-tooltip>
+                </a-form-item>
             </a-form>
         </a-modal>
 
@@ -74,6 +92,31 @@
                 </a-form-item>
             </a-form>
         </a-modal>
+
+        <a-drawer :width="800" :visible="buildContainer.show" title="打包容器镜像" @ok="toBuildContainer" @cancel="buildContainer.show=false" >
+            <a-form ref="bcForm" :rules="bcRules" :model="buildContainer" auto-label-width style="padding:10px;">
+                <a-form-item label="容器" field="containerName" :validate-trigger="[]">
+                    <select-container v-if="buildContainer.show" @change="handleSelectContainer"></select-container>
+                </a-form-item>
+                <a-form-item label="自定义命令" field="cmd">
+                    <a-textarea v-model="buildContainer.cmd" placeholder="请输入" style="width:620px;height:80px;" :spellcheck="false"/>
+                </a-form-item>
+                <a-form-item v-if="buildContainer.imageName" label="镜像名称">registry.local.w7.cc/{{buildContainer.imageName}}</a-form-item>
+                <a-form-item label="PINNED">
+                    <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
+                        <a-checkbox v-model="buildContainer.pinned">设置为PINNED</a-checkbox>
+                    </a-tooltip>
+                </a-form-item>
+            </a-form>
+        </a-drawer>
+        
+        <build-image-status
+            :show="buildImageStatus.show"
+            :data="buildImageStatus.data"
+            :serverInfo="bisServerInfo"
+            @close="buildImageStatus.show=false;buildContainer.show=false;getList()"
+        ></build-image-status>
+
     </div>
 </template>
 
@@ -82,6 +125,9 @@ import { useLoadingStore, useNamespaceStore } from '@/store';
 import { k8sproxy, panelApi } from '@/utils/api';
 import axios from 'axios';
 import dayjs from 'dayjs';
+import buildImage from '@/views/cluster/nodes/build-image.vue';
+import selectContainer from '@/components/select-container.vue';
+import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';
 
 export default {
     data(){
@@ -92,7 +138,12 @@ export default {
             list: [],
             
             // 上传
-            outEditorInfo: {},
+            outEditorInfo: {
+                agentUrl: '',
+            },
+            bisServerInfo:{
+                agentUrl: '',
+            },
             upload: {},
             partPath: '/tmp/',
             form: {},
@@ -100,6 +151,7 @@ export default {
                 show: false,
                 imageName: '',
                 filename: '',
+                pinned: false,
             },
             rules: {
                 imageName: [{required:true, message:'请输入镜像名称'}],
@@ -112,15 +164,133 @@ export default {
                 row: null,
                 newName: '',
             },
+
+            buildContainer: {
+                show: false,
+                appName: '',
+                containerName: '',
+                cmd: '',
+                pinned: false,
+                imageName: '',
+                podName: '',
+                containerID: '',
+            },
+            bcRules: {
+                containerName: [{required:true, message:'请选择容器'}],
+                // cmd: [{required:true, message:'请输入命令'}],
+            },
+
+            buildImageStatus: {
+                show: false,
+            },
         }
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
         this.getNodes();
     },
+    components: {
+        buildImage,
+        selectContainer,
+        buildImageStatus,
+    },
+    computed: {
+        nodeIp(){
+            return this.nodeList?.find?.(i=>i.name==this.node)?.internalIP || '';
+        }
+    },
     mounted(){
     },
     methods: {
+        
+        async exec(data){
+            return panelApi.post(`/exec2`,{
+                podName: data?.podName,
+                containerName: data?.containerName,
+                tty: false,
+                namespace: this.namespaceActive,
+                command: ['sh', '-c', data.command],
+            },{responseType: 'text', loading:true, noAlert:true})
+        },
+
+        openBuildContainer(){
+            this.buildContainer = {
+                show: true,
+                appName: '',
+                containerName: '',
+                cmd: '',
+                pinned: false,
+                imageName: '',
+                podName: '',
+                containerID: '',
+            }
+        },
+        async handleSelectContainer(v){
+
+            this.buildContainer.appName = v?.app || '';
+            this.buildContainer.containerName = v?.container || '';
+            this.buildContainer.imageName = '';
+            this.buildContainer.podName = '';
+            this.buildContainer.containerID = '';
+            if(!v.app || !v.container){return;}
+
+            // 获取pod名称
+            try{
+                let {podName,imageName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=app=" + this.buildContainer.appName,{
+                    loading: true,
+                }).then(res=>{
+                    let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
+                    imageName = imageName.replace(/-\d{10}$/,'');
+                    return {
+                        podName: res?.data?.items?.[0]?.metadata?.name,
+                        imageName: imageName + '-' + dayjs().unix(),
+                        containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
+                        ip: res?.data?.items?.[0]?.status?.hostIP,
+                    };
+                }).catch(()=>{});
+                
+                await panelApi.get('/registry/server-info',{
+                    params:{hostIp: ip},
+                    loading: true,
+                }).then(res=>{
+                    this.bisServerInfo = {
+                        agentUrl: res.data?.requestUrl || '',
+                        registryDomain: res.data?.requestHost || '',
+                    };
+                })
+                this.buildContainer.imageName = imageName?.replace?.(/^registry\.local\.w7\.cc\//,'') || '';
+                this.buildContainer.podName = podName;
+                this.buildContainer.containerID = containerID;
+                
+                // console.table({podName,imageName,containerID})
+            }catch{
+                this.$message.error('未找到应用对应的pod');
+                return;
+            }
+        },
+        toBuildContainer(){
+            this.$refs.bcForm.validate(async (err)=>{
+                if(err){return;}
+
+                if(!this.buildContainer.podName){
+                    this.$message.error('未找到应用对应的pod');
+                    return;
+                }
+
+                
+                this.buildImageStatus = {
+                    show: true,
+                    data: this.buildContainer
+                }
+
+            });
+        },
+
+        openBuildImage(){
+            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=true`).then(res=>{
+                let list = res.data?.items || [];
+            })
+        },
         getNodes(){
             k8sproxy.get('/api/v1/nodes',{loading:true}).then(res=>{
                 if(!res?.data){return}
@@ -142,21 +312,22 @@ export default {
             let node = this.nodeList.find(i=>i.name==this.node);
             if(!node){return}
             let ip = node.internalIP;
-            panelApi.get('/pid',{
-                params:{
-                    namespace: this.namespaceActive,
-                    HostIp: ip,
-                },
+            
+            panelApi.get('/registry/server-info',{
+                params:{hostIp: ip},
                 loading: true,
             }).then(res=>{
-                this.form.pid = res.data.pid;
-                this.form.subPid = res.data.subPid;
-                this.outEditorInfo = {agentUrl: res.data.agentUrl};
+                let url = res.data?.requestUrl || '';
+                
+                this.outEditorInfo = {
+                    agentUrl: url,
+                    registryDomain: res.data?.requestHost || '',
+                };
                 this.getList();
             })
         },
         getList(){
-            axios.get(this.outEditorInfo.agentUrl+'/panel-api/v1/registry/patch/images/list',{
+            axios.get(this.outEditorInfo.agentUrl.replace(/\/$/,'')+'/panel-api/v1/registry/patch/images/list',{
                 loading: true,
             }).then(res=>{
                 this.list = res.data.map(i=>{
@@ -190,10 +361,12 @@ export default {
         },
         openImport(){
             this.importDialog.show = true;
-            this.importDialog.imageName = 'ccr.ccs.tencentyun.com/afan-public/nginx:latest';
+            this.importDialog.imageName = '';
             this.importDialog.filename = '';
+            this.importDialog.pinned = false;
             this.upload.file = null;
             this.upload.filename = '';
+            this.upload.noAlert = true;
             // 清空input
             this.$nextTick(()=>{
                 this.$refs.importDialogFileInput.value = '';
@@ -217,6 +390,17 @@ export default {
                     axios.post(this.outEditorInfo.agentUrl + '/panel-api/v1/registry/patch/images/import',{
                         name: this.importDialog.imageName,
                         path: this.partPath + this.upload.filename,
+                    }).then(res=>{
+                        let name = res.data.name;
+                        if(this.importDialog.pinned){
+                            return axios.post(this.outEditorInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
+                                "name": name,
+                                "labels": {"io.cri.containerd.pinned":"pinned", "io.cattle.k3s.pinned":"pinned"},
+                                "replace": true,
+                            })
+                        }else{
+                            return Promise.resolve();
+                        }
                     }).then(res=>{
                         useLoadingStore().loading = false;
                         this.$message.success('导入成功');

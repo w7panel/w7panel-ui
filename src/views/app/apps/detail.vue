@@ -202,6 +202,26 @@
             <template #title>提示</template>
             <div>{{ appDialogConfirm.txt }}</div>
         </a-modal>
+
+        <!-- 修改域名 -->
+        <domain-micro-edit
+            :show="editDomain.show"
+            :ingress="editDomain.data"
+            :appList="editDomain.appList"
+            :appPorts="editDomain.appPorts"
+            @submit="handleDomainEditSubmit"
+            @close="editDomain.show=false;"
+        ></domain-micro-edit>
+
+        <!-- 策略 -->
+        <domain-strategy
+            :show="strategy.show"
+            :data="strategy.data"
+            :hideRewrite="true"
+            :isMicroComponents="true"
+            @submit="handleStrategySubmit"
+            @cancel="strategy.show=false;"
+        ></domain-strategy>
     </div>
 </template>
 
@@ -224,6 +244,8 @@ import domainCert from '@/views/topapp/domain-cert.vue';
 import appFile from '@/views/app/pages/files.vue';
 
 import microAppForm from '@/components/micro-app-form.vue';
+import domainMicroEdit from '@/components/domain-micro-edit.vue';
+import domainStrategy from '@/components/domain-strategy.vue';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -319,6 +341,15 @@ export default {
             },
             hasThirdpartyCd: false,
             downOk: true,
+            
+            editDomain: {
+                show: false,
+                data: null,
+            },
+            strategy: {
+                show: false,
+                data: null,
+            },
         }
     },
     watch: {
@@ -392,6 +423,8 @@ export default {
         registerWujieEvent('domainCert', this.setDomainCert);
         registerWujieEvent('podLog', this.openPodLog);
         registerWujieEvent('openAppForm', this.openAppForm);
+        registerWujieEvent('ingressEdit', this.openDomainEdit);
+        registerWujieEvent('ingressStrategy', this.openStrategy);
         // this.getData();
     },
     computed:{
@@ -407,6 +440,8 @@ export default {
         domainCert,
         appFile,
         microAppForm,
+        domainMicroEdit,
+        domainStrategy,
     },
     beforeUnmount(){
         if(this.watchInterval){
@@ -424,6 +459,32 @@ export default {
 
     },
     methods: {
+        openDomainEdit(data){
+            this.editDomain = {
+                show: true,
+                data: data.ingress,
+                appList: data.appList,
+                appPorts: data.appPorts,
+                callback: data.callback,
+            }
+        },
+        handleDomainEditSubmit(v){
+            this.editDomain.show = false;
+            this.editDomain?.callback && this.editDomain.callback(v);
+        },
+
+        openStrategy(data){
+            this.strategy = {
+                show: true,
+                data: data.ingress?.backend?.strategy || {},
+                callback: data.callback,
+            }
+        },
+        handleStrategySubmit(v){
+            let data = v[0].value;
+            this.strategy.data = data;
+            this.strategy.callback && this.strategy.callback(data);
+        },
         openApp(data){
             this.appDialog = {
                 show: true,

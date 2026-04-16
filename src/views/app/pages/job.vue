@@ -45,7 +45,7 @@
         <!-- yaml -->
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
         <!-- log -->
-        <jobLog :show="log.show" title="任务日志" :name="name" @close="log.show=false;"></jobLog>
+        <jobLog :show="log.show" :showTabs="false" title="任务日志" :name="log.name" @close="log.show=false;"></jobLog>
     </div>
 </template>
 
