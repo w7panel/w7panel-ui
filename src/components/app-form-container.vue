@@ -11,7 +11,9 @@
                 </template>
                 
                 <div v-if="layout=='cronjob'" >
-                    
+                    <a-form-item label="选择容器">
+                        <select-container @complete="handleSelectContainer" ></select-container>
+                    </a-form-item>
                     <a-form-item label="环境变量" prop="env" row-class="ac-form-item">
                         <div class="df df-c ai-s" style="flex:1;">
                             <a-button type="primary" @click="openEnvEdit(form)">批量编辑</a-button>
@@ -565,6 +567,7 @@ import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
 import healthProbe from '@/components/health-probe.vue';
 import Sortable from 'sortablejs';
 import buildImageDrawer from '@/components/build-image-drawer.vue'
+import selectContainer from '@/components/select-container.vue'
 
 export default{
     props: ['data','volumes','volumeClaimTemplates','mirror','isPlugin','pluginData','layout'],
@@ -626,6 +629,7 @@ export default{
         imageformDrawer,
         healthProbe,
         buildImageDrawer,
+        selectContainer,
     },
     unmounted(){
         if(this.sortable){
@@ -633,6 +637,9 @@ export default{
         }
     },
     methods: {
+        handleSelectContainer(){
+            // v=>fl[index]=containerToForm(v.containerObj)
+        },
         openBuildImage(form){
             k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`).then(res=>{
                 let runningTaskExist = (res?.data?.items || [])?.length>0;
@@ -766,8 +773,194 @@ export default{
             return /^[a-z]([a-z0-9-]{0,61})[a-z0-9]$/.test(v);
         },
 
-        dataToForm(){
+        containerToForm(containers){
             let imagePS = this.data?.spec?.template?.spec?.imagePullSecrets || [];
+            let form = {};
+            
+            let cpu = String(containers?.resources?.limits?.cpu || '');
+            let cpuDw = /m$/.test(cpu)? 'm' : '';
+            cpu = Number(cpu.replace('m',''));
+            
+            let memory = String(containers?.resources?.limits?.memory || '');
+            
+            let memoryDw = 'Mi';
+            if(/Mi$/.test(memory)){
+                memoryDw = 'Mi';
+                memory = Number(memory.replace('Mi',''));
+            }else if(/Gi$/.test(memory)){
+                memory = Number(memory.replace('Gi',''));
+                memoryDw = 'Gi';
+            }else if(/Ti$/.test(memory)){
+                memory = Number(memory.replace('Ti','')) * 1024;
+                memoryDw = 'Gi';
+            }else{
+                memory = Number(memory);
+            }
+            
+            let spec = this?.data?.spec?.template?.spec;
+            // gpu
+            if(spec?.runtimeClassName=='nvidia' || (this.isPlugin && this.pluginData.runtimeClassName=='nvidia')){
+                let convertStringToNumber = (str)=>{
+                    str = String(str);
+                    const isK = str.toLowerCase().endsWith('k');
+                    const numStr = str.replace(/[a-zA-Z]/g, '');
+                    let num = parseFloat(numStr);
+                    if (isK) { num *= 1000; }
+                    return num;
+                }
+                form.gpuEnabled = true;
+                form.gpuNumber = containers?.resources?.requests?.['nvidia.com/gpu'] || 0;
+                form.gpuVm = containers?.resources?.requests?.['nvidia.com/gpumem'] || 0;
+                form.gpuVm = convertStringToNumber(form.gpuVm);
+                form.gpuCompute = containers?.resources?.requests?.['nvidia.com/gpucores'] || 0;
+            }else{
+                form.gpuEnabled = false;
+                form.gpuNumber = 0;
+                form.gpuVm = 0;
+                form.gpuCompute = 0;
+            }
+
+            let ctn = containers;
+            // 健康检查
+            let healthProbeInit = null;
+            //init容器不支持生命周期、健康检查设置
+            if(!containers.isInitContainers){
+                if(ctn?.livenessProbe || ctn?.readinessProbe){
+                    healthProbeInit = {};
+                    if(ctn.livenessProbe){healthProbeInit.liveness_probe = ctn.livenessProbe;}
+                    if(ctn.readinessProbe){healthProbeInit.readiness_probe = ctn.readinessProbe;}
+                }
+            }
+            // 生命周期
+            let lifecycle = ctn?.lifecycle;
+            //init容器不支持生命周期、健康检查设置
+            if(!containers.isInitContainers){
+                if(!lifecycle){
+                    form.post_start = [''];
+                    form.pre_stop = [''];
+                }else{
+                    let sarr = lifecycle?.postStart?.exec?.command || [''];
+                    let earr = lifecycle?.preStop?.exec?.command || [''];
+                    form.post_start = sarr.length? sarr : [''];
+                    form.pre_stop = earr.length? earr : [''];
+                }
+            }
+            // 特级容器
+            form.privileged = ctn?.securityContext?.privileged || false;
+            // // 挂载文件用户
+            // form.fsGroup = ctn?.securityContext?.fsGroup || '';
+            // 容器权限细化
+            form.capabilities_add = ctn?.securityContext?.capabilities?.add || [''];
+            form.capabilities_add = form.capabilities_add?.length? form.capabilities_add : [''];
+            form.capabilities_drop = ctn?.securityContext?.capabilities?.drop || [''];
+            form.capabilities_drop = form.capabilities_drop?.length? form.capabilities_drop : [''];
+
+            // 启动用户
+            form.runAsUser = ctn?.securityContext?.runAsUser || '';
+            form.runAsGroup = ctn?.securityContext?.runAsGroup || '';
+            form.runAsNonRoot = ctn?.securityContext?.runAsNonRoot || false;
+            // form.allowPrivilegeEscalation = ctn?.securityContext?.allowPrivilegeEscalation || false;
+            // 端口
+            let ports = ctn?.ports || [];
+            let hostPorts = {};
+            try{
+                hostPorts = JSON.parse(this.data?.metadata?.annotations?.['w7.cc.app/ports']);
+            } catch(e){}
+            ports = ports.map(i=>({
+                name: i.name,
+                containerPort: i.containerPort,
+                protocol: i.protocol, // || 'TCP'
+                hostPort: hostPorts[i.containerPort] || i.hostPort || 0,
+            }))
+            // env
+            let env = ctn?.env || [];
+            env = env?.map(v=>{
+                let type = 'custom';
+                if(v.value){
+                    type = 'custom';
+                }else if(v.valueFrom?.fieldRef?.fieldPath){
+                    type = 'field';
+                }else if(v.valueFrom?.resourceFieldRef?.resource){
+                    type = 'resource_field';
+                }
+                let divisor = v.valueFrom?.resourceFieldRef?.divisor;
+                let divisorAppend = '';
+                let matchDivisor = divisor?.match?.(/^([\d.]+)(m|mi|gi)$/i);
+                if(matchDivisor){
+                    divisor = matchDivisor[1];
+                    divisorAppend = matchDivisor[2];
+                }
+                let o = {
+                    name: v.name,
+                    value: v.value || v?.valueFrom?.fieldRef?.fieldPath || v?.valueFrom?.resourceFieldRef?.resource,
+                    type: type,
+                    ...(divisor?{
+                        divisor:divisor,
+                        divisorAppend:divisorAppend,
+                    }:{}),
+                }
+                if(o.name == 'RELEASE_NAME_SUFFIX' && o.value){
+                    o.disabled = true;
+                }
+                return o;
+            })
+
+            let volumeMounts = ctn?.volumeMounts || [];
+            volumeMounts = volumeMounts.map(i=>{
+                i.readOnly = i.readOnly || false;
+                return i;
+            })
+
+            // 镜像仓库
+            let imagePullSecrets = '';
+            let mirror = this.mirror || [];
+            imagePS.map(i=>{
+                let find = mirror.find(mo=>mo.value==i.name);
+                let l = find?.label + '/' + find?.namespace;
+                if(l==ctn?.image || ctn?.image?.startsWith(l+'/')){
+                    imagePullSecrets = i.name;
+                }
+            })
+
+            let easyCmd = this.testEasyCmd({
+                command: ctn?.command || [''],
+                args: ctn?.args || [''],
+            }).pass;
+            let command = ctn?.command || [''];
+            if(easyCmd && command.length==1){
+                command = ['sh','-c'].concat(command);
+            }
+            
+            form = {
+                ...form,
+                keyid: containers.name + this.createName(),
+                name: containers.name,
+                customName: containers.name,
+                cpu: cpu,
+                cpuDw: cpuDw,
+                memory: memory,
+                memoryDw: memoryDw,
+                headless: this.data?.metadata?.annotations?.['w7.cc/create-headless-svc'] == 'true',
+                ports: ports,
+                env: env,
+                image: ctn?.image,
+                defaultHealthProbeInit: healthProbeInit,
+                healthProbeInit: healthProbeInit,
+                imagePullPolicy: ctn?.imagePullPolicy,
+                volumeMounts: volumeMounts,
+                imagePullSecrets: imagePullSecrets,
+                isInitContainers: containers.isInitContainers,
+                
+                command: command,
+                args: ctn?.args || [''],
+                easyCmd: easyCmd,
+            }
+
+            this.testLimitCpuMemory(form);
+            return form;
+        },
+
+        dataToForm(){
 
             this.fl = [];
             let arr = [
@@ -781,189 +974,7 @@ export default{
                 }),
             ];
             arr.map(containers=>{
-                let form = {};
-                
-                let cpu = String(containers?.resources?.limits?.cpu || '');
-                let cpuDw = /m$/.test(cpu)? 'm' : '';
-                cpu = Number(cpu.replace('m',''));
-                
-                let memory = String(containers?.resources?.limits?.memory || '');
-                
-                let memoryDw = 'Mi';
-                if(/Mi$/.test(memory)){
-                    memoryDw = 'Mi';
-                    memory = Number(memory.replace('Mi',''));
-                }else if(/Gi$/.test(memory)){
-                    memory = Number(memory.replace('Gi',''));
-                    memoryDw = 'Gi';
-                }else if(/Ti$/.test(memory)){
-                    memory = Number(memory.replace('Ti','')) * 1024;
-                    memoryDw = 'Gi';
-                }else{
-                    memory = Number(memory);
-                }
-                
-                let spec = this?.data?.spec?.template?.spec;
-                // gpu
-                if(spec?.runtimeClassName=='nvidia' || (this.isPlugin && this.pluginData.runtimeClassName=='nvidia')){
-                    let convertStringToNumber = (str)=>{
-                        str = String(str);
-                        const isK = str.toLowerCase().endsWith('k');
-                        const numStr = str.replace(/[a-zA-Z]/g, '');
-                        let num = parseFloat(numStr);
-                        if (isK) { num *= 1000; }
-                        return num;
-                    }
-                    form.gpuEnabled = true;
-                    form.gpuNumber = containers?.resources?.requests?.['nvidia.com/gpu'] || 0;
-                    form.gpuVm = containers?.resources?.requests?.['nvidia.com/gpumem'] || 0;
-                    form.gpuVm = convertStringToNumber(form.gpuVm);
-                    form.gpuCompute = containers?.resources?.requests?.['nvidia.com/gpucores'] || 0;
-                }else{
-                    form.gpuEnabled = false;
-                    form.gpuNumber = 0;
-                    form.gpuVm = 0;
-                    form.gpuCompute = 0;
-                }
-
-                let ctn = containers;
-                // 健康检查
-                let healthProbeInit = null;
-                //init容器不支持生命周期、健康检查设置
-                if(!containers.isInitContainers){
-                    if(ctn?.livenessProbe || ctn?.readinessProbe){
-                        healthProbeInit = {};
-                        if(ctn.livenessProbe){healthProbeInit.liveness_probe = ctn.livenessProbe;}
-                        if(ctn.readinessProbe){healthProbeInit.readiness_probe = ctn.readinessProbe;}
-                    }
-                }
-                // 生命周期
-                let lifecycle = ctn?.lifecycle;
-                //init容器不支持生命周期、健康检查设置
-                if(!containers.isInitContainers){
-                    if(!lifecycle){
-                        form.post_start = [''];
-                        form.pre_stop = [''];
-                    }else{
-                        let sarr = lifecycle?.postStart?.exec?.command || [''];
-                        let earr = lifecycle?.preStop?.exec?.command || [''];
-                        form.post_start = sarr.length? sarr : [''];
-                        form.pre_stop = earr.length? earr : [''];
-                    }
-                }
-                // 特级容器
-                form.privileged = ctn?.securityContext?.privileged || false;
-                // // 挂载文件用户
-                // form.fsGroup = ctn?.securityContext?.fsGroup || '';
-                // 容器权限细化
-                form.capabilities_add = ctn?.securityContext?.capabilities?.add || [''];
-                form.capabilities_add = form.capabilities_add?.length? form.capabilities_add : [''];
-                form.capabilities_drop = ctn?.securityContext?.capabilities?.drop || [''];
-                form.capabilities_drop = form.capabilities_drop?.length? form.capabilities_drop : [''];
-
-                // 启动用户
-                form.runAsUser = ctn?.securityContext?.runAsUser || '';
-                form.runAsGroup = ctn?.securityContext?.runAsGroup || '';
-                form.runAsNonRoot = ctn?.securityContext?.runAsNonRoot || false;
-                // form.allowPrivilegeEscalation = ctn?.securityContext?.allowPrivilegeEscalation || false;
-                // 端口
-                let ports = ctn?.ports || [];
-                let hostPorts = {};
-                try{
-                    hostPorts = JSON.parse(this.data?.metadata?.annotations?.['w7.cc.app/ports']);
-                } catch(e){}
-                ports = ports.map(i=>({
-                    name: i.name,
-                    containerPort: i.containerPort,
-                    protocol: i.protocol, // || 'TCP'
-                    hostPort: hostPorts[i.containerPort] || i.hostPort || 0,
-                }))
-                // env
-                let env = ctn?.env || [];
-                env = env?.map(v=>{
-                    let type = 'custom';
-                    if(v.value){
-                        type = 'custom';
-                    }else if(v.valueFrom?.fieldRef?.fieldPath){
-                        type = 'field';
-                    }else if(v.valueFrom?.resourceFieldRef?.resource){
-                        type = 'resource_field';
-                    }
-                    let divisor = v.valueFrom?.resourceFieldRef?.divisor;
-                    let divisorAppend = '';
-                    let matchDivisor = divisor?.match?.(/^([\d.]+)(m|mi|gi)$/i);
-                    if(matchDivisor){
-                        divisor = matchDivisor[1];
-                        divisorAppend = matchDivisor[2];
-                    }
-                    let o = {
-                        name: v.name,
-                        value: v.value || v?.valueFrom?.fieldRef?.fieldPath || v?.valueFrom?.resourceFieldRef?.resource,
-                        type: type,
-                        ...(divisor?{
-                            divisor:divisor,
-                            divisorAppend:divisorAppend,
-                        }:{}),
-                    }
-                    if(o.name == 'RELEASE_NAME_SUFFIX' && o.value){
-                        o.disabled = true;
-                    }
-                    return o;
-                })
-
-                let volumeMounts = ctn?.volumeMounts || [];
-                volumeMounts = volumeMounts.map(i=>{
-                    i.readOnly = i.readOnly || false;
-                    return i;
-                })
-
-                // 镜像仓库
-                let imagePullSecrets = '';
-                let mirror = this.mirror || [];
-                imagePS.map(i=>{
-                    let find = mirror.find(mo=>mo.value==i.name);
-                    let l = find?.label + '/' + find?.namespace;
-                    if(l==ctn?.image || ctn?.image?.startsWith(l+'/')){
-                        imagePullSecrets = i.name;
-                    }
-                })
-
-                let easyCmd = this.testEasyCmd({
-                    command: ctn?.command || [''],
-                    args: ctn?.args || [''],
-                }).pass;
-                let command = ctn?.command || [''];
-                if(easyCmd && command.length==1){
-                    command = ['sh','-c'].concat(command);
-                }
-                
-                form = {
-                    ...form,
-                    keyid: containers.name + this.createName(),
-                    name: containers.name,
-                    customName: containers.name,
-                    cpu: cpu,
-                    cpuDw: cpuDw,
-                    memory: memory,
-                    memoryDw: memoryDw,
-                    headless: this.data?.metadata?.annotations?.['w7.cc/create-headless-svc'] == 'true',
-                    ports: ports,
-                    env: env,
-                    image: ctn?.image,
-                    defaultHealthProbeInit: healthProbeInit,
-                    healthProbeInit: healthProbeInit,
-                    imagePullPolicy: ctn?.imagePullPolicy,
-                    volumeMounts: volumeMounts,
-                    imagePullSecrets: imagePullSecrets,
-                    isInitContainers: containers.isInitContainers,
-                    
-                    command: command,
-                    args: ctn?.args || [''],
-                    easyCmd: easyCmd,
-                }
-
-                this.testLimitCpuMemory(form);
-
+                let form = this.containerToForm(containers);
                 this.fl.push(form);
             })
             this.activeIndex = this.fl?.[0]?.keyid;
