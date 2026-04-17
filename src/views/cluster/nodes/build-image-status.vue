@@ -100,9 +100,13 @@ export default{
 
             socket: null,
             socketClose: false,
+            preAddress: 'registry.local.w7.cc/',
         }
     },
     computed: {
+        imageName(){
+            return `${this.data?.namespace||this.namespaceActive}/${this.data?.imageName}`
+        },
         status(){
             if(this.exec.status==1 && this.imagePush.status==1){return 1;}
             if(this.exec.status==2 || this.imagePush.status==2){return 2;}
@@ -211,7 +215,7 @@ export default{
                 this.imagePush.result = '';
                 await axios.post(this.serverInfo.agentUrl.replace(/\/$/,'')+'/panel-api/v1/containers/image/export-push',{
                     containerID: buildContainer.containerID?.replace?.(/^containerd:\/\//,''),
-                    imageName: buildContainer.imageName,
+                    imageName: this.imageName,
                     registryDomain: this.serverInfo.registryDomain,
                 },{
                     // loading: true,
@@ -248,7 +252,7 @@ export default{
             
             if(buildContainer.pinned){
                 await axios.post(this.serverInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
-                    "name": 'registry.local.w7.cc/' + buildContainer.imageName,
+                    "name": this.preAddress + this.imageName,
                     "labels": {"io.cri.containerd.pinned":"pinned", "io.cattle.k3s.pinned":"pinned"},
                     "replace": true,
                 },{
