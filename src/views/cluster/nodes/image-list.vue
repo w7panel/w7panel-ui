@@ -384,7 +384,7 @@ export default {
         openImport(){
             this.importDialog.show = true;
             this.importDialog.namespace = this.namespaceActive;
-            this.importDialog.imageName = '';
+            this.importDialog.imageName = `build:${this.createName()}`;
             this.importDialog.filename = '';
             this.importDialog.pinned = false;
             this.upload.file = null;
@@ -457,6 +457,15 @@ export default {
                     this.getList();
                 })
             })
+        },
+        createName(length){
+            let len = length || 8;
+            let s = 'abcdefghijklmnopqrstuvwxyz';
+            let p = '';
+            for(var i=0; i<len; i++){
+                p = p + s[parseInt(Math.random()*s.length)]
+            }
+            return p;
         },
     },
 }
