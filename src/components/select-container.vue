@@ -133,10 +133,14 @@ export default {
                 let spec = res?.data?.spec?.template?.spec || {};
                 let containers = spec.containers || [];
                 let initContainers = spec.initContainers || [];
-                this.containerList = [
+                let labels = res?.data?.spec?.selector?.matchLabels || {};
+                labels = Object.keys(labels).map(key=>`${key}=${labels[key]}`).join(',');
+                let arr = [
                     ...containers,
                     ...initContainers,
                 ];
+                arr.labels = labels;
+                this.containerList = arr;
             }).catch(() => {
                 this.containerList = [];
             }).finally(() => {
@@ -153,6 +157,7 @@ export default {
                 kind: app?.kind || '',
                 container: val,
                 containerObj: containerObj || {},
+                labels: this.containerList?.labels || '',
             }
             this.$emit('change', obj);
             this.$emit('complete', obj);

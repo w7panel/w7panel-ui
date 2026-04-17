@@ -65,10 +65,14 @@
             </a-table>
         </div>
 
-        <a-modal :visible="importDialog.show" title="导入镜像" @ok="toImport" @cancel="importDialog.show=false" >
+        <a-modal :visible="importDialog.show" title="导入镜像" @ok="toImport" @cancel="importDialog.show=false" width="600px" >
             <a-form ref="importForm" :rules="rules" :model="importDialog" auto-label-width >
-                <a-form-item label="镜像名称" field="imageName">
-                    <a-input v-model="importDialog.imageName" placeholder="请输入镜像名称" />
+                <a-form-item label="镜像地址" field="imageName">
+                    <a-input v-model="importDialog.namespace" placeholder="namespace">
+                        <template #prepend>{{preAddress}}</template>
+                        <template #suffix>/</template>
+                    </a-input>
+                    <a-input v-model="importDialog.imageName" style="width:180px;flex-shrink:0;" placeholder="镜像名称 : 版本" />
                 </a-form-item>
                 <a-form-item label="选择文件" field="filename">
                     <div class="upload">
@@ -149,12 +153,13 @@ export default {
             form: {},
             importDialog: {
                 show: false,
+                namespace: '',
                 imageName: '',
                 filename: '',
                 pinned: false,
             },
             rules: {
-                imageName: [{required:true, message:'请输入镜像名称'}],
+                imageName: [{required:true, message:'请输入镜像地址'}],
                 filename: [{required:true, message:'请选择文件'}],
                 newName: [{required:true, message:'请输入名称'}],
             },
@@ -183,6 +188,7 @@ export default {
             buildImageStatus: {
                 show: false,
             },
+            preAddress: 'registry.local.w7.cc/',
         }
     },
     created(){
@@ -234,9 +240,10 @@ export default {
             this.buildContainer.containerID = '';
             if(!v.app || !v.container){return;}
 
+            let labelSelector = v.labels;
             // 获取pod名称
             try{
-                let {podName,imageName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=app=" + this.buildContainer.appName,{
+                let {podName,imageName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=" + labelSelector,{
                     loading: true,
                 }).then(res=>{
                     let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
@@ -361,6 +368,7 @@ export default {
         },
         openImport(){
             this.importDialog.show = true;
+            this.importDialog.namespace = this.namespaceActive;
             this.importDialog.imageName = '';
             this.importDialog.filename = '';
             this.importDialog.pinned = false;
@@ -382,13 +390,14 @@ export default {
         async toImport(){
             this.$refs.importForm.validate(async (err)=>{
                 if(err){return}
+                
                 useLoadingStore().loading = true;
                 try{
                     const { handleFileUpload } = await import('@/views/app/pages/files.upload.js');
                     await handleFileUpload(this);
 
                     axios.post(this.outEditorInfo.agentUrl + '/panel-api/v1/registry/patch/images/import',{
-                        name: this.importDialog.imageName,
+                        name: this.preAddress + this.importDialog.namespace + '/' + this.importDialog.imageName,
                         path: this.partPath + this.upload.filename,
                     }).then(res=>{
                         let name = res.data.name;

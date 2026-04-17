@@ -3,9 +3,6 @@
         <template #title>构建镜像</template>
         <div>
             <a-form ref="form" :model="form" :rules="rules" auto-label-width>
-                <!-- <a-form-item label="DockerfilePath" field="dockerfilePath">
-                    <a-input v-model="form.dockerfilePath" placeholder="请输入"></a-input>
-                </a-form-item> -->
                 <a-form-item label="代码包" field="downloadUrl">
                     <a-input v-model="form.downloadUrl" placeholder="请输入"></a-input>
                     
@@ -16,14 +13,22 @@
                     </div>
                 </a-form-item>
 
-                <a-form-item label="构建目录" field="dockerContext">
+                <!-- <a-form-item label="构建目录" field="dockerContext">
                     <a-input v-model="form.dockerContext" placeholder="请输入构建目录"></a-input>
+                </a-form-item> -->
+                
+                <a-form-item label="构建目录" field="dockerfilePath">
+                    <a-input v-model="form.dockerfilePath" placeholder="请输入"></a-input>
                 </a-form-item>
                 
-                <a-form-item label="推送地址" field="address">
-                    <a-input v-model="form.address" placeholder="xxx:xxx">
+                <a-form-item label="镜像地址" field="address">
+                    
+                    <a-input v-model="form.namespace" placeholder="namespace">
                         <template #prepend>{{preAddress}}</template>
+                        <template #suffix>/</template>
                     </a-input>
+                    <a-input v-model="form.address" style="width:240px;flex-shrink:0;" placeholder="镜像名称 : 版本" />
+
                 </a-form-item>
                 <!-- <a-form-item label="用户名">
                     <a-input v-model="form.username" placeholder="请输入"></a-input>
@@ -81,7 +86,7 @@ export default{
             visible: false,
             currentData: {},
 
-            preAddress: 'registry.local.w7.cc/w7build/',
+            preAddress: 'registry.local.w7.cc/',
             form: {},
             upload: {},
             outEditorInfo: {
@@ -90,9 +95,9 @@ export default{
             partPath: '',
 
             rules: {
-                dockerfilePath: [{ required: true, message: '请输入DockerfilePath' }],
+                dockerfilePath: [{ required: true, message: '请输入构建目录' }],
                 downloadUrl: [{ required: true, message: '请输入构建源' }],
-                address: [{ required: true, message: '请输入推送地址' }],
+                address: [{ required: true, message: '请输入镜像地址' }],
                 dockerContext: [{ required: true, message: '请输入构建目录' }],
             }
         }
@@ -130,7 +135,7 @@ export default{
                 this.currentData.metadata.namespace = this.namespaceActive;
                 this.currentData.spec.namespace = this.namespaceActive;
             }
-            console.log(this.currentData)
+            // console.log(this.currentData)
             this.dataToForm();
         },
         dataToForm(){
@@ -138,10 +143,11 @@ export default{
                 ...this.form,
                 dockerfilePath: this.currentData?.spec?.source?.dockerfilePath || '',
                 downloadUrl: this.currentData?.spec?.source?.downloadUrl || '',
-                address: this.currentData?.spec?.targetImage?.address?.replace?.(/^registry\.local\.w7\.cc\/w7build\//,'') || `build:${this.createName()}`,
+                namespace: this.currentData?.spec?.targetImage?.address?.match?.(/^registry\.local\.w7\.cc\/(.*?)\//)?.[1] || this.namespaceActive,
+                address: this.currentData?.spec?.targetImage?.address?.replace?.(/^registry\.local\.w7\.cc\/([^\/]+\/)?/,'') || `build:${this.createName()}`,
                 username: this.currentData?.spec?.targetImage?.auth?.username || '',
                 password: this.currentData?.spec?.targetImage?.auth?.password || '',
-                dockerContext: this.currentData?.spec?.source?.dockerContext || '',
+                dockerContext: this.currentData?.spec?.source?.dockerContext || './',
             }
         },
         closeDrawer(v){
@@ -193,7 +199,7 @@ export default{
                         {
                             op: 'replace',
                             path: '/spec/targetImage/address',
-                            value: this.preAddress + this.form.address,
+                            value: this.preAddress + this.form.namespace + '/' + this.form.address,
                         },
                         {
                             op: 'replace',
@@ -212,7 +218,7 @@ export default{
                         this.$message.success('操作成功');
                         this.closeDrawer({
                             ...this.form,
-                            address: this.preAddress + this.form.address,
+                            address: this.preAddress + this.form.namespace + '/' + this.form.address,
                         });
                     });
                 }else{
@@ -220,14 +226,15 @@ export default{
                     this.currentData.spec.source.dockerfilePath = this.form.dockerfilePath;
                     this.currentData.spec.source.downloadUrl = this.form.downloadUrl;
                     this.currentData.spec.source.dockerContext = this.form.dockerContext;
-                    this.currentData.spec.targetImage.address = this.preAddress + this.form.address;
+                    this.currentData.spec.targetImage.address = this.preAddress + this.form.namespace + '/' + this.form.address;
                     this.currentData.spec.targetImage.auth.username = this.form.username;
                     this.currentData.spec.targetImage.auth.password = this.form.password;
+                    
                     k8sproxy.post('/apis/buildimage.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/buildimages',this.currentData).then(res=>{
                         this.$message.success('操作成功')
                         this.closeDrawer({
                             ...this.form,
-                            address: this.preAddress + this.form.address,
+                            address: this.preAddress + this.form.namespace + '/' + this.form.address,
                         });
                     });
                 }
