@@ -105,7 +105,7 @@
                 <a-form-item label="自定义命令" field="cmd">
                     <a-textarea v-model="buildContainer.cmd" placeholder="请输入" style="width:620px;height:80px;" :spellcheck="false"/>
                 </a-form-item>
-                <a-form-item v-if="buildContainer.imageName" label="镜像名称">
+                <a-form-item v-if="buildContainer.imageName" label="镜像地址">
                     <div class="df" style="width:620px;">
                         <a-input v-model="buildContainer.namespace" placeholder="namespace">
                             <template #prepend>{{preAddress}}</template>
