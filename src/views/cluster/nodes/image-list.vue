@@ -105,7 +105,15 @@
                 <a-form-item label="自定义命令" field="cmd">
                     <a-textarea v-model="buildContainer.cmd" placeholder="请输入" style="width:620px;height:80px;" :spellcheck="false"/>
                 </a-form-item>
-                <a-form-item v-if="buildContainer.imageName" label="镜像名称">registry.local.w7.cc/{{buildContainer.imageName}}</a-form-item>
+                <a-form-item v-if="buildContainer.imageName" label="镜像名称">
+                    <div class="df" style="width:620px;">
+                        <a-input v-model="buildContainer.namespace" placeholder="namespace">
+                            <template #prepend>{{preAddress}}</template>
+                            <template #suffix>/</template>
+                        </a-input>
+                        <a-input v-model="buildContainer.imageName" style="width:300px;flex-shrink:0;" placeholder="镜像名称 : 版本" />
+                    </div>
+                </a-form-item>
                 <a-form-item label="PINNED">
                     <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
                         <a-checkbox v-model="buildContainer.pinned">设置为PINNED</a-checkbox>
@@ -176,6 +184,7 @@ export default {
                 containerName: '',
                 cmd: '',
                 pinned: false,
+                namespace: '',
                 imageName: '',
                 podName: '',
                 containerID: '',
@@ -226,6 +235,7 @@ export default {
                 containerName: '',
                 cmd: '',
                 pinned: false,
+                namespace: '',
                 imageName: '',
                 podName: '',
                 containerID: '',
@@ -236,6 +246,7 @@ export default {
             this.buildContainer.appName = v?.app || '';
             this.buildContainer.containerName = v?.container || '';
             this.buildContainer.imageName = '';
+            this.buildContainer.namespace = '';
             this.buildContainer.podName = '';
             this.buildContainer.containerID = '';
             if(!v.app || !v.container){return;}
@@ -250,7 +261,7 @@ export default {
                     imageName = imageName.replace(/-\d{10}$/,'');
                     return {
                         podName: res?.data?.items?.[0]?.metadata?.name,
-                        imageName: imageName + '-' + dayjs().unix(),
+                        imageName: imageName,
                         containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
                         ip: res?.data?.items?.[0]?.status?.hostIP,
                     };
@@ -265,7 +276,11 @@ export default {
                         registryDomain: res.data?.requestHost || '',
                     };
                 })
-                this.buildContainer.imageName = imageName?.replace?.(/^registry\.local\.w7\.cc\//,'') || '';
+                
+                let image = imageName?.replace?.(/^([a-zA-Z0-9.-]+)(:\d+)?\//, '') || '';
+                this.buildContainer.namespace = /^.+\/.+$/.test(image)? image.replace?.(/\/[^\/]*$/, '') : this.namespaceActive;
+                this.buildContainer.imageName = image.replace?.(/^[^\/]*\//, '') + '-' + dayjs().unix();
+                
                 this.buildContainer.podName = podName;
                 this.buildContainer.containerID = containerID;
                 
