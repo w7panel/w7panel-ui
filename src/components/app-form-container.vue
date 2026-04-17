@@ -12,7 +12,7 @@
                 
                 <div v-if="layout=='cronjob'" >
                     <a-form-item label="选择容器">
-                        <select-container @complete="handleSelectContainer" ></select-container>
+                        <select-container @complete="(v)=>handleSelectContainer(v,index)" ></select-container>
                     </a-form-item>
                     <a-form-item label="环境变量" prop="env" row-class="ac-form-item">
                         <div class="df df-c ai-s" style="flex:1;">
@@ -637,8 +637,21 @@ export default{
         }
     },
     methods: {
-        handleSelectContainer(){
-            // v=>fl[index]=containerToForm(v.containerObj)
+        handleSelectContainer(data,index){
+            if(!data.containerObj){return}
+            let oldForm = this.fl[index];
+            let obj = {
+                customName: oldForm.customName,
+                keyid: oldForm.keyid,
+                name: oldForm.name,
+            }
+            
+            let newForm = this.containerToForm(data.containerObj);
+            newForm = {
+                ...newForm,
+                ...obj,
+            }
+            this.fl[index] = newForm;
         },
         openBuildImage(form){
             k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`).then(res=>{
