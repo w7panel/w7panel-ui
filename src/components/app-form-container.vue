@@ -652,6 +652,13 @@ export default{
                 ...obj,
             }
             this.fl[index] = newForm;
+
+            let volumes = data.volumes;
+            let cv = data.containerObj.volumeMounts;
+            volumes = volumes.filter(i=>cv.find(j=>j.name==i.name));
+            
+            this.$emit('addVolumes',volumes)
+
         },
         openBuildImage(form){
             k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`).then(res=>{

@@ -287,6 +287,20 @@ export default{
             let volumes = this.data?.spec?.template?.spec?.volumes || [];
             let volumeClaimTemplates = this.data?.spec?.volumeClaimTemplates || [];
 
+            this.list = this.dataToForm({volumes,volumeClaimTemplates});
+            this.submit();
+        },
+        addItemFromOut(addVolumes){
+            
+            let volumes = this.data?.spec?.template?.spec?.volumes || [];
+            volumes = volumes.concat(addVolumes);
+            let volumeClaimTemplates = this.data?.spec?.volumeClaimTemplates || [];
+
+            this.list = this.dataToForm({volumes,volumeClaimTemplates});
+            this.submit();
+        },
+        dataToForm({volumes=[], volumeClaimTemplates=[]}){ 
+            
             let vt = volumeClaimTemplates.map(i=>{
                 return {
                     name: i.metadata.name,
@@ -360,9 +374,7 @@ export default{
                     hostPathPath,
                 }
             })
-
-            this.list = vt.concat(arr);
-            this.submit();
+            return vt.concat(arr);
         },
         getDisks(){
             k8sproxy.get('/apis/storage.k8s.io/v1/storageclasses',{

@@ -25,6 +25,7 @@
 
                 <app-form-volumes
                     :data="containerEditor.data"
+                    ref="appformvolumes"
                     @submit="v=>containerEditor.volumes = v.volumes"
                 />
 
@@ -33,6 +34,7 @@
                     layout="cronjob"
                     :data="containerEditor.data"
                     :volumes="containerEditor.volumes"
+                    @addVolumes="addVolumes"
                 ></app-form-container>
 
             </a-form>
@@ -162,6 +164,11 @@ export default {
         this.getConfigmap();
     },
     methods: {
+        addVolumes(val){
+            this.$nextTick(()=>{
+                this.$refs.appformvolumes.addItemFromOut(val);
+            });
+        },
         onSelectContainer(val){
             console.log('select-container:', val);
         },
