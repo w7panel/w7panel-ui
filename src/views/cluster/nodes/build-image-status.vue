@@ -120,6 +120,9 @@ export default{
     },
     methods: {
         init(){
+            this.imagePush.lastRow = '';
+            this.exec.lastRow = '';
+            
             this.exec = {
                 ...this.exec,
                 status: 3,
@@ -160,8 +163,15 @@ export default{
                         this.writeChunk(chunk);
                     }
                 }
-                this.socket.onclose = ()=>{
+                this.socket.onclose = (e)=>{
+                    console.log('socket close',e)
                     this.socketClose = true;
+                    // 如果reason里包含timeout或upstream_close则失败
+                    if(e.reason.includes('timeout') || e.reason.includes('upstream_close')){
+                        this.exec.status = 2;
+                        reject(e);
+                        return;
+                    }
                     resolve({data: result});
                 }
                 this.socket.onerror = (e)=>{
@@ -193,7 +203,8 @@ export default{
                 this.exec.status = 1;
                 this.exec.result = '';
             }
-            
+            if(this.exec.status==2){return;}
+
             // 镜像推送
             try{
                 this.imagePush.status = 3;
@@ -233,6 +244,7 @@ export default{
                 this.imagePush.status = 2;
                 return;
             }
+            if(this.imagePush.status==2){return;}
             
             if(buildContainer.pinned){
                 await axios.post(this.serverInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{

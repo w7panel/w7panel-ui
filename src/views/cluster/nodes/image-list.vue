@@ -234,9 +234,10 @@ export default {
             this.buildContainer.containerID = '';
             if(!v.app || !v.container){return;}
 
+            let labelSelector = v.labels;
             // 获取pod名称
             try{
-                let {podName,imageName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=app=" + this.buildContainer.appName,{
+                let {podName,imageName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=" + labelSelector,{
                     loading: true,
                 }).then(res=>{
                     let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
