@@ -49,6 +49,11 @@
                                         </div>
                                         <div class="fs-12" style="color:rgb(var(--gray-6));">{{record.storageClassName}}</div>
                                     </div>
+
+                                    <div v-if="record.isExpanding" class="ml-10 fs-12 c-66 df ai-c">
+                                        <icon-loading />
+                                        <span class="ml-4">扩容中</span>
+                                    </div>
                                 </div>
                             </template>
                         </a-table-column>
@@ -96,7 +101,11 @@
                         </a-table-column>
                         <a-table-column title="操作" fixed='right'>
                             <template #cell="{ record }">
-                                <span v-if=" hasLonghornSystem" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
+                                <span v-if="hasLonghornSystem && !record.isExpanding" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
+                                <span v-if="record.isExpanding" class="c-blue cursor mr-20" @click="cancelExpand(record)">取消扩容</span>
+
+                                <span v-if="record.state=='detached'" class="c-blue cursor mr-20" @click="openAttach(record)">挂载</span>
+                                <span v-if="record.state=='attached'" class="c-blue cursor mr-20" @click="openDetach(record)">分离</span>
                                 <!-- <span class="c-blue cursor mr-20" v-if="!record.pvDisabled" @click="openPvpvc(record)">创建pv/pvc</span> -->
                                 <a-popconfirm v-if="!record.onlyshow" content="确定要删除吗？" @ok="del(record)" position="lt" >
                                     <span :id="'disk-'+record.name" class="c-blue cursor">删除</span>
@@ -123,6 +132,20 @@
             :availableResource="availableResource"
             @close="closeSD"
         ></zone-drawer>
+
+        <a-modal :visible="attach.show" title="挂载" @ok="submitAttach" @cancel="attach.show=false;">
+            <a-form :model="attach" auto-label-width>
+                <a-form-item label="节点">
+                    <a-select v-model="attach.hostId" placeholder="请选择节点" :loading="attach.nodeLoading">
+                        <a-option v-for="n in nodeList" :key="n" :label="n" :value="n"></a-option>
+                    </a-select>
+                </a-form-item>
+            </a-form>
+        </a-modal>
+
+        <a-modal :visible="detach.show" title="分离" @ok="submitDetach" @cancel="detach.show=false;">
+            <a-checkbox v-model="detach.force">强制分离</a-checkbox>
+        </a-modal>
     </div>
 </template>
 
@@ -169,6 +192,19 @@ export default {
 
             syspvc: {},
             hasLonghornSystem: false,
+
+            attach: {
+                show: false,
+                hostId: '',
+            },
+
+            detach: {
+                show: false,
+                force: false,
+                volumeName: '',
+                hostId: '',
+            },
+            nodeList: [],
         }
     },
     created(){
@@ -184,6 +220,58 @@ export default {
         IconBookmark,
     },
     methods: {
+        // 挂载
+        openAttach(record){
+            this.attach = {
+                ...this.attach,
+                show: true,
+                volumeName: record.volumeName,
+                hostId: '',
+                nodeLoading: false,
+            };
+            if(!this.nodeList.length){
+                this.getNodeList();
+            }
+        },
+        submitAttach(){
+            if(!this.attach.hostId){
+                this.$message.warning('请选择节点');
+                return;
+            }
+            panelApi.post(`/longhorn/volumes/${this.attach.volumeName}/attach`,{
+                hostId: this.attach.hostId,
+            }).then(()=>{
+                this.attach.show = false;
+                this.$message.success('挂载成功');
+                this.getList();
+            });
+        },
+        // 分离
+        openDetach(record){
+            this.detach = {
+                show: true,
+                volumeName: record.volumeName,
+                hostId: record.migratedNode || record.hostId || '',
+                force: false,
+            };
+        },
+        submitDetach(){
+            panelApi.post(`/longhorn/volumes/${this.detach.volumeName}/detach`,{
+                forceDetach: this.detach.force,
+            }).then(()=>{
+                this.detach.show = false;
+                this.$message.success('分离成功');
+                this.getList();
+            });
+        },
+        getNodeList(){
+            this.attach.nodeLoading = true;
+            k8sproxy.get('/api/v1/nodes').then(res=>{
+                this.nodeList = (res?.data?.items || []).map(i=>i.metadata.name);
+            }).finally(()=>{
+                this.attach.nodeLoading = false;
+            });
+        },
         testLonghornSystem(){
             panelApi.get('/helm/releases/longhorn?namespace=longhorn-system',{loading:true,noAlert:true}).then(res=>{
                 if(res?.data){this.hasLonghornSystem = true;}
@@ -242,80 +330,82 @@ export default {
                         volumeName: i.spec?.volumeName,
                     }
                 })
-                return list;
-            }).then(async list=>{
-                
-                const formatStorageSize = (bytes) => {
-                    // 1 GiB = 1024 MiB = 1024*1024*1024 bytes
-                    return bytes >= 1024 ** 3 
-                        ? `${(bytes / (1024 ** 3)).toFixed(0)} Gi` 
-                        : `${(bytes / (1024 ** 2)).toFixed(0)} Mi`;
-                };
+                this.list = list;
+                this.getStatus();
+            })
+        },
+        async getStatus(){
+            let list = this.list;
+            const formatStorageSize = (bytes) => {
+                // 1 GiB = 1024 MiB = 1024*1024*1024 bytes
+                return bytes >= 1024 ** 3 
+                    ? `${(bytes / (1024 ** 3)).toFixed(0)} Gi` 
+                    : `${(bytes / (1024 ** 2)).toFixed(0)} Mi`;
+            };
 
-                try{
-                    await panelApi.get('/longhorn/volumes/status',{noAlert:true}).then(res=>{
-                        let data = res?.data || {};
-    
-                        list = list.map(i=>{
-                            let translateKey = this.translateToHostName(i.name, this.namespaceActive, this.userInfo?.['w7.cc/k3k-name']) + ':' + this.userInfo['w7.cc/k3k-namespace'];
-                            
-                            let obj = data?.[this.clusterMode=='shared'? translateKey : i.key] || {};
-                            if(obj.actualSize){
-                                obj.usedSize = this.btog(obj.actualSize);
-                                obj.usedSizeNum = Number(obj.actualSize);
-                            }else{
-                                obj.usedSize = 0;
-                                obj.usedSizeNum = 0;
-                            }
-                            obj.snapShot = this.btog(obj.snapShotSize);
-                            obj.snapShotNum = Number(obj.snapShotSize);
-    
-                            return {
-                                ...i,
-                                ...obj,
-                            }
-                        })
+            try{
+                await panelApi.get('/longhorn/volumes/status',{noAlert:true}).then(res=>{
+                    let data = res?.data || {};
+
+                    list = list.map(i=>{
+                        let translateKey = this.translateToHostName(i.name, this.namespaceActive, this.userInfo?.['w7.cc/k3k-name']) + ':' + this.userInfo['w7.cc/k3k-namespace'];
                         
-                        let syspvc = data?.[this.userInfo?.['w7.cc/sys-pvc-name']+':'+this.userInfo?.['w7.cc/k3k-namespace']] || '';
-                        if(syspvc){
-                            this.syspvc = {
-                                show: true,
-                                numberOfReplicas: syspvc.numberOfReplicas,
-                                robustness: syspvc.robustness,
-                                
-                                actualSize: syspvc.actualSize,
-                                actualSizeTxt: formatStorageSize(syspvc.actualSize),
-                                size: Number(syspvc.size),
-                                sizeTxt: formatStorageSize(Number(syspvc.size)),
-    
-                                
-                                actualSize: syspvc.actualSize,
-                                actualSizeTxt: formatStorageSize(syspvc.actualSize),
-                                size: Number(syspvc.size),
-                                sizeTxt: formatStorageSize(Number(syspvc.size)),
-                            }
-                            this.syspvc.progress = Number( (syspvc.actualSize / Number(syspvc.size)).toFixed(2) );
-                            if(this.clusterMode=="shared"){
-                                list.unshift({
-                                    onlyshow: true,
-                                    name: this.userInfo?.['w7.cc/sys-pvc-name'],
-                                    numberOfReplicas: 1,
-                                    
-                                    usedSizeNum: syspvc.actualSize,
-                                    usedSize: formatStorageSize(syspvc.actualSize),
-                                    storageSizeNum: Number(syspvc.size),
-                                    storageSize: formatStorageSize(Number(syspvc.size)),
-                                })
-                            }
+                        let obj = data?.[this.clusterMode=='shared'? translateKey : i.key] || {};
+                        if(obj.actualSize){
+                            obj.usedSize = this.btog(obj.actualSize);
+                            obj.usedSizeNum = Number(obj.actualSize);
+                        }else{
+                            obj.usedSize = 0;
+                            obj.usedSizeNum = 0;
                         }
-                        this.list = list;
-                        this.getCustom();
+                        obj.snapShot = this.btog(obj.snapShotSize);
+                        obj.snapShotNum = Number(obj.snapShotSize);
+
+                        return {
+                            ...i,
+                            ...obj,
+                        }
                     })
-                }catch{
+                    
+                    let syspvc = data?.[this.userInfo?.['w7.cc/sys-pvc-name']+':'+this.userInfo?.['w7.cc/k3k-namespace']] || '';
+                    if(syspvc){
+                        this.syspvc = {
+                            show: true,
+                            numberOfReplicas: syspvc.numberOfReplicas,
+                            robustness: syspvc.robustness,
+                            
+                            actualSize: syspvc.actualSize,
+                            actualSizeTxt: formatStorageSize(syspvc.actualSize),
+                            size: Number(syspvc.size),
+                            sizeTxt: formatStorageSize(Number(syspvc.size)),
+
+                            
+                            actualSize: syspvc.actualSize,
+                            actualSizeTxt: formatStorageSize(syspvc.actualSize),
+                            size: Number(syspvc.size),
+                            sizeTxt: formatStorageSize(Number(syspvc.size)),
+                        }
+                        this.syspvc.progress = Number( (syspvc.actualSize / Number(syspvc.size)).toFixed(2) );
+                        if(this.clusterMode=="shared"){
+                            list.unshift({
+                                onlyshow: true,
+                                name: this.userInfo?.['w7.cc/sys-pvc-name'],
+                                numberOfReplicas: 1,
+                                
+                                usedSizeNum: syspvc.actualSize,
+                                usedSize: formatStorageSize(syspvc.actualSize),
+                                storageSizeNum: Number(syspvc.size),
+                                storageSize: formatStorageSize(Number(syspvc.size)),
+                            })
+                        }
+                    }
                     this.list = list;
                     this.getCustom();
-                }
-            });
+                })
+            }catch{
+                this.list = list;
+                this.getCustom();
+            }
         },
         // 判断是否手动创建
         getCustom(){
@@ -375,6 +465,13 @@ export default {
                 p = p + s[parseInt(Math.random()*s.length)]
             }
             return p;
+        },
+        
+        cancelExpand(record){
+            panelApi.post(`/longhorn/volumes/${record.volumeName}/cancel-expansion`).then(res=>{
+                this.$message.success('取消成功');
+                this.getList();
+            })
         },
         openExpend(record){
             console.log(record)
