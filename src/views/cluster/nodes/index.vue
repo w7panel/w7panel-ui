@@ -504,7 +504,7 @@ export default {
     },
     methods: {
         insLonghorn(){
-            panelApi.post('/yaml', templateYaml, {loading:true}).then(res=>{
+            panelApi.post('/longhorn/install', templateYaml, {loading:true}).then(res=>{
                 this.$message.success('操作成功')
                 this.testLonghornSystem();
             });
