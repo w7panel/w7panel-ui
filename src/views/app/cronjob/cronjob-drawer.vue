@@ -24,6 +24,7 @@
                 </a-form-item>
 
                 <app-form-volumes
+                    :data="containerEditor.data"
                     @submit="v=>containerEditor.volumes = v.volumes"
                 />
 
