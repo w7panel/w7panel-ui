@@ -650,6 +650,7 @@ export default{
             newForm = {
                 ...newForm,
                 ...obj,
+                saveSelectContainerLabels: data.podLabels,
             }
             this.fl[index] = newForm;
 
@@ -657,7 +658,7 @@ export default{
             let cv = data.containerObj.volumeMounts;
             volumes = volumes.filter(i=>cv.find(j=>j.name==i.name));
             
-            this.$emit('addVolumes',volumes)
+            this.$emit('addVolumes', volumes);
 
         },
         openBuildImage(form){
@@ -1006,8 +1007,11 @@ export default{
             let hostPorts = {};
             let imagePullSecrets = [];
             let pluginData = {};
-
+            let saveSelectContainerLabels = [];
+            
             this.fl.map(form=>{
+                saveSelectContainerLabels.push(form?.saveSelectContainerLabels||{})
+
                 if(form.imagePullSecrets){ imagePullSecrets.push(form.imagePullSecrets) }
                 let o = {};
                 let ports = form.ports?.filter(i=>i.containerPort&&i.containerPort!='0')?.map(v=>{
@@ -1149,6 +1153,7 @@ export default{
                 hostPorts,
                 imagePullSecrets,
                 pluginData,
+                saveSelectContainerLabels,
             }
         },
 

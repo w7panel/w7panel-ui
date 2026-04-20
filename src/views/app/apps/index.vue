@@ -17,7 +17,7 @@
             <a-button type="outline" class="mr-20" @click="k8syaml.show=true;">K8sYaml创建</a-button>
             <!-- <a-button type="outline" class="mr-20" @click="codepack.show=true;">代码包创建</a-button> -->
             <a-button type="outline" class="mr-20" @click="helm.show=true;">Helm创建</a-button>
-            <a-button v-if="zpk.show" type="outline" class="mr-20" @click="$router.push('/app/store/w7-zpkv2/store')" >制品商店</a-button>
+            <a-button v-if="zpk.show" type="outline" class="mr-20" @click="$router.push('/app/store/zpk')" >制品商店</a-button>
         </div>
         <div class="bg-white padding-20 mt-20">
             <a-table :data="data" class="filetable applisttable" :bordered="false" :pagination="false">

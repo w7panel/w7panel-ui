@@ -133,14 +133,16 @@ export default {
                 let spec = res?.data?.spec?.template?.spec || {};
                 let containers = spec.containers || [];
                 let initContainers = spec.initContainers || [];
-                let labels = res?.data?.spec?.selector?.matchLabels || {};
-                labels = Object.keys(labels).map(key=>`${key}=${labels[key]}`).join(',');
+                let podMatchLabels = res?.data?.spec?.selector?.matchLabels || {};
+                let podLabels = res?.data?.spec?.template?.metadata?.labels || {};
+
                 let volumes = spec?.volumes || [];
                 let arr = [
                     ...containers,
                     ...initContainers,
                 ];
-                arr.labels = labels;
+                arr.podMatchLabels = podMatchLabels;
+                arr.podLabels = podLabels;
                 arr.volumes = volumes;
                 this.containerList = arr;
             }).catch(() => {
@@ -159,7 +161,8 @@ export default {
                 kind: app?.kind || '',
                 container: val,
                 containerObj: containerObj || {},
-                labels: this.containerList?.labels || '',
+                podMatchLabels: this.containerList?.podMatchLabels || '',
+                podLabels: this.containerList?.podLabels || '',
                 volumes: this.containerList?.volumes || '',
             }
             this.$emit('change', obj);

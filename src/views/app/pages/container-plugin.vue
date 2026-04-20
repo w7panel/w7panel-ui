@@ -1,13 +1,37 @@
 <template>
-    <div>
+    <a-form auto-label-width>
+        <div class="title">基本信息</div>
+        <a-form-item label="应用类型">
+            <div class="df ai-c">
+                <a-radio-group v-model="kind">
+                    <a-radio value="deployments" >
+                        <template #radio="{checked,disabled}">
+                            <div class="app-type-custom-label" :class="{'custom-radio-card-checked':checked, 'custom-radio-card-disabled':disabled }">无状态应用</div>
+                        </template>
+                    </a-radio>
+                    <a-radio value="statefulsets">
+                        <template #radio="{checked,disabled}">
+                            <div class="app-type-custom-label" :class="{'custom-radio-card-checked':checked, 'custom-radio-card-disabled':disabled }">有状态应用</div>
+                        </template>
+                    </a-radio>
+                    <a-radio value="daemonsets">
+                        <template #radio="{checked,disabled}">
+                            <div class="app-type-custom-label" :class="{'custom-radio-card-checked':checked, 'custom-radio-card-disabled':disabled }">守护进程应用</div>
+                        </template>
+                    </a-radio>
+                </a-radio-group>
+            </div>
+        </a-form-item>
         <!-- 数据卷 -->
         <app-form-volumes
             :data="data"
             :isPlugin="true"
+            :kind="kind"
             :pluginData="pluginData"
             @submit="v=>{volumes=v.volumes;volumeClaimTemplates=v.volumeClaimTemplates;}"
         ></app-form-volumes>
         
+        <div class="title">容器（Containers）</div>
         <!-- 容器 -->
         <app-form-container
             ref="appformcontainer"
@@ -23,7 +47,7 @@
         ></app-form-container>
         
         <imageform-drawer :show="createImage.show" :id="createImage.name" @submit="createImage.submit" @close="createImage.show=false;"></imageform-drawer>
-    </div>
+    </a-form>
 </template>
 <script>
 import appFormVolumes from '@/components/app-form-volumes.vue';
@@ -85,6 +109,8 @@ export default{
             token: '',
             pluginData: {},
             wujieId: '',
+
+            kind: 'deployments',
         }
     },
     async created(){
@@ -115,6 +141,9 @@ export default{
             this.data = JSON.parse(JSON.stringify(dataTemplate));
             if(window.$wujie?.props?.pluginData){
                 this.pluginData = window.$wujie.props.pluginData;
+                if(this.pluginData.kind){
+                    this.kind = this.pluginData.kind;
+                }
             }
             if(window.$wujie?.props?.containers){
                 this.data.spec.template.spec.containers = window.$wujie.props.containers;
@@ -125,6 +154,11 @@ export default{
             if(window.$wujie?.props?.volumes){
                 if(this.data?.spec?.template?.spec){
                     this.data.spec.template.spec.volumes = window.$wujie.props.volumes;
+                }
+            }
+            if(window.$wujie?.props?.volumeClaimTemplates){
+                if(this.data?.spec?.template?.spec){
+                    this.data.spec.template.spec.volumeClaimTemplates = window.$wujie.props.volumeClaimTemplates;
                 }
             }
         },
@@ -158,7 +192,10 @@ export default{
                 imagePullSecrets, // 镜像仓库
                 volumes: this.volumes,
                 volumeClaimTemplates: this.volumeClaimTemplates,
-                pluginData,
+                pluginData: {
+                    ...pluginData,
+                    kind: this.kind,
+                },
             });
         },
         
@@ -212,4 +249,12 @@ export default{
 }
 </script>
 <style scoped>
+
+.title{font-size:16px; padding:10px; border-bottom:1px solid var(--color-neutral-3);margin-bottom:20px;}
+
+.app-type-custom-label{padding:8px 20px; border:1px solid var(--color-border-2); border-radius: 4px;}
+.app-type-custom-label.custom-radio-card-checked{ color:rgb(var(--primary-6)); border-color:rgb(var(--primary-6)); background-color:var(--color-primary-light-1);}
+.app-type-custom-label.custom-radio-card-disabled{opacity: 0.8; color: var(--color-text-3);}
+.app-type-custom-label.custom-radio-card-checked.custom-radio-card-disabled{border-color:var(--color-primary-light-3);}
+
 </style>

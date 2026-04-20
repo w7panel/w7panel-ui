@@ -49,7 +49,6 @@
 import { k8sproxy } from '@/utils/api';
 
 import cronJob from "@/components/cron-job.vue"
-import selectContainer from '@/components/select-container.vue';
 import axios from "axios"
 import {useNamespaceStore} from "@/store";
 import appForm from '@/components/app-form.vue';
@@ -136,7 +135,6 @@ export default {
     },
     components: {
         cronJob,
-        selectContainer,
         appForm,
         appFormVolumes,
         formDrawer,
@@ -168,9 +166,6 @@ export default {
             this.$nextTick(()=>{
                 this.$refs.appformvolumes.addItemFromOut(val);
             });
-        },
-        onSelectContainer(val){
-            console.log('select-container:', val);
         },
         delConfigmap(name){
             k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+name,{loading:true}).then(res=>{
@@ -398,7 +393,30 @@ export default {
                 containers,
                 hostPorts,
                 imagePullSecrets,
+                saveSelectContainerLabels,
             } = this.$refs.appformcontainer.formToData();
+            
+            let affObj = {};
+            if(Object.keys(saveSelectContainerLabels?.[0]||{})?.length>0){
+                affObj = {
+                    affinity: {
+                        podAffinity: {
+                            requiredDuringSchedulingIgnoredDuringExecution: [{
+                                labelSelector: {
+                                    matchExpressions: Object.keys(saveSelectContainerLabels[0]).map(i=>{
+                                        return {
+                                            key: i,
+                                            operator: 'In',
+                                            values: saveSelectContainerLabels[0][i],
+                                        }
+                                    })
+                                },
+                                topologyKey: 'kubernetes.io/hostname',
+                            }]
+                        }
+                    }
+                }
+            }
             
             let jobSpec = {
                 template: {
@@ -408,6 +426,7 @@ export default {
                         volumes: this.containerEditor.volumes || [],
                         restartPolicy: "Never",
                         imagePullSecrets: this.mirror,
+                        ...affObj,
                     },
                 },
             }
