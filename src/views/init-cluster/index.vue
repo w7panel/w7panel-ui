@@ -41,7 +41,7 @@
                     </div>
                     <div class="df ai-c padding-10" style="border-bottom: 1px solid var(--color-neutral-3); padding:20px 0;">
                         <div class="df-s0" style="color:var(--color-text-2);">集群初始化</div>
-                        <div @click="openLogModal" class="fc ml-20 c-99 txt-overhidden cursor">{{ lastRow }}</div>
+                        <div @click="openLogModal(jobName)" class="fc ml-20 c-99 txt-overhidden cursor">{{ lastRow }}</div>
                         <div class="df-s0 ml-20">
                             <div v-if="status=='complete'">
                                 <icon-check-circle-fill class="c-green fs-16" />
@@ -57,6 +57,29 @@
                                 <span class="ml-6 c-blue cursor" @click="toInitCluster">重试</span>
                             </div>
                             <div v-else-if="status=='unknow'">
+                                <icon-close-circle-fill class="c-red fs-16" />
+                                <span class="ml-6">未初始化</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="df ai-c padding-10" style="border-bottom: 1px solid var(--color-neutral-3); padding:20px 0;">
+                        <div class="df-s0" style="color:var(--color-text-2);">救援任务</div>
+                        <div @click="openLogModal(weihuJobName)" class="fc ml-20 c-99 txt-overhidden cursor">{{ weihuLastRow }}</div>
+                        <div class="df-s0 ml-20">
+                            <div v-if="weihuStatus=='complete'">
+                                <icon-check-circle-fill class="c-green fs-16" />
+                                <span class="ml-6">成功</span>
+                            </div>
+                            <div v-if="weihuStatus=='running'">
+                                <icon-loading class="fs-16" />
+                                <span class="ml-6">初始化中...</span>
+                            </div>
+                            <div v-else-if="weihuStatus=='failed'">
+                                <icon-close-circle-fill class="c-red fs-16" />
+                                <span class="ml-6">失败</span>
+                                <span class="ml-6 c-blue cursor" @click="toRetryWeihu">重试</span>
+                            </div>
+                            <div v-else-if="weihuStatus=='unknow'">
                                 <icon-close-circle-fill class="c-red fs-16" />
                                 <span class="ml-6">未初始化</span>
                             </div>
@@ -102,7 +125,7 @@
         </div>
 
         <!-- 日志弹窗 -->
-        <podLog 
+        <!-- <podLog 
             :show="logModal.show" 
             mode="modal" 
             title="查看日志" 
@@ -111,7 +134,19 @@
             :pod-name="logModal.pod_name"
             :namespace="logModal.namespace"
             @close="logModal.show = false; logModal.pod_name = ''; logModal.namespace = '';"
+        /> -->
+        
+        <job-log
+            :show="logModal.show"
+            mode="modal"
+            :showTabs="false"
+            title="查看日志"
+            :jobName="logModal.jobName"
+            :namespace="logModal.namespace"
+            :tail-lines="500"
+            @close="logModal.show = false; logModal.jobName = ''; logModal.namespace = '';"
         />
+
     </div>
 </template>
 
@@ -119,17 +154,24 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import podLog from '@/components/pod-log.vue';
+import jobLog from '@/components/job-log.vue'
 
 export default {
     components: {
         podLog,
+        jobLog,
     },
     data(){
         return {
             status: '',
             jobName: '',
-            namespace: '',
             lastRow: '',
+
+            weihuJobName: '',
+            weihuStatus: '',
+            weihuLastRow: '',
+
+            namespace: '',
             logModal: {
                 show: false,
                 pod_name: '',
@@ -154,7 +196,7 @@ export default {
         await panelApi.post('/k3k/overselling/check',{},{noAlert:true}).then(()=>{}).catch(()=>{}) 
         await this.getInfo();
         await this.getDisk();
-        this.getStatus();
+        this.getStatus({needGetInfo:false});
         
         if(this.status=='failed' || this.status=='unknow'){
             this.toInitCluster();
@@ -183,9 +225,9 @@ export default {
                 
             })
         },
-        openLogModal(){
-            if(!this.jobName || !this.namespace) return;
-            this.logModal.pod_name = this.jobName;
+        openLogModal(jobName){
+            if(!jobName || !this.namespace) return;
+            this.logModal.jobName = jobName;
             this.logModal.namespace = this.namespace;
             this.logModal.show = true;
         },
@@ -195,24 +237,27 @@ export default {
                 this.getStatus();
             })
         },
-        getStatus(){
-            panelApi.get('/k3k/info',{loading:true}).then(res=>{
-                this.weihuModal = res?.data?.['w7.cc/weihu'] == 'true';
-                
-                if(this.weihuModal){
-                    k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups',{noAlert:true}).then(res=>{
-                        if(!res?.data?.items){return}
-                        let list = res.data.items.map(i=>{
-                            return {
-                                title: i?.spec?.title || i.metadata?.name,
-                                name: i.metadata?.name,
-                            }
-                        })
-                        this.appgroups = list;
+        async getStatus({needGetInfo=true}={}){
+            if(needGetInfo){
+                let {data} = await panelApi.get('/k3k/info',{loading:true});
+                this.weihuModal = data?.['w7.cc/weihu'] == 'true';
+            }
+            if(this.weihuModal){
+                k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups',{noAlert:true}).then(res=>{
+                    if(!res?.data?.items){return}
+                    let list = res.data.items.map(i=>{
+                        return {
+                            title: i?.spec?.title || i.metadata?.name,
+                            name: i.metadata?.name,
+                        }
                     })
-                }
-            })
-
+                    this.appgroups = list;
+                })
+            }
+                
+            this.getStartCluster();
+        },
+        getStartCluster(){
             k8sproxy.get('/version',{noAlert:true,loading:true}).then(res=>{
                 this.startCluster = true;
             }).catch(()=>{
@@ -229,10 +274,15 @@ export default {
             return panelApi.get('/k3k/info',{loading:true}).then(res=>{
                 this.status = res?.data?.['w7.cc/k3k-job-status'];
                 this.jobName = res?.data?.['w7.cc/k3k-job-name'];
-                this.namespace = res?.data?.['w7.cc/k3k-namespace'];
+                
+                this.weihuModal = res?.data?.['w7.cc/weihu'] == 'true';
+                this.weihuStatus = res?.data?.['w7.cc/weihu-job-status'];
+                this.weihuJobName = res?.data?.['w7.cc/weihu-job'];
+                
+                this.namespace = res?.data?.['w7.cc/k3k-namespace'] || 'default';
                 this.hasOverResource = res?.data?.['w7.cc/has-over-resource'] == 'true';
                 this.canInit = res?.data?.['w7.cc/can-init-cluster'] == 'true';
-                
+
                 // 更新 lastRow
                 if(this.status == 'running'){
                     this.lastRow = '初始化中...';
@@ -241,8 +291,16 @@ export default {
                 } else if(this.status == 'failed'){
                     this.lastRow = '初始化失败，点击查看日志';
                 }
+                // 维护模式 lastRow
+                if(this.weihuStatus == 'running'){
+                    this.weihuLastRow = '初始化中...';
+                } else if(this.weihuStatus == 'complete'){
+                    this.weihuLastRow = '初始化完成';
+                } else if(this.weihuStatus == 'failed'){
+                    this.weihuLastRow = '初始化失败，点击查看日志';
+                }
                 
-                if(this.status == 'running'){
+                if(this.status == 'running' || (this.status!=='complete' && this.weihuStatus=='complete')){
                     this.interval = setTimeout(this.getInfo,5000);
                 }else if(this.status == 'complete'){
                     panelApi.get("/auth/console/info?code=test").then(res=>{
@@ -259,6 +317,14 @@ export default {
         },
         toInitCluster(){
             panelApi.post('/k3k/init').then(res=>{
+                this.$message.success('开始初始化');
+                this.$nextTick(()=>{
+                    this.getInfo();
+                })
+            });
+        },
+        toRetryWeihu(){
+            panelApi.post('/k3k/whjob').then(res=>{
                 this.$message.success('开始初始化');
                 this.$nextTick(()=>{
                     this.getInfo();
