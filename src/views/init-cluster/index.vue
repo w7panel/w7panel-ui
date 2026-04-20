@@ -62,7 +62,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="df ai-c padding-10" style="border-bottom: 1px solid var(--color-neutral-3); padding:20px 0;">
+                    <div v-if="weihuModal" class="df ai-c padding-10" style="border-bottom: 1px solid var(--color-neutral-3); padding:20px 0;">
                         <div class="df-s0" style="color:var(--color-text-2);">救援任务</div>
                         <div @click="openLogModal(weihuJobName)" class="fc ml-20 c-99 txt-overhidden cursor">{{ weihuLastRow }}</div>
                         <div class="df-s0 ml-20">
@@ -141,6 +141,7 @@
             mode="modal"
             :showTabs="false"
             title="查看日志"
+            :local="true"
             :jobName="logModal.jobName"
             :namespace="logModal.namespace"
             :tail-lines="500"
