@@ -276,7 +276,7 @@ export default {
         },
         changeWeihuModal(){
             panelApi.post('/k3k/wh').then(res=>{
-                this.$message.success('操作成功');
+                this.$message.success('操作成功,集群重启中....');
                 this.getStatus();
             });
         },
