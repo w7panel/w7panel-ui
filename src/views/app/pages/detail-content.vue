@@ -83,41 +83,14 @@
                         <a-form-item label="GPU显存">{{form.gpuVm||0}}M</a-form-item>
                     </div>
                     <a-form-item label="应用镜像">
-                        <div v-if="!changeImageEdit || changeCtnIndex!=index">
-                            <span>{{ form.image }}</span>
-                            <span class="c-blue cursor ml-10" @click="changeImageEdit=true;changeCtnIndex=index;changeIPSEdit=form.imagePullSecrets;">修改</span>
-                        </div>
-                        <div v-else class="df ai-c">
-                            <a-input v-model="form.image" @input="testImage(index)" :spellcheck="false" style="width:500px; margin-right:24px;" />
-                            <a-button type="primary" class="ml-10" @click="changeImage()">确定</a-button>
-                        </div>
+                        <span>{{ form.image }}</span>
+                        <span class="c-blue cursor ml-10" @click="openAppImageForm(index)">修改</span>
                     </a-form-item>
                     <a-form-item label="镜像仓库">
-                        <div v-if="!changeImageEdit || changeCtnIndex!=index">
-                            <span >{{mirror[form.imagePullSecrets] || '无'}}</span>
-                        </div>
-                        <div v-else class="df ai-c">
-                            <a-select v-model="form.imagePullSecrets" :options="mirrorOptions" size="large" popup-container="#mirror_select_box" placeholder="请选择" style="width:500px;">
-                                <template #label="{ data }">
-                                    <span>{{data?.label+(data.namespace?'/':'')+data.namespace}}</span>
-                                </template>
-                                <template #option="{data}">
-                                    <div class="df ai-c jc-b">
-                                        <span class="custom-label">{{ data.label+(data.namespace?'/':'')+data.namespace }}</span>
-                                        <!-- <span>
-                                            <span v-if="data.value" class="df-s0 ml-10 c-blue cursor"  @click.stop="createImage.name=data.value;createImage.show=true;">编辑</span>
-                                            <span v-if="data.value" class="df-s0 ml-10 c-blue cursor" @click.stop="delMirror(data.value)">删除</span>
-                                        </span> -->
-                                    </div>
-                                </template>
-                            </a-select>
-                        </div>
+                        <span>{{mirror[form.imagePullSecrets] || '无'}}</span>
                     </a-form-item>
                     <a-form-item label="镜像拉取策略">
-                        <span v-if="!changeImageEdit||changeCtnIndex!=index">{{ imagePolicy[form.imagePullPolicy] || form.imagePullPolicy}}</span>
-                        <a-select v-else v-model="form.imagePullPolicy" placeholder="请选择" size="large" popup-container="#mirror_select_box" style="width:500px;">
-                            <a-option v-for="(value,key) in imagePolicy" :key="key" :label="value" :value="key"></a-option>
-                        </a-select>
+                        <span>{{ imagePolicy[form.imagePullPolicy] || form.imagePullPolicy}}</span>
                     </a-form-item>
                     
                     <a-form-item label="环境变量">
@@ -415,6 +388,33 @@
                 </div>
             </template>
         </a-drawer>
+        <a-drawer :width="700" :visible="appImageForm.show" title="应用镜像修改" @ok="submitAppImageForm" @cancel="appImageForm.show=false;">
+            <a-form :model="appImageForm" auto-label-width>
+                <a-form-item label="容器名称">
+                    <span>{{appImageForm.containerName}}</span>
+                </a-form-item>
+                <a-form-item label="应用镜像">
+                    <a-input v-model="appImageForm.image" @input="testImageForm" :spellcheck="false" placeholder="应用镜像" />
+                </a-form-item>
+                <a-form-item label="镜像仓库">
+                    <a-select v-model="appImageForm.imagePullSecrets" :options="mirrorOptions" placeholder="请选择">
+                        <template #label="{ data }">
+                            <span>{{data?.label+(data.namespace?'/':'')+data.namespace}}</span>
+                        </template>
+                        <template #option="{data}">
+                            <div class="df ai-c jc-b">
+                                <span class="custom-label">{{ data.label+(data.namespace?'/':'')+data.namespace }}</span>
+                            </div>
+                        </template>
+                    </a-select>
+                </a-form-item>
+                <a-form-item label="镜像拉取策略">
+                    <a-select v-model="appImageForm.imagePullPolicy" placeholder="请选择">
+                        <a-option v-for="(value,key) in imagePolicy" :key="key" :label="value" :value="key"></a-option>
+                    </a-select>
+                </a-form-item>
+            </a-form>
+        </a-drawer>
     </div>
 </template>
 
@@ -476,6 +476,15 @@ export default {
             localDomain: '',
             podList: [],
             podValue: '',
+
+            appImageForm: {
+                show: false,
+                ctnIndex: -1,
+                containerName: '',
+                image: '',
+                imagePullSecrets: '',
+                imagePullPolicy: '',
+            },
         }
     },
     computed:{
@@ -796,9 +805,42 @@ export default {
                     {label: '无', value:'', namespace: ''},
                     ...list,
                 ]
+                console.log(this.mirrorOptions);
             })
         },
         
+        openAppImageForm(index){
+            let form = this.ctnForms[index];
+            this.changeIPSEdit = form.imagePullSecrets;
+            this.appImageForm = {
+                show: true,
+                ctnIndex: index,
+                containerName: form.name,
+                image: form.image,
+                imagePullSecrets: form.imagePullSecrets,
+                imagePullPolicy: form.imagePullPolicy,
+            };
+        },
+        testImageForm(){
+            let host = this.appImageForm.image.replace(/\/.*$/,'')?.trim();
+            let ns = this.appImageForm.image.match(/^([^/]+)\/([^\/]+)/)?.[2];
+            let find = this.mirrorOptions.find(i=>{
+                return i.label==host && i.namespace==ns;
+            });
+            this.appImageForm.imagePullSecrets = find ? find.value : '';
+        },
+        submitAppImageForm(){
+            let idx = this.appImageForm.ctnIndex;
+            // 写回 ctnForms
+            this.ctnForms[idx].image = this.appImageForm.image;
+            this.ctnForms[idx].imagePullSecrets = this.appImageForm.imagePullSecrets;
+            this.ctnForms[idx].imagePullPolicy = this.appImageForm.imagePullPolicy;
+
+            // 复用 changeImage 的提交逻辑
+            this.changeCtnIndex = idx;
+            this.changeImage();
+            this.appImageForm.show = false;
+        },
         changeImage(){
             let data = JSON.parse(JSON.stringify(this.data));
             let containers = data.spec.template.spec.containers;

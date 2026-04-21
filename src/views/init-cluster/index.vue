@@ -301,7 +301,7 @@ export default {
                     this.weihuLastRow = '初始化失败，点击查看日志';
                 }
                 
-                if(this.status == 'running' || (this.status!=='complete' && this.weihuStatus=='complete')){
+                if(this.status == 'running' || this.weihuStatus == 'running' || (this.status!=='complete' && this.weihuStatus=='complete')){
                     this.interval = setTimeout(this.getInfo,5000);
                 }else if(this.status == 'complete'){
                     panelApi.get("/auth/console/info?code=test").then(res=>{
