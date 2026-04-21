@@ -280,7 +280,7 @@ export default {
                 this.weihuStatus = res?.data?.['w7.cc/weihu-job-status'];
                 this.weihuJobName = res?.data?.['w7.cc/weihu-job'];
                 
-                this.namespace = res?.data?.['w7.cc/k3k-namespace'] || 'default';
+                this.namespace = 'default'; // res?.data?.['w7.cc/k3k-namespace'] || 'default';
                 this.hasOverResource = res?.data?.['w7.cc/has-over-resource'] == 'true';
                 this.canInit = res?.data?.['w7.cc/can-init-cluster'] == 'true';
 
