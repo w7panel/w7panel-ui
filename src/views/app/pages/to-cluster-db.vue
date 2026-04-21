@@ -26,7 +26,7 @@ export default {
         getZpk(){
             k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie=kubeblocks-v2&limit=500').then(res=>{
                 if(!res?.data?.items?.[0]){
-                    this.$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/kubeblocks-v2');
+                    this.$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/kubeblocks_v2');
                     return;
                 }
                 // let url = res.data.items[0]?.spec?.frontendUrl;
