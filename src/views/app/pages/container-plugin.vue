@@ -111,6 +111,11 @@ export default{
             wujieId: '',
 
             kind: 'deployments',
+            types: {
+                'deployments': 'Deployment',
+                'statefulsets': 'StatefulSet',
+                'daemonsets': 'DaemonSet',
+            }
         }
     },
     async created(){
@@ -142,7 +147,7 @@ export default{
             if(window.$wujie?.props?.pluginData){
                 this.pluginData = window.$wujie.props.pluginData;
                 if(this.pluginData.kind){
-                    this.kind = this.pluginData.kind;
+                    this.kind = this.pluginData.kind.toLowerCase() + 's';
                 }
             }
             if(window.$wujie?.props?.containers){
@@ -194,7 +199,7 @@ export default{
                 volumeClaimTemplates: this.volumeClaimTemplates,
                 pluginData: {
                     ...pluginData,
-                    kind: this.kind,
+                    kind: this.types[this.kind],
                 },
             });
         },
