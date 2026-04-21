@@ -164,6 +164,7 @@ export default {
     },
     data(){
         return {
+            interval: null,
             status: '',
             jobName: '',
             lastRow: '',
@@ -184,6 +185,7 @@ export default {
 
             weihuModal: false,
             startCluster: false,
+            startClusterInterval: null,
 
             appgroups: [],
             storageSpace: {
@@ -202,6 +204,10 @@ export default {
         if(this.status=='failed' || this.status=='unknow'){
             this.toInitCluster();
         }
+    },
+    beforeUnmount(){
+        clearTimeout(this.startClusterInterval);
+        clearTimeout(this.interval);
     },
     methods: {
         getDisk(){
@@ -259,10 +265,12 @@ export default {
             this.getStartCluster();
         },
         getStartCluster(){
+            clearTimeout(this.startClusterInterval)
             k8sproxy.get('/version',{noAlert:true,loading:true}).then(res=>{
                 this.startCluster = true;
             }).catch(()=>{
                 this.startCluster = false;
+                this.startClusterInterval = setTimeout(this.getStartCluster,5000)
             })
         },
         changeWeihuModal(){

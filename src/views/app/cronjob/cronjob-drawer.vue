@@ -407,7 +407,9 @@ export default {
                                         return {
                                             key: i,
                                             operator: 'In',
-                                            values: saveSelectContainerLabels[0][i],
+                                            values: [
+                                                saveSelectContainerLabels[0][i]
+                                            ],
                                         }
                                     })
                                 },
