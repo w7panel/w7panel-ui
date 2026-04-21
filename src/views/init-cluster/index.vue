@@ -94,6 +94,7 @@
                                 <span class="ml-6">成功</span>
                             </div>
                             <div v-else>
+                                <icon-loading class="fs-16" style="margin-right:6px;" />
                                 <icon-close-circle-fill class="c-red fs-16" />
                                 <span class="ml-6">失败</span>
                             </div>
