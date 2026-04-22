@@ -90,7 +90,7 @@
                         </a-select>
                     </a-form-item>
                 </template>
-                <template v-if="edit.type=='pvc'">
+                <template v-if="edit.type=='pvc' && !isTemplate">
                     <a-form-item label="PVC">
                         <a-select v-model="edit.pvcName" placeholder="请选择">
                             <a-option v-for="(item,index) in pvcs.filter(i=>filterPvc?i.isCustom:i)" :key="index" :label="item.name" :value="item.name"></a-option>
@@ -99,7 +99,7 @@
                     </a-form-item>
                 </template>
                 <template v-if="edit.type=='pvcTemplate'">
-                    <a-form-item label="存储">
+                    <a-form-item v-if="!isTemplate" label="存储">
                         <a-select v-model="edit.ptStorage" placeholder="请选择存储">
                             <a-option v-for="item in diskTags" :key="item" :label="item" :value="item"></a-option>
                         </a-select>
@@ -228,7 +228,7 @@ import configmapEditor from '@/views/config/configmap/form-drawer.vue'
 import { getToken } from '@/utils/auth';
 
 export default{
-    props: ['data','kind','readonly','isPlugin'],
+    props: ['data','kind','readonly','isPlugin','isTemplate'],
     data(){
         return {
             namespaceActive: 'default',
@@ -285,7 +285,7 @@ export default{
             kind = kind? kind.toLowerCase() + 's' : '';
             if(!this.kind){this.appKind = kind; }
             let volumes = this.data?.spec?.template?.spec?.volumes || [];
-            let volumeClaimTemplates = this.data?.spec?.volumeClaimTemplates || [];
+            let volumeClaimTemplates = this.data?.spec?.template?.spec?.volumeClaimTemplates || [];
 
             this.list = this.dataToForm({volumes,volumeClaimTemplates});
             this.submit();
@@ -294,7 +294,7 @@ export default{
             
             let volumes = this.data?.spec?.template?.spec?.volumes || [];
             volumes = volumes.concat(addVolumes);
-            let volumeClaimTemplates = this.data?.spec?.volumeClaimTemplates || [];
+            let volumeClaimTemplates = this.data?.spec?.template?.spec?.volumeClaimTemplates || [];
 
             this.list = this.dataToForm({volumes,volumeClaimTemplates});
             this.submit();
@@ -377,6 +377,7 @@ export default{
             return vt.concat(arr);
         },
         getDisks(){
+            if(this.isTemplate){return}
             k8sproxy.get('/apis/storage.k8s.io/v1/storageclasses',{
                 customToken: this.token,
             }).then(res=>{
@@ -506,6 +507,7 @@ export default{
             if(this.edit.type=='pvcTemplate'){ this.getDisks(); }
         },
         getPvcs(){
+            if(this.isTemplate){return}
             k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/persistentvolumeclaims',{
                 loading:true,
                 customToken: this.token,

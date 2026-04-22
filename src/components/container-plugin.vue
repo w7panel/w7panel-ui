@@ -27,6 +27,7 @@
             :data="data"
             :isPlugin="true"
             :kind="kind"
+            :isTemplate="true"
             :pluginData="pluginData"
             @submit="v=>{volumes=v.volumes;volumeClaimTemplates=v.volumeClaimTemplates;}"
         ></app-form-volumes>
@@ -55,7 +56,6 @@ import appFormContainer from '@/components/app-form-container.vue';
 import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
 import { useNamespaceStore } from '@/store';
 import { k8sproxy } from '@/utils/api';
-import { getToken } from '@/utils/auth';
 
 const dataTemplate = {
     apiVersion: 'apps/v1',
@@ -94,6 +94,7 @@ const dataTemplate = {
 }
 
 export default{
+    props: ['propsData'],
     data(){
         return {
             data: {},
@@ -106,7 +107,6 @@ export default{
                 name: '',
                 submit: ()=>{ this.getMirror(); }
             },
-            token: '',
             pluginData: {},
             wujieId: '',
 
@@ -119,22 +119,11 @@ export default{
         }
     },
     async created(){
-        this.wujieId = window?.__WUJIE?.id;
-        if(window.__POWERED_BY_WUJIE__ && window?.$wujie?.props?.paneltoken){
-            this.token = window.$wujie.props.paneltoken;
-        }else{
-            this.token = getToken();
-        }
         this.namespaceActive = useNamespaceStore().namespace;
         await this.getMirror();
         this.init();
-        
-        window.$wujie?.bus.$on("submit"+this.wujieId, this.submit);
-        window.$wujie?.bus.$on("changeData"+this.wujieId, this.changeData);
     },
     beforeUnmount(){
-        window.$wujie?.bus.$off("submit"+this.wujieId, this.submit);
-        window.$wujie?.bus.$off("changeData"+this.wujieId, this.changeData);
     },
     components: {
         appFormVolumes,
@@ -144,53 +133,28 @@ export default{
     methods: {
         init(){
             this.data = JSON.parse(JSON.stringify(dataTemplate));
-            if(window.$wujie?.props?.pluginData){
-                this.pluginData = window.$wujie.props.pluginData;
+            if(this.propsData?.pluginData){
+                this.pluginData = this.propsData.pluginData;
                 if(this.pluginData.kind){
                     this.kind = this.pluginData.kind.toLowerCase() + 's';
                 }
             }
-            if(window.$wujie?.props?.containers){
-                this.data.spec.template.spec.containers = window.$wujie.props.containers;
+            if(this.propsData?.containers){
+                this.data.spec.template.spec.containers = this.propsData.containers;
             }
-            if(window.$wujie?.props?.initContainers){
-                this.data.spec.template.spec.initContainers = window.$wujie.props.initContainers;
+            if(this.propsData?.initContainers){
+                this.data.spec.template.spec.initContainers = this.propsData.initContainers;
             }
-            if(window.$wujie?.props?.volumes){
+            if(this.propsData?.volumes){
                 if(this.data?.spec?.template?.spec){
-                    this.data.spec.template.spec.volumes = window.$wujie.props.volumes;
+                    this.data.spec.template.spec.volumes = this.propsData.volumes;
                 }
             }
-            if(window.$wujie?.props?.volumeClaimTemplates){
+            if(this.propsData?.volumeClaimTemplates){
                 if(this.data?.spec?.template?.spec){
-                    this.data.spec.template.spec.volumeClaimTemplates = window.$wujie.props.volumeClaimTemplates;
+                    this.data.spec.template.spec.volumeClaimTemplates = this.propsData.volumeClaimTemplates;
                 }
             }
-        },
-        changeData({containers,initContainers,volumes, volumeClaimTemplates,pluginData}){
-            if(containers){
-                this.data.spec.template.spec.containers = containers;
-            }
-            if(initContainers){
-                this.data.spec.template.spec.initContainers = initContainers;
-            }
-            if(volumes){
-                if(this.data?.spec?.template?.spec){
-                    this.data.spec.template.spec.volumes = volumes;
-                }
-            }
-            if(volumeClaimTemplates){
-                if(this.data?.spec?.template?.spec){
-                    this.data.spec.template.spec.volumeClaimTemplates = volumeClaimTemplates;
-                }
-            }
-            if(pluginData){
-                this.pluginData = pluginData;
-                if(this.pluginData.kind){
-                    this.kind = this.pluginData.kind.toLowerCase() + 's';
-                }
-            }
-            this.data = JSON.parse(JSON.stringify(this.data));
         },
         submit(callback){
             let {
@@ -217,7 +181,7 @@ export default{
         
         getMirror(){
             return k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/secrets?fieldSelector=type=kubernetes.io/dockerconfigjson',{
-                customToken: this.token,
+                noAlert: true,
             }).then(res=>{
                 let list = res?.data?.items || [];
                 list = list.map(i=>{
@@ -253,7 +217,6 @@ export default{
         
         delMirror(name){
             k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/secrets/"+name,{
-                customToken: this.token,
                 loading:true
             }).then(res=>{
                 if(!res?.data){return}

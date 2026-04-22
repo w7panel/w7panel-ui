@@ -168,7 +168,7 @@ axios.interceptors.response.use(
         if (error?.response?.status == 429) { return; }
         if (error?.response?.status == 408) { return; }
         
-        if (error.config.noAlert){
+        if (error?.config?.noAlert){
             return Promise.reject(error);
         }
         if (!error?.config?.dontalert) {

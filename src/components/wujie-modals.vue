@@ -91,6 +91,16 @@
         @submit="handleStrategySubmit"
         @cancel="strategy.show=false;"
     ></domain-strategy>
+
+    <!-- 应用配置 -->
+    <a-drawer title="应用配置" :visible="containerDrawer.show"  @ok="containerDrawer.submit" @cancel="containerDrawer.show=false;" :width="1000" unmountOnClose :mask-closable="false">
+        <container-plugin
+            ref="containerDrawer"
+            :propsData="containerDrawer.data"
+            @submit="handleContainerSubmit"
+            @close="containerDrawer.show=false;"
+        ></container-plugin>
+    </a-drawer>
 </template>
 
 <script>
@@ -108,6 +118,7 @@ import appFile from '@/views/app/pages/files.vue';
 import microAppForm from '@/components/micro-app-form.vue';
 import domainMicroEdit from '@/components/domain-micro-edit.vue';
 import domainStrategy from '@/components/domain-strategy.vue';
+import containerPlugin from '@/components/container-plugin.vue';
 
 export default {
     name: 'WujieModals',
@@ -161,6 +172,10 @@ export default {
                 show: false,
                 data: null,
             },
+            containerDrawer: {
+                show: false,
+                data: {},
+            },
         };
     },
     created() {
@@ -183,6 +198,7 @@ export default {
         registerWujieEvent('ingressEdit', this.openDomainEdit);
         registerWujieEvent('ingressStrategy', this.openStrategy);
         registerWujieEvent('checkSession', this.checkSession);
+        registerWujieEvent('containerPlugin', this.openContainerPlugin);
     },
     beforeUnmount() {
         clearAllWujieEvents();
@@ -195,8 +211,19 @@ export default {
         microAppForm,
         domainMicroEdit,
         domainStrategy,
+        containerPlugin,
     },
     methods: {
+        openContainerPlugin(data,callback){
+            this.containerDrawer = {
+                show: true,
+                data: data,
+                submit: ()=>{
+                    this.$refs.containerDrawer.submit(callback)
+                    this.containerDrawer.show = false;
+                }
+            };
+        },
         checkSession(callback){
             axios.post('/panel-api/v1/auth/refresh-token2',{token: getRefreshToken()},{
                 customToken: '',
