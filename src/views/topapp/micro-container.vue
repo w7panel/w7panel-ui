@@ -5,120 +5,18 @@
         <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:100%;">
             <div style="height:100%;" class="bg-white"></div>
         </a-spin>
-        
-        <jobLog :show="joblogData.show" :name="joblogData.name" @close="joblogData.show=false"></jobLog>
-        
-        <a-modal width="1200px" v-model:visible="fileDialog.show" :fullscreen="fileDialog.fullscreen" :closable="false" :footer="false" class="micro-iframe-modal">
-            <template #title>
-                <div class="df ai-c jc-b fc model-title">
-                    <span class="fs-18">文件管理</span>
-                    <div class="df ai-c btns">
-                        <div class="btn ml-20 cursor" @click="fileDialog.fullscreen=!fileDialog.fullscreen">
-                            <icon-fullscreen v-if="!fileDialog.fullscreen" class="fs-20 c-66" />
-                            <icon-fullscreen-exit v-else class="fs-20 c-66" />
-                        </div>
-                        <div class="btn ml-20 cursor" @click="fileDialog.show=false;">
-                            <icon-close class="fs-20 c-66" />
-                        </div>
-                    </div>
-                </div>
-            </template>
-            <div :style="{height:fileDialog.fullscreen?'100%':'600px'}">
-                <app-file
-                    v-if="fileDialog.show"
-                    :componentData="fileDialog.componentData"
-                    :is_component="true"
-                ></app-file>
-            </div>
-            <!-- <iframe v-if="fileDialog.show" :src="fileDialog.src" frameborder="0" style="width:100%;display:block;" ></iframe> -->
-        </a-modal>
-    
-        <a-modal width="1200px" v-model:visible="pageDialog.show" :fullscreen="pageDialog.fullscreen" :footer="false" class="micro-iframe-modal" :closable="false">
-            <template #title>
-                <div class="df ai-c jc-b fc model-title">
-                    <span class="fs-18">{{ pageDialog.title || '' }}</span>
-                    <div class="df ai-c btns">
-                        <div class="btn ml-20 cursor" @click="pageDialog.fullscreen=!pageDialog.fullscreen">
-                            <icon-fullscreen v-if="!pageDialog.fullscreen" class="fs-20 c-66" />
-                            <icon-fullscreen-exit v-else class="fs-20 c-66" />
-                        </div>
-                        <div class="btn ml-20 cursor" @click="pageDialog.show=false;">
-                            <icon-close class="fs-20 c-66" />
-                        </div>
-                    </div>
-                </div>
-            </template>
-            <iframe v-if="pageDialog.show" :src="pageDialog.src" frameborder="0" style="width:100%;display:block;" :style="{height:pageDialog.fullscreen?'100%':'600px'}"></iframe>
-        </a-modal>
 
-        <a-modal width="1200px" v-model:visible="appDialog.show" :fullscreen="appDialog.fullscreen" :mask-closable="false" :closable="false"  :footer="false" class="micro-iframe-modal">
-            <template #title>
-                <div class="df ai-c jc-b fc model-title">
-                    <span class="fs-18">{{ appDialog.title || '' }}</span>
-                    <div class="df ai-c btns">
-                        <div class="btn ml-20 cursor" @click="appDialog.fullscreen=!appDialog.fullscreen">
-                            <icon-fullscreen v-if="!appDialog.fullscreen" class="fs-20 c-66" />
-                            <icon-fullscreen-exit v-else class="fs-20 c-66" />
-                        </div>
-                        <div class="btn ml-20 cursor" @click="closeAppDialog">
-                            <icon-close class="fs-20 c-66" />
-                        </div>
-                    </div>
-                </div>
-            </template>
-            <iframe v-if="appDialog.show" ref="openappIframe" :src="appDialog.src" frameborder="0" style="width:100%;display:block;" :style="{height:appDialog.fullscreen?'100%':'600px'}"></iframe>
-        </a-modal>
-
-        <domain-cert :data="domainCertData"></domain-cert>
-        
-        <podLog :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></podLog>
-
-        <micro-app-form :show="maf.show" :yaml="maf.yaml" :callback="callback" @close="maf.show=false;"></micro-app-form>
-
-        <a-modal :visible="appDialogConfirm.show" @ok="appDialog.show=false;appDialogConfirm.show=false;" @cancel="appDialogConfirm.show=false;">
-            <template #title>提示</template>
-            <div>{{ appDialogConfirm.txt }}</div>
-        </a-modal>
-
-        <!-- 修改域名 -->
-        <domain-micro-edit
-            :show="editDomain.show"
-            :ingress="editDomain.data"
-            :appList="editDomain.appList"
-            :appPorts="editDomain.appPorts"
-            @submit="handleDomainEditSubmit"
-            @close="editDomain.show=false;"
-        ></domain-micro-edit>
-
-        <!-- 策略 -->
-        <domain-strategy
-            :show="strategy.show"
-            :data="strategy.data"
-            :hideRewrite="true"
-            :isMicroComponents="true"
-            @submit="handleStrategySubmit"
-            @cancel="strategy.show=false;"
-        ></domain-strategy>
+        <wujie-modals />
 
     </div>
 </template>
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
-import { useNamespaceStore,useLoadingStore } from '@/store';
-import { getToken,getK8sinfo } from '@/utils/auth';
+import { useNamespaceStore } from '@/store';
+import { getToken, getK8sinfo } from '@/utils/auth';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
-import axios from 'axios';
-import podLog from '@/components/pod-log.vue';
-import jobLog from '@/components/job-log.vue';
-import domainCert from '@/views/topapp/domain-cert.vue';
-import appFile from '@/views/app/pages/files.vue';
-import { compressFiles } from '@/api/cluster';
-
-import microAppForm from '@/components/micro-app-form.vue';
-import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
-import domainMicroEdit from '@/components/domain-micro-edit.vue';
-import domainStrategy from '@/components/domain-strategy.vue';
+import wujieModals from '@/components/wujie-modals.vue';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -128,70 +26,11 @@ export default{
             info: {},
             extra: {},
             page: '',
-
-            
-            joblogData: {
-                show: false,
-                name: '',
-            },
-            fileDialog: {
-                show: false,
-                src: '',
-            },
-            pageDialog: {
-                show: false,
-                src: '',
-            },
-            appDialog: {
-                show: false,
-                src: '',
-                title: '',
-            },
-            appDialogConfirm: {
-                show: false,
-                txt: '',
-            },
-            logCpn: {
-                show: false,
-                data: {},
-            },
-            maf: {
-                show: false,
-                yaml: null,
-                json: null,
-            },
-            domainCertData: null,
             downOk: true,
-
-            editDomain: {
-                show: false,
-                data: null,
-            },
-            strategy: {
-                show: false,
-                data: null,
-            },
         }
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
-        
-        // 注册 wujie 事件（自动处理空值检查）
-        registerWujieEvent('toStoreInstall', this.toStoreInstall);
-        registerWujieEvent('openPage', this.openPage);
-        registerWujieEvent('openApp', this.openApp);
-        registerWujieEvent('toFile', this.toFile);
-        registerWujieEvent('openFile', this.openFile);
-        registerWujieEvent('buildImage', this.buildImage);
-        registerWujieEvent('buildImageLog', this.buildImageLog);
-        registerWujieEvent('closeBuildImageLog', this.closeBuildImageLog);
-        registerWujieEvent('zip', this.zip);
-        registerWujieEvent('uploadFile',this.uploadFile);
-        registerWujieEvent('domainCert', this.setDomainCert);
-        registerWujieEvent('podLog', this.openPodLog);
-        registerWujieEvent('openAppForm', this.openAppForm);
-        registerWujieEvent('ingressEdit', this.openDomainEdit);
-        registerWujieEvent('ingressStrategy', this.openStrategy);
     },
     mounted(){
         if(this.appgroup){
@@ -199,13 +38,7 @@ export default{
         }
     },
     components: {
-        jobLog,
-        podLog,
-        domainCert,
-        appFile,
-        microAppForm,
-        domainMicroEdit,
-        domainStrategy,
+        wujieModals,
     },
     watch: {
         appgroup(v){
@@ -221,33 +54,6 @@ export default{
         }catch{}
     },
     methods: {
-        openDomainEdit(data){
-            this.editDomain = {
-                show: true,
-                data: data.ingress,
-                appList: data.appList,
-                appPorts: data.appPorts,
-                callback: data.callback,
-            }
-        },
-        handleDomainEditSubmit(v){
-            this.editDomain.show = false;
-            this.editDomain?.callback && this.editDomain.callback(v);
-        },
-
-        openStrategy(data){
-            this.strategy = {
-                show: true,
-                data: data.ingress?.backend?.strategy || {},
-                callback: data.callback,
-            }
-        },
-        handleStrategySubmit(v){
-            let data = v[0].value;
-            this.strategy.data = data;
-            this.strategy.callback && this.strategy.callback(data);
-        },
-
         routeChange(v){
             bus.$emit("routeChange", v);
         },
@@ -299,13 +105,6 @@ export default{
                 })
             })
         },
-        destroyMicro(){
-            try{
-                destroyApp('appmicro');
-            }catch{}
-            // 使用统一清理函数（自动处理空值检查）
-            clearAllWujieEvents();
-        },
         async wujieInit(){
             let is_register = false;
             let thirdparty_cd_token = '';
@@ -350,213 +149,10 @@ export default{
                 props: props,
             })
         },
-        openAppForm(data,callback){
-            this.maf = {
-                show: true,
-                yaml: data.yaml,
-                json: data.json,
-                callback: callback,
-            }
-        },
-        openPodLog(data){
-            this.logCpn = {
-                show: true,
-                data: {
-                    name: data.name,
-                    container: data.container,
-                    containerList: data.containerList,
-                }
-            }
-        },
-        setDomainCert(data){
-            this.domainCertData = data;
-        },
-        async uploadFile(data,callback){
-            /**
-             * data: {
-             *      pid: {...},
-             *      file: ...,
-             *      path: xxx
-             * }
-             */
-            let outEditorInfo = await this.getPid(data.pid);
-            
-            useLoadingStore().loading = true;
+        destroyMicro(){
             try{
-                const reader = new FileReader();
-                reader.onload = ()=>{
-                    let value = reader.result;
-                    console.log(value)
-                    
-                    axios.put(`${outEditorInfo.origin}${outEditorInfo.webdavUrl}${encodeURIComponent(data.path+data.file.name)}`, value, {
-                        headers: {
-                            "content-type": "application/octet-stream",
-                            "Authorization": `Bearer ${outEditorInfo.webdavToken}`,
-                            'Content-Length': data.file.size // 确保传输长度和文件大小一致
-                        },
-                        transformRequest: [(data) => data],
-                    }).then(res=>{
-                        try{callback?.()}catch{}
-                    }).catch(err=>{
-                        this.$message.error('保存失败: ' + (err.response?.data?.message || err.message || '未知错误'));
-                        try{callback?.(err)}catch{}
-                    }).finally(()=>{
-                        useLoadingStore().loading = false;
-                    })
-                    return;
-                };
-                reader['readAsArrayBuffer'](data.file);
-            }catch(error){
-                callback?.(error)
-                console.log('上传失败',error);
-            }
-        },
-        async zip(data,callback){
-            // data {pid:{...}, output:'',input:''}
-
-            let pidData = await this.getPid(data.pid);
-            
-            await compressFiles(pidData.compressUrl, data.input, data.output);
-
-            let link = await this.downLink({
-                pidData: pidData,
-                path: data.output,
-                name: data.output.replace(/^.*\//,''),
-            })
-            
-            data?.callback?.({link: link})
-            callback?.({link:link})
-        },
-        getPid(data){
-            return panelApi.get('/pid',{
-                params:{
-                    namespace: data?.namespace,
-                    HostIp: data?.HostIp,
-                    containerId: data?.containerId,
-                    containerName: data?.containerName,
-                    podName: data?.podName,
-                },
-                loading: true,
-            }).then(res=>{
-                let origin = window.location.origin;
-                return {
-                    // pod_name: res.data?.podName,
-                    // containerName: res.data?.containerName,
-                    // namespace: res.data?.namespace,
-                    subPid: res.data.subPid,
-                    pid: res.data.pid,
-                    
-                    origin: origin,
-                    webdavUrl: res.data.webdavUrl,
-                    webdavToken: res.data.webdavToken,
-                    webdavBasePath: res.data.webdavBasePath,
-                    compressUrl: res.data.compressUrl,
-                    permissionUrl: res.data.permissionUrl,
-                    pod_name: res.data?.podName,
-                    containerName: res.data?.containerName,
-                    namespace: res.data?.namespace,
-                }
-            }).catch(()=>({}))
-        },
-        async exec(data){
-            // data: {pid:{...}, command:'...'}
-            let pidData = await this.getPid(data.pid);
-            
-            let preCmd = '$KO_DATA_PATH/shell/filesys.sh sh';
-            let command = `${preCmd} --pid=${pidData?.pid} --subPid=${pidData?.subPid} ${data.command}`;
-            
-            return panelApi.post(`/exec2`,{
-                podName: pidData?.pod_name,
-                containerName: pidData?.containerName,
-                tty: false,
-                namespace: pidData?.namespace,
-                command: ['sh', '-c', command],
-            },{responseType: 'text', loading:true, noAlert:true})
-        },
-        downLink(data){
-            // data {pidData:{...}, path:'...', name:'xx'}
-            let pidData = data.pidData;
-            let obj = {
-                from: '/proc/'+ pidData?.pid+'/root' + (pidData?.subPid?`/proc/${pidData.subPid}/root`:'') + data.path,
-                to: data.name,
-                upload: 0,
-                namespace: this.namespaceActive,
-                podName: pidData?.pod_name,
-            }
-            const params = new URLSearchParams();
-            for (let key in obj) {
-                params.append(key, obj[key]);
-            }
-            return panelApi.post('/cp',params.toString(),{
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'}
-            }).then(res=>{
-                const token = getToken();
-                return '/panel-api/v1/download/'+data.name+'?api-token='+token;
-            })
-        },
-
-        openApp(data){
-            this.appDialog = {
-                show: true,
-                src: '/dialog/appgroup/'+ data.appgroup +'/micro?path='+ encodeURIComponent(data?.path||''),
-                title: data?.title || '',
-                fullscreen: false,
-            }
-        },
-        closeAppDialog(){
-            let str = localStorage.microDialogCloseAlertText;
-            if(str){
-                this.appDialogConfirm = {
-                    show: true,
-                    txt: str,
-                }
-                localStorage.setItem('microDialogCloseAlertText','')
-                return false;
-            }
-            this.appDialog.show = false;
-        },
-        openFile(data){
-            this.fileDialog = {
-                show: true,
-                src: '/dialog/appgroup/'+this.$route.params.group+'/'+data?.kind+'/'+data?.appname+'/files#path='+(data?.path||''),
-                fullscreen: false,
-                componentData: {
-                    kind: data?.kind,
-                    id: data?.appname,
-                    path: data?.path || '',
-                },
-            }
-        },
-        toFile(data){
-            this.$router.push('/app/appgroup/'+this.$route.params.group+'/'+data?.kind+'/'+data?.appname+'/files#path='+(data?.path||''))
-        },
-        openPage(data){
-            this.pageDialog = {
-                show: true,
-                src: data.src,
-                title: data.title || '',
-                fullscreen: false,
-            }
-        },
-        toStoreInstall(path){
-            this.$router.push('/app/store-install?path=' + path);
-        },
-        closeBuildImageLog(){
-            this.joblogData.show = false;
-        },
-        buildImage(data,callback){
-            panelApi.post('/zpk/buildimage/job',{
-                ...data
-            },{loading:true}).then(()=>{
-                let jobname = data?.BuildJobName || data?.buildJobName;
-                callback && callback();
-            })
-        },
-        buildImageLog(data){
-            this.joblogData = {
-                show: true,
-                name: data.buildJobName,
-            }
+                destroyApp('appmicro');
+            }catch{}
         },
     }
 }
@@ -564,8 +160,4 @@ export default{
 <style scoped>
 </style>
 <style>
-.micro-iframe-modal .arco-modal-body{padding:0;}
-.micro-iframe-modal .model-title{position:relative; height:44px;}
-.micro-iframe-modal .model-title .btns{position:absolute; right:0; top:0; height:100%;}
-.micro-iframe-modal .arco-modal-fullscreen .arco-modal-body{height:calc(100vh - 48px);}
 </style>

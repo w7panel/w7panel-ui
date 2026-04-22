@@ -21,6 +21,7 @@ import mdDescription from './md-description.vue'
 export default {
     data(){
         return {
+            host: '',
             identifie: this.$route.query.identifie,
             path: this.$route.query.path,
             idObj: {},
@@ -42,10 +43,11 @@ export default {
     methods: {
         getInfo(){
             if(!this.identifie){
-                if(!/^https:\/\/zpk(\.test)?\.w7\.cc\/(zpk\/)?respo\/info\//.test(this.path)){return}
-                this.identifie = this.path.replace(/^https:\/\/zpk(\.test)?\.w7\.cc\/(zpk\/)?respo\/info\//,'');
+                if(!/^https:\/\/[^\/]+\/(zpk\/)?respo\/info\//.test(this.path)){return}
+                this.identifie = this.path.replace(/^https:\/\/[^\/]+\/(zpk\/)?respo\/info\//,'');
+                this.host = this.path.match(/^https:\/\/([^\/]+\/(zpk\/)?)respo\/info\//)[1];
             }
-            axios.get('https://zpk.w7.cc/zpk/respo/detail/'+this.identifie).then(res=>{
+            axios.get('https://'+this.host+'respo/detail/'+this.identifie).then(res=>{
                 this.info = res.data?.data || {};
                 
                 // this.mdtxt = res.data?.data?.content;

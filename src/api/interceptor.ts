@@ -14,6 +14,7 @@ import router from "@/router";
 interface CustomAxiosRequestConfig extends AxiosRequestConfig {
     loading?: boolean;
     customToken?:string;
+    name?: string;
     noAlert?:boolean;
 }
 interface CustomAxiosResponse extends AxiosResponse<HttpResponse> {
@@ -59,6 +60,9 @@ axios.get = function (url: string, config?: CustomAxiosRequestConfig) {
 };
 // -----------------------------------------------------------------
 
+
+const pendingRequests = new Map();
+
 axios.interceptors.request.use(
     (config: CustomAxiosRequestConfig) => {
         let token = getToken();
@@ -72,6 +76,15 @@ axios.interceptors.request.use(
         if(config?.loading){
             useLoadingStore().loading = true;
         }
+
+        config.name = config.url + Math.random().toString(36).substring(2, 10);
+
+        if(!config?.customToken && config?.url!='/panel-api/v1/auth/refresh-token2'){
+            const controller = new AbortController();
+            config.signal = controller.signal;
+            pendingRequests.set(config.name, controller);
+        }
+        
         return config;
     },
     (error) => {
@@ -84,6 +97,10 @@ axios.interceptors.request.use(
 
 axios.interceptors.response.use(
     async (res:CustomAxiosResponse) => {
+        try{
+            pendingRequests.delete(res?.config?.name);
+        }catch{}
+
         if(res?.config?.loading){
             useLoadingStore().loading = false;
         }
@@ -104,13 +121,24 @@ axios.interceptors.response.use(
         if(error?.config?.loading){
             useLoadingStore().loading = false;
         }
+        try{
+            pendingRequests.delete(error?.config?.name);
+        }catch{}
         if (error?.response?.status == 401) {
+
+            try{
+                for (let [key, controller] of pendingRequests) {
+                    controller.abort();
+                    pendingRequests.delete(key);
+                }
+            }catch{console.log('401停止其他接口请求错误')}
+            
             if(!error?.config?.customToken && error?.config?.url!='/panel-api/v1/auth/refresh-token2'){
                 let t = await axios.post('/panel-api/v1/auth/refresh-token2',{token: getRefreshToken()},{
                     customToken: '',
                     noAlert: true,
                     timeout: 3000,
-                }).then(res=>{
+                } as CustomAxiosRequestConfig).then(res=>{
                     let refreshToken = res.data.refreshToken;
                     let token = res.data.token;
                     setRefreshToken(refreshToken);
@@ -136,6 +164,7 @@ axios.interceptors.response.use(
             // window.location.reload();
             return;
         }
+
         if (error?.response?.status == 429) { return; }
         if (error?.response?.status == 408) { return; }
         

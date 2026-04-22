@@ -167,7 +167,7 @@ export default{
                 }
             }
         },
-        changeData({containers,initContainers,volumes}){
+        changeData({containers,initContainers,volumes, volumeClaimTemplates,pluginData}){
             if(containers){
                 this.data.spec.template.spec.containers = containers;
             }
@@ -177,6 +177,17 @@ export default{
             if(volumes){
                 if(this.data?.spec?.template?.spec){
                     this.data.spec.template.spec.volumes = volumes;
+                }
+            }
+            if(volumeClaimTemplates){
+                if(this.data?.spec?.template?.spec){
+                    this.data.spec.template.spec.volumeClaimTemplates = volumeClaimTemplates;
+                }
+            }
+            if(pluginData){
+                this.pluginData = pluginData;
+                if(this.pluginData.kind){
+                    this.kind = this.pluginData.kind.toLowerCase() + 's';
                 }
             }
             this.data = JSON.parse(JSON.stringify(this.data));
