@@ -307,7 +307,7 @@ export default {
                 this.getStatus({stop:true});
                 
                 this.startCluster = false;
-                setTimeout(this.getStartCluster,'6000');
+                setTimeout(this.getStartCluster,6000);
             });
         },
         getInfo(){
