@@ -273,6 +273,11 @@ export default {
                 }
                 this.streamLog();
             }
+            this.getAppgroup();
+            if(stop){return}
+            this.getStartCluster();
+        },
+        getAppgroup(){
             if(this.weihuModal){
                 k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups',{noAlert:true}).then(res=>{
                     if(!res?.data?.items){return}
@@ -285,13 +290,12 @@ export default {
                     this.appgroups = list;
                 })
             }
-            if(stop){return}
-            this.getStartCluster();
         },
         getStartCluster(){
             clearTimeout(this.startClusterInterval)
-            k8sproxy.get('/version',{noAlert:true,loading:true}).then(res=>{
+            k8sproxy.get('/version',{noAlert:true,loading:false}).then(res=>{
                 this.startCluster = true;
+                this.getAppgroup();
             }).catch(()=>{
                 this.startCluster = false;
                 this.startClusterInterval = setTimeout(this.getStartCluster,5000)
@@ -303,7 +307,7 @@ export default {
                 this.getStatus({stop:true});
                 
                 this.startCluster = false;
-                clearTimeout(this.getStartCluster,'6000');
+                setTimeout(this.getStartCluster,'6000');
             });
         },
         getInfo(){
