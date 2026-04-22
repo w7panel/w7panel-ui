@@ -87,7 +87,7 @@
                     </div>
                     <div class="df ai-c jc-b padding-10" style=" padding:20px 0;">
                         <div class="df-s0" style="color:var(--color-text-2);">启动集群</div>
-                        
+                        <div @click="startClusterLog.show=true;" class="fc ml-20 c-99 txt-overhidden cursor">{{startClusterLog.lastRow}}</div>
                         <div class="df-s0 ml-20">
                             <div v-if="startCluster">
                                 <icon-check-circle-fill class="c-green fs-16" />
@@ -126,16 +126,17 @@
         </div>
 
         <!-- 日志弹窗 -->
-        <!-- <podLog 
-            :show="logModal.show" 
+        <podLog 
+            :show="startClusterLog.show" 
             mode="modal" 
             title="查看日志" 
             :height="400" 
             :local="true"
-            :pod-name="logModal.pod_name"
-            :namespace="logModal.namespace"
-            @close="logModal.show = false; logModal.pod_name = ''; logModal.namespace = '';"
-        /> -->
+            :pod-name="startClusterLog.pod_name"
+            :namespace="startClusterLog.namespace"
+            :container="startClusterLog.container_name"
+            @close="startClusterLog.show = false;"
+        />
         
         <job-log
             :show="logModal.show"
@@ -157,6 +158,7 @@ import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue'
+import { getToken } from '@/utils/auth';
 
 export default {
     components: {
@@ -188,6 +190,16 @@ export default {
             startCluster: false,
             startClusterInterval: null,
 
+            startClusterLog: {
+                show: false,
+                pod_name: '',
+                namespace: '',
+                container_name: '',
+                log: '',
+                lastRow: '',
+            },
+            controller: null,
+
             appgroups: [],
             storageSpace: {
                 proper: true,
@@ -209,6 +221,9 @@ export default {
     beforeUnmount(){
         clearTimeout(this.startClusterInterval);
         clearTimeout(this.interval);
+        try{
+            this.controller.abort();
+        }catch{};
     },
     methods: {
         getDisk(){
@@ -245,10 +260,18 @@ export default {
                 this.getStatus();
             })
         },
-        async getStatus({needGetInfo=true}={}){
+        async getStatus({needGetInfo=true, stop=false}={}){
             if(needGetInfo){
                 let {data} = await panelApi.get('/k3k/info',{loading:true});
                 this.weihuModal = data?.['w7.cc/weihu'] == 'true';
+                
+                this.startClusterLog = {
+                    ...this.startClusterLog,
+                    pod_name: data?.['w7.cc/server-pod-name'],
+                    namespace: data?.['w7.cc/k3k-namespace'],
+                    container_name: data?.['w7.cc/server-container-name'],
+                }
+                this.streamLog();
             }
             if(this.weihuModal){
                 k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups',{noAlert:true}).then(res=>{
@@ -262,7 +285,7 @@ export default {
                     this.appgroups = list;
                 })
             }
-                
+            if(stop){return}
             this.getStartCluster();
         },
         getStartCluster(){
@@ -277,7 +300,10 @@ export default {
         changeWeihuModal(){
             panelApi.post('/k3k/wh').then(res=>{
                 this.$message.success('操作成功,集群重启中....');
-                this.getStatus();
+                this.getStatus({stop:true});
+                
+                this.startCluster = false;
+                clearTimeout(this.getStartCluster,'6000');
             });
         },
         getInfo(){
@@ -292,6 +318,14 @@ export default {
                 this.namespace = 'default'; // res?.data?.['w7.cc/k3k-namespace'] || 'default';
                 this.hasOverResource = res?.data?.['w7.cc/has-over-resource'] == 'true';
                 this.canInit = res?.data?.['w7.cc/can-init-cluster'] == 'true';
+
+                this.startClusterLog = {
+                    show: false,
+                    pod_name: res?.data?.['w7.cc/server-pod-name'],
+                    namespace: res?.data?.['w7.cc/k3k-namespace'],
+                    container_name: res?.data?.['w7.cc/server-container-name'],
+                }
+                this.streamLog();
 
                 // 更新 lastRow
                 if(this.status == 'running'){
@@ -324,6 +358,65 @@ export default {
                     })
                 }
             })
+        },
+        streamLog() {
+            let podName = this.startClusterLog.pod_name;
+            let params = {
+                follow: true,
+                tailLines: 100,
+                container: this.startClusterLog.container_name,
+                local: 1,
+            }
+            const queryString = new URLSearchParams(
+                Object.entries(params).filter(([_, v]) => v !== undefined).map(([k, v]) => [k, String(v)])
+            ).toString();
+
+            const url = `/k8s-proxy/api/v1/namespaces/${this.startClusterLog.namespace}/pods/${podName}/log?${queryString}`;
+
+            try{
+                this.controller.abort();
+            }catch{};
+            this.controller = new AbortController();
+            const authToken = getToken();
+
+            this.startClusterLog.log = '';
+            this.startClusterLog.lastRow = '';
+
+            fetch(url, {
+                signal: this.controller.signal,
+                headers: {
+                    accept: 'application/json, text/plain, */*',
+                    ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+                },
+            }).then(response => {
+                if (!response?.ok || !response.body) {
+                    console.error('Stream response error:', response?.status);
+                    return;
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+
+                const readStream = () => {
+                    return reader.read().then(({ done, value }) => {
+                        if (done) return;
+                        // if (!this.follow || !this.visible) {
+                        //     this.controller.abort();
+                        //     return;
+                        // }
+
+                        const chunk = decoder.decode(value, { stream: true });
+                        // this.writeChunk(chunk);
+                        this.startClusterLog.log += chunk;
+                        this.startClusterLog.lastRow = this.startClusterLog.log.split('\n').filter(Boolean).pop();
+                        return readStream();
+                    });
+                };
+                return readStream();
+            }).catch(error => {
+                if (error.name === 'AbortError' || error.code === 20) return;
+                console.error('Log stream error:', error);
+            });
         },
         toInitCluster(){
             panelApi.post('/k3k/init').then(res=>{

@@ -359,7 +359,7 @@ export default {
 
             this.stopStream();
             this.podcont = '';
-            this.term?.reset();
+            this.term?.reset?.();
             
             // 确保终端已初始化（streamLog 不会自动初始化）
             this.initTerm();
