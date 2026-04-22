@@ -96,7 +96,7 @@
 <script>
 import { panelApi } from '@/utils/api';
 import { useNamespaceStore, useLoadingStore } from '@/store';
-import { getToken } from '@/utils/auth';
+import { getRefreshToken, getToken } from '@/utils/auth';
 import axios from 'axios';
 import { compressFiles } from '@/api/cluster';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
@@ -182,6 +182,7 @@ export default {
         registerWujieEvent('openAppForm', this.openAppForm);
         registerWujieEvent('ingressEdit', this.openDomainEdit);
         registerWujieEvent('ingressStrategy', this.openStrategy);
+        registerWujieEvent('checkSession', this.checkSession);
     },
     beforeUnmount() {
         clearAllWujieEvents();
@@ -196,6 +197,17 @@ export default {
         domainStrategy,
     },
     methods: {
+        checkSession(callback){
+            axios.post('/panel-api/v1/auth/refresh-token2',{token: getRefreshToken()},{
+                customToken: '',
+                noAlert: true,
+                timeout: 3000,
+            }).then(res=>{
+                // let refreshToken = res.data.refreshToken;
+                let token = res.data.token;
+                callback && callback(token);
+            }).catch(()=>{})
+        },
         // ========== 域名编辑 ==========
         openDomainEdit(data) {
             this.editDomain = {
