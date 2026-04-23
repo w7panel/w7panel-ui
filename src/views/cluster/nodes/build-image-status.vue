@@ -239,6 +239,7 @@ export default{
                 }).then(async res=>{
                     this.imagePush.status = 1;
                     console.log('镜像推送成功');
+                    this.$emit('complete');
                 }).catch(err=>{ 
                     console.log('镜像推送失败: ' + (err.response?.data?.message || err.message || '未知错误'));
                     this.imagePush.status = 2;

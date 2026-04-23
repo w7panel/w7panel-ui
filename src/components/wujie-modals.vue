@@ -101,10 +101,19 @@
             @close="containerDrawer.show=false;"
         ></container-plugin>
     </a-drawer>
+
+    <build-image-status
+        :show="buildContainerImage.show"
+        :data="buildContainerImage.data"
+        :serverInfo="buildContainerImage.serverInfo"
+        @complete="buildContainerImage.callback"
+        @close="buildContainerImage.show=false;"
+    ></build-image-status>
+
 </template>
 
 <script>
-import { panelApi } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import { getRefreshToken, getToken } from '@/utils/auth';
 import axios from 'axios';
@@ -119,6 +128,7 @@ import microAppForm from '@/components/micro-app-form.vue';
 import domainMicroEdit from '@/components/domain-micro-edit.vue';
 import domainStrategy from '@/components/domain-strategy.vue';
 import containerPlugin from '@/components/container-plugin.vue';
+import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';
 
 export default {
     name: 'WujieModals',
@@ -176,6 +186,12 @@ export default {
                 show: false,
                 data: {},
             },
+
+            buildContainerImage: {
+                show: false,
+                data: {},
+                serverInfo: {},
+            },
         };
     },
     created() {
@@ -199,6 +215,7 @@ export default {
         registerWujieEvent('ingressStrategy', this.openStrategy);
         registerWujieEvent('checkSession', this.checkSession);
         registerWujieEvent('containerPlugin', this.openContainerPlugin);
+        registerWujieEvent('buildContainerImage', this.openBuildContainerImage);
     },
     beforeUnmount() {
         clearAllWujieEvents();
@@ -212,8 +229,50 @@ export default {
         domainMicroEdit,
         domainStrategy,
         containerPlugin,
+        buildImageStatus,
     },
     methods: {
+        async openBuildContainerImage({podName,cmd,containerName},callback){
+            let {podName,imageName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
+                loading: true,
+            }).then(res=>{
+                let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
+                imageName = imageName.replace(/-\d{10}$/,'');
+                return {
+                    podName: res?.data?.items?.[0]?.metadata?.name,
+                    imageName: imageName,
+                    containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
+                    ip: res?.data?.items?.[0]?.status?.hostIP,
+                };
+            }).catch(()=>{});
+
+            let o = {
+                cmd,
+                containerName,
+                podName,
+                containerID,
+            }
+            let image = imageName?.replace?.(/^([a-zA-Z0-9.-]+)(:\d+)?\//, '') || '';
+            o.namespace = /^.+\/.+$/.test(image)? image.replace?.(/\/[^\/]*$/, '') : this.namespaceActive;
+            o.imageName = image.replace?.(/^[^\/]*\//, '') + '-' + dayjs().unix();
+            buildContainerImage.data = o;
+            
+            await panelApi.get('/registry/server-info',{
+                params:{hostIp: ip},
+                loading: true,
+            }).then(res=>{
+                this.buildContainerImage.serverInfo = {
+                    agentUrl: res.data?.requestUrl || '',
+                    registryDomain: res.data?.requestHost || '',
+                };
+            })
+
+            this.buildContainerImage.callback = (v)=>{
+                callback && callback(v);
+            }
+            this.buildContainerImage.show = true;
+        },
+        // 制品库应用配置
         openContainerPlugin(data,callback){
             this.containerDrawer = {
                 show: true,
