@@ -216,6 +216,16 @@ export default {
         registerWujieEvent('checkSession', this.checkSession);
         registerWujieEvent('containerPlugin', this.openContainerPlugin);
         registerWujieEvent('buildContainerImage', this.openBuildContainerImage);
+
+// 测试
+// setTimeout(()=>{
+//     this.openBuildContainerImage({
+//         imageName: 'registry.local.w7.cc/php:7.2-fpm-alpine-1776927989',
+//         containerName: 'copy-qnub-w7-phpbeta-72',
+//         podName: 'copy-qnub-w7-phpbeta-72-5665d7f577-zsrfz',
+//     },(v)=>{alert(JSON.stringify(v))})
+// },3000)
+
     },
     beforeUnmount() {
         clearAllWujieEvents();
@@ -233,18 +243,20 @@ export default {
     },
     methods: {
         async openBuildContainerImage({podName,cmd,containerName,imageName},callback){
+            console.log({podName,cmd,containerName,imageName})
             let {containerID,ip} = await k8sproxy.get("/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
                 loading: true,
             }).then(res=>{
-                // let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
-                // imageName = imageName.replace(/-\d{10}$/,'');
                 return {
-                    // podName: res?.data?.items?.[0]?.metadata?.name,
-                    // imageName: imageName,
-                    containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
-                    ip: res?.data?.items?.[0]?.status?.hostIP,
+                    containerID: res?.data?.status?.containerStatuses?.[0]?.containerID,
+                    ip: res?.data?.status?.hostIP,
                 };
-            }).catch(()=>{});
+            }).catch(()=>({}));
+
+            if(!containerID || !ip){
+                console.error({title:'Error',content:'获取 Pod 信息失败'});
+                return;
+            }
 
             let o = {
                 cmd,
@@ -255,7 +267,7 @@ export default {
             let image = imageName?.replace?.(/^([a-zA-Z0-9.-]+)(:\d+)?\//, '') || '';
             o.namespace = /^.+\/.+$/.test(image)? image.replace?.(/\/[^\/]*$/, '') : this.namespaceActive;
             o.imageName = image.replace?.(/^[^\/]*\//, '');
-            buildContainerImage.data = o;
+            this.buildContainerImage.data = o;
             
             await panelApi.get('/registry/server-info',{
                 params:{hostIp: ip},
@@ -265,7 +277,7 @@ export default {
                     agentUrl: res.data?.requestUrl || '',
                     registryDomain: res.data?.requestHost || '',
                 };
-            })
+            }).catch(()=>{})
 
             this.buildContainerImage.callback = (v)=>{
                 callback && callback({
