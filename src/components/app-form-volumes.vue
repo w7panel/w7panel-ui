@@ -273,7 +273,16 @@ export default{
         this.init();
     },
     watch: {
-        kind(v){this.appKind = v || this.appKind},
+        kind(v){
+            this.appKind = v || this.appKind;
+            this.list = this.list.filter(item=>{
+                if(this.appKind=='statefulsets'){
+                    return true;
+                }else{
+                    return item.type!='pvcTemplate';
+                }
+            })
+        },
         data: 'init',
     },
     components: {
