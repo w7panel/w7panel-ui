@@ -232,15 +232,15 @@ export default {
         buildImageStatus,
     },
     methods: {
-        async openBuildContainerImage({podName,cmd,containerName},callback){
-            let {podName,imageName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
+        async openBuildContainerImage({podName,cmd,containerName,imageName},callback){
+            let {podName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
                 loading: true,
             }).then(res=>{
-                let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
-                imageName = imageName.replace(/-\d{10}$/,'');
+                // let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
+                // imageName = imageName.replace(/-\d{10}$/,'');
                 return {
                     podName: res?.data?.items?.[0]?.metadata?.name,
-                    imageName: imageName,
+                    // imageName: imageName,
                     containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
                     ip: res?.data?.items?.[0]?.status?.hostIP,
                 };
@@ -254,7 +254,7 @@ export default {
             }
             let image = imageName?.replace?.(/^([a-zA-Z0-9.-]+)(:\d+)?\//, '') || '';
             o.namespace = /^.+\/.+$/.test(image)? image.replace?.(/\/[^\/]*$/, '') : this.namespaceActive;
-            o.imageName = image.replace?.(/^[^\/]*\//, '') + '-' + dayjs().unix();
+            o.imageName = image.replace?.(/^[^\/]*\//, '');
             buildContainerImage.data = o;
             
             await panelApi.get('/registry/server-info',{
@@ -268,7 +268,10 @@ export default {
             })
 
             this.buildContainerImage.callback = (v)=>{
-                callback && callback(v);
+                callback && callback({
+                    ...v,
+                    imageName: imageName,
+                });
             }
             this.buildContainerImage.show = true;
         },
