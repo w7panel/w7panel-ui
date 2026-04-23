@@ -58,7 +58,7 @@
                         <td>剩余个数</td>
                         <td>操作</td>
                     </tr>
-                    <tr v-for="(item,index) in list">
+                    <tr v-for="(item,index) in list" :key="index">
                         <td>{{ item.id }}</td>
                         <td>{{ `${item.cpu}核/${item.memory}G/${item.storage}G/${item.bandwidth}Mbps` }}</td>
                         <td>{{ item.price }}元/{{ item.timequantity }}{{ units[item.timeunit] }}</td>
