@@ -236,15 +236,16 @@ export default {
             let {containerID,ip} = await k8sproxy.get("/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
                 loading: true,
             }).then(res=>{
-                // let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
-                // imageName = imageName.replace(/-\d{10}$/,'');
                 return {
-                    // podName: res?.data?.items?.[0]?.metadata?.name,
-                    // imageName: imageName,
                     containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
                     ip: res?.data?.items?.[0]?.status?.hostIP,
                 };
-            }).catch(()=>{});
+            }).catch(()=>({}));
+
+            if(!containerID || !ip){
+                console.error({title:'Error',content:'获取 Pod 信息失败'});
+                return;
+            }
 
             let o = {
                 cmd,
@@ -255,7 +256,7 @@ export default {
             let image = imageName?.replace?.(/^([a-zA-Z0-9.-]+)(:\d+)?\//, '') || '';
             o.namespace = /^.+\/.+$/.test(image)? image.replace?.(/\/[^\/]*$/, '') : this.namespaceActive;
             o.imageName = image.replace?.(/^[^\/]*\//, '');
-            buildContainerImage.data = o;
+            this.buildContainerImage.data = o;
             
             await panelApi.get('/registry/server-info',{
                 params:{hostIp: ip},
@@ -265,7 +266,7 @@ export default {
                     agentUrl: res.data?.requestUrl || '',
                     registryDomain: res.data?.requestHost || '',
                 };
-            })
+            }).catch(()=>{})
 
             this.buildContainerImage.callback = (v)=>{
                 callback && callback({
