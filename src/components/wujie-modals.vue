@@ -233,13 +233,13 @@ export default {
     },
     methods: {
         async openBuildContainerImage({podName,cmd,containerName,imageName},callback){
-            let {podName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
+            let {containerID,ip} = await k8sproxy.get("/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
                 loading: true,
             }).then(res=>{
                 // let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
                 // imageName = imageName.replace(/-\d{10}$/,'');
                 return {
-                    podName: res?.data?.items?.[0]?.metadata?.name,
+                    // podName: res?.data?.items?.[0]?.metadata?.name,
                     // imageName: imageName,
                     containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
                     ip: res?.data?.items?.[0]?.status?.hostIP,

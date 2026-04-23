@@ -254,7 +254,7 @@ export default {
             let labelSelector = Object.keys(v.podMatchLabels).map(key=>`${key}=${v.podMatchLabels[key]}`).join(',');
             // 获取pod名称
             try{
-                let {podName,imageName,containerID,ip} = await k8sproxy.get("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=" + labelSelector,{
+                let {podName,imageName,containerID,ip} = await k8sproxy.get("/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=" + labelSelector,{
                     loading: true,
                 }).then(res=>{
                     let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
