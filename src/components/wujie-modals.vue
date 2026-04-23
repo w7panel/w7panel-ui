@@ -216,6 +216,16 @@ export default {
         registerWujieEvent('checkSession', this.checkSession);
         registerWujieEvent('containerPlugin', this.openContainerPlugin);
         registerWujieEvent('buildContainerImage', this.openBuildContainerImage);
+
+// 测试
+// setTimeout(()=>{
+//     this.openBuildContainerImage({
+//         imageName: 'registry.local.w7.cc/php:7.2-fpm-alpine-1776927989',
+//         containerName: 'copy-qnub-w7-phpbeta-72',
+//         podName: 'copy-qnub-w7-phpbeta-72-5665d7f577-zsrfz',
+//     },(v)=>{alert(JSON.stringify(v))})
+// },3000)
+
     },
     beforeUnmount() {
         clearAllWujieEvents();
@@ -233,6 +243,7 @@ export default {
     },
     methods: {
         async openBuildContainerImage({podName,cmd,containerName,imageName},callback){
+            console.log({podName,cmd,containerName,imageName})
             let {containerID,ip} = await k8sproxy.get("/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
                 loading: true,
             }).then(res=>{
