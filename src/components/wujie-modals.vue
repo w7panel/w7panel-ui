@@ -237,8 +237,8 @@ export default {
                 loading: true,
             }).then(res=>{
                 return {
-                    containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
-                    ip: res?.data?.items?.[0]?.status?.hostIP,
+                    containerID: res?.data?.status?.containerStatuses?.[0]?.containerID,
+                    ip: res?.data?.status?.hostIP,
                 };
             }).catch(()=>({}));
 
