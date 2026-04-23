@@ -34,8 +34,9 @@
                     </a-table-column>
 
                     <a-table-column title="集群模式">
-                        <template #cell="{ record }">
-                            {{ {'shared':'共享','virtual':'独享','global':'全局'}[record.allowedMode] }}
+                        <template #cell>
+                            <!-- {{ {'shared':'共享','virtual':'独享','global':'全局'}[record.allowedMode] }} -->
+                            <span>独享</span>
                         </template>
                     </a-table-column>
                     <a-table-column title="全网发布">
@@ -97,7 +98,7 @@
                 <!-- <a-form-item label="禁用网络策略">
                     <a-switch v-model="form.dnp"></a-switch>
                 </a-form-item> -->
-                <a-form-item label="集群模式" field="allowedMode">
+                <!-- <a-form-item label="集群模式" field="allowedMode">
                     <a-select v-model="form.allowedMode" :disabled="form.isEdit" @change="changeAllowedMode" placeholder="请选择集群模式">
                         <a-option disabled label="全局" value="global"></a-option>
                         <a-option label="共享" value="shared"></a-option>
@@ -108,7 +109,7 @@
                         <div v-if="form.allowedMode=='virtual'">独享：基于主集群完全隔离，完整的集群架构，适用于商业多租户场景。</div>
                         <div v-if="form.allowedMode=='global'">全局：可直接对创始人端后台进行管理。</div>
                     </template>
-                </a-form-item>
+                </a-form-item> -->
                 <a-form-item label="演示用户">
                     <a-switch v-model="form.demouser"></a-switch>
                 </a-form-item>
@@ -189,7 +190,7 @@ const dataTemplate = {
     },
     spec: {
         disableNetworkPolicy: true,
-        allowedMode: 'shared',
+        allowedMode: 'virtual',
     },
 }
 
@@ -582,7 +583,7 @@ export default {
                 title: '',
                 name: '',
                 demouser: false,
-                allowedMode: 'shared',
+                allowedMode: 'virtual',
                 permissionPackage: '',
                 showInShop: true,
             };
@@ -594,7 +595,7 @@ export default {
                 isEdit: true,
                 name: row.name,
                 title: row.title,
-                allowedMode: row.allowedMode || 'shared',
+                allowedMode: row.allowedMode || 'virtual',
                 demouser: row.demouser,
                 permissionPackage: row.permissionPackage || '',
                 showInShop: row.showInShop,

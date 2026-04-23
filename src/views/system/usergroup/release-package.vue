@@ -16,7 +16,7 @@
                 </a-form-item>
                 <a-form-item label="城市">
                     <a-select v-model="form.province" @change="()=>form.city=''" placeholder="请选择省份">
-                        <a-option v-for="value of Object.keys(city)">{{value}}</a-option>
+                        <a-option v-for="value of Object.keys(city)" :key="value">{{value}}</a-option>
                     </a-select>
                     <a-select :options="form.province?city[form.province] : []" v-model="form.city" class="ml-20" placeholder="请选择城市" />
                 </a-form-item>
@@ -30,7 +30,7 @@
                             <td>描述</td>
                         </tr>
                         <template v-for="(pc,index) in form.packageConfig" :key="index">
-                            <tr v-for="(c,cindex) in (pc.config||[])">
+                            <tr v-for="(c,cindex) in (pc.config||[])" :key="cindex">
                                 <!-- <td>{{ pc.time + timeUnit[pc.timeUnit] }}</td> -->
                                 <td>
                                     <a-switch v-model="c.online" @change="watchOnline"></a-switch>
