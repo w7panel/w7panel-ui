@@ -56,7 +56,7 @@
                             <div @click="openCost(record)" class="cursor df ai-c">
                                 
                                 <span class="lh-20">{{record.costTitle||'-'}}</span>
-                                <i v-if="(record.clustermode!='global'&&record.clustermode!='')" class="opt-icon hovershow"><icon-edit /></i>
+                                <i class="opt-icon hovershow"><icon-edit /></i>
                             </div>
                         </template>
                     </a-table-column>
@@ -89,7 +89,7 @@
                                         <span v-else @click="toUserResource(record)" class="lh-20 cursor c-blue">{{record.peie||'-'}}</span>
                                     </span>
                                     
-                                    <i v-if="(record.clustermode!='global'&&record.clustermode!='')" @click="editQuota(record)" class="opt-icon hovershow"><icon-edit /></i>
+                                    <i @click="editQuota(record)" class="opt-icon hovershow"><icon-edit /></i>
                                     
                                     <a-tooltip v-if="record.clusterStatus=='new'" content="创建资源" @click="csCreate(record)">
                                         <i class="opt-icon hovershow"><icon-plus /></i>
@@ -132,8 +132,8 @@
                     </a-table-column>
                     
                     <a-table-column title="集群模式" data-index="clustermode" :width="100">
-                        <template #cell="{ record }">
-                            {{{shared:'共享',virtual:'独享',global:'全局','':'全局'}[record.clustermode]}}
+                        <template #cell>
+                            <span>独享</span>
                         </template>
                     </a-table-column>
 
@@ -189,10 +189,10 @@
                 <a-form-item label="用户组" field="policy">
                     <a-select v-model="form.policy" @change="changePolicy" placeholder="请选择用户组">
                         <a-option label="无" value="normal"></a-option>
-                        <a-option v-for="item in form.isEdit?groupList.filter(i=>i.allowedMode==form.clustermode):groupList" :key="item.name" :label="item.title" :value="item.name"></a-option>
+                        <a-option v-for="item in groupList" :key="item.name" :label="item.title" :value="item.name"></a-option>
                     </a-select>
                 </a-form-item>
-                <a-form-item label="集群模式" field="clustermode">
+                <!-- <a-form-item label="集群模式" field="clustermode">
                     <a-select v-model="form.clustermode" :disabled="true||!!form.policy" placeholder="请选择集群模式">
                         <a-option label="全局" value="global"></a-option>
                         <a-option label="共享" value="shared"></a-option>
@@ -203,7 +203,7 @@
                         <div v-if="form.clustermode=='virtual'">独享：基于主集群完全隔离，完整的集群架构，适用于商业多租户场景。</div>
                         <div v-if="form.clustermode=='global'">全局：可直接对创始人端后台进行管理。</div>
                     </template>
-                </a-form-item>
+                </a-form-item> -->
                 <!-- <a-form-item v-if="!form.isEdit" label="到期时间" field="expiretime">
                     <a-date-picker v-if="!form.forever" v-model="form.expiretime" showTime class="mr-20" />
                     <a-checkbox v-model="form.forever">永久</a-checkbox>
@@ -269,7 +269,6 @@
             :show="pmsForm.show"
             :list="pmsForm.list"
             :permissionPackage="pmsForm.permissionPackage"
-            :type="pmsForm.type"
             :debug="pmsForm.debug"
             :webshell="pmsForm.webshell"
             :fileeditor="pmsForm.fileeditor"
@@ -284,7 +283,6 @@
             :show="quotaForm.show"
             :data="quotaForm.data"
             :name="quotaForm.name"
-            :clustermode="quotaForm.clustermode"
             @close="quotaForm.show=false"
             @submit="submitQuota"
         ></quota-edit>
@@ -394,7 +392,6 @@ export default {
                 show: false,
                 name: '',
                 permissionPackage: '',
-                type: 'shared',
                 list: [],
             },
             quotaForm: {
@@ -539,19 +536,17 @@ export default {
             }
         },
         openCost(row){
-            if(row.clustermode!='global'&&row.clustermode!=''){
-                this.costForm = {
-                    ...this.costForm,
-                    show: true,
-                    name: row?.name,
-                    package: row?.costName || "",
-                    buymode: row?.cost?.buymode || "give",
-                    cpu: row?.cost?.cpu || "",
-                    memory: row?.cost?.memory || "",
-                    storage: row?.cost?.storage || "",
-                    bandwidth: row?.cost?.bandwidth || "",
-                    packageConfig: row?.cost?.packageConfig || [],
-                }
+            this.costForm = {
+                ...this.costForm,
+                show: true,
+                name: row?.name,
+                package: row?.costName || "",
+                buymode: row?.cost?.buymode || "give",
+                cpu: row?.cost?.cpu || "",
+                memory: row?.cost?.memory || "",
+                storage: row?.cost?.storage || "",
+                bandwidth: row?.cost?.bandwidth || "",
+                packageConfig: row?.cost?.packageConfig || [],
             }
         },
         submitCost(data){
@@ -642,8 +637,8 @@ export default {
         // },
         changePolicy(){
             if(!this.form.policy){return}
+            this.form.clustermode = 'virtual';
             if(this.form.policy=='normal'){
-                this.form.clustermode = 'global';
                 
                 this.form.menu = '';
                 this.form.menuname = '';
@@ -652,7 +647,6 @@ export default {
             }
             let find = this.groupList.find(i=>i.name==this.form.policy);
             if(!find){return}
-            this.form.clustermode = find.allowedMode;
             
             this.form.menu = find.menu
             this.form.menuname = find.menuname;
@@ -660,13 +654,10 @@ export default {
             this.form.demouser = find.demouser;
         },
         editQuota(row){
-            if(row.clustermode!='global'&&row.clustermode!=''){
-                this.quotaForm = {
-                    show: true,
-                    name: row.name,
-                    data: row.quotaLimit,
-                    clustermode: row.clustermode,
-                }
+            this.quotaForm = {
+                show: true,
+                name: row.name,
+                data: row.quotaLimit,
             }
         },
         submitQuota(data){
@@ -695,7 +686,6 @@ export default {
                 debug: row.debug,
                 webshell: row.webshell,
                 fileeditor: row.fileeditor,
-                type: row.clustermode,
                 list: row.permission,
                 whitelist: row.whitelist || [],
                 userMode: row.userMode,
@@ -1216,7 +1206,7 @@ export default {
                 storageSize: '',
                 storageSizeDw: 'Gi',
                 policy: 'normal',
-                clustermode: 'global',
+                clustermode: 'virtual',
                 // debug: false,
                 version: 0,
                 demouser: false,
@@ -1252,8 +1242,9 @@ export default {
         submit(){
             let findPolicy = this.groupList.find(i=>i.name==this.form.policy)
             
+            this.form.clustermode = 'virtual'; //findPolicy.allowedMode;
+            
             if(findPolicy){
-                this.form.clustermode = findPolicy.allowedMode;
                 
                 this.form.menu = findPolicy.menu
                 this.form.menuname = findPolicy.menuname;
