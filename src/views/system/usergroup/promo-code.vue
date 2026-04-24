@@ -220,7 +220,6 @@
 </template>
 <script>
 import { panelApi } from '@/utils/api';
-import axios from 'axios';
 
 export default{
     props: ['show','data'],

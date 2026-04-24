@@ -34,6 +34,9 @@
                             <a-tooltip content="全网发布">
                                 <i class="opt-icon" @click="openRelease(record)"><icon-send /></i>
                             </a-tooltip>
+                            <a-tooltip content="优惠码">
+                                <i class="opt-icon" @click="openPromoCode(record)"><icon-gift /></i>
+                            </a-tooltip>
                             <a-tooltip content="修改">
                                 <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
                             </a-tooltip>
@@ -268,6 +271,8 @@
             @close="()=>release.show=false"
         />
         
+        <promo-code :show="pcdata.show" :data="pcdata.data" @close="pcdata.show=false;"></promo-code>
+        
     </div>
 </template>
 
@@ -278,6 +283,7 @@ import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import releasePackage from '@/views/system/usergroup/release-package.vue';
+import promoCode from '@/views/system/usergroup/promo-code.vue';
 
 const dataTemplate = {
     "kind": "ConfigMap",
@@ -324,6 +330,11 @@ export default {
                 show: false,
                 data: null,
             },
+            
+            pcdata: {
+                show: false,
+                data: null,
+            },
         }
     },
     created(){
@@ -335,11 +346,23 @@ export default {
     components: {
         yamlDrawer,
         releasePackage,
+        promoCode,
     },
     watch: {},
     methods:{
+        
+        openPromoCode(row){
+            this.pcdata = {
+                show: true,
+                data: {
+                    name: row.name,
+                    cost: row.data.data,
+                },
+            }
+        },
+        
         changeShowInShop(row){
-            k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+row.name,[{
+            k8sproxy.patch("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+row.name,[{
                 op: 'replace',
                 path: '/metadata/labels/w7.cc~1showInShop',
                 value: String(row.showInShop),

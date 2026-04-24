@@ -59,9 +59,9 @@
                                 <i class="opt-icon" @click="openRelease(record)"><icon-send /></i>
                             </a-tooltip> -->
 
-                            <a-tooltip content="优惠码">
+                            <!-- <a-tooltip content="优惠码">
                                 <i class="opt-icon" @click="openPromoCode(record)"><icon-gift /></i>
-                            </a-tooltip>
+                            </a-tooltip> -->
 
                             <a-popover trigger="click" @popup-visible-change="v=>changeAllowRegister(v,record)" position="tr">
                                 <i class="opt-icon"><icon-user-add /></i>
@@ -159,7 +159,7 @@
         <!-- yaml -->
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
 
-        <promo-code :show="pcdata.show" :data="pcdata.data" @close="pcdata.show=false;"></promo-code>
+        <!-- <promo-code :show="pcdata.show" :data="pcdata.data" @close="pcdata.show=false;"></promo-code> -->
     </div>
 </template>
 
@@ -285,10 +285,10 @@ export default {
             //     data: null,
             // },
 
-            pcdata: {
-                show: false,
-                data: null,
-            },
+            // pcdata: {
+            //     show: false,
+            //     data: null,
+            // },
         }
     },
     async created(){
