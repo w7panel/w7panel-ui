@@ -272,7 +272,7 @@ export default {
                     loading: true,
                 }).then(res=>{
                     this.bisServerInfo = {
-                        agentUrl: res.data?.requestUrl || '',
+                        agentUrl: res.data?.requestUrl?.replace?.(/\/$/,'') || '',
                         registryDomain: res.data?.requestHost || '',
                     };
                 })
@@ -339,10 +339,9 @@ export default {
                 params:{hostIp: ip},
                 loading: true,
             }).then(res=>{
-                let url = res.data?.requestUrl || '';
                 
                 this.outEditorInfo = {
-                    agentUrl: url,
+                    agentUrl: res.data?.requestUrl?.replace?.(/\/$/,'') || '',
                     registryDomain: res.data?.requestHost || '',
                 };
                 this.getList();
