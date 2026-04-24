@@ -503,6 +503,7 @@ export default {
                 noAlert: true
             }).then(res=>{
                 let list = res?.data?.items || [];
+                list = list.filter(i=>i.metadata.name != 'default');
                 list = list.map(i=>{
                     let md = i.metadata;
                     let spec = i.spec;

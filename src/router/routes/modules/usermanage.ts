@@ -68,6 +68,17 @@ const DASHBOARD: any = [{
             rules: ['*'],
         }
     },{
+        path: 'resource',
+        name: 'user-resource',
+        component: () => import('@/views/system/resource/list.vue'),
+        meta: {
+            locale: '资源管理',
+            hideInMenu: false,
+            requiresAuth: true,
+            roles: ['*'],
+            // key: 'system-resource'
+        },
+    },{
         path: 'usermanage-whitedomain',
         name: 'usermanage-whitedomain',
         component: ()=>import('@/views/system/white-domain/index.vue'),

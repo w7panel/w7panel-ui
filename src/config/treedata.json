@@ -132,6 +132,9 @@
         "title": "费用套餐",
         "key": "system-cost"
     },{
+        "title": "资源管理",
+        "key": "system-resource"
+    },{
         "title": "备案域名",
         "key": "system-white-domain"
     },{
