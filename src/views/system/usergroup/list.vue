@@ -313,12 +313,12 @@ export default {
         promoCode,
     },
     methods: {
-        openPromoCode(row){
-            this.pcdata = {
-                show: true,
-                data: row,
-            }
-        },
+        // openPromoCode(row){
+        //     this.pcdata = {
+        //         show: true,
+        //         data: row,
+        //     }
+        // },
         // openRelease(row){
         //     this.release = {
         //         show: true,
