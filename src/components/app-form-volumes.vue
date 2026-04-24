@@ -26,8 +26,8 @@
                         <span v-if="item.type=='hostPath'">主机路径：{{ item.hostPathPath }}，检查类型：{{ item.hostPathType }}</span>
                     </td>
                     <td>
-                        <span v-if="item.type!='pvcTemplate'" class="c-blue cursor" @click="editItem(index);">修改</span>
-                        <span v-if="item.type!='pvcTemplate'" class="c-blue cursor ml-10" @click="list.splice(index,1);submit();">删除</span>
+                        <span v-if="item.type!='pvcTemplate'||!id" class="c-blue cursor" @click="editItem(index);">修改</span>
+                        <span v-if="item.type!='pvcTemplate'||!id" class="c-blue cursor ml-10" @click="list.splice(index,1);submit();">删除</span>
                     </td>
                 </tr>
             </tbody></table>
@@ -228,7 +228,7 @@ import configmapEditor from '@/views/config/configmap/form-drawer.vue'
 import { getToken } from '@/utils/auth';
 
 export default{
-    props: ['data','kind','readonly','isPlugin','isTemplate'],
+    props: ['id','data','kind','readonly','isPlugin','isTemplate'],
     data(){
         return {
             namespaceActive: 'default',

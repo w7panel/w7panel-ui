@@ -69,6 +69,7 @@
 
                 <!-- 数据卷 -->
                 <app-form-volumes
+                    :id="id"
                     :data="data"
                     :kind="form.kind"
                     @submit="v=>{volumes=v.volumes;volumeClaimTemplates=v.volumeClaimTemplates;}"

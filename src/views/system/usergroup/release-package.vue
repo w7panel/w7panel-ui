@@ -100,23 +100,9 @@ export default{
             let ann = this.data?.metadata?.annotations || {};
             let name = ann?.['publish-title'] || ann?.title || this.data?.metadata?.name || '';
             let city = ann?.city?.split?.('/') || ['',''];
-            let costName = this.data?.metadata?.annotations?.['w7.cc/cost-name'];
-            let costPackage = {};
-            let packageConfig = [];
-
-            if(costName){
-                await k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+ costName,{noAlert:true}).then(res=>{
-                    costPackage = res?.data?.data;
-                    packageConfig = costPackage.packageConfig;
-                }).catch(()=>{
-                    costName = '';
-                    costPackage = JSON.parse(ann?.['w7.cc/cost']);
-                    packageConfig = costPackage?.packageConfig;
-                })
-            }else{
-                costPackage = JSON.parse(ann?.['w7.cc/cost']);
-                packageConfig = costPackage?.packageConfig;
-            }
+            let costPackage = this.data.data;
+            let packageConfig = costPackage?.packageConfig || [];
+            
             if(typeof packageConfig == 'string'){
                 packageConfig = JSON.parse(packageConfig)
             }
@@ -130,7 +116,6 @@ export default{
                 province: city[0],
                 city: city[1],
                 packageConfig: packageConfig,
-                costName: costName,
             }
         },
         submit(){
@@ -172,28 +157,14 @@ export default{
                 };
             })
 
-            let cost = this.data.metadata.annotations['w7.cc/cost'] || '{}'
-            cost = JSON.parse(cost);
-            cost.packageConfig = packageConfig;
-            cost = JSON.stringify(cost);
-
-            o.push({
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1cost',
-                value: cost,
-            })
-
-            if(this.form.costName){
-                k8sproxy.patch("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+ this.form.costName,[{
+            k8sproxy.patch("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+ this.data.metadata.name, [
+                ...o,
+                {
                     op: 'replace',
                     path: '/data/packageConfig',
                     value: JSON.stringify(packageConfig),
-                }],{
-                    headers: {'Content-Type': 'application/json-patch+json'},
-                });
-            }
-
-            k8sproxy.patch('/apis/k3k.io/v1alpha1/virtualclusterpolicies/'+this.data.metadata.name, o,{
+                }
+            ],{
                 headers: {'Content-Type': 'application/json-patch+json'},
             }).then(res=>{
                 this.$message.success('操作成功');

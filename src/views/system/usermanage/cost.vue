@@ -21,10 +21,18 @@
                     <a-table-column title="带宽">
                         <template #cell="{ record }">{{record.bandwidth}}元/月</template>
                     </a-table-column>
+                    <a-table-column title="全网发布">
+                        <template #cell="{ record }">
+                            <a-switch v-model="record.showInShop" :disabled="record.showInShopDisabled" @change="changeShowInShop(record)"></a-switch>
+                        </template>
+                    </a-table-column>
                     <a-table-column title="操作">
                         <template #cell="{ record }">
                             <a-tooltip v-if="debug" content="yaml">
                                 <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
+                            </a-tooltip>
+                            <a-tooltip content="全网发布">
+                                <i class="opt-icon" @click="openRelease(record)"><icon-send /></i>
                             </a-tooltip>
                             <a-tooltip content="修改">
                                 <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
@@ -252,16 +260,24 @@
                 </a-input>
             </div>
         </a-modal>
+        
+        <release-package
+            :show="release.show"
+            :data="release.data"
+            @submit="()=>{getList();release.show=false;}"
+            @close="()=>release.show=false"
+        />
+        
     </div>
 </template>
 
 <script>
 import { k8sproxy } from '@/utils/api';
 
-import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
+import releasePackage from '@/views/system/usergroup/release-package.vue';
 
 const dataTemplate = {
     "kind": "ConfigMap",
@@ -303,6 +319,11 @@ export default {
 
             newPackageConfig: {},
             storageLs: [],
+
+            release: {
+                show: false,
+                data: null,
+            },
         }
     },
     created(){
@@ -313,9 +334,29 @@ export default {
     },
     components: {
         yamlDrawer,
+        releasePackage,
     },
     watch: {},
     methods:{
+        changeShowInShop(row){
+            k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+row.name,[{
+                op: 'replace',
+                path: '/metadata/labels/w7.cc~1showInShop',
+                value: String(row.showInShop),
+            }],{
+                headers: {'Content-Type': 'application/json-patch+json'},
+            }).then(res=>{
+                this.$message.success('操作成功');
+                this.getList();
+            })
+        },
+        openRelease(row){
+            this.release = {
+                show: true,
+                data: row.data,
+            }
+        },
+
         getStorageList(){
             k8sproxy.get('/apis/storage.k8s.io/v1/storageclasses').then(res=>{
                 let data = res?.data || [];
@@ -334,7 +375,16 @@ export default {
                     let configData = i.data;
                     let packageConfig = JSON.parse(configData?.packageConfig || '[]');
                     let quota = JSON.parse(configData?.quota || '{}');
+                    
+                    let showInShopDisabled = true;
+                    packageConfig?.map?.(p=>{
+                        p?.config?.map?.(i=>{
+                            if(i.online){showInShopDisabled = false;}
+                        })
+                    })
+
                     return {
+                        data: i,
                         title: i.metadata?.annotations?.title || i.metadata.name,
                         name: i.metadata.name,
                         created: window.formatDate(i.metadata.creationTimestamp),
@@ -342,6 +392,9 @@ export default {
                         packageConfig: packageConfig,
                         storageclass: quota?.storageclass || '',
                         hard: quota?.hard || {cpu:'',memory:'',bandwidth:'','requests.storage':''},
+                        
+                        showInShop: i.metadata?.labels?.['w7.cc/showInShop'] == 'true',
+                        showInShopDisabled: showInShopDisabled,
                     }
                 });
                 this.list = list;

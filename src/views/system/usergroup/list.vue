@@ -39,11 +39,11 @@
                             <span>独享</span>
                         </template>
                     </a-table-column>
-                    <a-table-column title="全网发布">
+                    <!-- <a-table-column title="全网发布">
                         <template #cell="{ record }">
                             <a-switch v-model="record.showInShop" :disabled="record.showInShopDisabled" @change="changeShowInShop(record)"></a-switch>
                         </template>
-                    </a-table-column>
+                    </a-table-column> -->
                     <a-table-column title="操作" :width="300">
                         <template #cell="{ record,rowIndex }">
                             <a-tooltip v-if="debug" content="yaml">
@@ -55,9 +55,9 @@
                             <a-tooltip content="修改">
                                 <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
                             </a-tooltip>
-                            <a-tooltip content="全网发布">
+                            <!-- <a-tooltip content="全网发布">
                                 <i class="opt-icon" @click="openRelease(record)"><icon-send /></i>
-                            </a-tooltip>
+                            </a-tooltip> -->
 
                             <a-tooltip content="优惠码">
                                 <i class="opt-icon" @click="openPromoCode(record)"><icon-gift /></i>
@@ -149,12 +149,12 @@
             @close="()=>costForm.show=false"
         ></cost-edit>
 
-        <release-package
+        <!-- <release-package
             :show="release.show"
             :data="release.data"
             @submit="()=>{getList();release.show=false;}"
             @close="()=>release.show=false"
-        />
+        /> -->
 
         <!-- yaml -->
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
@@ -173,7 +173,7 @@ import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import permissionEdit from '@/components/permission-edit.vue';
 import costEdit from '@/components/cost-edit.vue';
-import releasePackage from './release-package.vue';
+// import releasePackage from '../usermanage/release-package.vue';
 import promoCode from './promo-code.vue';
 
 const dataTemplate = {
@@ -280,10 +280,10 @@ export default {
                 packageConfig: [],
             },
 
-            release: {
-                show: false,
-                data: null,
-            },
+            // release: {
+            //     show: false,
+            //     data: null,
+            // },
 
             pcdata: {
                 show: false,
@@ -309,7 +309,7 @@ export default {
         yamlDrawer,
         permissionEdit,
         costEdit,
-        releasePackage,
+        // releasePackage,
         promoCode,
     },
     methods: {
@@ -319,12 +319,12 @@ export default {
                 data: row,
             }
         },
-        openRelease(row){
-            this.release = {
-                show: true,
-                data: row.data,
-            }
-        },
+        // openRelease(row){
+        //     this.release = {
+        //         show: true,
+        //         data: row.data,
+        //     }
+        // },
         openCost(row){
             
             this.costForm = {
