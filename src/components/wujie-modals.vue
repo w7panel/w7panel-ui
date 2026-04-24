@@ -274,7 +274,7 @@ export default {
                 loading: true,
             }).then(res=>{
                 this.buildContainerImage.serverInfo = {
-                    agentUrl: res.data?.requestUrl || '',
+                    agentUrl: res.data?.requestUrl?.replace?.(/\/$/,'') || '',
                     registryDomain: res.data?.requestHost || '',
                 };
             }).catch(()=>{})
