@@ -167,14 +167,13 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 
-import axios from 'axios';
 import { useNamespaceStore,useUserStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import permissionEdit from '@/components/permission-edit.vue';
 import costEdit from '@/components/cost-edit.vue';
 // import releasePackage from '../usermanage/release-package.vue';
-import promoCode from './promo-code.vue';
+// import promoCode from './promo-code.vue';
 
 const dataTemplate = {
     apiVersion: 'k3k.io/v1alpha1',
@@ -310,7 +309,7 @@ export default {
         permissionEdit,
         costEdit,
         // releasePackage,
-        promoCode,
+        // promoCode,
     },
     methods: {
         // openPromoCode(row){
