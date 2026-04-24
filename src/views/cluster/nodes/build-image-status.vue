@@ -1,14 +1,25 @@
 <template>
     <div>
+        <!-- @cancel="closeDrawer(true)" -->
         <a-modal
             v-model:visible="visible"
             :title="title"
             title-align="start"
             width="1000px"
             :footer="false"
-            @cancel="closeDrawer(true)"
+            :closable="false"
             :mask-closable="false"
         >
+            <template #title>
+                <div class="df ai-c jc-b fc model-title">
+                    <span class="fs-18">{{title}}</span>
+                    <div class="df ai-c btns">
+                        <div class="btn ml-20 cursor" @click="(status==1||status==2)?closeDrawer(true):appDialogConfirm.show=true;">
+                            <icon-close class="fs-20 c-66" />
+                        </div>
+                    </div>
+                </div>
+            </template>
             <div class="df df-c ai-c" style="height:360px;">
                 
                 <div class="df df-c ai-c mt-20">
@@ -60,6 +71,11 @@
             </div>
         </a-modal>
 
+        <a-modal :visible="appDialogConfirm.show" @ok="appDialogConfirm.show=false;closeDrawer(true)" @cancel="appDialogConfirm.show=false;">
+            <template #title>提示</template>
+            <div>关闭后任务将被终止，是否关闭？</div>
+        </a-modal>
+
         <a-modal title="详情" width="900px" v-model:visible="log.show" :footer="false">
             <div class="log-terminal" ref="bislog"></div>
         </a-modal>
@@ -101,6 +117,7 @@ export default{
             socket: null,
             socketClose: false,
             preAddress: 'registry.local.w7.cc/',
+            appDialogConfirm: {show:false},
         }
     },
     computed: {
