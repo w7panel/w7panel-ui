@@ -2,7 +2,7 @@
     <div>
         <a-drawer :width="1000" :visible="visible" @cancel="closeDrawer()" @open="init()" unmountOnClose :footer="false" :popup-container="false?'#allmodalbox':'body'">
             <template #title>安装应用</template>
-            <store-install v-if="zpkUrl" :is_component="true" @needInstall="needInstall" :path_identifie="zpkUrl" @installed="installed" @close="closeDrawer" />
+            <store-install v-if="zpkUrl" :is_component="true" @needInstall="needInstall" :path_identifie="zpkUrl" @installed="installed" @installedStatusSuccess="installedStatusSuccess" @close="closeDrawer" />
         </a-drawer>
         
         <template v-for="(value,key) in idObj" :key="key">
@@ -46,6 +46,9 @@ export default {
         installed(){
             this.$emit('installed');
             // this.closeDrawer();
+        },
+        installedStatusSuccess(){
+            this.$emit('installedStatusSuccess');
         },
         needInstall(module_name, callback){
             this.idObj[module_name] = {

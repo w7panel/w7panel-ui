@@ -325,7 +325,7 @@
             </template>
         </a-drawer>
 
-        <store-install-drawer :show="installLonghornPlugin.show" :path="installLonghornPlugin.path" @close="installLonghornPlugin.show=false;" @installed="installLonghornPlugin.show=false;testLonghornSystem();"></store-install-drawer>
+        <store-install-drawer :show="installLonghornPlugin.show" :path="installLonghornPlugin.path" @close="installLonghornPlugin.show=false;" @installedStatusSuccess="installLonghornPlugin.show=false;testLonghornSystem();"></store-install-drawer>
         <!-- <node-bind :show="nodebindshow" :list="list" @close="v=>{nodebindshow=false;v?getList():null;}"></node-bind> -->
     </div>
 </template>
