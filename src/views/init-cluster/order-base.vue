@@ -868,7 +868,7 @@ export default {
                 this.info.quantity = this.timeoptions[0].quantity;
                 this.info.unit = this.timeoptions[0].unit;
                 
-                this.initValData(data);
+                await this.initValData(data);
 
                 this.info = {
                     ...this.info,

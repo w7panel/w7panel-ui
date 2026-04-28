@@ -125,8 +125,9 @@ router.beforeEach(async (to, from, next) => {
         }catch{}
     }
 
+    // 根据路由名称，设置菜单过滤
     const appStore = useAppStore();
-    if(['usermanage','users','user-group','usermanage-permission','usermanage-cost','user-resource','usermanage-whitedomain','usermanage-system'].includes(to.name)){
+    if(['usermanage','users','user-group','system-resource','usermanage-permission','usermanage-cost','user-resource','usermanage-whitedomain','usermanage-system'].includes(to.name)){
         appStore.changeMenuFilter('usermanage');
     }else if(['cloud-cloud','cloud-register','system-permission','system-order-center','system-order-detail','system-cost-center','system-cost-detail','license-index','api-key'].includes(to.name)){
         appStore.changeMenuFilter('system');

@@ -40,7 +40,7 @@
         </div>
         
         <div class="bg-white padding-20 mt-20 fc">
-            <a-table class="cptable user-cptable" :data="list" :virtual-list-props="{height:580}" :pagination="false" :bordered="false" :scroll="{ x: 1000 }">
+            <a-table class="cptable user-cptable" :data="list" :pagination="false" :bordered="false" :scroll="{ x: 1000 }">
                 <template #columns>
                     <a-table-column title="用户名" data-index="name">
                         <template #cell="{ record }">
