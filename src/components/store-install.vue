@@ -1105,6 +1105,10 @@ export default {
                 let deployStatus = res?.data?.status?.deployStatus;
 
                 this.complete.status = deployStatus=='deployed'? 1 : (deployStatus=='failed'?2:3);
+                
+                if(this.is_component && this.complete.status==1){
+                    this.$emit('installedStatusSuccess', this.identifie);
+                }
                 if(!this.complete.items?.length){
                     this.complete.items = deployInfo;
                 }else{

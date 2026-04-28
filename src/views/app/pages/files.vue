@@ -3145,7 +3145,7 @@ export default {
                         if(i.delete){
                             // 删除configmap
                             let configmapName = i.configMap?.name;
-                            await k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+configmapName, {noAlert:true});
+                            await k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+configmapName, {noAlert:true}).catch(()=>({}));
                             continue;
                         }
                         if(i.edit){

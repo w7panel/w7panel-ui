@@ -325,6 +325,7 @@
             </template>
         </a-drawer>
 
+        <store-install-drawer :show="installLonghornPlugin.show" :path="installLonghornPlugin.path" @close="installLonghornPlugin.show=false;" @installedStatusSuccess="installLonghornPlugin.show=false;testLonghornSystem();"></store-install-drawer>
         <!-- <node-bind :show="nodebindshow" :list="list" @close="v=>{nodebindshow=false;v?getList():null;}"></node-bind> -->
     </div>
 </template>
@@ -350,6 +351,7 @@ import ndSet from '@/components/node/nd-set.vue';
 import yamlEditor from "@/components/yaml-editor.vue";
 import { getPermission,getWebshell,getFileEditor } from '@/utils/auth';
 import jsyaml from "js-yaml";
+import storeInstallDrawer from '@/components/store-install-drawer.vue';
 
 const templateYaml = `apiVersion: helm.cattle.io/v1
 kind: HelmChart
@@ -475,6 +477,10 @@ export default {
 
             selectMenu: ['1'],
             hasLonghornSystem: false,
+
+            installLonghornPlugin: {
+                show: false,
+            },
         }
     },
     created(){
@@ -501,13 +507,18 @@ export default {
         nbPage,
         ddcNode,
         ndSet,
+        storeInstallDrawer,
     },
     methods: {
         insLonghorn(){
-            panelApi.post('/longhorn/install', templateYaml, {loading:true}).then(res=>{
-                this.$message.success('操作成功')
-                this.testLonghornSystem();
-            });
+            this.installLonghornPlugin = {
+                show: true,
+                path: 'https://zpk.w7.cc/zpk/respo/info/w7panel_longhorn',
+            }
+            // panelApi.post('/longhorn/install', templateYaml, {loading:true}).then(res=>{
+            //     this.$message.success('操作成功')
+            //     this.testLonghornSystem();
+            // });
         },
         testLonghornSystem(){
             if(this.selectMenu[0]!='2'){return}

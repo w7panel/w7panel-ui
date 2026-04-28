@@ -95,6 +95,15 @@
                             <template #cell="{ record }">
                                 <span>{{record.bindstatus||'-'}}</span>
                                 <span v-if="record.state=='attached'&&record.isLock=='true'">（{{ record.lockNodeId }}）</span>
+                                
+                                <a-dropdown>
+                                    <span v-if="record.state=='attached'||record.state=='detached'" class="ml-10 c-blue cursor zone-operation-dropdown">操作<icon-down/></span>
+                                    <template #content>
+                                        <a-doption v-if="record.state=='attached'&&record.isLock=='true'" @click="detach.volumeName=record.volumeName;detach.force=false;submitDetach();">解锁</a-doption>
+                                        <a-doption v-if="record.state=='detached'" @click="openAttach(record)">绑定</a-doption>
+                                        <a-doption v-if="record.state=='attached'&&record.isLock!=='true'" @click="openDetach(record)">分离</a-doption>
+                                    </template>
+                                </a-dropdown>
                             </template>
                         </a-table-column>
 
@@ -111,9 +120,8 @@
                                 <span v-if="hasLonghornSystem && !record.isExpanding" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
                                 <span v-if="record.isExpanding" class="c-blue cursor mr-20" @click="cancelExpand(record)">取消扩容</span>
 
-                                <span v-if="record.state=='detached'" class="c-blue cursor mr-20" @click="openAttach(record)">挂载</span>
-                                <span v-if="record.state=='attached'" class="c-blue cursor mr-20" @click="openDetach(record)">分离</span>
-                                <span v-if="record.state=='attached'&&record.isLock=='true'" class="c-blue cursor mr-20" @click="detach.volumeName=record.volumeName;detach.force=false;submitDetach();">解锁</span>
+                                <!-- <span v-if="record.state=='detached'" class="c-blue cursor mr-20" @click="openAttach(record)">绑定</span>
+                                <span v-if="record.state=='attached'" class="c-blue cursor mr-20" @click="openDetach(record)">分离</span> -->
                                 <!-- <span class="c-blue cursor mr-20" v-if="!record.pvDisabled" @click="openPvpvc(record)">创建pv/pvc</span> -->
                                 <a-popconfirm v-if="!record.onlyshow" content="确定要删除吗？" @ok="del(record)" position="lt" >
                                     <span :id="'disk-'+record.name" class="c-blue cursor">删除</span>
@@ -372,7 +380,7 @@ export default {
                         let bindstatus = '';
                         if(obj.state=='attached' && obj.isLock=='true'){ bindstatus = '锁定' }
                         else if(obj.state=='attached'){ bindstatus = '自动' }
-                        else if(obj.state=='detached'){ bindstatus = '未绑定' }
+                        // else if(obj.state=='detached'){ bindstatus = '未绑定' }
 
 
                         return {
@@ -797,5 +805,8 @@ export default {
 .zonelisttable :deep(tr:hover) .default-btn,
 .zonelisttable :deep(.arco-table-tr:hover) .default-btn {
     display: inline-flex;
+}
+.zone-operation-dropdown.arco-dropdown-open .arco-icon-down {
+  transform: rotate(180deg);
 }
 </style>

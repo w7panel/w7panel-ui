@@ -9,15 +9,31 @@
 <script>
 import { panelApi } from '@/utils/api';
 import axios from 'axios'
+import { getRefreshToken, setRefreshToken, setToken } from '@/utils/auth';
 export default {
     created(){
         this.register();
     },
     methods: {
-        register(){
+        async register(){
             let code = this.$route.query.code;
+
             panelApi.get('/auth/console/bind?code='+code).then(res=>{
-                panelApi.post('/auth/console/register-to-console?offline_url='+window.location.origin).then(res=>{
+                panelApi.post('/auth/console/register-to-console?offline_url='+window.location.origin).then(async res=>{
+                    
+                    await axios.post('/panel-api/v1/auth/refresh-token2',{token: getRefreshToken()},{
+                        customToken: '',
+                        noAlert: true,
+                        timeout: 3000,
+                        loading: true,
+                    }).then(res=>{
+                        let refreshToken = res.data.refreshToken;
+                        let token = res.data.token;
+                        setRefreshToken(refreshToken);
+                        setToken(token);
+                        return res.data;
+                    }).catch(()=>{})
+
                     this.$message.success('注册集群成功');
                     this.$router.replace('/system/cloud');
                 })
