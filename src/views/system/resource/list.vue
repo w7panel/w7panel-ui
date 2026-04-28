@@ -59,6 +59,7 @@ export default {
         return {
             namespaceActive: 'default',
             list: [],
+            filterlist: [],
             loading: false,
             pagination: {
                 current: 1,
