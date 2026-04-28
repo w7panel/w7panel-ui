@@ -98,8 +98,8 @@
                         <a-checkbox v-model="filterPvc" class="ml-20"><span style="text-wrap:nowrap;">存储分区</span></a-checkbox>
                     </a-form-item>
                 </template>
-                <template v-if="edit.type=='pvcTemplate'">
-                    <a-form-item v-if="!isTemplate" label="存储">
+                <template v-if="edit.type=='pvcTemplate' && !isTemplate">
+                    <a-form-item label="存储">
                         <a-select v-model="edit.ptStorage" placeholder="请选择存储">
                             <a-option v-for="item in diskTags" :key="item" :label="item" :value="item"></a-option>
                         </a-select>
