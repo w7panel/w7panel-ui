@@ -1,7 +1,7 @@
 <template>
     <div class="df df-c padding-20" style="height:100%;">
         <route-breadcrumb />
-        <div class="bg-white">
+        <div class="bg-white df jc-b">
             <a-form layout="inline" class="padding-20" style="padding-bottom:12px;">
                 <a-form-item label="资源回收阶段">
                     <a-select v-model="search.phase" placeholder="请选择" style="min-width:150px;">
@@ -17,6 +17,9 @@
                     <a-button type="primary" @click="getList">确定</a-button>
                 </a-form-item>
             </a-form>
+            <div class="padding-20">
+                <a-button type="primary" @click="$router.push('/order-base/index?isNew=true&isCvm=true')">购买</a-button>
+            </div>
         </div>
         <div class="bg-white padding-20 mt-20 fc">
             <a-table class="cptable" :data="filterlist" :pagination="false" :bordered="false" :loading="loading" @page-change="pageChange" @page-size-change="pageSizeChange">
@@ -34,11 +37,14 @@
                             </span>
                         </template>
                     </a-table-column>
-                    <a-table-column title="操作" :width="100" fixed="right">
+                    <a-table-column title="操作" :width="200" fixed="right">
                         <template #cell="{ record }">
+                            <!-- <icon-code /> -->
                             <a-tooltip v-if="debug" content="YAML">
-                                <i class="opt-icon" @click="openYaml(record)"><icon-code /></i>
+                                <span class="c-blue cursor" @click="openYaml(record)">YAML</span>
                             </a-tooltip>
+                            <span v-if="record.canExpandBuy" class="c-blue cursor ml-10" @click="$router.push('/order-base/index?expand=true&cvmName='+record.name+'&cvmNamespace='+record.namespace+'&expireTime='+record.expireTime)">扩容</span>
+                            <span v-if="record.canRenewBuy" class="c-blue cursor ml-10" @click="$router.push('/order-base/index?renew=true&cvmName='+record.name+'&cvmNamespace='+record.namespace)">续费</span>
                         </template>
                     </a-table-column>
                 </template>
@@ -124,6 +130,11 @@ export default {
                         }[i?.status?.clusterPhase],
 
                         effectiveResource: i.status?.effectiveResource || {bandwidth:0, cpu:0, memory:0, storage:0},
+
+                        canExpandBuy: i.status?.canExpandBuy,
+                        canRenewBuy: i.status?.canRenewBuy,
+                        expireTime: i.spec?.expireTime,
+
                         
                     }
                 })

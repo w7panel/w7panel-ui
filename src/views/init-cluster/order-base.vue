@@ -28,7 +28,7 @@
                     <div v-if="isNew" class="mb-20 df ai-c">
                         <span>快速选择配置：</span>
                         <a-select v-model="quickQuota" :disabled="showPrice.promoDisct" placeholder="请选择" style="width:360px;" @change="changeQuickQuota">
-                            <a-option v-for="(item,index) in quickQuotaList" :value="index">
+                            <a-option v-for="(item,index) in quickQuotaList" :value="index" :key="index">
                                 <span>{{ item.label }}</span>
                                 <span v-if="item.give && !isRenew" class="select-badge">赠送</span>
                                 <span v-else-if="item.discountTxt" class="select-badge">{{ item.discountTxt }}</span>
@@ -686,6 +686,7 @@ export default {
                 memory: Number(this.info.memory),
                 bandwidth: Number(this.info.bandwidth),
                 storage: Number(this.info.storage),
+                cvmName: this.$route.query.cvmName,
             },{loading:true}).then(res=>{
                 let data = res.data;
                 if(data?.needPay && data?.ticket){
@@ -729,7 +730,7 @@ export default {
             
             panelApi.get('/k3k/info').then(async res=>{
                 let data = res?.data;
-                this.expiretime = data?.['w7.cc/expiretime'];
+                this.expiretime = this.$route.query?.expireTime || data?.['w7.cc/expiretime'];
                 let cost = JSON.parse(data?.['w7.cc/cost'] || '{"buymode":"buy","cpu":0,"memory":0,"storage":0,"bandwidth":0}')
                 cost.cpu = Number(Number(cost.cpu).toFixed(2));
                 cost.memory = Number(Number(cost.memory).toFixed(2));
@@ -737,26 +738,7 @@ export default {
                 cost.bandwidth = Number(Number(cost.bandwidth).toFixed(2));
                 this.info.cost = cost;
 
-                let quotalimit = data?.['w7.cc/quota-limit'] || '{}';
-                quotalimit = JSON.parse(quotalimit);
-
-                let initVal = {
-                    cpu: String(quotalimit?.hard?.cpu).replace(/[a-zA-Z]+$/,'') || '',
-                    memory: String(quotalimit?.hard?.memory).replace(/[a-zA-Z]+$/,'') || '',
-                    bandwidth: String(quotalimit?.hard?.bandwidth).replace(/[a-zA-Z]+$/,'') || '',
-                    storage: String(quotalimit?.hard?.['requests.storage']).replace(/[a-zA-Z]+$/,'') || '',
-                }
-                initVal = {
-                    cpu: Number(initVal.cpu),
-                    memory: Number(initVal.memory),
-                    bandwidth: Number(initVal.bandwidth),
-                    storage: Number(initVal.storage),
-                }
-                
-                this.info = {
-                    ...this.info,
-                    ...initVal,
-                }
+                this.expandData(data);
 
                 if(this.expiretime){
                     if(data?.['w7.cc/diff-day']){
@@ -780,6 +762,37 @@ export default {
                 }
             })
         },
+        expandData(data){
+            if(this.$route.query.cvmName){
+                panelApi.get(`/k3k/cvm/v1/${this.$route.query.cvmNamespace}/info/${this.$route.query.cvmName}`).then(res=>{
+                    let effectiveResource = res.data?.status?.effectiveResource || {};
+                    this.info = {
+                        ...this.info,
+                        ...effectiveResource,
+                    }
+                })
+            }else{
+                let quotalimit = data?.['w7.cc/quota-limit'] || '{}';
+                quotalimit = JSON.parse(quotalimit);
+                let initVal = {
+                    cpu: String(quotalimit?.hard?.cpu).replace(/[a-zA-Z]+$/,'') || '',
+                    memory: String(quotalimit?.hard?.memory).replace(/[a-zA-Z]+$/,'') || '',
+                    bandwidth: String(quotalimit?.hard?.bandwidth).replace(/[a-zA-Z]+$/,'') || '',
+                    storage: String(quotalimit?.hard?.['requests.storage']).replace(/[a-zA-Z]+$/,'') || '',
+                }
+                initVal = {
+                    cpu: Number(initVal.cpu),
+                    memory: Number(initVal.memory),
+                    bandwidth: Number(initVal.bandwidth),
+                    storage: Number(initVal.storage),
+                }
+                
+                this.info = {
+                    ...this.info,
+                    ...initVal,
+                }
+            }
+        },
         createOrder(message){
             panelApi.get('/k3k/info').then(async res=>{
                 let data = res?.data;
@@ -801,7 +814,7 @@ export default {
                 
                 this.step = 2;
 //测试
-                if(this.$route.query.renew!='true' && data?.['w7.cc/need-create-order']!='true' && data?.['w7.cc/need-renew']!='true'){
+                if(this.$route.query.renew!='true' && this.$route.query.isNew!='true' && data?.['w7.cc/need-create-order']!='true' && data?.['w7.cc/need-renew']!='true'){
                     if(message){
                         this.$message.success('操作成功');
                     }
@@ -818,8 +831,6 @@ export default {
                 if(this.$route.query.renew=='true'){ this.isRenew = true; }
 
                 if(message){return}
-
-                let quota = JSON.parse(data?.['w7.cc/quota-limit'] || '{}')
 
                 let cost = JSON.parse(data?.['w7.cc/cost'] || '{"buymode":"buy","cpu":0,"memory":0,"storage":0,"bandwidth":0,"packageConfig":"[]"}')
                 if(typeof cost?.packageConfig=='string'){
@@ -845,22 +856,10 @@ export default {
                 this.info.quantity = this.timeoptions[0].quantity;
                 this.info.unit = this.timeoptions[0].unit;
                 
-                let initVal = {
-                    cpu: String(quota?.hard?.cpu).replace(/[a-zA-Z]+$/,'') || '',
-                    memory: String(quota?.hard?.memory).replace(/[a-zA-Z]+$/,'') || '',
-                    bandwidth: String(quota?.hard?.bandwidth).replace(/[a-zA-Z]+$/,'') || '',
-                    storage: String(quota?.hard?.['requests.storage']).replace(/[a-zA-Z]+$/,'') || '',
-                }
-                initVal = {
-                    cpu: Number(initVal.cpu),
-                    memory: Number(initVal.memory),
-                    bandwidth: Number(initVal.bandwidth),
-                    storage: Number(initVal.storage),
-                }
+                this.initValData(data);
 
                 this.info = {
                     ...this.info,
-                    ...initVal,
 
                     price: data?.['w7.cc/base-price-total'] || '',
                     unitPrice: data?.['w7.cc/unit-price-total'] || '',
@@ -882,6 +881,35 @@ export default {
                     this.testPromoCode();
                 }
             })
+        },
+        initValData(data){
+            if(this.$route.query.cvmName){
+                panelApi.get(`/k3k/cvm/v1/${this.$route.query.cvmNamespace}/info/${this.$route.query.cvmName}`).then(res=>{
+                    let effectiveResource = res.data?.status?.effectiveResource || {};
+                    this.info = {
+                        ...this.info,
+                        ...effectiveResource,
+                    }
+                })
+            }else{
+                let quota = JSON.parse(data?.['w7.cc/quota-limit'] || '{}')
+                let initVal = {
+                    cpu: String(quota?.hard?.cpu).replace(/[a-zA-Z]+$/,'') || '',
+                    memory: String(quota?.hard?.memory).replace(/[a-zA-Z]+$/,'') || '',
+                    bandwidth: String(quota?.hard?.bandwidth).replace(/[a-zA-Z]+$/,'') || '',
+                    storage: String(quota?.hard?.['requests.storage']).replace(/[a-zA-Z]+$/,'') || '',
+                }
+                initVal = {
+                    cpu: Number(initVal.cpu),
+                    memory: Number(initVal.memory),
+                    bandwidth: Number(initVal.bandwidth),
+                    storage: Number(initVal.storage),
+                }
+                this.info = {
+                    ...this.info,
+                    ...initVal,
+                }
+            }
         },
         getData(message){
             if(this.$route.query.register=='true'){
@@ -935,7 +963,8 @@ export default {
                 unit: this.info.unit,
                 ...((this.promo.format && this.promo.canuse && this.promo.equal)?{
                     couponCode: this.promo.code,
-                }:{})
+                }:{}),
+                cvmName: this.$route.query.cvmName,
             },{loading:true}).then(res=>{
                 let data = res.data;
                 if(data?.needPay && data?.ticket){
@@ -1017,6 +1046,10 @@ export default {
                 this.step = 2;
                 if(this.$route.query.renew!='true' && data?.['w7.cc/need-create-order']!='true' && data?.['w7.cc/need-renew']!='true'){
                     this.$message.success('操作成功');
+                    if(this.$route.query.cvmName || this.$route.query.isCvm){
+                        this.$router.push('/usermanage/resource');
+                        return;
+                    }
                     if(res?.data?.['w7.cc/k3k-job-status']=='complete'){
                         this.$router.push('/');
                     }else{
