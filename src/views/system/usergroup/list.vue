@@ -33,12 +33,11 @@
                         </template>
                     </a-table-column>
 
-                    <a-table-column title="集群模式">
+                    <!-- <a-table-column title="集群模式">
                         <template #cell>
-                            <!-- {{ {'shared':'共享','virtual':'独享','global':'全局'}[record.allowedMode] }} -->
-                            <span>独享</span>
+                            {{ {'shared':'共享','virtual':'独享','global':'全局'}[record.allowedMode] }}
                         </template>
-                    </a-table-column>
+                    </a-table-column> -->
                     <!-- <a-table-column title="全网发布">
                         <template #cell="{ record }">
                             <a-switch v-model="record.showInShop" :disabled="record.showInShopDisabled" @change="changeShowInShop(record)"></a-switch>

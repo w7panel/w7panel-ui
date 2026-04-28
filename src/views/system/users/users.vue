@@ -131,11 +131,11 @@
                         </template>
                     </a-table-column>
                     
-                    <a-table-column title="集群模式" data-index="clustermode" :width="100">
+                    <!-- <a-table-column title="集群模式" data-index="clustermode" :width="100">
                         <template #cell>
                             <span>独享</span>
                         </template>
-                    </a-table-column>
+                    </a-table-column> -->
 
                     <a-table-column title="操作" :width="200" fixed="right">
                         <template #cell="{ record,rowIndex }">

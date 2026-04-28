@@ -11,14 +11,14 @@
                     <td>名称</td>
                     <td>类型</td>
                     <td>创建时间</td>
-                    <td>集群模式</td>
+                    <!-- <td>集群模式</td> -->
                     <td>操作</td>
                 </tr>
                 <tr v-for="(record,index) in list.filter(i=>i.type=='in')" :key="index+'in'">
                     <td>{{ record.title }}</td>
                     <td>{{ record.type=='in'? '系统内置' : '自定义'}}</td>
                     <td>-</td>
-                    <td>{{ record.clustermodeTxt }}</td>
+                    <!-- <td>{{ record.clustermodeTxt }}</td> -->
                     <td>
                         <a-tooltip v-if="debug" content="yaml">
                             <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
@@ -45,7 +45,7 @@
                     <td>{{ record.title }}</td>
                     <td>{{ record.type=='in'? '系统内置' : '自定义'}}</td>
                     <td>{{ record.created }}</td>
-                    <td>{{ record.clustermodeTxt }}</td>
+                    <!-- <td>{{ record.clustermodeTxt }}</td> -->
                     <td>
                         <a-tooltip v-if="debug" content="yaml">
                             <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
