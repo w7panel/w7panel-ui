@@ -192,7 +192,7 @@ export default {
                     }
                 });
                 this.permissionPackageList = list;
-                this.pmsls = list.filter(i=>i.clustermode=='virtual');
+                this.pmsls = list; //.filter(i=>i.clustermode=='virtual');
                 // this.permissionPackageListShared = list.filter(i=>i.clustermode=='shared');
                 // this.permissionPackageListVirtual = list.filter(i=>i.clustermode=='virtual');
                 // this.pmsls = this.permissionPackageList;
