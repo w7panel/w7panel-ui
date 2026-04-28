@@ -112,6 +112,9 @@
                 <a-form-item label="演示用户">
                     <a-switch v-model="form.demouser"></a-switch>
                 </a-form-item>
+                <a-form-item label="CVM用户">
+                    <a-switch v-model="form.cvmuser"></a-switch>
+                </a-form-item>
                 <!-- <a-form-item label="上架状态">
                     <a-switch v-model="form.showInShop"></a-switch>
                 </a-form-item> -->
@@ -549,6 +552,7 @@ export default {
                         permission: JSON.parse(md.annotations?.['w7.cc/menu'] || '[]'),
                         bandwidth: md.annotations?.['w7.cc/bandwidth'] || '',
                         demouser: md.labels?.['w7.cc/demo-user'] == 'true',
+                        cvmuser: md.labels?.['w7.cc/cvm-user'] == 'true',
                         
                         permissionPackage: permissionPackage,
                         permissionPackageTitle: permissionPackageTitle,
@@ -582,6 +586,7 @@ export default {
                 title: '',
                 name: '',
                 demouser: false,
+                cvmuser: false,
                 allowedMode: 'virtual',
                 permissionPackage: '',
                 showInShop: true,
@@ -596,6 +601,7 @@ export default {
                 title: row.title,
                 allowedMode: row.allowedMode || 'virtual',
                 demouser: row.demouser,
+                cvmuser: row.cvmuser,
                 permissionPackage: row.permissionPackage || '',
                 showInShop: row.showInShop,
             }
@@ -668,6 +674,10 @@ export default {
                         op: 'replace',
                         path: '/metadata/labels/w7.cc~1demo-user',
                         value: String(this.form.demouser),
+                    },{
+                        op: 'replace',
+                        path: '/metadata/labels/w7.cc~1cvm-user',
+                        value: String(this.form.cvmuser),
                     }],{
                         headers: {'Content-Type': 'application/json-patch+json'},
                     }).then(res=>{

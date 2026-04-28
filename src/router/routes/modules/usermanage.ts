@@ -69,7 +69,7 @@ const DASHBOARD: any = [{
         }
     },{
         path: 'resource',
-        name: 'user-resource',
+        name: 'system-resource',
         component: () => import('@/views/system/resource/list.vue'),
         meta: {
             locale: '资源管理',

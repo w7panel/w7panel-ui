@@ -214,9 +214,12 @@
                 <a-form-item label="演示用户">
                     <a-switch v-model="form.demouser"></a-switch>
                 </a-form-item>
-                <a-form-item label="救援模式">
-                    <a-switch v-model="form.weihu"></a-switch>
+                <a-form-item label="CVM用户">
+                    <a-switch v-model="form.cvmuser"></a-switch>
                 </a-form-item>
+                <!-- <a-form-item label="救援模式">
+                    <a-switch v-model="form.weihu"></a-switch>
+                </a-form-item> -->
             </a-form>
         </a-drawer>
         <!-- yaml -->
@@ -644,6 +647,7 @@ export default {
                 this.form.menuname = '';
                 this.form.whitelist = [];
                 this.form.demouser = false;
+                this.form.cvmuser = false;
             }
             let find = this.groupList.find(i=>i.name==this.form.policy);
             if(!find){return}
@@ -652,6 +656,7 @@ export default {
             this.form.menuname = find.menuname;
             this.form.whitelist = find.whitelist;
             this.form.demouser = find.demouser;
+            this.form.cvmuser = find.cvmuser;
         },
         editQuota(row){
             this.quotaForm = {
@@ -811,6 +816,7 @@ export default {
                         costName: md.annotations?.['w7.cc/cost-name'] || '',
                         cost: md.annotations?.['w7.cc/cost'] || '',
                         demouser: md.labels?.['w7.cc/demo-user']=='true',
+                        cvmuser: md.labels?.['w7.cc/cvm-user']=='true',
                         role: md.labels?.['w7.cc/role'] || '',
                     }
                 })
@@ -982,6 +988,7 @@ export default {
                         webshell: i.metadata.annotations?.['w7.cc/web-shell'] == 'true',
                         fileeditor: i.metadata.annotations?.['w7.cc/file-editor'] == 'true',
                         demouser: i.metadata.labels?.['w7.cc/demo-user'] == 'true',
+                        cvm: i.metadata.labels?.['w7.cc/cvm-user'] == 'true',
                         weihu: i.metadata.labels?.['w7.cc/weihu'] == 'true',
                         createTime: createTime,
 
@@ -1235,6 +1242,7 @@ export default {
                 waitToReady: recycle || false,
                 waitToReadyDisabled: recycle,
                 demouser: row.demouser,
+                cvmuser: row.cvmuser,
                 weihu: row.weihu,
             }
             // console.log(this.form)
@@ -1285,6 +1293,7 @@ export default {
                     data.metadata.labels['k3k.io/policy'] = this.form.policy;
                     data.metadata.labels['w7.cc/weihu'] = this.form.weihu? 'true' : 'false';
                     data.metadata.labels['w7.cc/demo-user'] = String(this.form.demouser);
+                    data.metadata.labels['w7.cc/cvm-user'] = String(this.form.cvmuser);
                     data.metadata.labels['w7.cc/role'] = findPolicy?.role || '';
                     
                     data.metadata.annotations['k3k.io/storage-request-size'] = this.form.storageSize!==''? (this.form.storageSize + this.form.storageSizeDw) : '';
@@ -1367,6 +1376,7 @@ export default {
                     data.metadata.labels['k3k.io/policy'] = this.form.policy;
                     data.metadata.labels['w7.cc/weihu'] = this.form.weihu? 'true' : 'false';
                     data.metadata.labels['w7.cc/demo-user'] = String(this.form.demouser);
+                    data.metadata.labels['w7.cc/cvm-user'] = String(this.form.cvmuser);
                     data.metadata.labels['w7.cc/role'] = findPolicy?.role || '';
 
                     data.metadata.annotations['k3k.io/storage-request-size'] =  this.form.storageSize!==""? (this.form.storageSize + this.form.storageSizeDw) : '';

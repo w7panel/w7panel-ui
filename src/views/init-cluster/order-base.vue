@@ -740,35 +740,26 @@ export default {
 
                 this.expandData(data);
 
-                if(this.expiretime){
-                    if(data?.['w7.cc/diff-day']){
-                        this.expandTimeNum = data?.['w7.cc/diff-day']; //dayjs(this.expiretime).diff(new Date(), 'day')
-                        this.expandTimeUnit = 'day';
-                    }else if(data?.['w7.cc/diff-month']){
-                        this.expandTimeNum = data?.['w7.cc/diff-month'];
-                        this.expandTimeUnit = 'month';
-                    }else if(data?.['w7.cc/diff-year']){
-                        this.expandTimeNum = data?.['w7.cc/diff-year'];
-                        this.expandTimeUnit = 'year';
-                    }
-                    this.expandTimeNum = Number(Number(this.expandTimeNum).toFixed(2))
-                    this.expandTimeUnitTxt = {
-                        '':'天',
-                        hour: '小时',
-                        day: '天',
-                        month: '月',
-                        year: '年'
-                    }[this.expandTimeUnit]
-                }
             })
         },
-        expandData(data){
+        async expandData(data){
             if(this.$route.query.cvmName){
-                panelApi.get(`/k3k/cvm/v1/${this.$route.query.cvmNamespace}/info/${this.$route.query.cvmName}`).then(res=>{
-                    let effectiveResource = res.data?.status?.effectiveResource || {};
+                await panelApi.get(`/k3k/cvm/v1/${this.$route.query.cvmNamespace}/info/${this.$route.query.cvmName}`).then(res=>{
+                    let status = res.data?.status || {};
+                    let effectiveResource = status?.effectiveResource || {};
                     this.info = {
                         ...this.info,
                         ...effectiveResource,
+                    }
+                    if(status?.diffDay){
+                        this.expandTimeNum = status?.diffDay; //dayjs(this.expiretime).diff(new Date(), 'day')
+                        this.expandTimeUnit = 'day';
+                    }else if(status?.diffMonth){
+                        this.expandTimeNum = status?.diffMonth;
+                        this.expandTimeUnit = 'month';
+                    }else if(status?.diffYear){
+                        this.expandTimeNum = status?.diffYear;
+                        this.expandTimeUnit = 'year';
                     }
                 })
             }else{
@@ -791,6 +782,27 @@ export default {
                     ...this.info,
                     ...initVal,
                 }
+                
+                if(data?.['w7.cc/diff-day']){
+                    this.expandTimeNum = data?.['w7.cc/diff-day']; //dayjs(this.expiretime).diff(new Date(), 'day')
+                    this.expandTimeUnit = 'day';
+                }else if(data?.['w7.cc/diff-month']){
+                    this.expandTimeNum = data?.['w7.cc/diff-month'];
+                    this.expandTimeUnit = 'month';
+                }else if(data?.['w7.cc/diff-year']){
+                    this.expandTimeNum = data?.['w7.cc/diff-year'];
+                    this.expandTimeUnit = 'year';
+                }
+            }
+            if(this.expiretime){
+                this.expandTimeNum = Number(Number(this.expandTimeNum).toFixed(2))
+                this.expandTimeUnitTxt = {
+                    '':'天',
+                    hour: '小时',
+                    day: '天',
+                    month: '月',
+                    year: '年'
+                }[this.expandTimeUnit]
             }
         },
         createOrder(message){

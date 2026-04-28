@@ -27,14 +27,24 @@
                     <a-table-column title="名称" data-index="name" />
                     <a-table-column title="资源">
                         <template #cell="{ record }">
-                            <span :class="{'ready':'c-blue','new':'c-99','wait':'c-red','recycle':'c-99','creating':'c-orange'}[record.phase]">[{{record.phaseTxt}}]</span>
-                            <span class="ml-6" :class="{'Terminating':'c-red','Ready':'c-green','Pending':'c-orange','Provisioning':'c-orange','Failed':'c-red','Unknown':'c-99'}[record.clusterPhase]">{{record.clusterPhaseTxt}}</span>
-                            <span class="ml-6" :class="(record.phase=='new'||record.phase=='recycle'||record.clusterPhase=='Failed')?'c-99':'c-blue'">
-                                <span>{{record.effectiveResource.cpu}}核/</span>
-                                <span>{{record.effectiveResource.memory}}Gi/</span>
-                                <span>{{record.effectiveResource.bandwidth}}Mbps/</span>
-                                <span>{{record.effectiveResource.storage}}Gi</span>
-                            </span>
+                            <div class="df df-c">
+                                <div>
+                                    <span :class="{'ready':'c-blue','new':'c-99','wait':'c-red','recycle':'c-99','creating':'c-orange'}[record.phase]">[{{record.phaseTxt}}]</span>
+                                    <span class="ml-6" :class="{'Terminating':'c-red','Ready':'c-green','Pending':'c-orange','Provisioning':'c-orange','Failed':'c-red','Unknown':'c-99'}[record.clusterPhase]">{{record.clusterPhaseTxt}}</span>
+                                    <span class="ml-6" :class="(record.phase=='new'||record.phase=='recycle'||record.clusterPhase=='Failed')?'c-99':'c-blue'">
+                                        <span>{{record.effectiveResource.cpu}}核/</span>
+                                        <span>{{record.effectiveResource.memory}}Gi/</span>
+                                        <span>{{record.effectiveResource.bandwidth}}Mbps/</span>
+                                        <span>{{record.effectiveResource.storage}}Gi</span>
+                                    </span>
+                                </div>
+                                <div class="fs-12 c-99 df ai-c">
+                                    <span class="lh-20">{{record.expireTime? (record.expireTime+' 到期') : '永久'}}</span>
+                                    <a-tooltip v-if="userMode=='founder'" content="修改到期时间">
+                                        <i class="opt-icon hovershow" @click="editExpiretime(record)"><icon-edit /></i>
+                                    </a-tooltip>
+                                </div>
+                            </div>
                         </template>
                     </a-table-column>
                     <a-table-column title="操作" :width="200" fixed="right">
@@ -51,13 +61,22 @@
             </a-table>
         </div>
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
+        
+        <a-modal title="到期时间" :visible="expiretimeModal.show" width="600px" @ok="submitExpiretime" @cancel="expiretimeModal.show=false;">
+            <a-form ref="expiretimeModal" :rules="expiretimeModalRules" :model="expiretimeModal" auto-label-width>
+                <a-form-item label="到期时间" field="expireTime">
+                    <a-date-picker v-if="!expiretimeModal.forever" v-model="expiretimeModal.expireTime" style="width:300px;" showTime class="mr-20" />
+                    <a-checkbox v-model="expiretimeModal.forever">永久</a-checkbox>
+                </a-form-item>
+            </a-form>
+        </a-modal>
     </div>
 </template>
 
 <script>
-import { panelApi } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import yamlDrawer from '@/components/yaml-drawer.vue';
-import { getUserInfo } from '@/utils/auth';
+import { getK8sinfo, getUserInfo } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';
 
 export default {
@@ -85,9 +104,22 @@ export default {
             search: {
                 phase: '',
             },
+
+            userMode: '',
+
+            expiretimeModal:{
+                show: false,
+            },
+            expiretimeModalRules: {
+                expireTime: [{required:true, validator: (value, cb) => {
+                    if(!value&&!this.expiretimeModal.forever){cb('请选择到期时间'); return}
+                    cb();
+                }}],
+            },
         };
     },
     created() {
+        this.userMode = getK8sinfo()['w7.cc/user-mode'];
         this.namespaceActive = useNamespaceStore().namespace;
         this.debug = getUserInfo()?.['w7.cc/debug'] == 'true';
         this.getList();
@@ -129,7 +161,12 @@ export default {
                             'Unknown': '未知',
                         }[i?.status?.clusterPhase],
 
-                        effectiveResource: i.status?.effectiveResource || {bandwidth:0, cpu:0, memory:0, storage:0},
+                        effectiveResource: {
+                            cpu: i.status?.effectiveResource?.cpu || 0,
+                            memory: i.status?.effectiveResource?.memory || 0,
+                            storage: i.status?.effectiveResource?.storage || 0,
+                            bandwidth: i.status?.effectiveResource?.bandwidth || 0,
+                        },
 
                         canExpandBuy: i.status?.canExpandBuy,
                         canRenewBuy: i.status?.canRenewBuy,
@@ -173,6 +210,36 @@ export default {
                         })
                     }
                 }
+            })
+        },
+
+        editExpiretime(row){
+            this.expiretimeModal = {
+                ...this.expiretimeModal,
+                show: true,
+                expireTime: row.expireTime,
+                name: row.name,
+                namespace: row.namespace,
+            }
+        },
+        
+        submitExpiretime(){
+            this.$refs.expiretimeModal.validate((err) => {
+                if (err) {
+                    return;
+                }
+                k8sproxy.patch(`/api/v1/namespaces/${this.namespaceActive}/serviceaccounts/${this.expiretimeModal.name}`,[{
+                    op: this.expiretimeModal.forever? 'remove' : 'replace',
+                    path: '/spec/expireTime',
+                    ...(this.expiretimeModal.forever? {} : {value: this.expiretimeModal.expireTime}),
+                }],{
+                    headers: {'Content-Type': 'application/json-patch+json'},
+                    loading: true,
+                }).then(res=>{
+                    this.$message.success('操作成功');
+                    this.expiretimeModal.show = false;
+                    this.getList();
+                })
             })
         },
     },
