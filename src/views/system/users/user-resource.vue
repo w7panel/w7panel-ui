@@ -123,11 +123,14 @@ export default {
     },
     methods: {
         getToken(){
-            return panelApi.post('/k3k/login',{
-                k3kUserName: this.$route.query.username,
-            }).then(res=>{
+            panelApi.post(`/k3k/cvm/${this.$route.query.namespace}/action/${this.$route.query.username}/login`).then(res=>{
                 this.loginInfo = res.data;
             })
+            // return panelApi.post('/k3k/login',{
+            //     k3kUserName: this.$route.query.username,
+            // }).then(res=>{
+            //     this.loginInfo = res.data;
+            // })
         },
         
         tableFilter(value){

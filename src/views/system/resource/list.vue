@@ -42,14 +42,19 @@
                                 <div>
                                     <span :class="{'ready':'c-blue','new':'c-99','wait':'c-red','recycle':'c-99','creating':'c-orange'}[record.phase]">[{{record.phaseTxt}}]</span>
                                     <span class="ml-6" :class="{'Terminating':'c-red','Ready':'c-green','Pending':'c-orange','Provisioning':'c-orange','Failed':'c-red','Unknown':'c-99'}[record.clusterPhase]">{{record.clusterPhaseTxt}}</span>
-                                    <span class="ml-6" :class="(record.phase=='new'||record.phase=='recycle'||record.clusterPhase=='Failed')?'c-99':'c-blue'">
+                                    <span class="ml-6 cursor" @click="toUserResource(record)" :class="(record.phase=='new'||record.phase=='recycle'||record.clusterPhase=='Failed')?'c-99':'c-blue'">
                                         <span>{{record.effectiveResource.cpu}}核/</span>
                                         <span>{{record.effectiveResource.memory}}Gi/</span>
                                         <span>{{record.effectiveResource.bandwidth}}Mbps/</span>
                                         <span>{{record.effectiveResource.storage}}Gi</span>
                                     </span>
                                     
-                                    <i @click="editQuota(record)" class="opt-icon hovershow"><icon-edit /></i>
+                                    <a-tooltip v-if="record.capacityCheckState!='success'" content="请求资源">
+                                        <i @click="requestResource(record)" class="opt-icon ml-10"><icon-refresh /></i>
+                                    </a-tooltip>
+                                    <a-tooltip content="设置">
+                                        <i @click="editQuota(record)" class="opt-icon hovershow"><icon-edit /></i>
+                                    </a-tooltip>
                                 </div>
                                 <div class="fs-12 c-99 df ai-c">
                                     <span class="lh-20">{{record.expireTime? (record.expireTime+' 到期') : '永久'}}</span>
@@ -60,12 +65,24 @@
                             </div>
                         </template>
                     </a-table-column>
-                    <a-table-column title="操作" :width="200" fixed="right">
+                    <a-table-column title="未生效资源">
+                        <template #cell="{ record }">
+                            <span v-if="record.capacityCheckState=='success'">-</span>
+                            <span v-else >
+                                <span>{{record.pendingPurchasedResource.cpu}}核/</span>
+                                <span>{{record.pendingPurchasedResource.memory}}Gi/</span>
+                                <span>{{record.pendingPurchasedResource.bandwidth}}Mbps/</span>
+                                <span>{{record.pendingPurchasedResource.storage}}Gi</span>
+                            </span>
+                        </template>
+                    </a-table-column>
+                    <a-table-column title="操作" :width="300" fixed="right">
                         <template #cell="{ record }">
                             <!-- <icon-code /> -->
                             <a-tooltip v-if="debug" content="YAML">
                                 <span class="c-blue cursor" @click="openYaml(record)">YAML</span>
                             </a-tooltip>
+                            <span class="c-blue cursor ml-10" @click="loginPanel(record)">登录面板</span>
                             <span v-if="record.canExpandBuy" class="c-blue cursor ml-10" @click="$router.push('/order-base/index?expand=true&cvmName='+record.name+'&cvmNamespace='+record.namespace+'&expireTime='+record.expireTime)">扩容</span>
                             <span v-if="record.canRenewBuy" class="c-blue cursor ml-10" @click="$router.push('/order-base/index?renew=true&cvmName='+record.name+'&cvmNamespace='+record.namespace)">续费</span>
                         </template>
@@ -154,9 +171,10 @@
 <script>
 import { k8sproxy, panelApi } from '@/utils/api';
 import yamlDrawer from '@/components/yaml-drawer.vue';
-import { getK8sinfo, getUserInfo } from '@/utils/auth';
+import { getK8sinfo, getUserInfo, setPermission, setRefreshToken, setToken } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';
 import quotaConfig from '@/components/quota-config.vue';
+import useK3kinfo from '@/hooks/k3k-info';
 
 export default {
     data() {
@@ -274,8 +292,18 @@ export default {
                         canExpandBuy: i.status?.canExpandBuy,
                         canRenewBuy: i.status?.canRenewBuy,
                         expireTime: i.spec?.expireTime,
+                        recycleTime: i.spec?.recycleTime,
                         storageClassName: i.spec?.storageClassName,
                         isExpired: i.status?.isExpired,
+
+                        // 未生效资源
+                        capacityCheckState: i.spec?.capacityCheckState,
+                        pendingPurchasedResource: {
+                            cpu: i.spec?.pendingPurchasedResource?.cpu || 0,
+                            memory: i.spec?.pendingPurchasedResource?.memory || 0,
+                            storage: i.spec?.pendingPurchasedResource?.storage || 0,
+                            bandwidth: i.spec?.pendingPurchasedResource?.bandwidth || 0,
+                        },
                         
                     }
                 })
@@ -319,6 +347,35 @@ export default {
                         })
                     }
                 }
+            })
+        },
+        async loginPanel(row){
+            await panelApi.post(`/k3k/cvm/${row.namespace}/action/${row.name}/login`).then(res=>{
+                setRefreshToken(res?.data?.refreshToken)
+                setToken(res?.data?.token);
+            })
+            setPermission([]);
+            await new Promise(resolve => setTimeout(resolve, 0));
+            await useK3kinfo();
+            this.$router.push('/');
+        },
+        // 跳转到用户资源页面
+        toUserResource(row){
+            this.$router.push({
+                path: '/usermanage/user-resource',
+                query: {
+                    username: row.name,
+                    namespace: row.namespace,
+                    status: row.phase,
+                    time: row.recycleTime,
+                }
+            });
+        },
+        // 请求资源
+        requestResource(row){
+            panelApi.post(`/k3k/cvm/${row.namespace}/action/${row.name}/check-resource`).then(res=>{
+                this.$message.success("操作成功");
+                this.getList();
             })
         },
 

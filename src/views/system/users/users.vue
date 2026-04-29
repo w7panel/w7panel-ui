@@ -465,12 +465,12 @@ export default {
         this.leavePage = true;
     },
     methods: {
-        toUserResource(row){
-            if(row.clusterStatus=='recycle'){return}
-            if(row.clusterStatus=='new'){return}
-            let time = row.recycleTime || '';
-            this.$router.push('/usermanage/user-resource?username='+row.name+'&time='+time+'&status='+row.clusterStatus);
-        },
+        // toUserResource(row){
+        //     if(row.clusterStatus=='recycle'){return}
+        //     if(row.clusterStatus=='new'){return}
+        //     let time = row.recycleTime || '';
+        //     this.$router.push('/usermanage/user-resource?username='+row.name+'&time='+time+'&status='+row.clusterStatus);
+        // },
         submitExpiretime(){
             this.$refs.expiretimeModal.validate((err) => {
                 if (err) {
