@@ -3,6 +3,16 @@
         <route-breadcrumb />
         <div class="bg-white df jc-b">
             <a-form layout="inline" class="padding-20" style="padding-bottom:12px;">
+                <a-form-item label="用户名">
+                    <a-input v-model="search.name" placeholder="请输入名称" style="min-width:150px;" />
+                </a-form-item>
+                <a-form-item label="过期状态">
+                    <a-select v-model="search.expireStatus" placeholder="请选择" style="min-width:150px;">
+                        <a-option label="全部" value=""></a-option>
+                        <a-option label="未过期" value="notexpired"></a-option>
+                        <a-option label="已过期" value="expired"></a-option>
+                    </a-select>
+                </a-form-item>
                 <a-form-item label="资源回收阶段">
                     <a-select v-model="search.phase" placeholder="请选择" style="min-width:150px;">
                         <a-option label="全部" value=""></a-option>
@@ -171,6 +181,8 @@ export default {
             },
 
             search: {
+                name: '',
+                expireStatus: '',
                 phase: '',
             },
 
@@ -263,11 +275,17 @@ export default {
                         canRenewBuy: i.status?.canRenewBuy,
                         expireTime: i.spec?.expireTime,
                         storageClassName: i.spec?.storageClassName,
+                        isExpired: i.status?.isExpired,
                         
                     }
                 })
                 this.filterlist = this.list.filter(i=>{
 
+                    if(this.search.name && i.namespace.indexOf(this.search.name) == -1){ return false; }
+                    if(this.search.expireStatus){
+                        if(this.search.expireStatus == 'expired' && !i.isExpired){ return false; }
+                        if(this.search.expireStatus == 'notexpired' && i.isExpired){ return false; }
+                    }
                     if(this.search.phase && (i.phase != this.search.phase)){ return false; }
                     return true;
                 })

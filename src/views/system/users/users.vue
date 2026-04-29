@@ -16,7 +16,7 @@
                         <a-option v-for="(item,index) in groupList" :key="index" :label="item.title" :value="item.name"></a-option>
                     </a-select>
                 </a-form-item>
-                <a-form-item label="过期状态">
+                <!-- <a-form-item label="过期状态">
                     <a-select v-model="search.expiretime" placeholder="请选择" style="min-width:150px;">
                         <a-option label="全部" value=""></a-option>
                         <a-option label="未过期" value="notexpired"></a-option>
@@ -32,7 +32,7 @@
                         <a-option label="回收中" value="recycle"></a-option>
                         <a-option label="创建中" value="creating"></a-option>
                     </a-select>
-                </a-form-item>
+                </a-form-item> -->
                 <a-form-item>
                     <a-button type="primary" @click="getList">确定</a-button>
                 </a-form-item>
