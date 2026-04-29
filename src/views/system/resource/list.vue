@@ -18,7 +18,8 @@
                 </a-form-item>
             </a-form>
             <div class="padding-20">
-                <a-button type="primary" @click="$router.push('/order-base/index?isNew=true&isCvm=true')">购买</a-button>
+                <a-button v-if="userMode=='founder'" type="primary" @click="openCreate">新建</a-button>
+                <a-button v-else type="primary" @click="$router.push('/order-base/index?isNew=true&isCvm=true')">购买</a-button>
             </div>
         </div>
         <div class="bg-white padding-20 mt-20 fc">
@@ -37,6 +38,8 @@
                                         <span>{{record.effectiveResource.bandwidth}}Mbps/</span>
                                         <span>{{record.effectiveResource.storage}}Gi</span>
                                     </span>
+                                    
+                                    <i @click="editQuota(record)" class="opt-icon hovershow"><icon-edit /></i>
                                 </div>
                                 <div class="fs-12 c-99 df ai-c">
                                     <span class="lh-20">{{record.expireTime? (record.expireTime+' 到期') : '永久'}}</span>
@@ -70,6 +73,71 @@
                 </a-form-item>
             </a-form>
         </a-modal>
+
+        
+        <a-drawer :width="800" :visible="quotaForm.show" @cancel="quotaForm.show=false;" @ok="submitQuota">
+            <template #title>资源设置</template>
+            <div>
+                <quota-config
+                    ref="quotaconfig"
+                    :no-min="true"
+                    v-model="quotaForm.data"
+                ></quota-config>
+                
+                <table class="com-table mt-20">
+                    <tbody>
+                        <tr>
+                            <td style="width:90px;"></td>
+                            <td>CPU</td>
+                            <td>内存</td>
+                            <td>带宽</td>
+                            <td>存储</td>
+                        </tr>
+                        <tr v-if="quotaForm.purchasedResource">
+                            <td>已购</td>
+                            <td>{{quotaForm.purchasedResource.cpu || 0}}核</td>
+                            <td>{{quotaForm.purchasedResource.memory || 0}}Gi</td>
+                            <td>{{quotaForm.purchasedResource.bandwidth || 0}}Mbps</td>
+                            <td>{{quotaForm.purchasedResource.storage || 0}}Gi</td>
+                        </tr>
+                        <tr v-if="quotaForm.data">
+                            <td>手动</td>
+                            <td>{{quotaForm.data.cpu || 0}}核</td>
+                            <td>{{quotaForm.data.memory || 0}}Gi</td>
+                            <td>{{quotaForm.data.bandwidth || 0}}Mbps</td>
+                            <td>{{quotaForm.data.storage || 0}}Gi</td>
+                        </tr>
+                        <tr v-if="quotaForm.data&&quotaForm.purchasedResource">
+                            <td>合计</td>
+                            <td>{{quotaForm.data.cpu+quotaForm.purchasedResource.cpu}}核</td>
+                            <td>{{quotaForm.data.memory+quotaForm.purchasedResource.memory}}Gi</td>
+                            <td>{{quotaForm.data.bandwidth+quotaForm.purchasedResource.bandwidth}}Mbps</td>
+                            <td>{{quotaForm.data.storage+quotaForm.purchasedResource.storage}}Gi</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </a-drawer>
+
+        <a-drawer :width="800" :visible="createForm.show" @cancel="createForm.show=false;" @ok="submitCreate">
+            <template #title>新建资源</template>
+            <div>
+                <a-form ref="createFormRef" :model="createForm" :rules="createFormRules" auto-label-width>
+                    <a-form-item label="命名空间" field="namespace">
+                        <a-select v-model="createForm.namespace" placeholder="请选择命名空间">
+                            <a-option v-for="item in namespaceList" :key="item" :value="item">{{item}}</a-option>
+                        </a-select>
+                    </a-form-item>
+                    <a-form-item label="资源配置">
+                        <quota-config
+                            ref="createQuotaConfig"
+                            :no-min="true"
+                            v-model="createForm.data"
+                        ></quota-config>
+                    </a-form-item>
+                </a-form>
+            </div>
+        </a-drawer>
     </div>
 </template>
 
@@ -78,6 +146,7 @@ import { k8sproxy, panelApi } from '@/utils/api';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getK8sinfo, getUserInfo } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';
+import quotaConfig from '@/components/quota-config.vue';
 
 export default {
     data() {
@@ -86,13 +155,13 @@ export default {
             list: [],
             filterlist: [],
             loading: false,
-            pagination: {
-                current: 1,
-                pageSize: 20,
-                total: 0,
-                showTotal: true,
-                showPageSize: true,
-            },
+            // pagination: {
+            //     current: 1,
+            //     pageSize: 20,
+            //     total: 0,
+            //     showTotal: true,
+            //     showPageSize: true,
+            // },
             debug: false,
             yamlData: {
                 show: false,
@@ -105,27 +174,37 @@ export default {
                 phase: '',
             },
 
+            namespaceList: [],
+
             userMode: '',
 
-            expiretimeModal:{
-                show: false,
-            },
+            // 修改到期时间
+            expiretimeModal:{ show: false },
             expiretimeModalRules: {
                 expireTime: [{required:true, validator: (value, cb) => {
                     if(!value&&!this.expiretimeModal.forever){cb('请选择到期时间'); return}
                     cb();
                 }}],
             },
+
+            quotaForm: { show: false },
+            createForm: { show: false, namespace: '', data: {} },
+            createFormRules: {
+                namespace: [{ required: true, message: '请选择命名空间' }],
+            },
         };
     },
     created() {
         this.userMode = getK8sinfo()['w7.cc/user-mode'];
         this.namespaceActive = useNamespaceStore().namespace;
+        this.namespaceList = useNamespaceStore()?.getNamespaceList || [];
+        this.namespaceList = this.namespaceList.filter(i=>/^k3k-/.test(i));
         this.debug = getUserInfo()?.['w7.cc/debug'] == 'true';
         this.getList();
     },
     components: {
         yamlDrawer,
+        quotaConfig,
     },
     methods: {
         getList() {
@@ -142,7 +221,7 @@ export default {
                         name: i.metadata.name,
                         namespace: i.metadata.namespace,
 
-                        phase: i.status.phase,
+                        phase: i?.status?.phase,
                         phaseTxt: {
                             'new':'无资源',
                             'ready':'有资源',
@@ -167,11 +246,23 @@ export default {
                             storage: i.status?.effectiveResource?.storage || 0,
                             bandwidth: i.status?.effectiveResource?.bandwidth || 0,
                         },
+                        purchasedResource: {
+                            cpu: i.spec?.purchasedResource?.cpu || 0,
+                            memory: i.spec?.purchasedResource?.memory || 0,
+                            storage: i.spec?.purchasedResource?.storage || 0,
+                            bandwidth: i.spec?.purchasedResource?.bandwidth || 0,
+                        },
+                        userResource: {
+                            cpu: i.spec?.userResource?.cpu || 0,
+                            memory: i.spec?.userResource?.memory || 0,
+                            storage: i.spec?.userResource?.storage || 0,
+                            bandwidth: i.spec?.userResource?.bandwidth || 0,
+                        },
 
                         canExpandBuy: i.status?.canExpandBuy,
                         canRenewBuy: i.status?.canRenewBuy,
                         expireTime: i.spec?.expireTime,
-
+                        storageClassName: i.spec?.storageClassName,
                         
                     }
                 })
@@ -213,6 +304,90 @@ export default {
             })
         },
 
+        openCreate(){
+            this.createForm = {
+                show: true,
+                namespace: '',
+                data: {
+                    cpu: 0,
+                    memory: 0,
+                    storage: 0,
+                    bandwidth: 0,
+                    storageclass: '',
+                },
+            }
+        },
+        submitCreate(){
+            this.$refs.createFormRef.validate((err) => {
+                if (err) {
+                    this.$refs.createFormRef.scrollToField(Object.keys(err)[0])
+                    return;
+                }
+                let data = this.createForm.data;
+                let body = {
+                    apiVersion: 'cvm.w7.cc/v1alpha1',
+                    kind: 'Cvm',
+                    metadata: {
+                        name: this.createForm.namespace.replace(/^k3k-/, '') + '-' + Math.random().toString(36).slice(2,7),
+                        namespace: this.createForm.namespace,
+                    },
+                    spec: {
+                        userResource: {
+                            cpu: data.cpu,
+                            memory: data.memory,
+                            storage: data.storage,
+                            bandwidth: data.bandwidth,
+                        },
+                        storageClassName: data.storageclass,
+                    },
+                };
+                k8sproxy.post(`/apis/cvm.w7.cc/v1alpha1/namespaces/${this.createForm.namespace}/cvms`, body, {
+                    loading: true,
+                }).then(()=>{
+                    this.$message.success('创建成功');
+                    this.createForm.show = false;
+                    this.getList();
+                });
+            });
+        },
+        
+        editQuota(row){
+            this.quotaForm = {
+                show: true,
+                name: row.name,
+                namespace: row.namespace,
+                purchasedResource: row?.purchasedResource || {},
+                data: {
+                    ...row.userResource,
+                    storageclass: row.storageClassName,
+                },
+            }
+            console.log(row.userResource)
+        },
+        submitQuota(){
+            k8sproxy.patch(`/apis/cvm.w7.cc/v1alpha1/namespaces/${this.quotaForm.namespace}/cvms/${this.quotaForm.name}`,[
+                {
+                    op: 'replace',
+                    path: '/spec/userResource',
+                    value: {
+                        cpu: this.quotaForm.data.cpu,
+                        memory: this.quotaForm.data.memory,
+                        storage: this.quotaForm.data.storage,
+                        bandwidth: this.quotaForm.data.bandwidth,
+                    },
+                },{
+                    op: 'replace',
+                    path: '/spec/storageClassName',
+                    value: this.quotaForm.data.storageclass,
+                }
+            ],{
+                headers: {'Content-Type': 'application/json-patch+json'},
+            }).then(res=>{
+                this.$message.success("修改成功");
+                this.quotaForm = {...this.quotaForm, show:false,};
+            })
+        },
+
         editExpiretime(row){
             this.expiretimeModal = {
                 ...this.expiretimeModal,
@@ -228,11 +403,21 @@ export default {
                 if (err) {
                     return;
                 }
-                k8sproxy.patch(`/api/v1/namespaces/${this.namespaceActive}/serviceaccounts/${this.expiretimeModal.name}`,[{
-                    op: this.expiretimeModal.forever? 'remove' : 'replace',
-                    path: '/spec/expireTime',
-                    ...(this.expiretimeModal.forever? {} : {value: this.expiretimeModal.expireTime}),
-                }],{
+                
+                let recycleTime = this.expiretimeModal.forever? [] : [{
+                    op: 'replace',
+                    path: '/spec/recycleTime',
+                    value: '',
+                }];
+                
+                k8sproxy.patch(`/apis/cvm.w7.cc/v1alpha1/namespaces/${this.expiretimeModal.namespace}/cvms/${this.expiretimeModal.name}`,[
+                    ...recycleTime,
+                    {
+                        op: this.expiretimeModal.forever? 'remove' : 'replace',
+                        path: '/spec/expireTime',
+                        ...(this.expiretimeModal.forever? {} : {value: this.expiretimeModal.expireTime}),
+                    }
+                ],{
                     headers: {'Content-Type': 'application/json-patch+json'},
                     loading: true,
                 }).then(res=>{
@@ -245,3 +430,8 @@ export default {
     },
 };
 </script>
+<style>
+
+.cptable .hovershow{display:inline-block; margin-left:3px; opacity:0;}
+.cptable tr:hover .hovershow{display:inline-block; opacity: 1;}
+</style>

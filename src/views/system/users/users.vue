@@ -51,7 +51,7 @@
                         </template>
                     </a-table-column>
 
-                    <a-table-column title="费用">
+                    <!-- <a-table-column title="费用">
                         <template #cell="{record}">
                             <div @click="openCost(record)" class="cursor df ai-c">
                                 
@@ -59,9 +59,9 @@
                                 <i class="opt-icon hovershow"><icon-edit /></i>
                             </div>
                         </template>
-                    </a-table-column>
+                    </a-table-column> -->
                     
-                    <a-table-column title="配额" :width="400">
+                    <!-- <a-table-column title="配额" :width="400">
                         <template #cell="{record,rowIndex}">
                             <div class="df df-c">
                                 <div v-if="record.policy=='normal'">-</div>
@@ -120,9 +120,9 @@
                                 </div>
                             </div>
                         </template>
-                    </a-table-column>
+                    </a-table-column> -->
                     
-                    <a-table-column title="权限" :width="150">
+                    <a-table-column title="权限" >
                         <template #cell="{record}">
                             <span @click="openPmsForm(record)" class="cursor df ai-c">
                                 <span class="lh-20">{{record.permissionPackageTitle||'自定义'}}</span>
@@ -234,7 +234,7 @@
             </a-form>
         </a-modal>
 
-        <a-modal title="创建资源" :visible="createCluster.show" width="600px" :ok-loading="createCluster.loading" @ok="submitCreateCluster" @cancel="createCluster.show=false;" okText="初始化集群">
+        <!-- <a-modal title="创建资源" :visible="createCluster.show" width="600px" :ok-loading="createCluster.loading" @ok="submitCreateCluster" @cancel="createCluster.show=false;" okText="初始化集群">
             <a-form ref="createCluster" :model="createCluster" :rules="ccModalRules" auto-label-width>
                 <a-form-item label="到期时间" field="expiretime">
                     <a-date-picker v-if="!createCluster.forever" v-model="createCluster.expiretime" style="width:300px;" showTime class="mr-20" />
@@ -242,7 +242,7 @@
                 </a-form-item>
             </a-form>
 
-        </a-modal>
+        </a-modal> -->
 
         <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancel="ws.dialog = false;" top="10vh" :popup-container="false?'#allmodalbox':'body'">
             <template #title>webshell</template>
@@ -290,13 +290,13 @@
             @submit="submitQuota"
         ></quota-edit>
 
-        <cost-edit
+        <!-- <cost-edit
             :show="costForm.show"
             :data="costForm"
             :list="costList"
             @submit="submitCost"
             @close="costForm.show=false"
-        ></cost-edit>
+        ></cost-edit> -->
 
     </div>
 </template>
@@ -377,12 +377,12 @@ export default {
                     cb();
                 }}],
             },
-            ccModalRules: {
-                expiretime: [{required:true, validator: (value, cb) => {
-                    if(!value&&!this.createCluster.forever){cb('请选择到期时间'); return}
-                    cb();
-                }}],
-            },
+            // ccModalRules: {
+            //     expiretime: [{required:true, validator: (value, cb) => {
+            //         if(!value&&!this.createCluster.forever){cb('请选择到期时间'); return}
+            //         cb();
+            //     }}],
+            // },
             storageLs: [],
             ws: {
                 dialog: false,
@@ -413,17 +413,17 @@ export default {
             // },
             costList: [],
             
-            costForm: {
-                show: false,
-                name: "",
-                package: "",
-                buymode: "",
-                cpu: "",
-                memory: "",
-                storage: "",
-                bandwidth: "",
-                packageConfig: [],
-            },
+            // costForm: {
+            //     show: false,
+            //     name: "",
+            //     package: "",
+            //     buymode: "",
+            //     cpu: "",
+            //     memory: "",
+            //     storage: "",
+            //     bandwidth: "",
+            //     packageConfig: [],
+            // },
             
             userInfo: {},
 
@@ -432,11 +432,11 @@ export default {
                 name: '',
                 expiretime: '',
             },
-            createCluster: {
-                show: false,
-                name: '',
-                expiretime: '',
-            },
+            // createCluster: {
+            //     show: false,
+            //     name: '',
+            //     expiretime: '',
+            // },
 
             leavePage: false,
             statusList: [],
@@ -490,46 +490,46 @@ export default {
                 })
             })
         },
-        submitCreateCluster(){
-            this.$refs.createCluster.validate((err) => {
-                if (err) { return; }
+        // submitCreateCluster(){
+        //     this.$refs.createCluster.validate((err) => {
+        //         if (err) { return; }
                 
-                this.createCluster.loading = true;
-                k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+this.createCluster.name,[{
-                    op: this.createCluster.forever? 'remove' : 'replace',
-                    path: '/metadata/annotations/w7.cc~1expiretime',
-                    ...(this.createCluster.forever? {} : {value: this.createCluster.expiretime}),
-                },{
-                    op: 'replace',
-                    path: '/metadata/labels/w7.cc~1over-mode',
-                    value: 'success',
-                },{
-                    op: 'replace',
-                    path: '/metadata/labels/w7.cc~1base-order-pass',
-                    value: 'true',
-                },],{
-                    headers: {'Content-Type': 'application/json-patch+json'},
-                    loading: true,
-                }).then(res=>{
-                    return panelApi.post('/k3k/init-cluster',{k3kUserName:this.createCluster.name})
-                }).then(res=>{
-                    this.$message.success('操作成功');
-                    this.createCluster.show = false;
-                    this.createCluster.loading = false; 
-                    this.getList();
-                }).catch(()=>{
-                    this.createCluster.loading = false;
-                })
-            })
-        },
-        csCreate(row){
-            this.createCluster = {
-                ...this.createCluster,
-                show: true,
-                expiretime: row.expiretime,
-                name: row.name,
-            }
-        },
+        //         this.createCluster.loading = true;
+        //         k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+this.createCluster.name,[{
+        //             op: this.createCluster.forever? 'remove' : 'replace',
+        //             path: '/metadata/annotations/w7.cc~1expiretime',
+        //             ...(this.createCluster.forever? {} : {value: this.createCluster.expiretime}),
+        //         },{
+        //             op: 'replace',
+        //             path: '/metadata/labels/w7.cc~1over-mode',
+        //             value: 'success',
+        //         },{
+        //             op: 'replace',
+        //             path: '/metadata/labels/w7.cc~1base-order-pass',
+        //             value: 'true',
+        //         },],{
+        //             headers: {'Content-Type': 'application/json-patch+json'},
+        //             loading: true,
+        //         }).then(res=>{
+        //             return panelApi.post('/k3k/init-cluster',{k3kUserName:this.createCluster.name})
+        //         }).then(res=>{
+        //             this.$message.success('操作成功');
+        //             this.createCluster.show = false;
+        //             this.createCluster.loading = false; 
+        //             this.getList();
+        //         }).catch(()=>{
+        //             this.createCluster.loading = false;
+        //         })
+        //     })
+        // },
+        // csCreate(row){
+        //     this.createCluster = {
+        //         ...this.createCluster,
+        //         show: true,
+        //         expiretime: row.expiretime,
+        //         name: row.name,
+        //     }
+        // },
         editExpiretime(row){
             this.expiretimeModal = {
                 ...this.expiretimeModal,
@@ -538,56 +538,56 @@ export default {
                 name: row.name,
             }
         },
-        openCost(row){
-            this.costForm = {
-                ...this.costForm,
-                show: true,
-                name: row?.name,
-                package: row?.costName || "",
-                buymode: row?.cost?.buymode || "give",
-                cpu: row?.cost?.cpu || "",
-                memory: row?.cost?.memory || "",
-                storage: row?.cost?.storage || "",
-                bandwidth: row?.cost?.bandwidth || "",
-                packageConfig: row?.cost?.packageConfig || [],
-            }
-        },
-        submitCost(data){
-            let editQuota = [];
-            let find = this.list.find(i=>i.name==this.costForm.name)?.data;
+        // openCost(row){
+        //     this.costForm = {
+        //         ...this.costForm,
+        //         show: true,
+        //         name: row?.name,
+        //         package: row?.costName || "",
+        //         buymode: row?.cost?.buymode || "give",
+        //         cpu: row?.cost?.cpu || "",
+        //         memory: row?.cost?.memory || "",
+        //         storage: row?.cost?.storage || "",
+        //         bandwidth: row?.cost?.bandwidth || "",
+        //         packageConfig: row?.cost?.packageConfig || [],
+        //     }
+        // },
+        // submitCost(data){
+        //     let editQuota = [];
+        //     let find = this.list.find(i=>i.name==this.costForm.name)?.data;
             
-            if(data.package && data.limit && find?.metadata?.annotations?.['w7.cc/quota-limit-lock']!=='true'){
-                editQuota.push({
-                    op: 'replace',
-                    path: '/metadata/annotations/w7.cc~1quota-limit',
-                    value: data.limit,
-                })
-            }
-            k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+this.costForm.name,[
-                ...editQuota,
-                {
-                    op: 'replace',
-                    path: '/metadata/annotations/w7.cc~1cost-name',
-                    value: data.package,
-                },{
-                    op: 'replace',
-                    path: '/metadata/annotations/w7.cc~1cost',
-                    value: JSON.stringify({
-                        cpu: data.cpu,
-                        memory: data.memory,
-                        storage: data.storage,
-                        bandwidth: data.bandwidth,
-                        packageConfig: data?.packageConfig || [],
-                    }),
-                },
-            ],{
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(res=>{
-                this.$message.success('操作成功');
-                this.costForm.show = false;
-                this.getList();
-            })
-        },
+        //     if(data.package && data.limit && find?.metadata?.annotations?.['w7.cc/quota-limit-lock']!=='true'){
+        //         editQuota.push({
+        //             op: 'replace',
+        //             path: '/metadata/annotations/w7.cc~1quota-limit',
+        //             value: data.limit,
+        //         })
+        //     }
+        //     k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+this.costForm.name,[
+        //         ...editQuota,
+        //         {
+        //             op: 'replace',
+        //             path: '/metadata/annotations/w7.cc~1cost-name',
+        //             value: data.package,
+        //         },{
+        //             op: 'replace',
+        //             path: '/metadata/annotations/w7.cc~1cost',
+        //             value: JSON.stringify({
+        //                 cpu: data.cpu,
+        //                 memory: data.memory,
+        //                 storage: data.storage,
+        //                 bandwidth: data.bandwidth,
+        //                 packageConfig: data?.packageConfig || [],
+        //             }),
+        //         },
+        //     ],{
+        //         headers: {'Content-Type': 'application/json-patch+json'},
+        //     }).then(res=>{
+        //         this.$message.success('操作成功');
+        //         this.costForm.show = false;
+        //         this.getList();
+        //     })
+        // },
         // openRegister(){
         //     k8sproxy.get('/api/v1/namespaces/kube-system/configmaps/k3k.config',{noAlert:true}).then(res=>{
         //         this.register = {
@@ -735,60 +735,60 @@ export default {
                 this.getList();
             })
         },
-        csWait(row){
-            k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+row.name,[{
-                op: 'replace',
-                path: '/metadata/labels/k3k.io~1cluster-status',
-                value: 'wait'
-            }],{
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(res=>{
-                this.$message.success('操作成功');
-                this.getList();
-            })
-        },
-        quickCsReady(row){
-            k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+row.name,[{
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1pending-recycle-time',
-                value: dayjs().format('YYYY-MM-DD hh:mm:ss')
-            },{
-                op: 'replace',
-                path: '/metadata/labels/k3k.io~1cluster-status',
-                value: 'recycle'
-            }],{
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(res=>{
-                this.$message.success('操作成功');
-                this.getList();
-            })
-            // if(!row.is_expired){
-            // }else{
-            //     this.$message.error('用户已到期，请先修改到期时间');
-            //     setTimeout(()=>{
-            //         this.edit(row,true);
-            //     },600)
-            // }
-        },
-        csReady(row){
-            if(!row.is_expired){
-                k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+row.name,[{
-                    op: 'replace',
-                    path: '/metadata/labels/k3k.io~1cluster-status',
-                    value: 'ready'
-                }],{
-                    headers: {'Content-Type': 'application/json-patch+json'},
-                }).then(res=>{
-                    this.$message.success('操作成功');
-                    this.getList();
-                })
-            }else{
-                this.$message.error('用户已到期，请先修改到期时间');
-                setTimeout(()=>{
-                    this.edit(row,true);
-                },600)
-            }
-        },
+        // csWait(row){
+        //     k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+row.name,[{
+        //         op: 'replace',
+        //         path: '/metadata/labels/k3k.io~1cluster-status',
+        //         value: 'wait'
+        //     }],{
+        //         headers: {'Content-Type': 'application/json-patch+json'},
+        //     }).then(res=>{
+        //         this.$message.success('操作成功');
+        //         this.getList();
+        //     })
+        // },
+        // quickCsReady(row){
+        //     k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+row.name,[{
+        //         op: 'replace',
+        //         path: '/metadata/annotations/w7.cc~1pending-recycle-time',
+        //         value: dayjs().format('YYYY-MM-DD hh:mm:ss')
+        //     },{
+        //         op: 'replace',
+        //         path: '/metadata/labels/k3k.io~1cluster-status',
+        //         value: 'recycle'
+        //     }],{
+        //         headers: {'Content-Type': 'application/json-patch+json'},
+        //     }).then(res=>{
+        //         this.$message.success('操作成功');
+        //         this.getList();
+        //     })
+        //     // if(!row.is_expired){
+        //     // }else{
+        //     //     this.$message.error('用户已到期，请先修改到期时间');
+        //     //     setTimeout(()=>{
+        //     //         this.edit(row,true);
+        //     //     },600)
+        //     // }
+        // },
+        // csReady(row){
+        //     if(!row.is_expired){
+        //         k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+row.name,[{
+        //             op: 'replace',
+        //             path: '/metadata/labels/k3k.io~1cluster-status',
+        //             value: 'ready'
+        //         }],{
+        //             headers: {'Content-Type': 'application/json-patch+json'},
+        //         }).then(res=>{
+        //             this.$message.success('操作成功');
+        //             this.getList();
+        //         })
+        //     }else{
+        //         this.$message.error('用户已到期，请先修改到期时间');
+        //         setTimeout(()=>{
+        //             this.edit(row,true);
+        //         },600)
+        //     }
+        // },
         getUserGroup(){
             k8sproxy.get('/apis/k3k.io/v1alpha1/virtualclusterpolicies',{
                 // params:{ limit:500, },
@@ -988,7 +988,7 @@ export default {
                         webshell: i.metadata.annotations?.['w7.cc/web-shell'] == 'true',
                         fileeditor: i.metadata.annotations?.['w7.cc/file-editor'] == 'true',
                         demouser: i.metadata.labels?.['w7.cc/demo-user'] == 'true',
-                        cvm: i.metadata.labels?.['w7.cc/cvm-user'] == 'true',
+                        cvmuser: i.metadata.labels?.['w7.cc/cvm-user'] == 'true',
                         weihu: i.metadata.labels?.['w7.cc/weihu'] == 'true',
                         createTime: createTime,
 
