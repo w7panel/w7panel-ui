@@ -67,7 +67,7 @@
                     </a-table-column>
                     <a-table-column title="未生效资源">
                         <template #cell="{ record }">
-                            <span v-if="record.capacityCheckState=='success'">-</span>
+                            <span v-if="record.capacityCheckState=='success'||!record.pendingPurchasedResource">-</span>
                             <span v-else >
                                 <span>{{record.pendingPurchasedResource.cpu}}核/</span>
                                 <span>{{record.pendingPurchasedResource.memory}}Gi/</span>
@@ -247,6 +247,16 @@ export default {
             }).then(res => {
                 let list = res?.data?.items || [];
                 this.list = list.map(i=>{
+                    let pendingPurchasedResource = {
+                        cpu: i.spec?.pendingPurchasedResource?.cpu || 0,
+                        memory: i.spec?.pendingPurchasedResource?.memory || 0,
+                        storage: i.spec?.pendingPurchasedResource?.storage || 0,
+                        bandwidth: i.spec?.pendingPurchasedResource?.bandwidth || 0,
+                    }
+                    if(Object.values(pendingPurchasedResource).every(i=>i==0)){
+                        pendingPurchasedResource = null;
+                    }
+                    
                     return {
                         name: i.metadata.name,
                         namespace: i.metadata.namespace,
@@ -298,12 +308,7 @@ export default {
 
                         // 未生效资源
                         capacityCheckState: i.spec?.capacityCheckState,
-                        pendingPurchasedResource: {
-                            cpu: i.spec?.pendingPurchasedResource?.cpu || 0,
-                            memory: i.spec?.pendingPurchasedResource?.memory || 0,
-                            storage: i.spec?.pendingPurchasedResource?.storage || 0,
-                            bandwidth: i.spec?.pendingPurchasedResource?.bandwidth || 0,
-                        },
+                        pendingPurchasedResource: pendingPurchasedResource,
                         
                     }
                 })
@@ -355,7 +360,6 @@ export default {
                 setToken(res?.data?.token);
             })
             setPermission([]);
-            await new Promise(resolve => setTimeout(resolve, 0));
             await useK3kinfo();
             this.$router.push('/');
         },
