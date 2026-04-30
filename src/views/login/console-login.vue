@@ -58,6 +58,10 @@ export default {
                 const {data:k3kInfo} = await useK3kinfo();
 
                 if(!data.isK3kUser){
+                    if(k3kInfo?.['w7.cc/support-cvm']=='true' && k3kInfo?.['w7.cc/is-cvm-req']=='false'){
+                        this.$router.push('/usermanage/resource')
+                        return;
+                    }
                     this.beforeTest();
                 }else{
                     let couponCode = this.$route.query?.couponCode || '';

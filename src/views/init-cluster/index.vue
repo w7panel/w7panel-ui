@@ -435,11 +435,34 @@ export default {
 
                 // 启动集群成功
                 this.startCluster = this.cvmInfo?.status?.phase == 'ready';
+                
+                this.startClusterLog = {
+                    show: false,
+                    pod_name: this.cvmInfo?.status?.server0PodName,
+                    namespace: this.cvmInfo?.metadata?.namespace,
+                    container_name: this.cvmInfo?.status?.server0ContainerName,
+                }
+                this.streamLog();
+                
+
                 // 维护模式
                 this.weihuModal = this.cvmInfo?.spec?.rescue;
+                this.weihuJobName = this.cvmInfo?.status?.rescueJobName;
+                this.namespace = 'default'; 
+                
+                this.weihuLastRow = ''
                 if(this.weihuModal){
                     this.weihuStatus = this.cvmInfo?.status?.rescuePhase?.toLowerCase?.();
                     this.weihuStatus = this.weihuStatus == 'success'? 'complete' : this.weihuStatus;
+                    
+                    // 维护模式 lastRow
+                    if(this.weihuStatus == 'running'){
+                        this.weihuLastRow = '初始化中...';
+                    } else if(this.weihuStatus == 'complete'){
+                        this.weihuLastRow = '初始化完成';
+                    } else if(this.weihuStatus == 'failed'){
+                        this.weihuLastRow = '初始化失败，点击查看日志';
+                    }
                     this.getAppgroup();
                 }
 

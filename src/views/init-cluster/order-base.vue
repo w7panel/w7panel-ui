@@ -813,7 +813,7 @@ export default {
                 this.expiretime = data?.['w7.cc/expiretime'];
                 this.isOuttime = this.expiretime && dayjs(this.expiretime).isBefore(dayjs());
 
-                if(data?.['w7.cc/user-mode']=='cluster'){
+                if(data?.['w7.cc/support-cvm']=="true"){
                     
                     let { data } = await panelApi.get("/auth/console/info?code=test")
                     

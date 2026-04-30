@@ -105,6 +105,7 @@
             <template #title>资源设置</template>
             <div>
                 <quota-config
+                    v-if="quotaForm.show"
                     ref="quotaconfig"
                     :no-min="true"
                     v-model="quotaForm.data"
@@ -156,6 +157,7 @@
                     </a-form-item>
                     <a-form-item label="资源配置">
                         <quota-config
+                            v-if="createForm.show"
                             ref="createQuotaConfig"
                             :no-min="true"
                             v-model="createForm.data"
