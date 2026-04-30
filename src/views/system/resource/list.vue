@@ -38,11 +38,21 @@
                     <a-table-column title="名称" data-index="name" />
                     <a-table-column title="用户名" data-index="username" />
                     <a-table-column title="资源">
-                        <template #cell="{ record }">
+                        <template #cell="{ record,rowIndex}">
                             <div class="df df-c">
                                 <div>
                                     <span :class="{'ready':'c-blue','new':'c-99','wait':'c-red','recycle':'c-99','creating':'c-orange'}[record.phase]">[{{record.phaseTxt}}]</span>
-                                    <span class="ml-6" :class="{'Terminating':'c-red','Ready':'c-green','Pending':'c-orange','Provisioning':'c-orange','Failed':'c-red','Unknown':'c-99'}[record.clusterPhase]">{{record.clusterPhaseTxt}}</span>
+                                    
+                                    <a-popover v-if="record.clusterPhase=='Failed'" position="bl" @popup-visible-change="v=>v?getErrorReason(record,rowIndex):null" content-style="overflow:auto;padding:6px 10px 10px;max-width:800px;min-width:100px;min-height:40px;">
+                                        <span class="c-red cursor ml-6">{{ record.clusterPhaseTxt }}</span>
+                                        <template #content>
+                                            <a-spin :loading="record.podStatus && record.podStatus.loading" style="width:100%;height:100%;">
+                                                <div class="c-33" style="white-space:pre;">{{ record.podStatus && record.podStatus.data }}</div>
+                                            </a-spin>
+                                        </template>
+                                    </a-popover>
+                                    <span v-else class="ml-6" :class="{'Terminating':'c-red','Ready':'c-green','Pending':'c-orange','Provisioning':'c-orange','Failed':'c-red','Unknown':'c-99'}[record.clusterPhase]">{{record.clusterPhaseTxt}}</span>
+
                                     <span class="ml-6 cursor" @click="toUserResource(record)" :class="(record.phase=='new'||record.phase=='recycle'||record.clusterPhase=='Failed')?'c-99':'c-blue'">
                                         <span>{{record.effectiveResource.cpu}}核/</span>
                                         <span>{{record.effectiveResource.memory}}Gi/</span>
@@ -51,6 +61,9 @@
                                     </span>
                                     <a-tooltip v-if="userMode=='founder'" content="设置">
                                         <i @click="editQuota(record)" class="ml-10 opt-icon hovershow"><icon-edit /></i>
+                                    </a-tooltip>
+                                    <a-tooltip v-if="record.clusterPhase=='Failed'" content="查看">
+                                        <i @click="toFix(record)" class="ml-10 opt-icon hovershow"><icon-tool /></i>
                                     </a-tooltip>
                                 </div>
                                 <div class="fs-12 c-99 df ai-c">
@@ -242,6 +255,35 @@ export default {
         quotaConfig,
     },
     methods: {
+        toFix(row){
+            this.$router.push(`/init-cluster/index?cvmNamespace=${row.namespace}&cvmName=${row.name}`)
+        },
+        getErrorReason(row,index){
+            // if(row.sourceStatus!=5){return}
+            
+            this.list[index].podStatus = {
+                loading: true
+            }
+            k8sproxy.get(`/api/v1/namespaces/${row.namespace}/pods/${row.podName}?local=1`,{noAlert:true}).then(res=>{
+                let data = res?.data?.status?.containerStatuses?.[0]
+                data = {
+                    name: data?.name || '',
+                    state: data?.state || {},
+                    lastState: data?.lastState || {},
+                    ready: data?.ready,
+                    restartCount: data?.restartCount,
+                }
+                this.list[index].podStatus = {
+                    loading: false,
+                    data: JSON.stringify(data,false,4),
+                }
+            }).catch(()=>{
+                this.list[index].podStatus = {
+                    loading: false,
+                    data: '{}',
+                }
+            })
+        },
         getList() {
             this.loading = true;
             panelApi.get('/k3k/cvm', {
@@ -315,6 +357,7 @@ export default {
                         // 未生效资源
                         capacityCheckState: i.spec?.capacityCheckState,
                         pendingPurchasedResource: pendingPurchasedResource,
+                        podName: i.status?.server0PodName,
                         
                     }
                 })
