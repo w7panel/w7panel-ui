@@ -795,10 +795,10 @@ export default {
                             canRenewBuy: res?.data?.status?.canRenewBuy,
                         };
                         if(res?.data?.status?.canExpandBuy && !res?.data?.status?.isExpired){
-                            this.cvmInfo.expandQuery = `&cmvName=${name}&cmvNamespace=${namespace}`;
+                            this.cvmInfo.expandQuery = `&cvmName=${name}&cvmNamespace=${namespace}`;
                         }
                         if(res?.data?.status?.canRenewBuy){
-                            this.cvmInfo.renewQuery = `&cmvName=${name}&cmvNamespace=${namespace}`;
+                            this.cvmInfo.renewQuery = `&cvmName=${name}&cvmNamespace=${namespace}`;
                         }
                     });
                     return;
