@@ -106,7 +106,7 @@
                 </template>
             </a-table>
         </div>
-        <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
+        <yaml-drawer v-if="debug" :show="yamlData.show" :nofooter="true" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
         
         <a-modal title="到期时间" :visible="expiretimeModal.show" width="600px" @ok="submitExpiretime" @cancel="expiretimeModal.show=false;">
             <a-form ref="expiretimeModal" :rules="expiretimeModalRules" :model="expiretimeModal" auto-label-width>
@@ -394,15 +394,6 @@ export default {
                     show: true,
                     data: res?.data,
                     title: res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
-                    submit: (data)=>{
-                        return k8sproxy.put(`/apis/cvm.w7.cc/v1alpha1/namespaces/${record.namespace}/cvms/${data?.metadata?.name}`, data, {
-                            loading: true,
-                        }).then(()=>{
-                            this.$message.success("修改成功");
-                            this.yamlData = {...this.yamlData, show:false,};
-                            this.getList();
-                        })
-                    }
                 }
             })
         },

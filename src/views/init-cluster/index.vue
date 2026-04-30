@@ -307,9 +307,19 @@ export default {
             if(stop){return}
             this.getStartCluster();
         },
-        getAppgroup(){
+        async getAppgroup(){
             if(this.weihuModal){
-                k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups',{noAlert:true}).then(res=>{
+                let token = '';
+                if(this.isCvm){
+                    await panelApi.post(`/k3k/cvm/${this.$route.query.cvmNamespace}/action/${this.$route.query.cvmName}/login`).then(res=>{
+                        token = res?.data?.token;
+                    })
+                }
+
+                k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups',{
+                    noAlert: true,
+                    customToken: token,
+                }).then(res=>{
                     if(!res?.data?.items){return}
                     let list = res.data.items.map(i=>{
                         return {
@@ -450,7 +460,7 @@ export default {
                 this.startCluster = this.cvmInfo?.status?.phase == 'ready';
                 
                 this.startClusterLog = {
-                    show: false,
+                    ...this.startClusterLog,
                     pod_name: this.cvmInfo?.status?.server0PodName,
                     namespace: this.cvmInfo?.metadata?.namespace,
                     container_name: this.cvmInfo?.status?.server0ContainerName,
