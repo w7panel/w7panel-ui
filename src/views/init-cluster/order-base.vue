@@ -690,12 +690,15 @@ export default {
                 cvmName: this.$route.query.cvmName,
             },{loading:true}).then(res=>{
                 let data = res.data;
+                this.orderData = data;
                 if(data?.needPay && data?.ticket){
                     this.payDrawer = {
                         show: true,
                         ticket: data?.ticket,
                         url: `https://ip.w7.cc/pay/${res?.data?.ticket}?header=false&footer=false&paid_callback=https%3A%2F%2Fuser.w7.cc%2Forder`
                     }
+                }else{
+                    this.checkInfo();
                 }
             })
         },
@@ -980,6 +983,7 @@ export default {
                 cvmName: this.$route.query.cvmName,
             },{loading:true}).then(res=>{
                 let data = res.data;
+                this.orderData = data;
                 if(data?.needPay && data?.ticket){
                     this.payDrawer = {
                         show: true,
@@ -1044,11 +1048,11 @@ export default {
             }, 2000);
         },
         checkStatus(){
-            if(this.isExpand){return}
-            if(this.$route.query.isCvm){
+            if(this.$route.query.isCvm || this.$route.query.cvmName){
                 this.checkCvmStatus();
                 return;
             }
+            if(this.isExpand){return}
             panelApi.get('/k3k/info').then(async res=>{
                 let data = res?.data;
 

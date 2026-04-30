@@ -39,7 +39,7 @@
                             <span class="ml-6 c-red" v-if="!storageSpace.proper">({{ storageSpace.used }}/{{ storageSpace.total}})</span>
                         </div>
                     </div>
-                    <div class="df ai-c padding-10" style="border-bottom: 1px solid var(--color-neutral-3); padding:20px 0;">
+                    <!-- <div class="df ai-c padding-10" style="border-bottom: 1px solid var(--color-neutral-3); padding:20px 0;">
                         <div class="df-s0" style="color:var(--color-text-2);">集群初始化</div>
                         <div @click="openLogModal(jobName)" class="fc ml-20 c-99 txt-overhidden cursor">{{ lastRow }}</div>
                         <div class="df-s0 ml-20">
@@ -61,7 +61,7 @@
                                 <span class="ml-6">{{status_text||'未初始化'}}</span>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
                     <div v-if="weihuModal" class="df ai-c padding-10" style="border-bottom: 1px solid var(--color-neutral-3); padding:20px 0;">
                         <div class="df-s0" style="color:var(--color-text-2);">救援任务</div>
                         <div @click="openLogModal(weihuJobName)" class="fc ml-20 c-99 txt-overhidden cursor">{{ weihuLastRow }}</div>
@@ -108,9 +108,9 @@
                         <a-button v-else-if="!weihuModal || !startCluster" type="outline" @click="changeWeihuModal" size="large" style="margin:0 10px;">进入救援模式</a-button>
                     </template>
 
-                    <a-button v-if="!startCluster" type="primary" @click="$router.push(`/order-base?expand=true`)" size="large" style="margin:0 10px;">扩容资源</a-button>
+                    <a-button v-if="!startCluster" type="primary" @click="$router.push(`/order-base?expand=true&cvmName=${$route.query.cvmName}&cvmNamespace=${$route.query.cvmNamespace}`)" size="large" style="margin:0 10px;">扩容资源</a-button>
 
-                    <a-button v-if="status=='complete' && startCluster && !weihuModal" type="primary" size="large" style="margin:0 10px;" @click="$router.push('/')">进入管理</a-button>
+                    <a-button v-if="status=='complete' && startCluster && !weihuModal" type="primary" size="large" style="margin:0 10px;" @click="toManage">进入管理</a-button>
                 </div>
 
                 <div v-if="weihuModal" class="mt-20 padding-20 appgroups bg-white">
@@ -158,7 +158,8 @@ import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue'
-import { getToken } from '@/utils/auth';
+import { getToken, setRefreshToken, setToken } from '@/utils/auth';
+import useK3kinfo from '@/hooks/k3k-info';
 
 export default {
     components: {
@@ -210,7 +211,7 @@ export default {
         }
     },
     async created(){
-        await panelApi.post('/k3k/overselling/check',{},{noAlert:true}).then(()=>{}).catch(()=>{}) 
+        // await panelApi.post('/k3k/overselling/check',{},{noAlert:true}).then(()=>{}).catch(()=>{}) 
         await this.getInfo();
         await this.getDisk();
         this.getStatus({needGetInfo:false});
@@ -232,6 +233,18 @@ export default {
         },
     },
     methods: {
+        async toManage(){
+            if(!this.isCvm){
+                $router.push('/')
+            }else{
+                await panelApi.post(`/k3k/cvm/${this.$route.query.cvmNamespace}/action/${this.$route.query.cvmName}/login`).then(res=>{
+                    setRefreshToken(res?.data?.refreshToken)
+                    setToken(res?.data?.token);
+                })
+                await useK3kinfo();
+                this.$router.push('/');
+            }
+        },
         getDisk(){
             let parseData = (data)=>{
 

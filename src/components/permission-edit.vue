@@ -139,7 +139,7 @@ export default {
             this.hasDebug = this.debug===true || this.debug===false;
             this.pmsForm.whitelist = this.whitelist || [];
             
-            this.pmsls = this.permissionPackageListVirtual;
+            this.pmsls = this.permissionPackageList;
 
             // this.pmsls = this.permissionPackageList;
             // if(this.type=='shared'){ this.pmsls = this.permissionPackageListShared; }
