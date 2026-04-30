@@ -89,13 +89,13 @@
     if (!isInit.value) return; // for page initialization menu state problem
     appStore.updateSettings({ menuCollapse: val });
   };
-  watch(
-    () => userStore.role,
-    (roleValue) => {
-      if (roleValue && !permission.accessRouter(route))
-        router.push({ name: 'notFound' });
-    }
-  );
+//   watch(
+//     () => userStore.role,
+//     (roleValue) => {
+//       if (roleValue && !permission.accessRouter(route))
+//         router.push({ name: 'notFound' });
+//     }
+//   );
   const drawerVisible = ref(false);
   const drawerCancel = () => {
     drawerVisible.value = false;

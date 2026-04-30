@@ -23,13 +23,13 @@ import contactUs from '@/components/contact-us.vue';
     const router = useRouter();
     const route = useRoute();
     
-    watch(
-        () => userStore.role,
-        (roleValue) => {
-            if (roleValue && !permission.accessRouter(route))
-            router.push({ name: 'notFound' });
-        }
-    );
+    // watch(
+    //     () => userStore.role,
+    //     (roleValue) => {
+    //         if (roleValue && !permission.accessRouter(route))
+    //         router.push({ name: 'notFound' });
+    //     }
+    // );
 </script>
 
 <style scoped lang="less">

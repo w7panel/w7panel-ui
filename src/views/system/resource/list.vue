@@ -48,12 +48,8 @@
                                         <span>{{record.effectiveResource.bandwidth}}Mbps/</span>
                                         <span>{{record.effectiveResource.storage}}Gi</span>
                                     </span>
-                                    
-                                    <a-tooltip v-if="record.capacityCheckState!='success'" content="请求资源">
-                                        <i @click="requestResource(record)" class="opt-icon ml-10"><icon-refresh /></i>
-                                    </a-tooltip>
-                                    <a-tooltip content="设置">
-                                        <i @click="editQuota(record)" class="opt-icon hovershow"><icon-edit /></i>
+                                    <a-tooltip v-if="userMode=='founder'" content="设置">
+                                        <i @click="editQuota(record)" class="ml-10 opt-icon hovershow"><icon-edit /></i>
                                     </a-tooltip>
                                 </div>
                                 <div class="fs-12 c-99 df ai-c">
@@ -73,6 +69,9 @@
                                 <span>{{record.pendingPurchasedResource.memory}}Gi/</span>
                                 <span>{{record.pendingPurchasedResource.bandwidth}}Mbps/</span>
                                 <span>{{record.pendingPurchasedResource.storage}}Gi</span>
+                                <a-tooltip v-if="record.capacityCheckState!='success'" content="资源检查">
+                                    <i @click="requestResource(record)" class="opt-icon ml-10 hovershow"><icon-refresh /></i>
+                                </a-tooltip>
                             </span>
                         </template>
                     </a-table-column>

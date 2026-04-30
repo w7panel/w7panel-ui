@@ -62,7 +62,9 @@ export default {
                 }else{
                     let couponCode = this.$route.query?.couponCode || '';
 
-                    if(k3kInfo?.['w7.cc/need-create-order']=='true' || k3kInfo?.['w7.cc/need-renew']=='true'){
+                    if(k3kInfo?.['w7.cc/support-cvm']=='true' && k3kInfo?.['w7.cc/is-cvm-req']=='false'){
+                        this.$router.push('/usermanage/resource')
+                    }else if(k3kInfo?.['w7.cc/need-create-order']=='true' || k3kInfo?.['w7.cc/need-renew']=='true'){
                         this.$router.push('/order-base?couponCode=' + couponCode);
                     }else if(k3kInfo?.['w7.cc/k3k-job-status']=='complete'){
                         this.beforeTest()
