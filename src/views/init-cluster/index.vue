@@ -45,20 +45,20 @@
                         <div class="df-s0 ml-20">
                             <div v-if="status=='complete'">
                                 <icon-check-circle-fill class="c-green fs-16" />
-                                <span class="ml-6">成功</span>
+                                <span class="ml-6">{{status_text||'成功'}}</span>
                             </div>
                             <div v-if="status=='running'">
                                 <icon-loading class="fs-16" />
-                                <span class="ml-6">初始化中...</span>
+                                <span class="ml-6">{{status_text||'初始化中...'}}</span>
                             </div>
                             <div v-else-if="status=='failed'">
                                 <icon-close-circle-fill class="c-red fs-16" />
-                                <span class="ml-6">失败</span>
+                                <span class="ml-6">{{status_text||'失败'}}</span>
                                 <span class="ml-6 c-blue cursor" @click="toInitCluster">重试</span>
                             </div>
                             <div v-else-if="status=='unknow'">
                                 <icon-close-circle-fill class="c-red fs-16" />
-                                <span class="ml-6">未初始化</span>
+                                <span class="ml-6">{{status_text||'未初始化'}}</span>
                             </div>
                         </div>
                     </div>
@@ -169,6 +169,7 @@ export default {
         return {
             interval: null,
             status: '',
+            status_text: '',
             jobName: '',
             lastRow: '',
 
@@ -225,18 +226,21 @@ export default {
             this.controller.abort();
         }catch{};
     },
+    computed: {
+        isCvm(){
+            return this.$route.query.cvmName && this.$route.query.cvmNamespace;
+        },
+    },
     methods: {
         getDisk(){
-            return panelApi.get('/metrics/usage/disk').then(res=>{
-                
+            let parseData = (data)=>{
+
                 const formatStorageSize = (bytes) => {
                     // 1 GiB = 1024 MiB = 1024*1024*1024 bytes
                     return bytes >= 1024 ** 3 
                         ? `${(bytes / (1024 ** 3)).toFixed(0)}Gi` 
                         : `${(bytes / (1024 ** 2)).toFixed(0)}Mi`;
                 };
-
-                let data = res?.data;
                 
                 this.storageSpace.total = data?.disk?.total || 0;
                 this.storageSpace.total = formatStorageSize(this.storageSpace.total);
@@ -245,8 +249,18 @@ export default {
                 this.storageSpace.used = formatStorageSize(this.storageSpace.used);
 
                 this.storageSpace.proper = data?.disk?.usage < data?.disk?.total;
-                
-            })
+            }
+            if(this.isCvm){
+                const name = this.$route.query.cvmName;
+                const namespace = this.$route.query.cvmNamespace;
+                return panelApi.get(`/metrics/usage/cvm/${namespace}/name/${name}/disk`,{noAlert:true}).then(res=>{ 
+                    parseData(res.data);
+                })
+            }else{
+                return panelApi.get('/metrics/usage/disk').then(res=>{ 
+                    parseData(res.data);
+                })
+            }
         },
         openLogModal(jobName){
             if(!jobName || !this.namespace) return;
@@ -261,6 +275,9 @@ export default {
             })
         },
         async getStatus({needGetInfo=true, stop=false}={}){
+            
+            if(this.isCvm){ return }
+
             if(needGetInfo){
                 let {data} = await panelApi.get('/k3k/info',{loading:true});
                 this.weihuModal = data?.['w7.cc/weihu'] == 'true';
@@ -302,6 +319,16 @@ export default {
             })
         },
         changeWeihuModal(){
+            if(this.isCvm){
+                panelApi.post(`/k3k/cvm/${this.$route.query.cvmNamespace}/action/${this.$route.query.cvmName}/rescue`).then(res=>{
+                    this.$message.success("操作成功");
+                    this.weihuModal = !this.weihuModal;
+                    this.startCluster = false;
+                    this.getCvmInfo();
+                    setTimeout(this.getCvmInfo,5000);
+                })
+                return;
+            }
             panelApi.post('/k3k/wh').then(res=>{
                 this.$message.success('操作成功,集群重启中....');
                 this.getStatus({stop:true});
@@ -311,6 +338,9 @@ export default {
             });
         },
         getInfo(){
+            if(this.isCvm){
+                return this.getCvmInfo();
+            };
             return panelApi.get('/k3k/info',{loading:true}).then(res=>{
                 this.status = res?.data?.['w7.cc/k3k-job-status'];
                 this.jobName = res?.data?.['w7.cc/k3k-job-name'];
@@ -360,6 +390,63 @@ export default {
                             }).then(()=>{}).catch(()=>{})
                         }
                     })
+                }
+            })
+        },
+        async getCvmInfo(){
+            try{
+                clearTimeout(this.startClusterInterval);
+                clearTimeout(this.interval);
+            }catch{}
+
+            let name = this.$route.query.cvmName;
+            let namespace = this.$route.query.cvmNamespace;
+            
+            await panelApi.post(`/k3k/cvm/${namespace}/action/${name}/check-resource`,{noAlert:true}).then(res=>{
+                this.hasOverResource = !!res?.data?.pass;
+            })
+
+            await panelApi.get(`/k3k/cvm/v1/${namespace}/info/${name}`,{noAlert:true}).then(res=>{
+                let phase = res?.data?.status?.phase;
+                let clusterPhase = res?.data?.status?.clusterPhase;
+                if(phase == 'new'){
+                    this.status = 'unknow';
+                    this.status_text = '';
+                }else{
+                    this.status = {
+                        'Pending':'running',
+                        'Provisioning':'running',
+                        'Ready':'complete',
+                        'Failed':'failed',
+                        'Terminating':'failed',
+                        'Unknown':'failed',
+                    }[clusterPhase];
+
+                    this.status_text = {
+                        'Pending':'创建中',
+                        'Provisioning':'配置中',
+                        'Ready':'运行中',
+                        'Failed':'故障',
+                        'Terminating':'回收中',
+                        'Unknown':'未知',
+                    }[clusterPhase]
+                }
+                this.cvmInfo = res?.data;
+
+                // 启动集群成功
+                this.startCluster = this.cvmInfo?.status?.phase == 'ready';
+                // 维护模式
+                this.weihuModal = this.cvmInfo?.spec?.rescue;
+                if(this.weihuModal){
+                    this.weihuStatus = this.cvmInfo?.status?.rescuePhase?.toLowerCase?.();
+                    this.weihuStatus = this.weihuStatus == 'success'? 'complete' : this.weihuStatus;
+                    this.getAppgroup();
+                }
+
+                if(this.status == 'running' || this.weihuStatus == 'running' || (this.status!=='complete' && this.weihuStatus=='complete')){
+                    this.interval = setTimeout(this.getInfo,5000);
+                }else if(!this.startCluster){
+                    this.startClusterInterval = setTimeout(this.getCvmInfo,5000)
                 }
             })
         },
@@ -450,6 +537,6 @@ export default {
 }
 
 .txt-overhidden{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.appgroups>div{border-bottom:1px solid var(--color-neutral-3);}
+.appgroups>div{border-bottom:1px solid var(--color-neutral-3); padding:10px 0;}
 .appgroups>div:last-child{border-bottom:0;}
 </style>

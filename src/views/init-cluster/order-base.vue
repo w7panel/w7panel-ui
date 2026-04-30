@@ -296,8 +296,7 @@
 </template>
 
 <script>
-import { panelApi } from '@/utils/api';
-import axios from 'axios'
+import { k8sproxy, panelApi } from '@/utils/api';
 import dayjs from 'dayjs'
 import { useLoadingStore } from '@/store';
 
@@ -381,6 +380,8 @@ export default {
                 code: '',
                 discount: 100,
             },
+
+            orderData: {},
         }
     },
     created(){
@@ -1004,6 +1005,7 @@ export default {
                 }:null)
             },{loading:true}).then(res=>{
                 let data = res.data;
+                this.orderData = data;
                 if(data?.needPay && data?.ticket){
                     this.payDrawer = {
                         show: true,
@@ -1037,6 +1039,10 @@ export default {
         },
         checkStatus(){
             if(this.isExpand){return}
+            if(this.$route.query.isCvm){
+                this.checkCvmStatus();
+                return;
+            }
             panelApi.get('/k3k/info').then(async res=>{
                 let data = res?.data;
 
@@ -1068,6 +1074,19 @@ export default {
                         this.$router.push('/init-cluster?from=orderbase');
                     }
                     return;
+                }
+            })
+        },
+        checkCvmStatus(){
+            let order = this.orderData?.ipOrderSn || '';
+            let name = this.orderData?.cvmName;
+            let namespace = this.orderData?.cvmNamespace;
+            k8sproxy.get(`/apis/cvm.w7.cc/v1alpha1/namespaces/${namespace}/cvmconsoleorders/${order.toLowerCase()}?local=1`).then(res=>{
+                let paid = res?.data?.spec?.order?.status == 'paid';
+                if(paid){
+                    clearInterval(this.interval)
+                    this.$message.success('购买成功');
+                    this.$router.push(`/init-cluster?cvmName=${name}&cvmNamespace=${namespace}`);
                 }
             })
         },
