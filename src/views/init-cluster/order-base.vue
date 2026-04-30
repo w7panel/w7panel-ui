@@ -1026,6 +1026,12 @@ export default {
         paySuccess(e){
             if(e?.data?.type!='paysuccess'){return}
             this.payDrawer.show = false;
+            if(this.isExpand || this.isRenew){
+                if(this.$route.query.cvmName || this.$route.query.isCvm){
+                    this.$router.push('/fp/usermanage-resource');
+                    return;
+                }
+            }
             this.deleteQuery();
         },
         checkInfo(){
@@ -1065,7 +1071,7 @@ export default {
                 if(this.$route.query.renew!='true' && data?.['w7.cc/need-create-order']!='true' && data?.['w7.cc/need-renew']!='true'){
                     this.$message.success('操作成功');
                     if(this.$route.query.cvmName || this.$route.query.isCvm){
-                        this.$router.push('/usermanage/resource');
+                        this.$router.push('/fp/usermanage-resource');
                         return;
                     }
                     if(res?.data?.['w7.cc/k3k-job-status']=='complete'){

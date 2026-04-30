@@ -29,6 +29,24 @@ const DASHBOARD: any = [
                 roles: ['*'],
             },
         },
+        {
+            path: "usermanage-resource",
+            name: "fp-usermanage-resource",
+            component: () => import('@/views/system/resource/list.vue'),
+            meta: {
+                requiresAuth: false,
+                roles: ['*'],
+            },
+        },
+        {
+            path: 'user-resource',
+            name: 'fp-user-resource',
+            component: ()=>import('@/views/system/users/user-resource.vue'),
+            meta: {
+                requiresAuth: false,
+                roles: ['*'],
+            },
+        },
     ],
 },{
     path: "/init-cluster",

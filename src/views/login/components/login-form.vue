@@ -230,7 +230,7 @@ const handleSubmit = async () => {
         console.log('k3kinfo',k3kInfo)
         if(!data.isK3kUser){
             if(k3kInfo?.['w7.cc/support-cvm']=='true' && k3kInfo?.['w7.cc/is-cvm-req']=='false'){
-                router.push('/usermanage/resource')
+                router.push('/fp/usermanage-resource')
                 return;
             }
             beforeTest();

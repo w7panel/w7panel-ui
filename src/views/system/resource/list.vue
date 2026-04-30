@@ -1,6 +1,6 @@
 <template>
-    <div class="df df-c padding-20" style="height:100%;">
-        <route-breadcrumb />
+    <div class="df df-c padding-20" style="height:100%;overflow:auto;">
+        <route-breadcrumb v-if="$route.name!='fp-usermanage-resource'" />
         <div class="bg-white df jc-b">
             <a-form layout="inline" class="padding-20" style="padding-bottom:12px;">
                 <a-form-item label="用户名">
@@ -36,6 +36,7 @@
             <a-table class="cptable" :data="filterlist" :pagination="false" :bordered="false" :loading="loading" @page-change="pageChange" @page-size-change="pageSizeChange">
                 <template #columns>
                     <a-table-column title="名称" data-index="name" />
+                    <a-table-column title="用户名" data-index="username" />
                     <a-table-column title="资源">
                         <template #cell="{ record }">
                             <div class="df df-c">
@@ -82,8 +83,11 @@
                                 <span class="c-blue cursor" @click="openYaml(record)">YAML</span>
                             </a-tooltip>
                             <span class="c-blue cursor ml-10" @click="loginPanel(record)">登录面板</span>
-                            <span v-if="record.canExpandBuy" class="c-blue cursor ml-10" @click="$router.push('/order-base/index?expand=true&cvmName='+record.name+'&cvmNamespace='+record.namespace+'&expireTime='+record.expireTime)">扩容</span>
+                            <span v-if="record.canExpandBuy && !record.isExpired" class="c-blue cursor ml-10" @click="$router.push('/order-base/index?expand=true&cvmName='+record.name+'&cvmNamespace='+record.namespace+'&expireTime='+record.expireTime)">扩容</span>
                             <span v-if="record.canRenewBuy" class="c-blue cursor ml-10" @click="$router.push('/order-base/index?renew=true&cvmName='+record.name+'&cvmNamespace='+record.namespace)">续费</span>
+                            <a-popconfirm v-if="userMode=='founder'" content="确定删除该资源？" @ok="deleteResource(record)">
+                                <span class="c-blue cursor ml-10">删除</span>
+                            </a-popconfirm>
                         </template>
                     </a-table-column>
                 </template>
@@ -261,6 +265,7 @@ export default {
                     return {
                         name: i.metadata.name,
                         namespace: i.metadata.namespace,
+                        username: i.metadata?.namespace?.replace?.(/^k3k-/,''),
 
                         phase: i?.status?.phase,
                         phaseTxt: {
@@ -347,9 +352,12 @@ export default {
                     data: res?.data,
                     title: res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
                     submit: (data)=>{
-                        return panelApi.put(`/k3k/cvm/v1/${record.namespace}/info/${data?.metadata?.name}`, data).then(res=>{
+                        return k8sproxy.put(`/apis/cvm.w7.cc/v1alpha1/namespaces/${record.namespace}/cvms/${data?.metadata?.name}`, data, {
+                            loading: true,
+                        }).then(()=>{
                             this.$message.success("修改成功");
                             this.yamlData = {...this.yamlData, show:false,};
+                            this.getList();
                         })
                     }
                 }
@@ -367,7 +375,7 @@ export default {
         // 跳转到用户资源页面
         toUserResource(row){
             this.$router.push({
-                path: '/usermanage/user-resource',
+                path: this.$route.name=='fp-usermanage-resource'? '/fp/user-resource' : '/usermanage/user-resource',
                 query: {
                     username: row.name,
                     namespace: row.namespace,
@@ -506,6 +514,14 @@ export default {
                     this.getList();
                 })
             })
+        },
+        deleteResource(record){
+            k8sproxy.delete(`/apis/cvm.w7.cc/v1alpha1/namespaces/${record.namespace}/cvms/${record.name}`, {
+                loading: true,
+            }).then(()=>{
+                this.$message.success('删除成功');
+                this.getList();
+            });
         },
     },
 };
