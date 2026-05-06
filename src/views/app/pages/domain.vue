@@ -66,7 +66,7 @@
                         </template>
                     </a-popover>
                     <!-- 删除 -->
-                    <a-popconfirm :content="'确认要删除选中的域名吗'" @ok="multipleDelete" position="lt">
+                    <a-popconfirm :content="'确认要删除选中的域名吗'" @ok="multipleDelete" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                         <a-button type="outline" >批量删除</a-button>
                     </a-popconfirm>
                 </div>
@@ -121,7 +121,7 @@
                                 <a-tooltip content="绑定域名">
                                     <i class="opt-icon" @click="openBind(item)"><icon-plus /></i>
                                 </a-tooltip>
-                                <a-popconfirm v-if="appDefaultDomain!=item.fullDomain" :content="'确认要删除吗'" @ok="toDelete(item)" position="lt">
+                                <a-popconfirm v-if="appDefaultDomain!=item.fullDomain" :content="'确认要删除吗'" @ok="toDelete(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                     <a-tooltip content="删除">
                                         <i class="opt-icon"><icon-delete /></i>
                                     </a-tooltip>
@@ -170,7 +170,7 @@
                                     <a-tooltip content="修改">
                                         <i class="opt-icon" @click="domainShow(part)"><icon-edit /></i>
                                     </a-tooltip>
-                                    <a-popconfirm v-if="!part.is_root" :content="'确认要删除吗'" @ok="delPath(part)" position="lt">
+                                    <a-popconfirm v-if="!part.is_root" :content="'确认要删除吗'" @ok="delPath(part)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                         <a-tooltip content="删除">
                                             <i class="opt-icon"><icon-delete /></i>
                                         </a-tooltip>

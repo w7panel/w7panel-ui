@@ -20,14 +20,14 @@
                         <a-tooltip v-if="debug" content="yaml">
                             <i class="opt-icon" @click="openYaml(item)"><icon-code /></i>
                         </a-tooltip>
-                        <a-popconfirm content="确定要删除该配置文件吗" @ok="del(item)" position="lt">
+                        <a-popconfirm content="确定要删除该配置文件吗" @ok="del(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <a-tooltip content="删除">
                                 <i class="opt-icon"><icon-delete /></i>
                             </a-tooltip>
                         </a-popconfirm>
                         <!-- <span class="cursor c-blue" @click="openYaml(item)">YAML</span> -->
                         <!-- <span class="cursor c-blue ml-10" @click="$router.push({name:'config-secret-form',params:{id:item.name}})">修改</span> -->
-                        <!-- <a-popconfirm content="确定要删除该配置文件吗" @ok="del(item)">
+                        <!-- <a-popconfirm content="确定要删除该配置文件吗" @ok="del(item)" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <span class="cursor c-blue ml-10">删除</span>
                         </a-popconfirm> -->
                     </td>

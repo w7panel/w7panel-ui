@@ -49,7 +49,7 @@
                         <a-tooltip content="编辑">
                             <i class="opt-icon" @click="openForm(item)"><icon-edit /></i>
                         </a-tooltip>
-                        <a-popconfirm :content="'确认要删除吗'" @ok="toDelete(item)" position="lt">
+                        <a-popconfirm :content="'确认要删除吗'" @ok="toDelete(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <a-tooltip content="删除">
                                 <i class="opt-icon"><icon-delete /></i>
                             </a-tooltip>
@@ -58,7 +58,7 @@
                         <span class="cursor c-blue" @click="openYaml(item.name)">YAML</span>
                         <span class="ml-16 cursor c-blue" @click="toDomain(item)">域名管理</span>
                         <span v-if="permission.includes('app-rvproxy-edit')" class="ml-16 cursor c-blue" @click="openForm(item)">编辑</span>
-                        <a-popconfirm v-if="permission.includes('app-rvproxy-delete')" :content="'确认要删除吗'" @ok="toDelete(item)" position="lt">
+                        <a-popconfirm v-if="permission.includes('app-rvproxy-delete')" :content="'确认要删除吗'" @ok="toDelete(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <span :id="'rvproxy-'+item.name" class="ml-16 cursor c-blue">删除</span>
                         </a-popconfirm>
                     </td>

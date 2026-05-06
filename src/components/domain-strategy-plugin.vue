@@ -12,7 +12,7 @@
                     <div class="df">
                         <div>{{item.title}}{{item.version}}</div>
                         <span class="c-blue cursor ml-10 mr-10" @click="openForm(item)">修改</span>
-                        <a-popconfirm v-if="item.currenturl && item.currenturl!=item.url" @ok="updatePlugin(item)" content="确定更新吗">
+                        <a-popconfirm v-if="item.currenturl && item.currenturl!=item.url" @ok="updatePlugin(item)" content="确定更新吗" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <span class="c-blue cursor mr-10">更新</span>
                         </a-popconfirm>
                     </div>

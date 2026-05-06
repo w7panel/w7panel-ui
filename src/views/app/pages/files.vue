@@ -63,7 +63,7 @@
                                 <icon-user-group />
                                 <span class="ml-4">权限</span>
                             </a-button>
-                            <a-popconfirm v-if="selectedKeys.length>0 && allSelectedOperable" :content="'确认要删除选中内容吗'" @ok="deleteFile(null, true)" position="lt">
+                            <a-popconfirm v-if="selectedKeys.length>0 && allSelectedOperable" :content="'确认要删除选中内容吗'" @ok="deleteFile(null, true)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-button><icon-delete /><span class="ml-4">删除</span></a-button>
                             </a-popconfirm>
                             <a-button v-else-if="selectedKeys.length>0" disabled><icon-delete /><span class="ml-4">删除</span></a-button>
@@ -134,7 +134,7 @@
                                     <a-tooltip v-if="canOperateNode(record)" content="权限">
                                         <i class="opt-icon" @click="authorityEdit(record)"><icon-user-group /></i>
                                     </a-tooltip>
-                                    <a-popconfirm v-if="canOperateNode(record)" :content="'确认要删除'+ record.name +'吗'" @ok="deleteFile(record)" position="lt">
+                                    <a-popconfirm v-if="canOperateNode(record)" :content="'确认要删除'+ record.name +'吗'" @ok="deleteFile(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                         <a-tooltip content="删除">
                                             <i class="opt-icon"><icon-delete /></i>
                                         </a-tooltip>

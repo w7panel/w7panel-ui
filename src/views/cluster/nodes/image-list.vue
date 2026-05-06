@@ -56,7 +56,7 @@
                     </a-table-column>
                     <a-table-column title="操作">
                         <template #cell="{ record }">
-                            <a-popconfirm content="确定要删除吗" @ok="deleteImage(record)" position="lt">
+                            <a-popconfirm content="确定要删除吗" @ok="deleteImage(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <span class="df-s0 ml-10 c-blue cursor" @click.stop>删除</span>
                             </a-popconfirm>
                         </template>

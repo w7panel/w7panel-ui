@@ -33,7 +33,7 @@
                         <!-- <a-tooltip v-if="record.type=='in'" content="创建新权限">
                             <i class="opt-icon" @click="addCustom(record)"><icon-plus /></i>
                         </a-tooltip> -->
-                        <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt">
+                        <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <a-tooltip content="删除">
                                 <i class="opt-icon"><icon-delete /></i>
                             </a-tooltip>
@@ -56,7 +56,7 @@
                         <a-tooltip v-if="record.type=='in'" content="创建新权限">
                             <i class="opt-icon" @click="addCustom(record)"><icon-plus /></i>
                         </a-tooltip>
-                        <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt">
+                        <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <a-tooltip content="删除">
                                 <i class="opt-icon"><icon-delete /></i>
                             </a-tooltip>
@@ -84,7 +84,7 @@
                             <a-tooltip v-if="record.type=='in'" content="创建新权限">
                                 <i class="opt-icon" @click="addCustom(record)"><icon-plus /></i>
                             </a-tooltip>
-                            <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt">
+                            <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-tooltip content="删除">
                                     <i class="opt-icon"><icon-delete /></i>
                                 </a-tooltip>
@@ -114,7 +114,7 @@
                             <a-tooltip v-if="record.type=='in'" content="创建新权限">
                                 <i class="opt-icon" @click="addCustom(record)"><icon-plus /></i>
                             </a-tooltip>
-                            <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt">
+                            <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-tooltip content="删除">
                                     <i class="opt-icon"><icon-delete /></i>
                                 </a-tooltip>

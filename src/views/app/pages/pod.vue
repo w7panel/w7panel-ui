@@ -3,7 +3,7 @@
         
         <div class="df jc-b">
             <!-- <a-button type="primary" :disabled="!selectedKeys.length" @click="charts.show=true;">监控</a-button> -->
-            <a-popconfirm content="是否确定销毁选中的容器并重建" @ok="deleteMultiple" position="rt">
+            <a-popconfirm content="是否确定销毁选中的容器并重建" @ok="deleteMultiple" position="rt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                 <a-button type="primary" :disabled="!selectedKeys.length">销毁重建</a-button>
             </a-popconfirm>
         </div>
@@ -120,7 +120,7 @@
                                         <icon-code-square />
                                     </span>
                                 </a-tooltip>
-                                <a-popconfirm content="是否确定销毁容器并重建" @ok="deleteRow(record)" position="lt">
+                                <a-popconfirm content="是否确定销毁容器并重建" @ok="deleteRow(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                     <a-tooltip content="销毁重建">
                                         <span class="opt-icon">
                                             <icon-delete />
