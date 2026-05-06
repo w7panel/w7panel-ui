@@ -123,7 +123,7 @@
                                 <span v-if="hasLonghornSystem && !record.isExpanding" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
                                 <span v-if="record.isExpanding" class="c-blue cursor mr-20" @click="cancelExpand(record)">取消扩容</span>
 
-                                <span class="operation c-blue cursor mr-20" :class="tfloading.includes(record.name)?'disabled':''" @click="trimFilesystem(record)">
+                                <span v-if="record.state=='attached'" class="operation c-blue cursor mr-20" :class="tfloading.includes(record.name)?'disabled':''" @click="trimFilesystem(record)">
                                     <span>碎片整理</span>
                                     <icon-loading v-if="tfloading.includes(record.name)" class="ml-4" />
                                 </span>
@@ -254,7 +254,7 @@ export default {
         trimFilesystem(row){
             this.tfloading.push(row.name);
             // /longhorn/volumes/:volumeName/trim-filesystem
-            panelApi.get(`/longhorn/volumes/${row.volumeName}/trim-filesystem`).then(()=>{
+            panelApi.post(`/longhorn/volumes/${row.volumeName}/trim-filesystem`).then(()=>{
                 this.$message.success('碎片整理成功');
                 this.getList();
             }).finally(()=>{
