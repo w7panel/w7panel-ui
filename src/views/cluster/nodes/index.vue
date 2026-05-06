@@ -33,8 +33,10 @@
                                     <!-- <span v-if="item.master">（主）</span> -->
                                 </div>
                                 <div class="mt-4">
-                                    <a-tag color="arcoblue" size="small" bordered>{{record.master?'master':'agent'}}</a-tag>
-                                    <a-tag v-if="record.controlPlane" class="ml-10" color="arcoblue" size="small" bordered>control-plane</a-tag>
+                                    <!-- <a-tag color="arcoblue" size="small" bordered>{{record.master?'master':'agent'}}</a-tag> -->
+                                    <a-tag v-if="record.controlPlane" color="arcoblue" size="small" bordered>control-plane</a-tag>
+                                    <a-tag v-else color="arcoblue" size="small" bordered>agent</a-tag>
+
                                     <a-tag v-if="record.customTag" class="ml-10" color="arcoblue" size="small" bordered>{{record.customTag}}</a-tag>
                                     <a-tag v-if="record.storageTag" class="ml-10" color="arcoblue" size="small" bordered>storage</a-tag>
                                 </div>
