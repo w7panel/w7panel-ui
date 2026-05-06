@@ -18,6 +18,13 @@ import installDrawer from './install-drawer.vue'
 import axios from 'axios'
 import mdDescription from './md-description.vue'
 
+// 测试
+// let t = {
+//     'docs/.order': "docs/sdf.md,docs/asdf.md",
+//     'docs/asdf.md': "aaaaa",
+//     'docs/sdf.md': "ssss",
+//     'readme.md': "<h1 align=\"center\">\n<img src=\"https://cdn.w7.cc/dpanel/dpanel-logo.png\" alt=\"DPanel\" width=\"500\" />\n</h1>\n<h4 align=\"center\"> 轻量化容器管理面板；优雅的管理 Docker、Podman 容器。 </h4>"
+// }
 export default {
     data(){
         return {

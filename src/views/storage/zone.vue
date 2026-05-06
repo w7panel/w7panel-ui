@@ -66,10 +66,13 @@
                                 <div class="df df-c ai-c">
                                     <!-- <a-progress :percent="record.usedSizeNum / record.storageSizeNum" style="width:100px;" :status="(record.usedSizeNum / record.storageSizeNum)>=1?'danger':'normal'" :stroke-width="10" trackColor="rgb(var(--primary-2))" :show-text="false" /> -->
                                     <div class="custom-progress">
-                                        <div v-if="record.snapShotNum" class="progress-wraning" :style="{width:(record.snapShotNum / record.storageSizeNum * 100)+'%' }"></div>
+                                        <!-- <div v-if="record.snapShotNum" class="progress-wraning" :style="{width:(record.snapShotNum / record.storageSizeNum * 100)+'%' }"></div> -->
                                         <div class="progress-primary" :style="{width:(record.usedSizeNum / record.storageSizeNum * 100)+'%'}"></div>
                                     </div>
-                                    <span class="fs-12 mt-4 lh-1">{{record.snapShotNum?`${record.snapShot} / `:''}}{{record.usedSize}} / {{record.storageSize}}</span>
+                                    <span class="fs-12 mt-4 lh-1">
+                                        <!-- {{record.snapShotNum?`${record.snapShot} / `:''}} -->
+                                        {{record.usedSize}} / {{record.storageSize}}
+                                    </span>
                                 </div>
                             </template>
                         </a-table-column>
@@ -94,7 +97,7 @@
                         <a-table-column title="绑定状态">
                             <template #cell="{ record }">
                                 <span>{{record.bindstatus||'-'}}</span>
-                                <span v-if="record.state=='attached'">（{{ record.lockNodeId }}）</span>
+                                <span v-if="record.state=='attached' && record.lockNodeId">（{{ record.lockNodeId }}）</span>
                                 
                                 <a-dropdown>
                                     <span v-if="record.state=='attached'||record.state=='detached'" class="ml-10 c-blue cursor zone-operation-dropdown">操作<icon-down/></span>
@@ -115,11 +118,15 @@
                         <a-table-column title="创建时间">
                             <template #cell="{ record }">{{record.create || '-'}}</template>
                         </a-table-column>
-                        <a-table-column title="操作" fixed='right'>
+                        <a-table-column title="操作" fixed='right' width="240">
                             <template #cell="{ record }">
                                 <span v-if="hasLonghornSystem && !record.isExpanding" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
                                 <span v-if="record.isExpanding" class="c-blue cursor mr-20" @click="cancelExpand(record)">取消扩容</span>
 
+                                <span class="operation c-blue cursor mr-20" :class="tfloading.includes(record.name)?'disabled':''" @click="trimFilesystem(record)">
+                                    <span>碎片整理</span>
+                                    <icon-loading v-if="tfloading.includes(record.name)" class="ml-4" />
+                                </span>
                                 <!-- <span v-if="record.state=='detached'" class="c-blue cursor mr-20" @click="openAttach(record)">绑定</span>
                                 <span v-if="record.state=='attached'" class="c-blue cursor mr-20" @click="openDetach(record)">分离</span> -->
                                 <!-- <span class="c-blue cursor mr-20" v-if="!record.pvDisabled" @click="openPvpvc(record)">创建pv/pvc</span> -->
@@ -152,9 +159,12 @@
         <a-modal :visible="attach.show" title="挂载" @ok="submitAttach" @cancel="attach.show=false;">
             <a-form :model="attach" auto-label-width>
                 <a-form-item label="节点">
-                    <a-select v-model="attach.hostId" placeholder="请选择节点" :loading="attach.nodeLoading">
-                        <a-option v-for="n in nodeList" :key="n" :label="n" :value="n"></a-option>
-                    </a-select>
+                    <div class="df df-c" style="flex:1;">
+                        <a-select v-model="attach.hostId" placeholder="请选择节点" :loading="attach.nodeLoading">
+                            <a-option v-for="n in nodeList" :key="n" :label="n" :value="n"></a-option>
+                        </a-select>
+                        <a-checkbox v-model="attach.lock" class="mt-10">锁定</a-checkbox>
+                    </div>
                 </a-form-item>
             </a-form>
         </a-modal>
@@ -221,6 +231,8 @@ export default {
                 hostId: '',
             },
             nodeList: [],
+            testExpanding: null,
+            tfloading: [],
         }
     },
     created(){
@@ -235,7 +247,20 @@ export default {
         zoneDrawer,
         IconBookmark,
     },
+    beforeUnmount(){
+        clearTimeout(this.testExpanding);
+    },
     methods: {
+        trimFilesystem(row){
+            this.tfloading.push(row.name);
+            // /longhorn/volumes/:volumeName/trim-filesystem
+            panelApi.get(`/longhorn/volumes/${row.volumeName}/trim-filesystem`).then(()=>{
+                this.$message.success('碎片整理成功');
+                this.getList();
+            }).finally(()=>{
+                this.tfloading = this.tfloading.filter(item=>item!=row.name);
+            });
+        },
         // 挂载
         openAttach(record){
             this.attach = {
@@ -244,6 +269,7 @@ export default {
                 volumeName: record.volumeName,
                 hostId: '',
                 nodeLoading: false,
+                lock: false,
             };
             if(!this.nodeList.length){
                 this.getNodeList();
@@ -256,6 +282,7 @@ export default {
             }
             panelApi.post(`/longhorn/volumes/${this.attach.volumeName}/attach`,{
                 hostId: this.attach.hostId,
+                disableFrontend: this.attach.lock,
             }).then(()=>{
                 this.attach.show = false;
                 this.$message.success('挂载成功');
@@ -442,6 +469,12 @@ export default {
                     i.isCustom = arr.includes(i.name);
                     i.isDefault = i.name == this.customsDefault;
                 });
+                if(this.list.filter(i=>i.isExpanding)?.length){
+                    clearTimeout(this.testExpanding);
+                    this.testExpanding = setTimeout(()=>{
+                        this.getList();
+                    },5000)
+                }
                 this.list1 = this.list.filter(i=>i.isCustom&&!i.onlyshow);
                 this.list2 = this.list.filter(i=>!i.isCustom||i.onlyshow);
                 // console.log(this.list1,this.list2)
@@ -808,5 +841,10 @@ export default {
 }
 .zone-operation-dropdown.arco-dropdown-open .arco-icon-down {
   transform: rotate(180deg);
+}
+
+.operation.disabled{
+    color: var(--color-primary-light-3);
+    cursor: not-allowed;
 }
 </style>

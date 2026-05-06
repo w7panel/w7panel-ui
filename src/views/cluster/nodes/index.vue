@@ -34,7 +34,7 @@
                                 </div>
                                 <div class="mt-4">
                                     <a-tag color="arcoblue" size="small" bordered>{{record.master?'master':'agent'}}</a-tag>
-                                    <a-tag v-if="record.controlPlane" class="ml-10" color="arcoblue" size="small" bordered>control plane</a-tag>
+                                    <a-tag v-if="record.controlPlane" class="ml-10" color="arcoblue" size="small" bordered>control-plane</a-tag>
                                     <a-tag v-if="record.customTag" class="ml-10" color="arcoblue" size="small" bordered>{{record.customTag}}</a-tag>
                                     <a-tag v-if="record.storageTag" class="ml-10" color="arcoblue" size="small" bordered>storage</a-tag>
                                 </div>
@@ -844,7 +844,7 @@ export default {
             callback && callback();
         },
         openForm(){
-            let ip = this.list?.find(i=>i.master)?.internalIP;
+            let ip = this.list?.find(i=>i.controlPlane)?.internalIP;
             if(!ip){return}
             this.form.defaultURL = 'https://' + ip + ':6443';
             k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/pods",{
@@ -1038,7 +1038,7 @@ export default {
                         labels: item.metadata.labels,
                         taints: item.spec.taints,
                         master: item?.metadata?.labels?.['node-role.kubernetes.io/master'],
-                        controlPlane: item?.metadata?.labels?.['node-role.kubernetes.io/control-plane'],
+                        controlPlane: item?.metadata?.labels?.['node-role.kubernetes.io/control-plane'] == 'true',
                         customTag: item?.metadata?.labels?.['node-role.kubernetes.io/custom'],
                         storage: item?.metadata?.labels?.['node.kubernetes.io/storage'],
                         storageTag: item?.metadata?.labels?.['node-role.kubernetes.io/storage'] === 'true',
