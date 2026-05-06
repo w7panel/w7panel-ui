@@ -58,7 +58,10 @@ export default{
             bus.$emit("routeChange", v);
         },
         getFront(appgroup){
-            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+appgroup).then(res=>{
+            
+            // k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+appgroup).then(res=>{
+
+            panelApi.get(`/microapp/${appgroup}/info`).then(res=>{
                 let item  = res?.data;
                 if(!item){return}
 
