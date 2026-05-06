@@ -324,6 +324,7 @@ export default {
                 month: 30,
                 year: 12 * 30,
             },
+            expandOriginData: {},
             info: {
                 cpu: '',
                 memory: '',
@@ -505,10 +506,10 @@ export default {
                 storage: this.info?.cost?.storage || 0,
             }
             let nums = {
-                cpu: this.info?.cpu || 0,
-                memory: this.info?.memory || 0,
-                storage: this.info?.storage || 0,
-                bandwidth: this.info?.bandwidth || 0,
+                cpu: Number(this.info?.cpu - this.expandOriginData?.cpu) || 0,
+                memory: Number(this.info?.memory - this.expandOriginData?.memory) || 0,
+                storage: Number(this.info?.storage - this.expandOriginData?.storage) || 0,
+                bandwidth: Number(this.info?.bandwidth - this.expandOriginData?.bandwidth) || 0,
             }
             
             let time = this.priceTimes;
@@ -751,6 +752,9 @@ export default {
                 await panelApi.get(`/k3k/cvm/v1/${this.$route.query.cvmNamespace}/info/${this.$route.query.cvmName}`).then(res=>{
                     let status = res.data?.status || {};
                     let effectiveResource = status?.effectiveResource || {};
+                    this.expandOriginData = {
+                        ...effectiveResource,
+                    }
                     this.info = {
                         ...this.info,
                         ...effectiveResource,
@@ -782,6 +786,9 @@ export default {
                     storage: Number(initVal.storage),
                 }
                 
+                this.expandOriginData = {
+                    ...initVal,
+                }
                 this.info = {
                     ...this.info,
                     ...initVal,
@@ -1114,6 +1121,12 @@ export default {
                 memory: 4,
                 storage: 10,
                 bandwidth: 1,
+            }
+            if(this.isExpand){
+                minval = {
+                    ...minval,
+                    ...this.expandOriginData,
+                }
             }
             let maxval = {
                 cpu: this.maxs.cpu? Math.min(16,this.maxs.cpu) : 16,

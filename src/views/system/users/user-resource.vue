@@ -359,9 +359,10 @@ export default {
             })
         },
         getData(){
-            panelApi.get('/metrics/usage/normal',{
-                customToken: this.loginInfo.token,
-            }).then(res=>{
+            // panelApi.get('/metrics/usage/normal',{
+            //     customToken: this.loginInfo.token,
+            // }).then(res=>{
+            panelApi.get(`/metrics/usage/cvm/${this.$route.query.namespace}/name/${this.$route.query.username}/normal`,{noAlert:true}).then(res=>{
                 let data = res.data;
 
                 let cpu = data?.cpu?.total || 0;
@@ -389,9 +390,11 @@ export default {
                 this.info.memoryPercent = Number((usedMemory / memory).toFixed(2));
             })
             
-            panelApi.get('/metrics/usage/disk',{                
-                customToken: this.loginInfo.token,
-            }).then(res=>{
+            // panelApi.get('/metrics/usage/disk',{
+            //     customToken: this.loginInfo.token,
+            // }).then(res=>{
+            
+            panelApi.get(`/metrics/usage/cvm/${this.$route.query.namespace}/name/${this.$route.query.username}/disk`,{noAlert:true}).then(res=>{ 
                 let data = res?.data;
 
                 let fs = data?.disk?.total || 0;
