@@ -16,7 +16,7 @@
                         <a-tooltip content="编辑">
                             <i class="opt-icon" @click="toEdit(record,'cronjob')"><icon-edit /></i>
                         </a-tooltip>
-                        <a-popconfirm v-if="!record.isgroup" :content="'确认要删除吗'" @ok="toDelete(record)" position="lt">
+                        <a-popconfirm v-if="!record.isgroup" :content="'确认要删除吗'" @ok="toDelete(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <a-tooltip content="删除">
                                 <i class="opt-icon"><icon-delete /></i>
                             </a-tooltip>

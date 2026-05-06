@@ -27,7 +27,7 @@
                             <icon-code />
                         </span>
                     </a-tooltip>
-                    <a-popconfirm content="确定要删除该任务吗" @ok="toDelete(item)" position="lt">
+                    <a-popconfirm content="确定要删除该任务吗" @ok="toDelete(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                         <a-tooltip content="删除">
                             <span class="opt-icon">
                                 <icon-delete />

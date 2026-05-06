@@ -25,7 +25,7 @@
                     </a-table-column>
                     <a-table-column title="操作">
                         <template #cell="{ record,rowIndex }">
-                            <a-popconfirm :content="'确认要删除吗'" @ok="del(record,rowIndex)" position="lt">
+                            <a-popconfirm :content="'确认要删除吗'" @ok="del(record,rowIndex)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <span :id="'whitelist-remove-'+rowIndex" class="c-blue cursor operation">删除</span>
                             </a-popconfirm>
                         </template>

@@ -72,7 +72,7 @@
                                     </div>
                                 </template>
                             </a-popover>
-                            <a-popconfirm :content="'确认要删除吗'" @ok="del(record,rowIndex)" position="lt">
+                            <a-popconfirm :content="'确认要删除吗'" @ok="del(record,rowIndex)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-tooltip content="删除">
                                     <i class="opt-icon"><icon-delete /></i>
                                 </a-tooltip>

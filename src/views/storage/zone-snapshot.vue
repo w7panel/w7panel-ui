@@ -30,7 +30,7 @@
                     <a-table-column title="创建时间" data-index="creationTimestamp"></a-table-column>
                     <a-table-column title="操作">
                         <template #cell="{ record }">
-                            <a-popconfirm content="确定要删除吗？" @ok="del(record)" position="lt" >
+                            <a-popconfirm content="确定要删除吗？" @ok="del(record)" position="lt"  class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <span :id="'snapshot-'+record.name" class="c-blue cursor">删除</span>
                             </a-popconfirm>
                         </template>

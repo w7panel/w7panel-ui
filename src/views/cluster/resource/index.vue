@@ -68,7 +68,7 @@
                                 </span>
                             </a-tooltip>
 
-                            <a-popconfirm content="确定要删除该资源吗" @ok="toDelete(item.getdetail)" position="lt">
+                            <a-popconfirm content="确定要删除该资源吗" @ok="toDelete(item.getdetail)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-tooltip content="删除">
                                     <span class="opt-icon">
                                         <icon-delete />

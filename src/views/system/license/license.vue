@@ -43,11 +43,11 @@
                             <!-- <span v-if="!record.tls_crt" class="cursor c-blue mr-10" @click="createLicense(record)">生成授权码</span> -->
                             <span v-if="record.can_renew" class="cursor c-blue mr-10" @click="openBuyLicense()">续费</span>
                             
-                            <a-popconfirm v-if="record.can_auth" content="确定授权吗" @ok="inputLicense(record)">
+                            <a-popconfirm v-if="record.can_auth" content="确定授权吗" @ok="inputLicense(record)" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <span class="cursor c-blue mr-10">授权</span>
                             </a-popconfirm>
                             
-                            <a-popconfirm v-if="record.can_cancel" content="确定取消授权吗" @ok="cancel(record)">
+                            <a-popconfirm v-if="record.can_cancel" content="确定取消授权吗" @ok="cancel(record)" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <span class="cursor c-blue mr-10">取消授权</span>
                             </a-popconfirm>
 

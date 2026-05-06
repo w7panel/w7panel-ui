@@ -15,7 +15,7 @@
                         <div class="df">
                             <a-button class="ml-10 df-s0">更新</a-button>
                             
-                            <a-popconfirm :content="'确认要卸载吗'" @ok="uninstall" position="bottom">
+                            <a-popconfirm :content="'确认要卸载吗'" @ok="uninstall" position="bottom" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-button class="ml-10 df-s0">卸载</a-button>
                             </a-popconfirm>
                         </div>

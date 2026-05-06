@@ -133,14 +133,14 @@
                                             <icon-tag />
                                         </span>
                                     </a-tooltip>
-                                    <a-popconfirm content="驱逐功能会将当前节点下所有的pod驱逐并按照相应策略重新分配应用，是否继续执行" @ok="openFuu(record)" position="lt">
+                                    <a-popconfirm content="驱逐功能会将当前节点下所有的pod驱逐并按照相应策略重新分配应用，是否继续执行" @ok="openFuu(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                         <a-tooltip content="驱逐">
                                             <span class="opt-icon">
                                                 <icon-loop />
                                             </span>
                                         </a-tooltip>
                                     </a-popconfirm>
-                                    <a-popconfirm content="是否删除节点" @ok="toDelete(record)" position="lt">
+                                    <a-popconfirm content="是否删除节点" @ok="toDelete(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                         <a-tooltip content="删除">
                                             <span class="opt-icon">
                                                 <icon-delete />

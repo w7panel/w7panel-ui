@@ -98,7 +98,7 @@
                             <span class="c-blue cursor ml-10" @click="loginPanel(record)">登录面板</span>
                             <span v-if="record.canExpandBuy && !record.isExpired" class="c-blue cursor ml-10" @click="$router.push('/order-base/index?expand=true&cvmName='+record.name+'&cvmNamespace='+record.namespace+'&expireTime='+record.expireTime)">扩容</span>
                             <span v-if="record.canRenewBuy" class="c-blue cursor ml-10" @click="$router.push('/order-base/index?renew=true&cvmName='+record.name+'&cvmNamespace='+record.namespace)">续费</span>
-                            <a-popconfirm v-if="userMode=='founder'" content="确定删除该资源？" @ok="deleteResource(record)">
+                            <a-popconfirm v-if="userMode=='founder'" content="确定删除该资源？" @ok="deleteResource(record)" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <span class="c-blue cursor ml-10">删除</span>
                             </a-popconfirm>
                         </template>

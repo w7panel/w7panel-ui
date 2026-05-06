@@ -176,7 +176,7 @@
                                     <icon-code-square />
                                 </span>
                             </a-tooltip>
-                            <a-popconfirm content="是否确定销毁容器并重建" @ok="deleteRow(record)" position="lt">
+                            <a-popconfirm content="是否确定销毁容器并重建" @ok="deleteRow(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-tooltip content="销毁重建">
                                     <span class="opt-icon">
                                         <icon-delete />

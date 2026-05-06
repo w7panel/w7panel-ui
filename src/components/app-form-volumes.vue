@@ -122,7 +122,7 @@
                                     <span :class="{'lh-1':data.value}" style="white-space: pre-wrap; word-break: break-all;">{{ data.label }}</span>
                                     <span>
                                         <span v-if="data.value" class="df-s0 ml-10 c-blue cursor"  @click.stop="cfgEdit={show:true,id:data.value,type:'configmap'}">编辑</span>
-                                        <a-popconfirm v-if="data.value" content="确定要删除吗" @ok="deleteConfigmap(data.value);(edit.configmapName==data.value) && (edit.configmapName='');" position="lt">
+                                        <a-popconfirm v-if="data.value" content="确定要删除吗" @ok="deleteConfigmap(data.value);(edit.configmapName==data.value) && (edit.configmapName='');" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                             <span class="df-s0 ml-10 c-blue cursor" @click.stop>删除</span>
                                         </a-popconfirm>
                                     </span>
@@ -169,7 +169,7 @@
                                     <span :class="{'lh-1':data.value}" style="white-space: pre-wrap; word-break: break-all;">{{ data.label }}</span>
                                     <span>
                                         <span v-if="data.value" class="df-s0 ml-10 c-blue cursor"  @click.stop="cfgEdit={show:true,id:data.value,type:'secret'}">编辑</span>
-                                        <a-popconfirm v-if="data.value" content="确定要删除吗" @ok="deleteSecret(data.value);(edit.secretName==data.value) && (edit.secretName='');" position="lt">
+                                        <a-popconfirm v-if="data.value" content="确定要删除吗" @ok="deleteSecret(data.value);(edit.secretName==data.value) && (edit.secretName='');" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                             <span class="df-s0 ml-10 c-blue cursor" @click.stop>删除</span>
                                         </a-popconfirm>
                                     </span>

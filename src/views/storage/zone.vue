@@ -123,7 +123,7 @@
                                 <!-- <span v-if="record.state=='detached'" class="c-blue cursor mr-20" @click="openAttach(record)">绑定</span>
                                 <span v-if="record.state=='attached'" class="c-blue cursor mr-20" @click="openDetach(record)">分离</span> -->
                                 <!-- <span class="c-blue cursor mr-20" v-if="!record.pvDisabled" @click="openPvpvc(record)">创建pv/pvc</span> -->
-                                <a-popconfirm v-if="!record.onlyshow" content="确定要删除吗？" @ok="del(record)" position="lt" >
+                                <a-popconfirm v-if="!record.onlyshow" content="确定要删除吗？" @ok="del(record)" position="lt"  class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                     <span :id="'disk-'+record.name" class="c-blue cursor">删除</span>
                                 </a-popconfirm>
                             </template>

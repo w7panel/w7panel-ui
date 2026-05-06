@@ -117,7 +117,7 @@
                     <div v-for="(item,index) in appgroups" :key="index" class="df jc-b ai-c">
                         <span>{{ item.title }}</span>
 
-                        <a-popconfirm content="确定要删除吗" @ok="deleteAppgroup(item)" position="lt">
+                        <a-popconfirm content="确定要删除吗" @ok="deleteAppgroup(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <span class="c-blue cursor">删除</span>
                         </a-popconfirm>
                     </div>

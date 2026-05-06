@@ -102,7 +102,7 @@
                                         <i class="opt-icon hovershow"><icon-reply /></i>
                                     </a-tooltip>
                                     
-                                    <a-popconfirm v-if="record.clusterStatus=='wait'||record.clusterStatus=='creating'" :content="'确定快速回收吗'" @ok="quickCsReady(record)" position="tr">
+                                    <a-popconfirm v-if="record.clusterStatus=='wait'||record.clusterStatus=='creating'" :content="'确定快速回收吗'" @ok="quickCsReady(record)" position="tr" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                         <a-tooltip content="快速回收">
                                             <i class="opt-icon hovershow"><icon-close /></i>
                                         </a-tooltip>
@@ -151,7 +151,7 @@
                                     <icon-code-square />
                                 </span>
                             </a-tooltip>
-                            <a-popconfirm v-if="record.userMode!=='founder'" :content="'确认要删除吗'" @ok="del(record,rowIndex)" position="lt">
+                            <a-popconfirm v-if="record.userMode!=='founder'" :content="'确认要删除吗'" @ok="del(record,rowIndex)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-tooltip content="删除">
                                     <i class="opt-icon"><icon-delete /></i>
                                 </a-tooltip>

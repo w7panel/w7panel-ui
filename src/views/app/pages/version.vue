@@ -56,12 +56,12 @@
                             <a-tooltip v-if="debug" content="yaml">
                                 <i class="opt-icon" @click="openYaml(item)"><icon-code /></i>
                             </a-tooltip>
-                            <a-popconfirm v-if="activeVersion!=item.revision" content="确定要回滚到当前版本吗" @ok="rollback(item)" position="lt">
+                            <a-popconfirm v-if="activeVersion!=item.revision" content="确定要回滚到当前版本吗" @ok="rollback(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-tooltip v-if="activeVersion!=item.revision" content="回滚">
                                     <i class="opt-icon"><icon-undo /></i>
                                 </a-tooltip>
                             </a-popconfirm>
-                            <a-popconfirm v-if="activeVersion!=item.revision" content="确定要删除吗" @ok="toDelete(item)" position="lt">
+                            <a-popconfirm v-if="activeVersion!=item.revision" content="确定要删除吗" @ok="toDelete(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-tooltip content="删除">
                                     <i class="opt-icon"><icon-delete /></i>
                                 </a-tooltip>
@@ -69,7 +69,7 @@
 
                             <!-- <span class="cursor c-blue operation" @click="selDiff(item)">diff</span>
                             <span class="cursor c-blue operation" @click="openYaml(item)">YAML</span>
-                            <a-popconfirm content="确定要删除吗" @ok="toDelete(item)">
+                            <a-popconfirm content="确定要删除吗" @ok="toDelete(item)" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <span class="cursor c-blue operation">删除</span>
                             </a-popconfirm> -->
                         </td>

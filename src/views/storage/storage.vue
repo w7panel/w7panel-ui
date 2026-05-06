@@ -32,7 +32,7 @@
                         <a-tooltip content="修改">
                             <i class="opt-icon" @click="openForm(item.name)"><icon-edit /></i>
                         </a-tooltip>
-                        <a-popconfirm content="确定要删除吗" @ok="del(item)" position="lt">
+                        <a-popconfirm content="确定要删除吗" @ok="del(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <a-tooltip content="删除">
                                 <i class="opt-icon"><icon-delete /></i>
                             </a-tooltip>
@@ -41,7 +41,7 @@
                         <!-- <span class="cursor c-blue operation" @click="openYaml(item)">YAML</span> -->
                         <!-- <span class="cursor c-blue operation" @click="toEdit(item)">修改</span> -->
                         <!-- <span class="cursor c-blue operation" @click="openForm(item.name)">修改</span>
-                        <a-popconfirm content="确定要删除吗" @ok="del(item)">
+                        <a-popconfirm content="确定要删除吗" @ok="del(item)" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <span class="cursor c-blue operation">删除</span>
                         </a-popconfirm> -->
                     </td>
