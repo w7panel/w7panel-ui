@@ -107,6 +107,7 @@
         :data="buildContainerImage.data"
         :serverInfo="buildContainerImage.serverInfo"
         @complete="buildContainerImage.callback"
+        @reject="buildContainerImage.rejectCallback"
         @close="buildContainerImage.show=false;"
     ></build-image-status>
 
@@ -242,12 +243,13 @@ export default {
         buildImageStatus,
     },
     methods: {
-        async openBuildContainerImage({podName,cmd,containerName,imageName},callback){
+        async openBuildContainerImage({podName,cmd,containerName,imageName,pinned,updateImage},callback,rejectCallback){
             console.log({podName,cmd,containerName,imageName})
-            let {containerID,ip} = await k8sproxy.get("/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
+            let {containerID,ip,ownerRef} = await k8sproxy.get("/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
                 loading: true,
             }).then(res=>{
                 return {
+                    ownerRef: res?.data?.metadata?.ownerReferences?.[0],
                     containerID: res?.data?.status?.containerStatuses?.[0]?.containerID,
                     ip: res?.data?.status?.hostIP,
                 };
@@ -263,6 +265,9 @@ export default {
                 containerName,
                 podName,
                 containerID,
+                updateImage,
+                pinned,
+                ownerRef,
             }
             let image = imageName?.replace?.(/^([a-zA-Z0-9.-]+)(:\d+)?\//, '') || '';
             o.namespace = /^.+\/.+$/.test(image)? image.replace?.(/\/[^\/]*$/, '') : this.namespaceActive;
@@ -285,6 +290,7 @@ export default {
                     imageName: imageName,
                 });
             }
+            this.buildContainerImage.rejectCallback = rejectCallback||(()=>{});
             this.buildContainerImage.show = true;
         },
         // 制品库应用配置
