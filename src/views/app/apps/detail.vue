@@ -12,7 +12,7 @@
                                 <IconUserGroup />
                                 <span class="ml-10">{{ role.title }}</span>
                             </div>
-                            <a-menu v-if="role.menus && role.menus.length" style="width:100%;" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
+                            <a-menu v-if="role.menus && role.menus.length" style="width:100%;" :level-indent="34" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
                                 <template v-for="(menu,index) in role.menus" :key="menu.do">
                                     <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
                                         <template #icon>

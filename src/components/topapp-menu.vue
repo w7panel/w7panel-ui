@@ -18,6 +18,7 @@
             <a-menu
                 :show-collapse-button="appStore.device !== 'mobile'"
                 @collapse="setCollapse"
+                :level-indent="34"
                 style="width:100%;height:100%;"
                 v-model:selected-keys="selectMenu"
                 @menu-item-click="handelMicroMenu"
