@@ -11,7 +11,8 @@ import baseConfig from './vite.config.base';
 
 // const proxyUrl = 'http://218.23.2.48:9090';
 
-const proxyUrl = 'http://172.16.1.162:9090';
+// const proxyUrl = 'http://172.16.1.162:9090';
+const proxyUrl = 'http://218.23.2.48:9090';
 // const proxyUrl =  'http://120.209.216.232:9090';
 // const proxyUrl = 'https://idc.w7.com';
 // const proxyUrl = 'https://k3s.mixi.city';
