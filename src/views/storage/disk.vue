@@ -531,13 +531,13 @@ export default {
                 }else{
                     this.list = list;
                 }
-                // let extra = this.storageClasses.filter(i=>{
-                //     return !this.list.find(li=>li.name==i.name)
-                // }).map(i=>{
-                //     i.isExtra = true
-                //     return i;
-                // })
-                // this.list = this.list.concat(extra);
+                let extra = this.storageClasses.filter(i=>{
+                    return !(this.list.find(li=>li.name==i.name) || i.name=='longhorn' || i.name=='longhorn-static')
+                }).map(i=>{
+                    i.isExtra = true
+                    return i;
+                })
+                this.list = this.list.concat(extra);
             })
 
             // k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/volumes`,{
