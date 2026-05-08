@@ -59,11 +59,15 @@
                             <a-table-column title="名称">
                                 <template #cell="{ record }">
                                     <span>{{record.name}}</span>
-                                    <a-tag v-for="(item, index) of record.tags.filter(t=>/^union\d+$/.test(t))" :key="index" size="small" color="blue" class="ml-4" bordered>{{ item }}</a-tag>
+                                    <template v-if="!record.isExtra">
+                                        <a-tag v-for="(item, index) of record.tags.filter(t=>/^union\d+$/.test(t))" :key="index" size="small" color="blue" class="ml-4" bordered>{{ item }}</a-tag>
+                                    </template>
                                 </template>
                             </a-table-column>
                             <a-table-column title="路径">
-                                <template #cell="{ record }">{{record.path}}</template>
+                                <template #cell="{ record }">
+                                    <span v-if="!record.isExtra">{{record.path}}</span>
+                                </template>
                             </a-table-column>
                             <!-- <a-table-column title="标签">
                                 <template #cell="{ record }">
@@ -72,9 +76,11 @@
                             </a-table-column> -->
                             <a-table-column title="操作">
                                 <template #cell="{ record }">
-                                    <span v-if="userMode!='cluster'" class="c-blue cursor" @click="bindNode(record)">绑定节点</span>
-                                    <span v-if="permission.includes('storage-node-edit')" class="c-blue cursor ml-10" @click="openForm(record)">编辑</span>
-                                    <span v-if="!record.node&&permission.includes('storage-node-delete')" class="c-blue cursor ml-10" @click="deleteRow(record)">删除</span>
+                                    <template v-if="!record.isExtra">
+                                        <span v-if="userMode!='cluster'" class="c-blue cursor" @click="bindNode(record)">绑定节点</span>
+                                        <span v-if="permission.includes('storage-node-edit')" class="c-blue cursor ml-10" @click="openForm(record)">编辑</span>
+                                        <span v-if="!record.node&&permission.includes('storage-node-delete')" class="c-blue cursor ml-10" @click="deleteRow(record)">删除</span>
+                                    </template>
                                     <!-- <a-popconfirm v-if="!record.node" :content="'确认要删除吗'" @ok="delRow(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                         <span class="c-blue cursor ml-10">删除</span>
                                     </a-popconfirm> -->
@@ -91,9 +97,6 @@
                             <table v-if="record.detailList && record.detailList.length" class="com-table" style="min-width:1400px;"><tbody>
                                 <tr>
                                     <td>节点</td>
-                                    <!-- <td>路径</td> -->
-                                    <!-- <td>标签</td> -->
-                                    
                                     <td>状态</td>
                                     <td>副本数</td>
                                     <td>
@@ -118,10 +121,6 @@
                                 </tr>
                                 <tr v-for="item in record.detailList" :key="item.node">
                                     <td>{{item.node}}</td>
-                                    <!-- <td>{{item.path}}</td> -->
-                                    <!-- <td>
-                                        <a-tag v-for="tag in item.tags" :key="tag" color="arcoblue" style="margin:0 4px 0 4px;">{{tag}}</a-tag>
-                                    </td> -->
                                     <td>{{item.status}}</td>
                                     <td>{{item.replicas}}</td>
                                     <td>
@@ -143,12 +142,7 @@
                                         </div>
                                     </td>
                                     <td>
-                                         <!-- && item.storageScheduled==0 -->
-                                        <span v-if="!item.allowScheduling&&permission.includes('storage-node-delete')" class="c-blue cursor ml-10" @click="deleteRow(item)">删除</span>
-                                        <!-- <a-popconfirm v-if="!item.allowScheduling && item.storageScheduled==0" :content="'确认要删除吗'" @ok="delRow(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                            <span class="c-blue cursor ml-10">删除</span>
-                                        </a-popconfirm> -->
-                                        <span @click="editDisk(item.node,item.name,{allowScheduling:!item.allowScheduling,evictionRequested:false})" class="c-blue cursor ml-10">{{item.allowScheduling?'禁用':'取消禁用'}}</span>
+                                        <span v-if="!item.allowScheduling&&permission.includes('storage-node-delete')" class="c-blue cursor ml-10" @click="deleteRow(item)">删除</span>                                        <span @click="editDisk(item.node,item.name,{allowScheduling:!item.allowScheduling,evictionRequested:false})" class="c-blue cursor ml-10">{{item.allowScheduling?'禁用':'取消禁用'}}</span>
                                         <span @click="editDisk(item.node,item.name,{allowScheduling:false,evictionRequested:!item.evictionRequested})" class="c-blue cursor ml-10">{{!item.evictionRequested?'驱逐':'取消驱逐'}}</span>
                                     </td>
                                 </tr>
@@ -537,6 +531,13 @@ export default {
                 }else{
                     this.list = list;
                 }
+                // let extra = this.storageClasses.filter(i=>{
+                //     return !this.list.find(li=>li.name==i.name)
+                // }).map(i=>{
+                //     i.isExtra = true
+                //     return i;
+                // })
+                // this.list = this.list.concat(extra);
             })
 
             // k8sproxy.get(`/k8s-proxy/api/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/volumes`,{
