@@ -108,7 +108,7 @@ const toInit = ({ errors, values, })=>{
     if (errors) { return };
     panelApi.post('/auth/init-user',{
         username: values.username,
-        password: values.pwd,
+        password: encodeURIComponent(values.pwd),
     }).then(res=>{
         Message.success('初始化成功');
         canInitUser.init = false;
@@ -224,7 +224,10 @@ const submit = ({ errors, values, })=>{
 const handleSubmit = async () => {
     setLoading(true);
     try {
-        let {data} = await userStore.login(userInfo);
+        let {data} = await userStore.login({
+            ...userInfo,
+            password: encodeURIComponent(userInfo.password),
+        });
         console.log('loooooooooogin',data)
         const {data:k3kInfo} = await useK3kinfo();
         console.log('k3kinfo',k3kInfo)
