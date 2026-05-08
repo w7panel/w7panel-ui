@@ -83,7 +83,7 @@
 </template>
 <script>
 import { useNamespaceStore } from '@/store';
-import { panelApi } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { FitAddon } from '@xterm/addon-fit';
@@ -218,6 +218,7 @@ export default{
                     });
                     this.exec.status = 1;
                 }catch{
+                    this.$emit('reject','cmd');
                     this.exec.status = 2;
                 }
             }else{
@@ -256,10 +257,11 @@ export default{
                 }).then(async res=>{
                     this.imagePush.status = 1;
                     console.log('镜像推送成功');
-                    this.$emit('complete');
+                    this.$emit('complete',{imageName:this.preAddress + this.imageName});
                 }).catch(err=>{ 
                     console.log('镜像推送失败: ' + (err.response?.data?.message || err.message || '未知错误'));
                     this.imagePush.status = 2;
+                    this.$emit('reject','image')
                 });
             }catch(err){
                 console.log('镜像推送失败: ' + (err.response?.data?.message || err.message || '未知错误'));
@@ -277,6 +279,58 @@ export default{
                     noAlert: true,
                     // loading: true,
                 }).then(()=>{}).catch(()=>{});
+            }
+
+            if(buildContainer.updateImage){
+                this.onBuildComplete({
+                    newImage: this.preAddress + this.imageName,
+                    containerName: buildContainer.containerName,
+                    ownerRef: buildContainer.ownerRef,
+                });
+            }
+        },
+        
+        async onBuildComplete({newImage,containerName,ownerRef}){
+
+            try {
+                let kind = ownerRef.kind;
+                let name = ownerRef.name;
+                // 如果 owner 是 ReplicaSet，继续向上查找到 Deployment
+                if(kind === 'ReplicaSet'){
+                    let { data: rs } = await k8sproxy.get(`/apis/apps/v1/namespaces/${this.namespaceActive}/replicasets/${name}`);
+                    let deployRef = rs?.metadata?.ownerReferences?.[0];
+                    if(deployRef?.kind === 'Deployment'){
+                        kind = 'Deployment';
+                        name = deployRef.name;
+                    }
+                }
+
+                let kindApiMap = {
+                    'Deployment': 'apis/apps/v1',
+                    'StatefulSet': 'apis/apps/v1',
+                    'DaemonSet': 'apis/apps/v1',
+                    'Pod': 'api/v1',
+                };
+                let apiPrefix = kindApiMap[kind] || 'apis/apps/v1';
+                let resource = kind.toLowerCase() + 's';
+
+                // 查找容器在 spec.containers 中的索引
+                let { data: workload } = await k8sproxy.get(`${apiPrefix}/namespaces/${this.namespaceActive}/${resource}/${name}`);
+                let containers = workload?.spec?.template?.spec?.containers || [];
+                let idx = containers.findIndex(c => c.name === containerName);
+                if(idx === -1){ idx = 0; }
+
+                await k8sproxy.patch(`/${apiPrefix}/namespaces/${this.namespaceActive}/${resource}/${name}`, [{
+                    op: 'replace',
+                    path: `/spec/template/spec/containers/${idx}/image`,
+                    value: newImage,
+                }], {
+                    headers: {'Content-Type': 'application/json-patch+json'},
+                    loading: true,
+                });
+                this.$message.success('容器镜像已更新');
+            } catch(e) {
+                this.$message.error('更新容器镜像失败: ' + (e?.response?.data?.message || e.message));
             }
         },
         openLog(){

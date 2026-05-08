@@ -116,9 +116,13 @@
                 </a-form-item>
                 <a-form-item label="PINNED">
                     <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
-                        <a-checkbox v-model="buildContainer.pinned">设置为PINNED</a-checkbox>
+                        <a-switch v-model="buildContainer.pinned" />
                     </a-tooltip>
                 </a-form-item>
+                <a-form-item label="更新容器镜像">
+                    <a-switch v-model="buildContainer.updateImage"></a-switch>
+                </a-form-item>
+
             </a-form>
         </a-drawer>
         
@@ -184,6 +188,7 @@ export default {
                 containerName: '',
                 cmd: '',
                 pinned: false,
+                updateImage: false,
                 namespace: '',
                 imageName: '',
                 podName: '',
@@ -235,6 +240,8 @@ export default {
                 containerName: '',
                 cmd: '',
                 pinned: false,
+                updateImage: false,
+                ownerRef: null,
                 namespace: '',
                 imageName: '',
                 podName: '',
@@ -254,12 +261,13 @@ export default {
             let labelSelector = Object.keys(v.podMatchLabels).map(key=>`${key}=${v.podMatchLabels[key]}`).join(',');
             // 获取pod名称
             try{
-                let {podName,imageName,containerID,ip} = await k8sproxy.get("/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=" + labelSelector,{
+                let {podName,imageName,containerID,ip,ownerRef} = await k8sproxy.get("/api/v1/namespaces/" + this.namespaceActive + "/pods?labelSelector=" + labelSelector,{
                     loading: true,
                 }).then(res=>{
                     let imageName = res?.data?.items?.[0]?.spec?.containers?.[0]?.image;
                     imageName = imageName.replace(/-\d{10}$/,'');
                     return {
+                        ownerRef: res?.data?.items?.[0]?.metadata?.ownerReferences?.[0],
                         podName: res?.data?.items?.[0]?.metadata?.name,
                         imageName: imageName,
                         containerID: res?.data?.items?.[0]?.status?.containerStatuses?.[0]?.containerID,
@@ -283,6 +291,7 @@ export default {
                 
                 this.buildContainer.podName = podName;
                 this.buildContainer.containerID = containerID;
+                this.buildContainer.ownerRef = ownerRef;
                 
                 // console.table({podName,imageName,containerID})
             }catch{
