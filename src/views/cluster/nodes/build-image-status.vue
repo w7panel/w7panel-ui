@@ -226,6 +226,7 @@ export default{
                 this.exec.result = '';
             }
             if(this.exec.status==2){return;}
+            if(!this.visible){return}
 
             // 镜像推送
             try{
@@ -269,6 +270,7 @@ export default{
                 return;
             }
             if(this.imagePush.status==2){return;}
+            if(!this.visible){return}
             
             if(buildContainer.pinned){
                 await axios.post(this.serverInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
@@ -281,6 +283,7 @@ export default{
                 }).then(()=>{}).catch(()=>{});
             }
 
+            if(!this.visible){return}
             if(buildContainer.updateImage){
                 this.onBuildComplete({
                     newImage: this.preAddress + this.imageName,
