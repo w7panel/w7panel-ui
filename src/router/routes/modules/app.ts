@@ -408,6 +408,17 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 },
             },
             {
+                path: 'plugin/cluster-key-rate-limit',
+                name: 'app-plugin-cluster-key-rate-limit',
+                component: () => import('@/views/app/plugin/cluster-key-rate-limit.vue'),
+                meta: {
+                    locale: 'Cluster Key Rate Limit',
+                    hideInMenu: true,
+                    requiresAuth: true,
+                    roles: ['*'],
+                },
+            },
+            {
                 path: 'dblist',
                 name: 'database-list',
                 component: () => import('@/views/app/pages/to-cluster-db.vue'),
