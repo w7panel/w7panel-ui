@@ -180,6 +180,7 @@ import { k8sproxy } from '@/utils/api';
 const PLUGIN_LABEL = 'cluster-key-rate-limit';
 const DEFAULT_TITLE = '限流管理';
 const DEFAULT_IMAGE = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/key-cluster-rate-limit:1.0.0';
+const HIGRESS_NAMESPACE = 'higress-system';
 
 const thresholdOptions = [
     { label: '每秒', value: 'query_per_second' },
@@ -416,6 +417,90 @@ export default {
             }
             return true;
         },
+        isIpv4(value = '') {
+            const text = String(value).trim();
+            const parts = text.split('.');
+            if (parts.length !== 4) {
+                return false;
+            }
+            return parts.every((part) => {
+                if (!/^\d+$/.test(part)) {
+                    return false;
+                }
+                const num = Number(part);
+                return num >= 0 && num <= 255;
+            });
+        },
+        getRedisProxyServiceName(ip) {
+            return `redis-ip-${String(ip).trim().replace(/\./g, '-')}`;
+        },
+        async ensureRedisService() {
+            const redisHost = String(this.form.redis.service_name || '').trim();
+            if (!this.isIpv4(redisHost)) {
+                return redisHost;
+            }
+
+            const serviceName = this.getRedisProxyServiceName(redisHost);
+            const port = Number(this.form.redis.service_port || 6379);
+            const servicePath = `/api/v1/namespaces/${HIGRESS_NAMESPACE}/services/${serviceName}`;
+
+            const serviceExists = await k8sproxy
+                .get(servicePath, { noAlert: true })
+                .then(() => true)
+                .catch(() => false);
+
+            if (!serviceExists) {
+                const serviceData = {
+                    apiVersion: 'v1',
+                    kind: 'Service',
+                    metadata: {
+                        name: serviceName,
+                        namespace: HIGRESS_NAMESPACE,
+                        labels: {
+                            'w7.cc/created-by': 'cluster-key-rate-limit',
+                        },
+                    },
+                    spec: {
+                        ports: [
+                            {
+                                name: `tcp-${port}`,
+                                protocol: 'TCP',
+                                port,
+                                targetPort: port,
+                            },
+                        ],
+                    },
+                };
+                const endpointsData = {
+                    apiVersion: 'v1',
+                    kind: 'Endpoints',
+                    metadata: {
+                        name: serviceName,
+                        namespace: HIGRESS_NAMESPACE,
+                        labels: {
+                            'w7.cc/created-by': 'cluster-key-rate-limit',
+                        },
+                    },
+                    subsets: [
+                        {
+                            addresses: [{ ip: redisHost }],
+                            ports: [
+                                {
+                                    name: `tcp-${port}`,
+                                    port,
+                                    protocol: 'TCP',
+                                },
+                            ],
+                        },
+                    ],
+                };
+
+                await k8sproxy.post(`/api/v1/namespaces/${HIGRESS_NAMESPACE}/services`, serviceData);
+                await k8sproxy.post(`/api/v1/namespaces/${HIGRESS_NAMESPACE}/endpoints`, endpointsData);
+            }
+
+            return `${serviceName}.${HIGRESS_NAMESPACE}.svc.cluster.local`;
+        },
         validateDynamicForm() {
             if (this.form.mode === 'global_threshold') {
                 if (!this.form.global_threshold.period || !Number(this.form.global_threshold.value)) {
@@ -542,10 +627,15 @@ export default {
             }
 
             this.submitting = true;
-            const data = this.formToData();
-            const request = this.form.name
-                ? k8sproxy.put(`/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/${this.form.name}`, data)
-                : k8sproxy.post('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins', data);
+            const request = Promise.resolve()
+                .then(() => this.ensureRedisService())
+                .then((serviceName) => {
+                    this.form.redis.service_name = serviceName;
+                    const nextData = this.formToData();
+                    return this.form.name
+                        ? k8sproxy.put(`/apis/extensions.higress.io/v1alpha1/namespaces/${HIGRESS_NAMESPACE}/wasmplugins/${this.form.name}`, nextData)
+                        : k8sproxy.post(`/apis/extensions.higress.io/v1alpha1/namespaces/${HIGRESS_NAMESPACE}/wasmplugins`, nextData);
+                });
 
             request
                 .then(() => {
