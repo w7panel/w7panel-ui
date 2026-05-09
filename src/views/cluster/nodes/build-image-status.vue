@@ -134,6 +134,9 @@ export default{
         show(v){
             this.visible = v;
             v && this.init();
+            if(!v){
+                this.$emit('reject','close');
+            }
         },
     },
     created(){

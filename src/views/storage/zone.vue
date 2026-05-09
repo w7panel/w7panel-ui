@@ -96,11 +96,10 @@
 
                         <a-table-column title="绑定状态">
                             <template #cell="{ record }">
-                                <span>{{record.bindstatus||'-'}}</span>
-                                <span v-if="record.state=='attached' && record.lockNodeId">（{{ record.lockNodeId }}）</span>
+                                <span v-if="record.bindstatus">{{ record.lockNodeId }}（{{record.bindstatus}}）</span>
                                 
                                 <a-dropdown>
-                                    <span v-if="record.state=='attached'||record.state=='detached'" class="ml-10 c-blue cursor zone-operation-dropdown">操作<icon-down/></span>
+                                    <span v-if="record.state=='attached'||record.state=='detached'" class="ml-10 c-blue cursor zone-operation-dropdown" style="white-space:nowrap;">操作<icon-down/></span>
                                     <template #content>
                                         <a-doption v-if="record.state=='attached'&&record.isLock=='true'" @click="detach.volumeName=record.volumeName;detach.force=false;submitDetach();">解锁</a-doption>
                                         <a-doption v-if="record.state=='detached'" @click="openAttach(record)">绑定</a-doption>
@@ -838,6 +837,14 @@ export default {
 .zonelisttable :deep(tr:hover) .default-btn,
 .zonelisttable :deep(.arco-table-tr:hover) .default-btn {
     display: inline-flex;
+}
+.zone-operation-dropdown {
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.zonelisttable :deep(tr:hover) .zone-operation-dropdown,
+.zonelisttable :deep(.arco-table-tr:hover) .zone-operation-dropdown {
+    opacity: 1;
 }
 .zone-operation-dropdown.arco-dropdown-open .arco-icon-down {
   transform: rotate(180deg);

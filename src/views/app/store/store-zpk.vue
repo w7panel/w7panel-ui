@@ -43,22 +43,23 @@ export default{
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
-        this.getZpk();
+        // this.getZpk();
+        this.getInfo();
     },
     methods: {
-        getZpk(){
-            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ this.identifie +'&limit=500',{
-                loading: true,
-            }).then(res=>{
-                if(!res?.data?.items?.[0]){
-                    this.isInstall = false;
-                    return;
-                }
-                this.getInfo();
-            });
-        },
+        // getZpk(){
+        //     k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ this.identifie +'&limit=500',{
+        //         loading: true,
+        //     }).then(res=>{
+        //         if(!res?.data?.items?.[0]){
+        //             this.isInstall = false;
+        //             return;
+        //         }
+        //         this.getInfo();
+        //     });
+        // },
         getInfo(){
-            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.identifie,{noAlert:true}).then(res=>{
+            panelApi.get('/microapp/w7-zpkv2-root/info').then(res=>{
                 let item  = res?.data;
                 if(!item){ return; }
                 
@@ -137,6 +138,7 @@ export default{
                 url: this.info.frontendUrl + (this.menuActive || ''),
 // 测试
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.menuActive || ''),
+// url: 'https://idc.w7.com' + this.info.frontendUrl + (this.menuActive || ''),
                 el: '#zpkstore',
                 sync: true,
                 props: props,
