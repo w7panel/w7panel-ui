@@ -24,7 +24,7 @@
 
             <div v-if="activeTab === 'rate-limit'" class="tab-panel">
                 <a-spin :loading="loading">
-                    <a-form ref="formRef" :model="form" layout="vertical" auto-label-width>
+                    <a-form ref="formRef" :model="form" layout="" auto-label-width>
                         <a-form-item label="限流调试" class="debug-switch-item">
                             <a-switch v-model="form.show_limit_quota_header" />
                             <template #extra>开启后将在响应头中返回限流剩余额度，便于联调和排查。</template>
@@ -62,29 +62,30 @@
                                     <a-button status="danger" type="text" @click="removeRuleItem(index)">删除设置块</a-button>
                                 </div>
 
+                                <a-form-item label="限流类型">
+                                    <a-select v-model="item.limitType" placeholder="请选择限流类型" style="width: 320px;">
+                                        <a-option v-for="option in limitTypeOptions" :key="option.value" :label="option.label" :value="option.value"></a-option>
+                                    </a-select>
+                                </a-form-item>
+
+                                <a-form-item label="匹配字段">
+                                    <a-input
+                                        v-model="item.limitValue"
+                                        :disabled="isConsumerType(item.limitType)"
+                                        :placeholder="limitValuePlaceholder(item.limitType)"
+                                        style="width: 320px;"
+                                    />
+                                </a-form-item>
+
                                 <table class="com-table">
                                     <tbody>
                                         <tr class="thead">
-                                            <td style="width: 24%;">限流类型</td>
-                                            <td style="width: 24%;">匹配字段</td>
-                                            <td style="width: 20%;">Key</td>
-                                            <td style="width: 14%;">周期</td>
-                                            <td style="width: 12%;">阈值</td>
-                                            <td style="width: 10%;">操作</td>
+                                            <td style="width: 30%;">Key</td>
+                                            <td style="width: 30%;">周期</td>
+                                            <td style="width: 25%;">阈值</td>
+                                            <td style="width: 15%;">操作</td>
                                         </tr>
                                         <tr v-for="(limitKey, keyIndex) in item.limit_keys" :key="limitKey.id">
-                                            <td>
-                                                <a-select v-model="item.limitType" placeholder="请选择限流类型">
-                                                    <a-option v-for="option in limitTypeOptions" :key="option.value" :label="option.label" :value="option.value"></a-option>
-                                                </a-select>
-                                            </td>
-                                            <td>
-                                                <a-input
-                                                    v-model="item.limitValue"
-                                                    :disabled="isConsumerType(item.limitType)"
-                                                    :placeholder="limitValuePlaceholder(item.limitType)"
-                                                />
-                                            </td>
                                             <td>
                                                 <a-input v-model="limitKey.key" :spellcheck="false" :placeholder="limitKeyPlaceholder(item.limitType)" />
                                             </td>
@@ -101,7 +102,7 @@
                                             </td>
                                         </tr>
                                         <tr>
-                                            <td colspan="6" class="cursor add-row" @click="addLimitKey(item)">
+                                            <td colspan="4" class="cursor add-row" @click="addLimitKey(item)">
                                                 <div class="df ai-c jc-c">
                                                     <icon-plus :size="14" class="c-99" />
                                                     <span class="c-99 lh-1" style="margin-left:6px;">新增子规则</span>
@@ -115,7 +116,7 @@
                             <table class="com-table mt-12">
                                 <tbody>
                                     <tr>
-                                        <td colspan="6" class="cursor add-row" @click="addRuleItem">
+                                        <td colspan="4" class="cursor add-row" @click="addRuleItem">
                                             <div class="df ai-c jc-c">
                                                 <icon-plus :size="14" class="c-99" />
                                                 <span class="c-99 lh-1" style="margin-left:6px;">新增设置块</span>
