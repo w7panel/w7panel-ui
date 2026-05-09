@@ -1,22 +1,10 @@
 <template>
-    <div class="padding-20">
-        <route-breadcrumb />
+    <div class="padding-20" style="height:100%;overflow:auto;">
+        <Breadcrumb :routes="topbc" />
 
-        <div class="bg-white padding-20 mt-20">
-            <div class="df ai-c jc-b page-header">
-                <div>
-                    <div class="fs-18 b">Cluster Key Rate Limit</div>
-                    <div class="c-99 fs-13 mt-6">进入页面后直接编辑唯一配置项，不再区分新增和列表。</div>
-                </div>
-                <div class="df ai-c">
-                    <a-tag v-if="extraPluginCount > 0" color="orange" class="mr-12">
-                        检测到 {{ extraPluginCount + 1 }} 条配置，当前仅编辑第一条
-                    </a-tag>
-                    <a-button type="primary" :loading="submitting" @click="submit">保存</a-button>
-                </div>
-            </div>
+        <div class="bg-white padding-20">
 
-            <a-tabs v-model:active-key="activeTab" class="mt-20 manage-tabs">
+            <a-tabs v-model:active-key="activeTab" class="manage-tabs">
                 <a-tab-pane key="rate-limit" title="限流管理"></a-tab-pane>
                 <a-tab-pane key="response-content" title="响应内容"></a-tab-pane>
                 <a-tab-pane key="redis-config" title="Redis 配置"></a-tab-pane>
@@ -30,7 +18,7 @@
                             <template #extra>开启后将在响应头中返回限流剩余额度，便于联调和排查。</template>
                         </a-form-item>
 
-                        <a-form-item label="模式选择" class="mode-select-item">
+                        <a-form-item label="限流模式" class="mode-select-item">
                             <a-select v-model="form.mode" style="width: 320px;">
                                 <a-option value="global_threshold" label="全局限流模式"></a-option>
                                 <a-option value="rule_items" label="动态限流模式"></a-option>
@@ -49,82 +37,74 @@
                         </div>
 
                         <div v-else class="mode-box">
-                            <div class="b mt-10">限流策略配置</div>
-                            <div class="mt-4 fs-12 c-99">动态限流模式支持多种限流类型共存，每个设置块下可继续添加多条子规则。</div>
+                            <a-form-item label="限流策略">
+                                <div class="df df-c ai-s" style="flex:1;">
 
-                            <div
-                                v-for="(item, index) in form.rule_items"
-                                :key="item.id"
-                                class="mt-12"
-                            >
-                                <div class="df ai-c jc-b mb-8">
-                                    <div class="b">设置块 {{ index + 1 }}</div>
-                                    <a-button status="danger" type="text" @click="removeRuleItem(index)">删除设置块</a-button>
+                                    <a-button type="primary" @click="addRuleItem">新建策略</a-button>
+
+                                    <div
+                                        v-for="(item, index) in form.rule_items"
+                                        :key="item.id"
+                                        class="mt-20"
+                                        style="padding: 20px; border:1px solid var(--color-neutral-3);"
+                                    >
+                                        <div class="df ai-c jc-e mb-10">
+                                            <a-button status="danger" type="text" @click="removeRuleItem(index)">删除设置块</a-button>
+                                        </div>
+
+                                        <a-form-item label="限流类型">
+                                            <a-select v-model="item.limitType" placeholder="请选择限流类型" style="width: 320px;">
+                                                <a-option v-for="option in limitTypeOptions" :key="option.value" :label="option.label" :value="option.value"></a-option>
+                                            </a-select>
+                                        </a-form-item>
+
+                                        <a-form-item label="匹配字段">
+                                            <a-input
+                                                v-model="item.limitValue"
+                                                :disabled="isConsumerType(item.limitType)"
+                                                :placeholder="limitValuePlaceholder(item.limitType)"
+                                                style="width: 320px;"
+                                            />
+                                        </a-form-item>
+
+                                        <table class="com-table">
+                                            <tbody>
+                                                <tr class="thead">
+                                                    <td style="width: 30%;">Key</td>
+                                                    <td style="width: 30%;">周期</td>
+                                                    <td style="width: 25%;">阈值</td>
+                                                    <td style="width: 15%;">操作</td>
+                                                </tr>
+                                                <tr v-for="(limitKey, keyIndex) in item.limit_keys" :key="limitKey.id">
+                                                    <td>
+                                                        <a-input v-model="limitKey.key" :spellcheck="false" :placeholder="limitKeyPlaceholder(item.limitType)" />
+                                                    </td>
+                                                    <td>
+                                                        <a-select v-model="limitKey.period" placeholder="周期">
+                                                            <a-option v-for="option in thresholdOptions" :key="option.value" :label="option.label" :value="option.value"></a-option>
+                                                        </a-select>
+                                                    </td>
+                                                    <td class="cell-number">
+                                                        <a-input-number v-model="limitKey.value" :min="1" placeholder="阈值" style="width: 100%;" />
+                                                    </td>
+                                                    <td>
+                                                        <a-button type="text" status="danger" @click="removeLimitKey(item, keyIndex)">删除</a-button>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="4" class="cursor add-row" @click="addLimitKey(item)">
+                                                        <div class="df ai-c jc-c">
+                                                            <icon-plus :size="14" class="c-99" />
+                                                            <span class="c-99 lh-1" style="margin-left:6px;">新增子规则</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-
-                                <a-form-item label="限流类型">
-                                    <a-select v-model="item.limitType" placeholder="请选择限流类型" style="width: 320px;">
-                                        <a-option v-for="option in limitTypeOptions" :key="option.value" :label="option.label" :value="option.value"></a-option>
-                                    </a-select>
-                                </a-form-item>
-
-                                <a-form-item label="匹配字段">
-                                    <a-input
-                                        v-model="item.limitValue"
-                                        :disabled="isConsumerType(item.limitType)"
-                                        :placeholder="limitValuePlaceholder(item.limitType)"
-                                        style="width: 320px;"
-                                    />
-                                </a-form-item>
-
-                                <table class="com-table">
-                                    <tbody>
-                                        <tr class="thead">
-                                            <td style="width: 30%;">Key</td>
-                                            <td style="width: 30%;">周期</td>
-                                            <td style="width: 25%;">阈值</td>
-                                            <td style="width: 15%;">操作</td>
-                                        </tr>
-                                        <tr v-for="(limitKey, keyIndex) in item.limit_keys" :key="limitKey.id">
-                                            <td>
-                                                <a-input v-model="limitKey.key" :spellcheck="false" :placeholder="limitKeyPlaceholder(item.limitType)" />
-                                            </td>
-                                            <td>
-                                                <a-select v-model="limitKey.period" placeholder="周期">
-                                                    <a-option v-for="option in thresholdOptions" :key="option.value" :label="option.label" :value="option.value"></a-option>
-                                                </a-select>
-                                            </td>
-                                            <td class="cell-number">
-                                                <a-input-number v-model="limitKey.value" :min="1" placeholder="阈值" style="width: 100%;" />
-                                            </td>
-                                            <td>
-                                                <a-button type="text" status="danger" @click="removeLimitKey(item, keyIndex)">删除</a-button>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td colspan="4" class="cursor add-row" @click="addLimitKey(item)">
-                                                <div class="df ai-c jc-c">
-                                                    <icon-plus :size="14" class="c-99" />
-                                                    <span class="c-99 lh-1" style="margin-left:6px;">新增子规则</span>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <table class="com-table mt-12">
-                                <tbody>
-                                    <tr>
-                                        <td colspan="4" class="cursor add-row" @click="addRuleItem">
-                                            <div class="df ai-c jc-c">
-                                                <icon-plus :size="14" class="c-99" />
-                                                <span class="c-99 lh-1" style="margin-left:6px;">新增设置块</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                
+                            </a-form-item>
                         </div>
                     </a-form>
                 </a-spin>
@@ -171,6 +151,8 @@
                     </a-form>
                 </a-spin>
             </div>
+            
+            <a-button type="primary" :loading="submitting" @click="submit">保存</a-button>
         </div>
     </div>
 </template>
@@ -252,11 +234,15 @@ function createDefaultForm() {
 export default {
     data() {
         return {
+            
+            topbc: [
+                {name:'root'},
+                {name: "cluster-key-rate-limit", label: "限流控制"},
+            ],
             activeTab: 'rate-limit',
             loading: false,
             submitting: false,
             loadError: '',
-            extraPluginCount: 0,
             editData: null,
             thresholdOptions,
             limitTypeOptions,
@@ -345,7 +331,6 @@ export default {
                 .then((res) => {
                     const items = res?.data?.items || [];
                     const current = items[0];
-                    this.extraPluginCount = Math.max(items.length - 1, 0);
 
                     if (!current) {
                         this.editData = null;
@@ -435,6 +420,60 @@ export default {
         getRedisProxyServiceName(ip) {
             return `redis-ip-${String(ip).trim().replace(/\./g, '-')}`;
         },
+        buildRedisServiceData(serviceName, port) {
+            return {
+                apiVersion: 'v1',
+                kind: 'Service',
+                metadata: {
+                    name: serviceName,
+                    namespace: HIGRESS_NAMESPACE,
+                    labels: {
+                        'w7.cc/created-by': 'cluster-key-rate-limit',
+                    },
+                },
+                spec: {
+                    ports: [
+                        {
+                            name: `tcp-${port}`,
+                            protocol: 'TCP',
+                            port,
+                            targetPort: port,
+                        },
+                    ],
+                },
+            };
+        },
+        buildRedisEndpointsData(serviceName, redisHost, port) {
+            return {
+                apiVersion: 'v1',
+                kind: 'Endpoints',
+                metadata: {
+                    name: serviceName,
+                    namespace: HIGRESS_NAMESPACE,
+                    labels: {
+                        'w7.cc/created-by': 'cluster-key-rate-limit',
+                    },
+                },
+                subsets: [
+                    {
+                        addresses: [{ ip: redisHost }],
+                        ports: [
+                            {
+                                name: `tcp-${port}`,
+                                port,
+                                protocol: 'TCP',
+                            },
+                        ],
+                    },
+                ],
+            };
+        },
+        async getK8sResource(path) {
+            return k8sproxy
+                .get(path, { noAlert: true })
+                .then((res) => res?.data || null)
+                .catch(() => null);
+        },
         async ensureRedisService() {
             const redisHost = String(this.form.redis.service_name || '').trim();
             if (!this.isIpv4(redisHost)) {
@@ -444,60 +483,24 @@ export default {
             const serviceName = this.getRedisProxyServiceName(redisHost);
             const port = Number(this.form.redis.service_port || 6379);
             const servicePath = `/api/v1/namespaces/${HIGRESS_NAMESPACE}/services/${serviceName}`;
-
-            const serviceExists = await k8sproxy
-                .get(servicePath, { noAlert: true })
-                .then(() => true)
-                .catch(() => false);
+            const endpointPath = `/api/v1/namespaces/${HIGRESS_NAMESPACE}/endpoints/${serviceName}`;
+            const serviceData = this.buildRedisServiceData(serviceName, port);
+            const endpointsData = this.buildRedisEndpointsData(serviceName, redisHost, port);
+            const [serviceExists, endpointExists] = await Promise.all([
+                this.getK8sResource(servicePath),
+                this.getK8sResource(endpointPath),
+            ]);
 
             if (!serviceExists) {
-                const serviceData = {
-                    apiVersion: 'v1',
-                    kind: 'Service',
-                    metadata: {
-                        name: serviceName,
-                        namespace: HIGRESS_NAMESPACE,
-                        labels: {
-                            'w7.cc/created-by': 'cluster-key-rate-limit',
-                        },
-                    },
-                    spec: {
-                        ports: [
-                            {
-                                name: `tcp-${port}`,
-                                protocol: 'TCP',
-                                port,
-                                targetPort: port,
-                            },
-                        ],
-                    },
-                };
-                const endpointsData = {
-                    apiVersion: 'v1',
-                    kind: 'Endpoints',
-                    metadata: {
-                        name: serviceName,
-                        namespace: HIGRESS_NAMESPACE,
-                        labels: {
-                            'w7.cc/created-by': 'cluster-key-rate-limit',
-                        },
-                    },
-                    subsets: [
-                        {
-                            addresses: [{ ip: redisHost }],
-                            ports: [
-                                {
-                                    name: `tcp-${port}`,
-                                    port,
-                                    protocol: 'TCP',
-                                },
-                            ],
-                        },
-                    ],
-                };
-
                 await k8sproxy.post(`/api/v1/namespaces/${HIGRESS_NAMESPACE}/services`, serviceData);
+            }
+            if (!endpointExists) {
                 await k8sproxy.post(`/api/v1/namespaces/${HIGRESS_NAMESPACE}/endpoints`, endpointsData);
+            } else {
+                await k8sproxy.patch(endpointPath, {
+                    metadata: endpointsData.metadata,
+                    subsets: endpointsData.subsets,
+                });
             }
 
             return `${serviceName}.${HIGRESS_NAMESPACE}.svc.cluster.local`;
@@ -544,7 +547,7 @@ export default {
             }
             return true;
         },
-        formToData() {
+        formToData(redisServiceName = this.form.redis.service_name) {
             this.form.title = this.form.title || DEFAULT_TITLE;
             this.form.description = this.form.description || DEFAULT_TITLE;
             this.form.image = this.form.image || DEFAULT_IMAGE;
@@ -558,7 +561,7 @@ export default {
                 rejected_code: Number(this.form.rejected_code || 429),
                 rejected_msg: this.form.rejected_msg || 'Too many requests',
                 redis: {
-                    service_name: this.form.redis.service_name,
+                    service_name: redisServiceName,
                     service_port: Number(this.form.redis.service_port || 6379),
                     timeout: Number(this.form.redis.timeout || 1000),
                     database: Number(this.form.redis.database || 0),
@@ -631,8 +634,7 @@ export default {
             const request = Promise.resolve()
                 .then(() => this.ensureRedisService())
                 .then((serviceName) => {
-                    this.form.redis.service_name = serviceName;
-                    const nextData = this.formToData();
+                    const nextData = this.formToData(serviceName);
                     return this.form.name
                         ? k8sproxy.put(`/apis/extensions.higress.io/v1alpha1/namespaces/${HIGRESS_NAMESPACE}/wasmplugins/${this.form.name}`, nextData)
                         : k8sproxy.post(`/apis/extensions.higress.io/v1alpha1/namespaces/${HIGRESS_NAMESPACE}/wasmplugins`, nextData);
