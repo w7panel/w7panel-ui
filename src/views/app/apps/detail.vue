@@ -130,7 +130,7 @@
             </div>
         </a-modal>
 
-        <wujie-modals />
+        <wujie-modals v-if="isMicroPage" />
     </div>
 </template>
 
