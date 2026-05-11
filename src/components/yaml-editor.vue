@@ -15,6 +15,7 @@ import {basicSetup} from "codemirror"
 import { EditorView } from "codemirror"
 import { yaml } from "@codemirror/lang-yaml";
 import { keymap } from '@codemirror/view';
+import * as YAML from 'js-yaml';
 
 export default {
     props: ['yaml','disabled','nofooter'],
@@ -45,8 +46,24 @@ export default {
     },
     methods: {
         getValue(){
-            this.form.value = this.editor.state.doc.toString();
+            let value = this.editor.state.doc.toString();
+            value = this.stripK8sMetadataFields(value);
+            this.form.value = value;
             return this.form.value;
+        },
+        stripK8sMetadataFields(yamlStr) {
+            const stripFields = ['resourceVersion', 'uid', 'creationTimestamp', 'selfLink', 'generation', 'managedFields'];
+            try {
+                const obj = YAML.load(yamlStr);
+                if (!obj || typeof obj !== 'object') return yamlStr;
+                stripFields.forEach((f) => delete obj[f]);
+                if (obj.metadata) {
+                    stripFields.forEach((f) => delete obj.metadata[f]);
+                }
+                return YAML.dump(obj, { lineWidth: -1, noRefs: true });
+            } catch (e) {
+                return yamlStr;
+            }
         },
         submit(){
             this.$emit('submit', this.getValue());
