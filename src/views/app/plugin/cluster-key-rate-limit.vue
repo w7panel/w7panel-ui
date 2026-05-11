@@ -26,14 +26,13 @@
                         </a-form-item>
 
                         <div v-if="form.mode === 'global_threshold'" class="mode-box">
-                            <div class="b mt-10">限流策略配置</div>
-                            <div class="mt-4 fs-12 c-99">全局限流模式下，对当前规则设置统一阈值。</div>
-                            <div class="threshold-row mt-10">
+                            
+                            <a-form-item label="限流策略">
                                 <a-select v-model="form.global_threshold.period" placeholder="选择周期" style="width: 220px;">
                                     <a-option v-for="item in thresholdOptions" :key="item.value" :label="item.label" :value="item.value"></a-option>
                                 </a-select>
-                                <a-input-number v-model="form.global_threshold.value" :min="1" placeholder="输入阈值" style="width: 220px;" />
-                            </div>
+                                <a-input-number v-model="form.global_threshold.value" :min="1" placeholder="输入阈值" style="margin-left:10px; width: 220px;" />
+                            </a-form-item>
                         </div>
 
                         <div v-else class="mode-box">
@@ -129,8 +128,8 @@
                 <a-spin :loading="loading">
                     <a-form :model="form" layout="vertical" auto-label-width>
                         <div class="form-grid">
-                            <a-form-item label="服务地址">
-                                <a-input v-model="form.redis.service_name" :spellcheck="false" placeholder="例如：redis.default.svc.cluster.local" />
+                            <a-form-item label="服务地址或 IP">
+                                <a-input v-model="form.redis.service_name" :spellcheck="false" placeholder="例如：redis.default.svc.cluster.local 或 10.0.0.8" />
                             </a-form-item>
                             <a-form-item label="服务端口">
                                 <a-input-number v-model="form.redis.service_port" :min="1" :max="65535" style="width: 100%;" />
@@ -398,7 +397,7 @@ export default {
         },
         validateBasicForm() {
             if (!this.form.redis.service_name) {
-                this.$message.error('请输入 Redis 服务地址');
+                this.$message.error('请输入 Redis 服务地址或 IP');
                 return false;
             }
             return true;
