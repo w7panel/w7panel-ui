@@ -296,8 +296,8 @@ export default {
             // k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps?labelSelector=w7.cc/identifie=w7-zpkv2',{noAlert:true}).then(res=>{
             //     if(res?.data?.items?.length){ this.zpk.show = true; }
             // })
-            panelApi.get('/zpk/local-url').then(res=>{
-                this.zpk.show = res?.data?.isHttps;
+            panelApi.get('/microapp/w7-zpkv2-root/info',{noAlert:true}).then(res=>{
+                this.zpk.show = true;
             })
         },
         toUpgrade(item){
