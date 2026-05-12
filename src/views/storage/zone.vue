@@ -97,6 +97,7 @@
                         <a-table-column title="绑定状态">
                             <template #cell="{ record }">
                                 <span v-if="record.bindstatus">{{ record.attachedNodeId }}（{{record.bindstatus}}）</span>
+                                <span v-else>-</span>
                                 
                                 <a-dropdown>
                                     <span v-if="record.state=='attached'||record.state=='detached'" class="ml-10 c-blue cursor zone-operation-dropdown" style="white-space:nowrap;">操作<icon-down/></span>
