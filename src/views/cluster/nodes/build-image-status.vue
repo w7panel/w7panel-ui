@@ -118,7 +118,6 @@ export default{
             socketClose: false,
             preAddress: 'registry.local.w7.cc/',
             appDialogConfirm: {show:false},
-            isComplete: false,
         }
     },
     computed: {
@@ -135,10 +134,8 @@ export default{
         show(v){
             this.visible = v;
             v && this.init();
-            if(!v){
-                if(!this.isComplete){
-                    this.$emit('reject','close');
-                }
+            if(!v && this.status === 3){
+                this.$emit('reject','close');
             }
         },
     },
@@ -149,7 +146,6 @@ export default{
         init(){
             this.imagePush.lastRow = '';
             this.exec.lastRow = '';
-            this.isComplete = false;
             
             this.exec = {
                 ...this.exec,
@@ -269,7 +265,6 @@ export default{
                     console.log('镜像推送成功');
                     if(this.show){
                         this.$emit('complete',{imageName:this.preAddress + this.imageName});
-                        this.isComplete = true;
                     }
                 }).catch(err=>{ 
                     console.log('镜像推送失败: ' + (err.response?.data?.message || err.message || '未知错误'));
