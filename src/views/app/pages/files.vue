@@ -1531,21 +1531,21 @@ export default {
                             });
                             return;
                         }
-                        let configmapName = find?.configMap?.name;
-                        if(!configmapName){ this.$message.error('configmap不存在'); return;}
-                        k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+configmapName).then(res=>{
-                            let data = res?.data?.data?.['default-cnf'];
-                            this.file.dialog = true;
-                            this.file.title = row.name;
-                            this.file.mf = row.mf;
-                            this.file.power = row.power;
-                            this.file.forever = row.mf || this.form.isMount || false;
-                            this.file.sidebarPath = '';
-                            this.init(()=>{
-                                this.inputContent(data);
-                            });
-                        })
-                        return;
+                        // let configmapName = find?.configMap?.name;
+                        // if(!configmapName){ this.$message.error('configmap不存在'); return;}
+                        // k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+configmapName).then(res=>{
+                        //     let data = res?.data?.data?.['default-cnf'];
+                        //     this.file.dialog = true;
+                        //     this.file.title = row.name;
+                        //     this.file.mf = row.mf;
+                        //     this.file.power = row.power;
+                        //     this.file.forever = row.mf || this.form.isMount || false;
+                        //     this.file.sidebarPath = '';
+                        //     this.init(()=>{
+                        //         this.inputContent(data);
+                        //     });
+                        // })
+                        // return;
                     }
                 }
                 

@@ -118,6 +118,7 @@ export default{
             socketClose: false,
             preAddress: 'registry.local.w7.cc/',
             appDialogConfirm: {show:false},
+            isComplete: false,
         }
     },
     computed: {
@@ -134,6 +135,11 @@ export default{
         show(v){
             this.visible = v;
             v && this.init();
+            if(!v){
+                if(!this.isComplete){
+                    this.$emit('reject','close');
+                }
+            }
         },
     },
     created(){
@@ -143,6 +149,7 @@ export default{
         init(){
             this.imagePush.lastRow = '';
             this.exec.lastRow = '';
+            this.isComplete = false;
             
             this.exec = {
                 ...this.exec,
@@ -218,7 +225,9 @@ export default{
                     });
                     this.exec.status = 1;
                 }catch{
-                    this.$emit('reject','cmd');
+                    if(this.show){
+                        this.$emit('reject','cmd');
+                    }
                     this.exec.status = 2;
                 }
             }else{
@@ -226,6 +235,7 @@ export default{
                 this.exec.result = '';
             }
             if(this.exec.status==2){return;}
+            if(!this.visible){return}
 
             // 镜像推送
             try{
@@ -257,11 +267,16 @@ export default{
                 }).then(async res=>{
                     this.imagePush.status = 1;
                     console.log('镜像推送成功');
-                    this.$emit('complete',{imageName:this.preAddress + this.imageName});
+                    if(this.show){
+                        this.$emit('complete',{imageName:this.preAddress + this.imageName});
+                        this.isComplete = true;
+                    }
                 }).catch(err=>{ 
                     console.log('镜像推送失败: ' + (err.response?.data?.message || err.message || '未知错误'));
                     this.imagePush.status = 2;
-                    this.$emit('reject','image')
+                    if(this.show){
+                        this.$emit('reject','image')
+                    }
                 });
             }catch(err){
                 console.log('镜像推送失败: ' + (err.response?.data?.message || err.message || '未知错误'));
@@ -269,6 +284,7 @@ export default{
                 return;
             }
             if(this.imagePush.status==2){return;}
+            if(!this.visible){return}
             
             if(buildContainer.pinned){
                 await axios.post(this.serverInfo.agentUrl+'/panel-api/v1/registry/patch/images/label',{
@@ -281,6 +297,7 @@ export default{
                 }).then(()=>{}).catch(()=>{});
             }
 
+            if(!this.visible){return}
             if(buildContainer.updateImage){
                 this.onBuildComplete({
                     newImage: this.preAddress + this.imageName,

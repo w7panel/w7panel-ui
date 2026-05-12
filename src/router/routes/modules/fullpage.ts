@@ -47,6 +47,15 @@ const DASHBOARD: any = [
                 roles: ['*'],
             },
         },
+        {
+            path: 'cluster-key-rate-limit',
+            name: 'cluster-key-rate-limit',
+            component: () => import('@/views/app/plugin/cluster-key-rate-limit.vue'),
+            meta: {
+                requiresAuth: true,
+                roles: ['*'],
+            },
+        },
     ],
 },{
     path: "/init-cluster",
