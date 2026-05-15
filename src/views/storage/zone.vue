@@ -104,7 +104,7 @@
                                     <template #content>
                                         <a-doption v-if="record.state=='attached'&&record.isLock=='true'" @click="detach.volumeName=record.volumeName;detach.force=false;submitDetach();">解锁</a-doption>
                                         <a-doption v-if="record.state=='detached'" @click="openAttach(record)">绑定</a-doption>
-                                        <a-doption v-if="record.state=='attached'&&record.isLock!=='true'" @click="openDetach(record)">分离</a-doption>
+                                        <a-doption v-if="record.state=='attached'" @click="openDetach(record)">分离</a-doption>
                                     </template>
                                 </a-dropdown>
                             </template>
