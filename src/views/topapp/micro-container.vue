@@ -143,8 +143,9 @@ export default{
             startApp({
                 name: "appmicro",
                 url: this.info.frontendUrl + this.page,
-// // 测试
+// 测试
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.page || ''),
+// url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.page || ''),
 // url: 'http://localhost:8080' + (this.page || ''),
                 exec: true,
                 el: '#appmicro',
