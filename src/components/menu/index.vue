@@ -73,10 +73,10 @@
                   return ['system','usermanage'].includes(element.name as string);
                 }
                 if (menuFilter === 'usermanage') {
-                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','rate-limit','system'].includes(element.name as string);
+                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','system'].includes(element.name as string);
                 }
                 if (menuFilter === 'system') {
-                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','rate-limit','usermanage'].includes(element.name as string);
+                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','usermanage'].includes(element.name as string);
                 }
                 // 其他情况不排除
                 return false;

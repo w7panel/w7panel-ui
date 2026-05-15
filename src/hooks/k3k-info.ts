@@ -41,8 +41,7 @@ export default async function useK3kinfo(){
                 arr = arr.filter(i => i != 'cluster-resource');
             }
             // 测试
-            // arr.push('rate-limit')
-            // arr.push('rate-limit-index')
+            // arr.push('')
             setPermission(arr);
             cacheManager.set(PERMISSION_CACHE_KEY, Date.now(), {
                 duration: PERMISSION_CACHE_DURATION,

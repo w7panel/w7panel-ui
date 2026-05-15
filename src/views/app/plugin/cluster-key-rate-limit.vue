@@ -13,10 +13,6 @@
             <div v-if="activeTab === 'rate-limit'" class="tab-panel">
                 <a-spin :loading="loading">
                     <a-form ref="formRef" :model="form" layout="" auto-label-width>
-                        <a-form-item label="限流调试" class="debug-switch-item">
-                            <a-switch v-model="form.show_limit_quota_header" />
-                            <template #extra>开启后将在响应头中返回限流剩余额度，便于联调和排查。</template>
-                        </a-form-item>
 
                         <a-form-item label="限流模式" class="mode-select-item">
                             <a-select v-model="form.mode" style="width: 320px;">
@@ -105,6 +101,11 @@
                                 
                             </a-form-item>
                         </div>
+
+                        <a-form-item label="限流调试" class="debug-switch-item">
+                            <a-switch v-model="form.show_limit_quota_header" />
+                            <span class="ml-20 c-99 fs-12">开启后将在响应头中返回限流剩余额度，便于联调和排查。</span>
+                        </a-form-item>
                     </a-form>
                 </a-spin>
             </div>
@@ -161,7 +162,7 @@ import { k8sproxy } from '@/utils/api';
 
 const PLUGIN_LABEL = 'cluster-key-rate-limit';
 const DEFAULT_TITLE = '限流管理';
-const DEFAULT_IMAGE = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/key-cluster-rate-limit:1.0.0';
+const DEFAULT_IMAGE = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/cluster-key-rate-limit:1.0.0';
 const HIGRESS_NAMESPACE = 'higress-system';
 
 const thresholdOptions = [
@@ -282,7 +283,7 @@ export default {
             return '请输入 key';
         },
         generateRuleName() {
-            const suffix = this.createName(10).replace(/^cluster-key-rate-limit-/, '');
+            const suffix = this.createName(10);
             return `rate-limit-rule-${suffix}`;
         },
         parseThreshold(obj = {}) {
@@ -589,7 +590,7 @@ export default {
                       apiVersion: 'extensions.higress.io/v1alpha1',
                       kind: 'WasmPlugin',
                       metadata: {
-                          name: this.createName(),
+                          name: 'cluster-key-rate-limit-1.0.0',
                           labels: {
                               'higress.io/wasm-plugin-name': PLUGIN_LABEL,
                           },
@@ -654,7 +655,7 @@ export default {
             for (let i = 0; i < length; i++) {
                 value += chars[parseInt(Math.random() * chars.length, 10)];
             }
-            return `cluster-key-rate-limit-${value}`;
+            return value;
         },
     },
 };
