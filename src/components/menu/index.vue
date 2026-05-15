@@ -66,17 +66,17 @@
           if (_route) {
             _route.filter(i=>!i?.meta.hideInMenu).forEach((element) => {
 ////////////////////////////////////////
-              // 新增：根据menuFilter筛选菜单
+              // 新增：根据header顶部 menuFilter 选择显示的菜单
               const shouldExclude = (() => {
                 if (!element.name) return false;
                 if (menuFilter === 'cloudserver') {
                   return ['system','usermanage'].includes(element.name as string);
                 }
                 if (menuFilter === 'usermanage') {
-                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','system'].includes(element.name as string);
+                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','rate-limit','system'].includes(element.name as string);
                 }
                 if (menuFilter === 'system') {
-                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','usermanage'].includes(element.name as string);
+                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','rate-limit','usermanage'].includes(element.name as string);
                 }
                 // 其他情况不排除
                 return false;

@@ -95,6 +95,13 @@
         "key": "storage-zone"
     }]
 },{
+    "title": "限流控制",
+    "key": "rate-limit",
+    "children": [{
+        "title": "限流控制",
+        "key": "rate-limit-index"
+    }]
+},{
     "title": "制品开发",
     "key": "zpk"
 },{
