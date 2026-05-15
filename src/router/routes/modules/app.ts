@@ -49,17 +49,17 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     roles: ['*'],
                 },
             },
-            {
-                path: 'store/zpk',
-                name: 'app-store-zpk',
-                component: () => import('@/views/app/store/store-zpk.vue'),
-                meta: {
-                    locale: '制品商店',
-                    hideInMenu: true,
-                    requiresAuth: true,
-                    roles: ['*'],
-                },
-            },
+            // {
+            //     path: 'store/zpk',
+            //     name: 'app-store-zpk',
+            //     component: () => import('@/views/app/store/store-zpk.vue'),
+            //     meta: {
+            //         locale: '制品商店',
+            //         hideInMenu: true,
+            //         requiresAuth: true,
+            //         roles: ['*'],
+            //     },
+            // },
             {
                 path: 'store/:name/store',
                 name: 'app-store-custom',

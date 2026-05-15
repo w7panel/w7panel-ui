@@ -17,7 +17,7 @@
             <a-button type="outline" class="mr-20" @click="k8syaml.show=true;">K8sYaml创建</a-button>
             <!-- <a-button type="outline" class="mr-20" @click="codepack.show=true;">代码包创建</a-button> -->
             <a-button type="outline" class="mr-20" @click="helm.show=true;">Helm创建</a-button>
-            <a-button v-if="zpk.show" type="outline" class="mr-20" @click="$router.push('/app/store/zpk')" >制品商店</a-button>
+            <a-button v-if="zpk.show" type="outline" class="mr-20" @click="toZpkstore" >制品商店</a-button>
         </div>
         <div class="bg-white padding-20 mt-20">
             <a-table :data="data" class="filetable applisttable" :bordered="false" :pagination="false">
@@ -297,8 +297,12 @@ export default {
             //     if(res?.data?.items?.length){ this.zpk.show = true; }
             // })
             panelApi.get('/microapp/w7-zpkv2-root/info',{noAlert:true}).then(res=>{
+                this.zpk.groupName = res.data?.metadata?.labels?.['w7.cc/identifie'];
                 this.zpk.show = true;
             })
+        },
+        toZpkstore(){
+            this.$router.push('/appgroup/'+this.zpk.groupName+'/micro?hideMenu=true&path='+encodeURIComponent('#/zpk-store-list'))
         },
         toUpgrade(item){
             let domain = item?.defaultDomain || item?.domain_apps?.[0] || '';

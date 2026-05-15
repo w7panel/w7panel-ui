@@ -1,6 +1,7 @@
 <template>
     <a-layout style="height:100%;overflow:auto;">
         <TopappMenu
+            v-if="!hideAppMenu"
             :roles="roles"
             :info="info"
             @routeChange="routeChange"
@@ -13,7 +14,7 @@
                 <div class="padding-20" style="height:calc(100vh - 62px);box-sizing:border-box;">
                     <micro-container
                         ref="microcontainer"
-                        :appgroup="$route.params.group"
+                        :appgroup="groupName"
                         :menuActive="menuActive"
                         @getinfo="v=>info=v"
                         @getBindings="v=>bindings=v"
@@ -38,6 +39,7 @@ const ROLE_NAME = {
 }
 
 export default{
+    props: ['hideMenu','group','path'],
     data(){
         return {
             namespaceActive: '',
@@ -47,10 +49,15 @@ export default{
             identifieList: [],
             info: {},
             bindings: [],
+            groupName: '',
+            hideAppMenu: false,
         }
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
+        this.groupName = this.group || this.$route.params.group;
+        this.menuActive = this.path || this.$route.query.path;
+        this.hideAppMenu = this.hideMenu || this.$route.query.hideMenu;
     },
     components: {
         TopappMenu,
@@ -59,8 +66,14 @@ export default{
     computed: {
     },
     watch:{
+        path(v){
+            v && (this.menuActive = v);
+        },
         bindings(v){
             this.getMenu(v)
+        },
+        group(){
+            this.groupName = this.group || this.$route.params.group;
         },
     },
     methods: {
@@ -95,8 +108,11 @@ export default{
                 let find = roles.find(i=>i.name==userRole)
                 this.roles = find?[find]:[];
             }
-            
-            this.menuActive = this.roles?.[0]?.menus?.find(i=>i.is_default==2)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
+            if(this.path || this.$route.query.path){
+                this.menuActive = this.path || this.$route.query.path;
+            }else{
+                this.menuActive = this.roles?.[0]?.menus?.find(i=>i.is_default==2)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
+            }
 
         },
         transformMenu(data) {

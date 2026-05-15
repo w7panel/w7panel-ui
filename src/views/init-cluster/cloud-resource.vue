@@ -1,5 +1,17 @@
 <template>
-    <a-layout style="height:100vh;">
+    <a-layout v-if="micro.show" class="layout">
+        <a-layout-header>
+            <NavBar />
+        </a-layout-header>
+        <a-layout-content class="layout-content " >
+            <micro-app
+                :group="micro.group"
+                :hide-menu="micro.hideMenu"
+                :path="micro.path"
+            ></micro-app>
+        </a-layout-content>
+    </a-layout>
+    <a-layout v-else style="height:100vh;">
         <a-layout-header>
             <div class="df ai-c jc-b navbar">
                 <div>
@@ -111,6 +123,8 @@ import { isLogin } from '@/utils/auth';
 import { getUserInfo } from '@/utils/auth';
 import { clearToken } from '@/utils/auth';
 import contactUs from '@/components/contact-us.vue';
+import microApp from '@/views/topapp/micro.vue';
+import NavBar from '@/components/navbar/index.vue';
 
 export default{
     data(){
@@ -126,10 +140,14 @@ export default{
             site: {},
             userInfo: {},
             logoimg: window.origin + '/assets/logo.png',
+
+            micro: {},
         }
     },
     components: {
         contactUs,
+        microApp,
+        NavBar,
     },
     created(){
         this.isLogin = isLogin();
@@ -143,7 +161,28 @@ export default{
             this.$message.success('登出成功');
             this.$router.push('/login');
         },
+        intoMicro(){
+            if(!this.isLogin || !window?.w7_microapp?.name){return}
+            this.micro = {
+                show: true,
+                group: window.w7_microapp.name,
+                hideMenu: !window.w7_microapp.leftmenu,
+                path: window.w7_microapp.do,
+            }
+        },
         getData(){
+            // 测试
+            // window.w7_microapp = {
+            //     name: 'w7-zpkv2',
+            //     leftmenu: false,
+            //     do: '#/zpk-store-list',
+            //     breadcrumb: false,
+            //     needlogin: false,
+            // };
+            if(this.isLogin && window?.w7_microapp?.name){
+                this.intoMicro();
+                return;
+            }
             panelApi.get('/idc-list',{loading:true}).then(res=>{
                 let list = res?.data || [];
                 list = list.map(i=>{
@@ -187,6 +226,18 @@ export default{
 }
 </script>
 <style scoped>
+
+.layout {
+    width: 100%;
+    height: 100vh;
+}
+.layout-content {
+    height: 100%;
+    overflow-y: hidden;
+    background-color: var(--color-fill-2);
+    transition: padding 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+
 .navbar{
     background-color: var(--color-bg-2);
     border-bottom: 1px solid var(--color-border);
