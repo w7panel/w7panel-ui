@@ -229,6 +229,19 @@ const handleSubmit = async () => {
             password: encodeURIComponent(userInfo.password),
         });
         console.log('loooooooooogin',data)
+        
+        const authRequestID = router?.currentRoute?.value?.query?.authRequestID
+        if(authRequestID){
+            
+            panelApi.post('/callback-url',{
+                authRequestID: authRequestID,
+            }).then(res=>{
+                window.location.href = res.data.callbackUrl;
+            });
+
+            return;
+        }
+
         const {data:k3kInfo} = await useK3kinfo();
         console.log('k3kinfo',k3kInfo)
         if(!data.isK3kUser){
