@@ -456,6 +456,47 @@ export default {
                 [period]: Number(value),
             };
         },
+        parseLimitKey(rawKey = '') {
+            const text = String(rawKey || '');
+            if (text === '*' || text === 'regexp:^.*') {
+                return {
+                    key: '',
+                    key_type: 'full',
+                };
+            }
+            const prefixMatch = text.match(/^regexp:\^(.*)\.\*$/);
+            if (prefixMatch) {
+                return {
+                    key: prefixMatch[1],
+                    key_type: 'prefix',
+                };
+            }
+            const regexMatch = text.match(/^regexp:\^(.*)$/);
+            if (regexMatch) {
+                return {
+                    key: regexMatch[1],
+                    key_type: 'regex',
+                };
+            }
+            return {
+                key: text,
+                key_type: 'exact',
+            };
+        },
+        buildLimitKey(keyItem = {}) {
+            const keyType = keyItem.key_type || 'exact';
+            const key = String(keyItem.key || '');
+            if (keyType === 'full') {
+                return 'regexp:^.*';
+            }
+            if (keyType === 'prefix') {
+                return `regexp:^${key}.*`;
+            }
+            if (keyType === 'regex') {
+                return `regexp:^${key}`;
+            }
+            return key;
+        },
         parseRuleItem(item = {}) {
             const option =
                 limitTypeOptions.find(
@@ -472,7 +513,7 @@ export default {
                 limitValue: item[actualType] ?? '',
                 limit_keys: (item.limit_keys || []).map((keyItem) => ({
                     id: `${Date.now()}-${Math.random()}`,
-                    key: keyItem.key || '',
+                    ...this.parseLimitKey(keyItem.key || ''),
                     ...this.parseThreshold(keyItem),
                 })),
             });
@@ -482,7 +523,7 @@ export default {
             return {
                 [actualType]: this.isConsumerType(actualType) ? '' : item.limitValue,
                 limit_keys: item.limit_keys.map((keyItem) => ({
-                    key: keyItem.key,
+                    key: this.buildLimitKey(keyItem),
                     ...this.buildThreshold(keyItem.period, keyItem.value),
                 })),
             };
@@ -701,7 +742,7 @@ export default {
                 }
                 for (let j = 0; j < item.limit_keys.length; j++) {
                     const keyItem = item.limit_keys[j];
-                    if (!keyItem.key) {
+                    if (keyItem.key_type !== 'full' && !keyItem.key) {
                         this.$message.error(`设置块 ${i + 1} 的第 ${j + 1} 条子规则缺少 key`);
                         return false;
                     }
@@ -799,8 +840,8 @@ export default {
                 .then((serviceName) => {
                     const nextData = this.formToData(serviceName);
 // 测试
-console.log(nextData);
-return Promise.reject();
+// console.log(nextData);
+// return Promise.reject();
                     return this.form.name
                         ? k8sproxy.put(`/apis/extensions.higress.io/v1alpha1/namespaces/${HIGRESS_NAMESPACE}/wasmplugins/${this.form.name}`, nextData)
                         : k8sproxy.post(`/apis/extensions.higress.io/v1alpha1/namespaces/${HIGRESS_NAMESPACE}/wasmplugins`, nextData);
