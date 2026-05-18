@@ -236,6 +236,7 @@ const thresholdOptions = [
     { label: '每小时', value: 'query_per_hour' },
     { label: '每天', value: 'query_per_day' },
 ];
+const ipSourceOptions = ['from-header-x-forwarded-for', 'from-remote-addr'];
 
 const limitTypeOptions = [
     {
@@ -335,6 +336,8 @@ export default{
             activeTab: 'rate-limit',
             loading: false,
             form: {},
+            thresholdOptions,
+            ipSourceOptions,
         }
     },
     watch:{
