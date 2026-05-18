@@ -3,7 +3,6 @@
         <Breadcrumb :routes="topbc" />
 
         <div class="bg-white padding-20">
-
             <a-tabs v-model:active-key="activeTab" class="manage-tabs">
                 <a-tab-pane key="rate-limit" title="限流管理"></a-tab-pane>
                 <a-tab-pane key="response-content" title="响应内容"></a-tab-pane>
@@ -12,7 +11,7 @@
 
             <div v-if="activeTab === 'rate-limit'" class="tab-panel">
                 <a-spin :loading="loading">
-                    <a-form ref="formRef" :model="form" layout="" auto-label-width>
+                    <a-form ref="formRef" :model="form" auto-label-width style="width:1000px;">
                         <a-form-item label="限流调试" class="debug-switch-item">
                             <a-switch v-model="form.show_limit_quota_header" />
                             <template #extra>开启后将在响应头中返回限流剩余额度，便于联调和排查。</template>
@@ -26,42 +25,83 @@
                         </a-form-item>
 
                         <div v-if="form.mode === 'global_threshold'" class="mode-box">
-                            
                             <a-form-item label="限流策略">
                                 <a-select v-model="form.global_threshold.period" placeholder="选择周期" style="width: 220px;">
-                                    <a-option v-for="item in thresholdOptions" :key="item.value" :label="item.label" :value="item.value"></a-option>
+                                    <a-option
+                                        v-for="item in thresholdOptions"
+                                        :key="item.value"
+                                        :label="item.label"
+                                        :value="item.value"
+                                    ></a-option>
                                 </a-select>
-                                <a-input-number v-model="form.global_threshold.value" :min="1" placeholder="输入阈值" style="margin-left:10px; width: 220px;" />
+                                <a-input-number
+                                    v-model="form.global_threshold.value"
+                                    :min="1"
+                                    placeholder="输入阈值"
+                                    style="margin-left:10px; width: 220px;"
+                                />
                             </a-form-item>
                         </div>
 
                         <div v-else class="mode-box">
                             <a-form-item label="限流策略">
                                 <div class="df df-c ai-s" style="flex:1;">
-
                                     <a-button type="primary" @click="addRuleItem">新建策略</a-button>
 
                                     <div
                                         v-for="(item, index) in form.rule_items"
                                         :key="item.id"
                                         class="mt-20"
-                                        style="padding: 20px; border:1px solid var(--color-neutral-3);"
+                                        style="padding: 20px; background: var(--color-neutral-1); width: 100%;"
                                     >
                                         <div class="df ai-c jc-e mb-10">
                                             <a-button status="danger" type="text" @click="removeRuleItem(index)">删除设置块</a-button>
                                         </div>
 
                                         <a-form-item label="限流类型">
-                                            <a-select v-model="item.limitType" placeholder="请选择限流类型" style="width: 320px;">
-                                                <a-option v-for="option in limitTypeOptions" :key="option.value" :label="option.label" :value="option.value"></a-option>
-                                            </a-select>
+                                            <div class="df ai-c limit-type-row">
+                                                <a-select
+                                                    v-model="item.limitType"
+                                                    placeholder="请选择限流类型"
+                                                    style="width: 320px;"
+                                                    @change="handleLimitTypeChange(item)"
+                                                >
+                                                    <a-option
+                                                        v-for="option in getLimitTypeOptions(item)"
+                                                        :key="option.value"
+                                                        :label="option.label"
+                                                        :value="option.value"
+                                                    ></a-option>
+                                                </a-select>
+                                                <a-checkbox
+                                                    v-model="item.dynamicValue"
+                                                    :disabled="isDynamicValueLocked(item)"
+                                                    @change="handleDynamicValueChange(item)"
+                                                >
+                                                    动态值
+                                                </a-checkbox>
+                                            </div>
                                         </a-form-item>
 
-                                        <a-form-item label="匹配字段">
-                                            <a-input
+                                        <a-form-item label="匹配名称">
+                                            <a-select
+                                                v-if="isIpType(getActualLimitType(item))"
                                                 v-model="item.limitValue"
-                                                :disabled="isConsumerType(item.limitType)"
-                                                :placeholder="limitValuePlaceholder(item.limitType)"
+                                                placeholder="请选择 IP 来源"
+                                                style="width: 320px;"
+                                            >
+                                                <a-option
+                                                    v-for="option in ipSourceOptions"
+                                                    :key="option"
+                                                    :label="option"
+                                                    :value="option"
+                                                ></a-option>
+                                            </a-select>
+                                            <a-input
+                                                v-else
+                                                v-model="item.limitValue"
+                                                :disabled="isConsumerType(getActualLimitType(item))"
+                                                :placeholder="limitValuePlaceholder(getActualLimitType(item))"
                                                 style="width: 320px;"
                                             />
                                         </a-form-item>
@@ -69,22 +109,51 @@
                                         <table class="com-table">
                                             <tbody>
                                                 <tr class="thead">
-                                                    <td style="width: 30%;">Key</td>
-                                                    <td style="width: 30%;">周期</td>
-                                                    <td style="width: 25%;">阈值</td>
+                                                    <td style="width: 50%;">Key</td>
+                                                    <td style="width: 20%;">周期</td>
+                                                    <td style="width: 15%;">阈值(次)</td>
                                                     <td style="width: 15%;">操作</td>
                                                 </tr>
                                                 <tr v-for="(limitKey, keyIndex) in item.limit_keys" :key="limitKey.id">
-                                                    <td>
-                                                        <a-input v-model="limitKey.key" :spellcheck="false" :placeholder="limitKeyPlaceholder(item.limitType)" />
+                                                    <td style="white-space:nowrap;">
+                                                        <a-select v-model="limitKey.key_type" placeholder="Key 类型" @change="v=>v=='full'?(limitKey.key=''):null" style="width:120px;margin-right:10px;">
+                                                            <a-option label="前缀匹配" value="prefix"></a-option>
+                                                            <a-option label="正则匹配" value="regex"></a-option>
+                                                            <a-option label="全量匹配" value="full"></a-option>
+                                                            <a-option label="精准匹配" value="exact"></a-option>
+                                                        </a-select>
+                                                        <a-input v-if="limitKey.key_type=='full'" readonly model-value=".*" style="width:300px;" :input-attrs="{style:'color:var(--color-text-3);'}">
+                                                            <template #prepend><span style="color:var(--color-text-3);">regexp:^</span></template>
+                                                        </a-input>
+                                                        <a-input
+                                                            v-else
+                                                            v-model="limitKey.key"
+                                                            :spellcheck="false"
+                                                            :placeholder="'请输入key'"
+                                                            :disabled="limitKey.key_type=='full'"
+                                                            style="width:300px;"
+                                                        >
+                                                            <template v-if="limitKey.key_type!=='exact'" #prepend><span style="color:var(--color-text-3);">regexp:^</span></template>
+                                                            <template v-if="limitKey.key_type=='prefix'" #append><span style="color:var(--color-text-3);">.*</span></template>
+                                                        </a-input>
                                                     </td>
                                                     <td>
                                                         <a-select v-model="limitKey.period" placeholder="周期">
-                                                            <a-option v-for="option in thresholdOptions" :key="option.value" :label="option.label" :value="option.value"></a-option>
+                                                            <a-option
+                                                                v-for="option in thresholdOptions"
+                                                                :key="option.value"
+                                                                :label="option.label"
+                                                                :value="option.value"
+                                                            ></a-option>
                                                         </a-select>
                                                     </td>
                                                     <td class="cell-number">
-                                                        <a-input-number v-model="limitKey.value" :min="1" placeholder="阈值" style="width: 100%;" />
+                                                        <a-input-number
+                                                            v-model="limitKey.value"
+                                                            :min="1"
+                                                            placeholder="阈值"
+                                                            style="width: 100%;"
+                                                        />
                                                     </td>
                                                     <td>
                                                         <a-button type="text" status="danger" @click="removeLimitKey(item, keyIndex)">删除</a-button>
@@ -102,7 +171,6 @@
                                         </table>
                                     </div>
                                 </div>
-                                
                             </a-form-item>
                         </div>
                     </a-form>
@@ -117,7 +185,12 @@
                                 <a-input-number v-model="form.rejected_code" :min="100" :max="599" style="width: 100%;" />
                             </a-form-item>
                             <a-form-item label="限流返回内容" class="grid-span-2">
-                                <a-textarea v-model="form.rejected_msg" :spellcheck="false" placeholder="请输入返回内容" style="height: 120px;" />
+                                <a-textarea
+                                    v-model="form.rejected_msg"
+                                    :spellcheck="false"
+                                    placeholder="请输入返回内容"
+                                    style="height: 120px;"
+                                />
                             </a-form-item>
                         </div>
                     </a-form>
@@ -129,7 +202,11 @@
                     <a-form :model="form" layout="vertical" auto-label-width>
                         <div class="form-grid">
                             <a-form-item label="服务地址或 IP">
-                                <a-input v-model="form.redis.service_name" :spellcheck="false" placeholder="例如：redis.default.svc.cluster.local 或 10.0.0.8" />
+                                <a-input
+                                    v-model="form.redis.service_name"
+                                    :spellcheck="false"
+                                    placeholder="例如：redis.default.svc.cluster.local 或 10.0.0.8"
+                                />
                             </a-form-item>
                             <a-form-item label="服务端口">
                                 <a-input-number v-model="form.redis.service_port" :min="1" :max="65535" style="width: 100%;" />
@@ -150,7 +227,7 @@
                     </a-form>
                 </a-spin>
             </div>
-            
+
             <a-button type="primary" :loading="submitting" @click="submit">保存</a-button>
         </div>
     </div>
@@ -171,22 +248,61 @@ const thresholdOptions = [
     { label: '每天', value: 'query_per_day' },
 ];
 
+const ipSourceOptions = ['from-header-x-forwarded-for', 'from-remote-addr'];
+
 const limitTypeOptions = [
-    { label: '按请求 Header 固定值', value: 'limit_by_header' },
-    { label: '按请求参数固定值', value: 'limit_by_param' },
-    { label: '按 Consumer 固定值', value: 'limit_by_consumer' },
-    { label: '按 Cookie 固定值', value: 'limit_by_cookie' },
-    { label: '按 Header 动态值', value: 'limit_by_per_header' },
-    { label: '按参数动态值', value: 'limit_by_per_param' },
-    { label: '按 Consumer 动态值', value: 'limit_by_per_consumer' },
-    { label: '按 Cookie 动态值', value: 'limit_by_per_cookie' },
-    { label: '按 IP 动态值', value: 'limit_by_per_ip' },
+    {
+        label: '按请求 Header',
+        dynamicLabel: '按请求 Header 动态值',
+        value: 'header',
+        fixedType: 'limit_by_header',
+        dynamicType: 'limit_by_per_header',
+        dynamicDefault: false,
+        dynamicLocked: false,
+    },
+    {
+        label: '按请求 URL参数名',
+        dynamicLabel: '按请求 URL参数动态值',
+        value: 'param',
+        fixedType: 'limit_by_param',
+        dynamicType: 'limit_by_per_param',
+        dynamicDefault: false,
+        dynamicLocked: false,
+    },
+    {
+        label: '按请求 Cookie',
+        dynamicLabel: '按请求 Cookie 动态值',
+        value: 'cookie',
+        fixedType: 'limit_by_cookie',
+        dynamicType: 'limit_by_per_cookie',
+        dynamicDefault: false,
+        dynamicLocked: false,
+    },
+    {
+        label: '按请求 Consumer',
+        dynamicLabel: '按请求 Consumer 动态值',
+        value: 'consumer',
+        fixedType: 'limit_by_consumer',
+        dynamicType: 'limit_by_per_consumer',
+        dynamicDefault: false,
+        dynamicLocked: false,
+    },
+    {
+        label: '按请求 IP',
+        dynamicLabel: '按请求 IP 动态值',
+        value: 'ip',
+        fixedType: '',
+        dynamicType: 'limit_by_per_ip',
+        dynamicDefault: true,
+        dynamicLocked: true,
+    },
 ];
 
 function createLimitKey() {
     return {
         id: `${Date.now()}-${Math.random()}`,
         key: '',
+        key_type: 'prefix',
         period: 'query_per_second',
         value: 1,
     };
@@ -195,7 +311,8 @@ function createLimitKey() {
 function createRuleItem() {
     return {
         id: `${Date.now()}-${Math.random()}`,
-        limitType: 'limit_by_param',
+        limitType: 'header',
+        dynamicValue: false,
         limitValue: '',
         limit_keys: [createLimitKey()],
     };
@@ -233,10 +350,9 @@ function createDefaultForm() {
 export default {
     data() {
         return {
-            
             topbc: [
-                {name:'root'},
-                {name: "cluster-key-rate-limit", label: "限流控制"},
+                { name: 'root' },
+                { name: 'cluster-key-rate-limit', label: '限流控制' },
             ],
             activeTab: 'rate-limit',
             loading: false,
@@ -244,6 +360,7 @@ export default {
             loadError: '',
             editData: null,
             thresholdOptions,
+            ipSourceOptions,
             limitTypeOptions,
             form: createDefaultForm(),
         };
@@ -252,11 +369,53 @@ export default {
         this.loadConfig();
     },
     methods: {
+        getLimitTypeOption(type) {
+            return limitTypeOptions.find((item) => item.value === type) || limitTypeOptions[0];
+        },
+        getActualLimitType(item = {}) {
+            const option = this.getLimitTypeOption(item.limitType);
+            if (option.dynamicLocked) {
+                return option.dynamicType;
+            }
+            return item.dynamicValue ? option.dynamicType : option.fixedType;
+        },
+        getLimitTypeOptions(item = {}) {
+            const actualType = this.getActualLimitType(item);
+            return limitTypeOptions.map((option) => ({
+                ...option,
+                label: item.limitType === option.value && actualType === option.dynamicType ? option.dynamicLabel : option.label,
+            }));
+        },
+        isDynamicValueLocked(item = {}) {
+            return this.getLimitTypeOption(item.limitType).dynamicLocked;
+        },
+        normalizeRuleItem(item = {}) {
+            const option = this.getLimitTypeOption(item.limitType);
+            if (option.dynamicLocked) {
+                item.dynamicValue = true;
+            } else if (typeof item.dynamicValue !== 'boolean') {
+                item.dynamicValue = !!option.dynamicDefault;
+            }
+            const actualType = this.getActualLimitType(item);
+            if (this.isIpType(actualType) && !ipSourceOptions.includes(item.limitValue)) {
+                [item.limitValue] = ipSourceOptions;
+            }
+            if (this.isConsumerType(actualType)) {
+                item.limitValue = '';
+            }
+            return item;
+        },
+        handleLimitTypeChange(item) {
+            this.normalizeRuleItem(item);
+        },
+        handleDynamicValueChange(item) {
+            this.normalizeRuleItem(item);
+        },
         isConsumerType(type) {
             return type === 'limit_by_consumer' || type === 'limit_by_per_consumer';
         },
-        limitTypeLabel(type) {
-            return limitTypeOptions.find((item) => item.value === type)?.label || '-';
+        isIpType(type) {
+            return type === 'limit_by_per_ip';
         },
         limitValuePlaceholder(type) {
             if (type === 'limit_by_per_ip') {
@@ -265,22 +424,22 @@ export default {
             if (this.isConsumerType(type)) {
                 return 'Consumer 类型无需填写';
             }
-            return '例如：header 名、参数名或 cookie 名';
+            return '例如：Header 名、URL 参数名或 Cookie 名';
         },
-        limitKeyPlaceholder(type) {
-            if (type === 'limit_by_per_ip') {
-                return '例如：1.1.1.1、1.1.1.0/24、0.0.0.0/0';
-            }
-            if (
-                type === 'limit_by_per_header' ||
-                type === 'limit_by_per_param' ||
-                type === 'limit_by_per_consumer' ||
-                type === 'limit_by_per_cookie'
-            ) {
-                return '支持固定值、regexp:^a.* 或 *';
-            }
-            return '请输入 key';
-        },
+        // limitKeyPlaceholder(type) {
+        //     if (type === 'limit_by_per_ip') {
+        //         return '例如：1.1.1.1、1.1.1.0/24、0.0.0.0/0';
+        //     }
+        //     if (
+        //         type === 'limit_by_per_header' ||
+        //         type === 'limit_by_per_param' ||
+        //         type === 'limit_by_per_consumer' ||
+        //         type === 'limit_by_per_cookie'
+        //     ) {
+        //         return '支持固定值、regexp:^a.* 或 *';
+        //     }
+        //     return '请输入 key';
+        // },
         generateRuleName() {
             const suffix = this.createName(10).replace(/^cluster-key-rate-limit-/, '');
             return `rate-limit-rule-${suffix}`;
@@ -298,23 +457,30 @@ export default {
             };
         },
         parseRuleItem(item = {}) {
-            const limitType = limitTypeOptions
-                .map((i) => i.value)
-                .find((key) => Object.prototype.hasOwnProperty.call(item, key)) || 'limit_by_param';
-            return {
+            const option =
+                limitTypeOptions.find(
+                    (current) =>
+                        (current.fixedType && Object.prototype.hasOwnProperty.call(item, current.fixedType)) ||
+                        (current.dynamicType && Object.prototype.hasOwnProperty.call(item, current.dynamicType))
+                ) || limitTypeOptions[0];
+            const actualType =
+                option.fixedType && Object.prototype.hasOwnProperty.call(item, option.fixedType) ? option.fixedType : option.dynamicType;
+            return this.normalizeRuleItem({
                 id: `${Date.now()}-${Math.random()}`,
-                limitType,
-                limitValue: item[limitType] ?? '',
+                limitType: option.value,
+                dynamicValue: actualType === option.dynamicType,
+                limitValue: item[actualType] ?? '',
                 limit_keys: (item.limit_keys || []).map((keyItem) => ({
                     id: `${Date.now()}-${Math.random()}`,
                     key: keyItem.key || '',
                     ...this.parseThreshold(keyItem),
                 })),
-            };
+            });
         },
         buildRuleItem(item) {
+            const actualType = this.getActualLimitType(item);
             return {
-                [item.limitType]: this.isConsumerType(item.limitType) ? '' : item.limitValue,
+                [actualType]: this.isConsumerType(actualType) ? '' : item.limitValue,
                 limit_keys: item.limit_keys.map((keyItem) => ({
                     key: keyItem.key,
                     ...this.buildThreshold(keyItem.period, keyItem.value),
@@ -357,7 +523,7 @@ export default {
                         global_threshold: this.parseThreshold(config.global_threshold),
                         rule_items: (config.rule_items || []).length
                             ? config.rule_items.map((item) => this.parseRuleItem(item))
-                            : [createRuleItem()],
+                            : [this.normalizeRuleItem(createRuleItem())],
                         redis: {
                             service_name: config?.redis?.service_name || '',
                             service_port: Number(config?.redis?.service_port || 6379),
@@ -376,7 +542,7 @@ export default {
                 });
         },
         addRuleItem() {
-            this.form.rule_items.push(createRuleItem());
+            this.form.rule_items.push(this.normalizeRuleItem(createRuleItem()));
         },
         removeRuleItem(index) {
             if (this.form.rule_items.length === 1) {
@@ -520,12 +686,13 @@ export default {
 
             for (let i = 0; i < this.form.rule_items.length; i++) {
                 const item = this.form.rule_items[i];
+                const actualType = this.getActualLimitType(item);
                 if (!item.limitType) {
                     this.$message.error(`设置块 ${i + 1} 缺少限流类型`);
                     return false;
                 }
-                if (!this.isConsumerType(item.limitType) && !item.limitValue) {
-                    this.$message.error(`设置块 ${i + 1} 缺少匹配字段`);
+                if (!this.isConsumerType(actualType) && !item.limitValue) {
+                    this.$message.error(`设置块 ${i + 1} 缺少匹配名称`);
                     return false;
                 }
                 if (!item.limit_keys?.length) {
@@ -575,10 +742,7 @@ export default {
             }
 
             if (this.form.mode === 'global_threshold') {
-                defaultConfig.global_threshold = this.buildThreshold(
-                    this.form.global_threshold.period,
-                    this.form.global_threshold.value
-                );
+                defaultConfig.global_threshold = this.buildThreshold(this.form.global_threshold.period, this.form.global_threshold.value);
             } else {
                 defaultConfig.rule_items = this.form.rule_items.map((item) => this.buildRuleItem(item));
             }
@@ -634,6 +798,9 @@ export default {
                 .then(() => this.ensureRedisService())
                 .then((serviceName) => {
                     const nextData = this.formToData(serviceName);
+// 测试
+console.log(nextData);
+return Promise.reject();
                     return this.form.name
                         ? k8sproxy.put(`/apis/extensions.higress.io/v1alpha1/namespaces/${HIGRESS_NAMESPACE}/wasmplugins/${this.form.name}`, nextData)
                         : k8sproxy.post(`/apis/extensions.higress.io/v1alpha1/namespaces/${HIGRESS_NAMESPACE}/wasmplugins`, nextData);
@@ -693,6 +860,11 @@ export default {
 
 .mode-select-item {
     margin-bottom: 0;
+}
+
+.limit-type-row {
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .add-row {
