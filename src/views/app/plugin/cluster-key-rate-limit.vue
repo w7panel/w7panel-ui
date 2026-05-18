@@ -1,8 +1,9 @@
 <template>
-    <div class="padding-20" style="height:100%;overflow:auto;">
-        <Breadcrumb :routes="topbc" />
+    <!-- <div class="padding-20" style="height:100%;overflow:auto;">
+        <Breadcrumb :routes="topbc" /> -->
 
-        <div class="bg-white padding-20">
+    <div>
+        <div class="bg-white">
             <a-tabs v-model:active-key="activeTab" class="manage-tabs">
                 <a-tab-pane key="rate-limit" title="限流管理"></a-tab-pane>
                 <a-tab-pane key="response-content" title="响应内容"></a-tab-pane>
@@ -228,7 +229,7 @@
                 </a-spin>
             </div>
 
-            <a-button type="primary" :loading="submitting" @click="submit">保存</a-button>
+            <!-- <a-button type="primary" :loading="submitting" @click="submit">保存</a-button> -->
         </div>
     </div>
 </template>
@@ -348,6 +349,7 @@ function createDefaultForm() {
 }
 
 export default {
+    props: ['name'],
     data() {
         return {
             topbc: [
@@ -366,7 +368,14 @@ export default {
         };
     },
     created() {
-        this.loadConfig();
+        if(this.name){
+            this.loadConfig();
+        }
+    },
+    watch: {
+        name(v) {
+            v && this.loadConfig();
+        },
     },
     methods: {
         getLimitTypeOption(type) {
@@ -531,12 +540,12 @@ export default {
         loadConfig() {
             this.loading = true;
             this.loadError = '';
-            const selector = encodeURIComponent(`higress.io/wasm-plugin-name=${PLUGIN_LABEL}`);
-            k8sproxy
-                .get(`/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins?labelSelector=${selector}`)
-                .then((res) => {
-                    const items = res?.data?.items || [];
-                    const current = items[0];
+            // const selector = encodeURIComponent(`higress.io/wasm-plugin-name=${PLUGIN_LABEL}`);
+            // k8sproxy.get(`/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins?labelSelector=${selector}`,{
+            k8sproxy.get('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+this.name,{
+                loading:true
+            }).then((res) => {
+                    const current = res.data;
 
                     if (!current) {
                         this.editData = null;
@@ -850,6 +859,7 @@ export default {
             request
                 .then(() => {
                     this.$message.success('保存成功');
+                    this.$emit('submit');
                     this.loadConfig();
                 })
                 .finally(() => {
@@ -873,12 +883,8 @@ export default {
     gap: 16px;
 }
 
-.manage-tabs {
-    margin-bottom: 8px;
-}
-
 .tab-panel {
-    padding-top: 8px;
+    padding:0 20px ;
 }
 
 .form-grid {

@@ -52,6 +52,13 @@
             @close="wlRules.show=false;"
         ></domain-strategy-plugin-whitelist>
 
+        <domain-strategy-plugin-ratelimit
+            :show="ratelimit.show"
+            :name="ratelimit.name"
+            @close="ratelimit.show=false;"
+        ></domain-strategy-plugin-ratelimit>
+
+
         <plugin-edit :show="form.show" :id="form.id" @close="closeEditPlugin"></plugin-edit>
     </div>
 </template>
@@ -67,6 +74,7 @@ import pluginForm from '@/views/app/plugin/plugin-form.vue';
 import pluginEdit from '@/views/app/plugin/plugin-edit.vue';
 import domainStrategyPluginFilecache from './domain-strategy-plugin-filecache.vue';
 import domainStrategyPluginWhitelist from './domain-strategy-plugin-whitelist.vue';
+import domainStrategyPluginRatelimit from './domain-strategy-plugin-ratelimit.vue';
 
 export default {
     props: ['data','show'],
@@ -111,6 +119,11 @@ export default {
                 name: '',
                 data: {},
             },
+
+            ratelimit: {
+                show: false,
+                name: '',
+            },
         }
     },
     created(){
@@ -128,6 +141,7 @@ export default {
         pluginEdit,
         domainStrategyPluginFilecache,
         domainStrategyPluginWhitelist,
+        domainStrategyPluginRatelimit,
     },
     methods: {
         wlRulesSubmit(data){
@@ -150,6 +164,13 @@ export default {
             })
         },
         openCatchRules(item){
+            if(item.is_ratelimit){
+                this.ratelimit = {
+                    show: true,
+                    name: item.name,
+                }
+                return;
+            }
             if(item.is_cdn){
                 let config  = item.content?.spec?.matchRules?.[item.hasname]?.config || null;
                 
@@ -375,6 +396,7 @@ export default {
                         description: i.metadata?.annotations?.['higress.io/wasm-plugin-description'] || '',
                         currenturl: i.metadata?.annotations?.['w7.cc/plugin-url'] || '',
                         is_cdn: i.metadata?.labels?.['higress.io/wasm-plugin-name'] == 'w7-cdn-proxy',
+                        is_ratelimit: i.metadata?.labels?.['higress.io/wasm-plugin-name'] == 'cluster-key-rate-limit',
                         is_whitelist: is_whitelist,
 
                         url: i.spec?.url || '',
