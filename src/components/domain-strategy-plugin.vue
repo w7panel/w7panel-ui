@@ -54,7 +54,8 @@
 
         <domain-strategy-plugin-ratelimit
             :show="ratelimit.show"
-            :name="ratelimit.name"
+            :config="ratelimit.config"
+            @submit="ratelimitSubmit"
             @close="ratelimit.show=false;"
         ></domain-strategy-plugin-ratelimit>
 
@@ -122,7 +123,7 @@ export default {
 
             ratelimit: {
                 show: false,
-                name: '',
+                config: null,
             },
         }
     },
@@ -145,8 +146,6 @@ export default {
     },
     methods: {
         wlRulesSubmit(data){
-            console.log(data)
-            
             let item = this.plugin.allPlugin.find(i=>i.name==this.wlRules.name);
             if(!item){return}
             
@@ -165,9 +164,11 @@ export default {
         },
         openCatchRules(item){
             if(item.is_ratelimit){
+                let config  = item.content?.spec?.matchRules?.[item.hasname]?.config || {};
                 this.ratelimit = {
                     show: true,
                     name: item.name,
+                    config: config,
                 }
                 return;
             }
@@ -216,6 +217,31 @@ export default {
             this.matchConfig.editName = item.name;
             this.matchConfig.show = true;
 
+        },
+        ratelimitSubmit(config){
+            // console.log('cccccccccccconfig',config)
+            let item = this.plugin.allPlugin.find(i=>i.name==this.ratelimit.name);
+            if(!item){return}
+            if(item.hasname>-1){
+                item.content.spec.matchRules[item.hasname].config = config;
+                k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(res=>{
+                    this.$message.success('操作成功')
+                    this.getAllPlugin();
+                    this.ratelimit.show = false;
+                })
+            }else{
+                item.content.spec.matchRules = item.content.spec?.matchRules || [];
+                item.content.spec.matchRules.push({
+                    config: config,
+                    configDisable: true,
+                    ingress: [this.namespaceActive + '/' + this.data.metadata.name],
+                });
+                k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(res=>{
+                    this.$message.success('操作成功')
+                    this.getAllPlugin();
+                    this.catchRules.show = false;
+                })
+            }
         },
         catchSubmit(data){
             let item = this.plugin.allPlugin.find(i=>i.name==this.catchRules.name);
