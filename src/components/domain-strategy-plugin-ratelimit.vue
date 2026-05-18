@@ -230,8 +230,6 @@
     </a-drawer>
 </template>
 <script>
-import clusterKeyRateLimit from '@/views/app/plugin/cluster-key-rate-limit.vue';
-
 const thresholdOptions = [
     { label: '每秒', value: 'query_per_second' },
     { label: '每分钟', value: 'query_per_minute' },
@@ -351,7 +349,6 @@ export default{
         }
     },
     components:{
-        clusterKeyRateLimit,
     },
     created(){
 
