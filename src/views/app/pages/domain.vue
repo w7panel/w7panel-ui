@@ -226,10 +226,11 @@
             
             <a-spin :loading="domainForm.loading" style="width:100%;">
                 <a-form :model="domainForm" ref="domainForm" :rules="rules" validate-trigger="blur" auto-label-width class="padding-20" >
-                    <a-form-item v-if="!domainForm.name&&inRvproxy" label="">
-                        <a-radio-group v-model="domainForm.originType">
-                            <a-radio :value="1">外部服务</a-radio>
+                    <a-form-item v-if="!domainForm.name" label="">
+                        <a-radio-group v-model="domainForm.originType" @change="chengeFormOriginType">
+                            <a-radio v-if="!domainForm.name&&inRvproxy" :value="1">外部服务</a-radio>
                             <a-radio :value="2">应用</a-radio>
+                            <a-radio :value="3">应用直达</a-radio>
                         </a-radio-group>
                     </a-form-item>
                     <template v-if="domainForm.originType==2 && !inRvproxy">
@@ -288,6 +289,16 @@
                             <a-checkbox v-model="domainForm.auto_ssl" class="mt-16">自动SSL证书</a-checkbox>
                         </div>
                     </a-form-item>
+
+                    <a-form-item v-if="domainForm.originType==3" label="直达应用" style="margin-top:20px;" field="zdApp">
+                        <a-select v-model="domainForm.zdApp" placeholder="请选择应用">
+                            <a-option v-for="item in topApps" :key="item.name" :label="item.title" :value="item.name"></a-option>
+                        </a-select>
+                    </a-form-item>
+                    <a-form-item v-if="domainForm.originType==3" label="游客访问">
+                        <a-switch v-model="domainForm.needlogin" :checked-value="false" :unchecked-value="true"></a-switch>
+                    </a-form-item>
+
                 </a-form>
             </a-spin>
         </a-drawer>
@@ -580,7 +591,7 @@
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 
 import axios from 'axios'
 import domainStrategy from '@/components/domain-strategy.vue'
@@ -664,6 +675,7 @@ export default {
                 ingressclass: [{ required: true, message: '请选择ingressClass', trigger: 'blur' },],
                 domain: [{ required: true, message: '请输入域名', trigger: 'blur' },],
                 port: [{ required: true, message: '请选择端口', trigger: 'blur' },],
+                zdApp: [{ required: true, message: '请选择应用', trigger: 'blur' },],
             },
             checkedAll: false,
 
@@ -702,6 +714,8 @@ export default {
 
             multipleGrayreleaseShow: false,
             multipleStrategyShow: false,
+
+            topApps: [],
         };
     },
     components: {
@@ -733,6 +747,21 @@ export default {
         },
     },
     methods: {
+        chengeFormOriginType(v){
+            if(v==3){
+                this.getMenutop();
+            }
+        },
+        getMenutop(){
+            panelApi.get('/microapp/top').then(res=>{
+                let items = res.data?.items || [];
+                let topApps = items.map(i=>({
+                    title: i?.metadata?.annotations?.title || i?.spec?.title,
+                    name: i.metadata.name,
+                }))
+                this.topApps = topApps;
+            })
+        },
         async retryTestStatus(){
             let operation1 = [{
                 op: 'remove',
@@ -1811,6 +1840,8 @@ export default {
                 path: '',
                 whiteDomain: item.name? item.whiteDomain : 0,
                 destination: item.destination,
+
+                needlogin: true, // 应用直达，游客访问
             }
             if(this.whiteList?.length && this.whiteList[this.domainForm?.whiteDomain]?.prefixRandom && !this.domainForm.domain){
                 this.domainForm.domain = this.createShortUuid();
@@ -1955,6 +1986,14 @@ export default {
                             }
                         }
                     }
+                    if(this.domainForm.originType==3){
+                        backend = {
+                            service: {
+                                name: 'w7panel-offline',
+                                port: {number: 8000},
+                            }
+                        }
+                    }
                     let data = {
                         apiVersion: 'networking.k8s.io/v1',
                         kind: 'Ingress',
@@ -1997,12 +2036,13 @@ export default {
                             secretName:  this.domainToname(fullDomain) + "-tls-secret"
                         }]
                     }
+
                     if(this.domainForm.originType==1){
                         data.metadata.annotations['higress.io/destination'] = this.domainForm.destination;
                         data.metadata.annotations['destination'] = this.domainForm.destination.replace(/\..*$/,'');
                         data.metadata.labels['higress.io/destination'] = this.domainForm.destination;
                         data.metadata.labels['destination'] =this.domainForm.destination.replace(/\..*$/,'');
-                    }else{
+                    }else if(this.domainForm.originType==2){
                         delete data.metadata.annotations['higress.io/destination'];
                         delete data.metadata.labels['higress.io/destination'];
                         if(this.inRvproxy){
@@ -2012,6 +2052,27 @@ export default {
                         }else{
                             delete data.metadata.annotations['destination'];
                             delete data.metadata.labels['destination'];
+                        }
+                    }else if(this.domainForm.originType==3){
+                        data.metadata.labels['w7.cc/zhida'] = "true";
+                        if(this.inRvproxy){
+                            let agent = this.agents?.[0]?.value || '';
+                            data.metadata.annotations['destination'] = agent.replace(/\..*$/,'');
+                            data.metadata.labels['destination'] = agent.replace(/\..*$/,'');
+                        }
+                        let ann = {
+                            "higress.io/enable-header-control": "true",
+                            "higress.io/request-header-control-add": [
+                                `microapp_name ${this.domainForm.zdApp}`,
+                                `microapp_do /`,
+                                `microapp_leftmenu true`,
+                                `microapp_breadcrumb true`,
+                                `microapp_needlogin ${this.domainForm.needlogin}`,
+                            ].join('\n')
+                        }
+                        data.metadata.annotations = {
+                            ...data.metadata.annotations,
+                            ...ann
                         }
                     }
                     
