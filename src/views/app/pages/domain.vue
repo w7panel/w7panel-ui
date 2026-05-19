@@ -1196,14 +1196,14 @@ export default {
             }
 
             k8sproxy.get('/apis/cert-manager.io/v1/namespaces/'+ this.namespaceActive +'/certificates/'+secretName, {noAlert:true,loading:true}).then(res=>{
+                let Issuing = res.data?.status?.conditions?.find?.(i=>i.type == 'Issuing');
                 let readyItem = res.data?.status?.conditions?.find?.(i=>i.type == 'Ready');
                 let status = 'warning';
-                if(readyItem){
+                
+                if(Issuing){
+                    status = 'issuing';
+                }else if(readyItem){
                     status = readyItem.status.toLowerCase() == 'true' ? 'success' : 'error';
-                }else{
-                    // 没有type Ready 有issuing  获取中    有ready 但是status: "False" 失败重试
-                    let Issuing = res.data?.status?.conditions?.find?.(i=>i.type == 'Issuing');
-                    status = Issuing? 'issuing' : 'warning';
                 }
                 this.tlsForm = {
                     ...this.tlsForm,
