@@ -844,6 +844,38 @@ export default {
         canOpenRecord(record){
             return record?.type === 'directory' || record?.type === 'symlink' || this.canEditContent(record);
         },
+        normalizeMountFilePath(path){
+            return ('/' + String(path || '').replace(/^\/+/, '')).replace(/\/+/g, '/');
+        },
+        getMountFileName(path){
+            return String(path || '').replace(/\/+$/, '').split('/').pop() || '';
+        },
+        findMfByPath(path){
+            const mountPath = this.normalizeMountFilePath(path);
+            return this.mfList.find(i=>i.mountPath === mountPath);
+        },
+        isMountFileRecord(record){
+            return Boolean(record?.mf || this.findMfByPath(this.getTransportPath(record, record?.type)));
+        },
+        async getMfContent(path){
+            const mountPath = this.normalizeMountFilePath(path);
+            const res = await panelApi.get(`/mountfiles`, {params:{
+                name: this.appData.metadata.name,
+                namespace: this.appData.metadata.namespace,
+                apiVersion: this.appData.apiVersion,
+                kind: this.appData.kind,
+                includeContent: true,
+            }});
+            const mounts = res.data?.mounts || [];
+            for(let idx=0; idx<mounts.length; idx++){
+                const files = mounts[idx]?.files || [];
+                const file = files.find(f=>this.normalizeMountFilePath(f.path) === mountPath);
+                if(file){
+                    return file.content || '';
+                }
+            }
+            throw new Error('未找到挂载文件内容');
+        },
         getTransportName(recordOrName, type=''){
             const rawName = typeof recordOrName === 'string' ? recordOrName : (recordOrName?.name || '');
             const rawType = typeof recordOrName === 'string' ? type : (recordOrName?.type || type);
@@ -946,7 +978,7 @@ export default {
             }
             if(isMf){return true;}
             if(isNotFile){return false;}
-            return Boolean(this.mfList.find(i=>i.mountPath == path));
+            return Boolean(this.findMfByPath(path));
         },
         testSymlink(row){
             let toname = row.name.replace(/^\s*(\S*)\s*->.*$/,'$1');
@@ -957,10 +989,8 @@ export default {
             let list = this.fileList.filter(i=>!i.fromFileCatch);
             list.forEach((item,index)=>{
                 if(!item.mf){return}
-                let find = this.mfList.find(i=>i.name==item.mf);
+                let find = this.findMfByPath(item.mf);
                 if(find?.delete){ list.splice(index,1); return; }
-                if(find?.rename){ item.name = find.rename; }
-                if(find?.configMap?.defaultMode){ item.power = find.configMap.defaultMode.toString(8);  }
             })
             list = list.concat(this.fileCatch.filter(i=>i.path==this.showPath).map(i=>{
                 return {
@@ -1372,7 +1402,7 @@ export default {
                     this.mfList.map(m=>{
                         let mp = '/' + m.mountPath.replace(/^\//,'');
                         if(file == mp){
-                            i.mf = m.name;
+                            i.mf = m.mountPath;
                         }
                     })
                 }
@@ -1384,7 +1414,6 @@ export default {
             if(!this.appData||!Object.keys(this.appData)?.length){return}
             if(this.origin=='nodes'){return}
             let mounts = [];
-            let mountsFile = [];
 
             let templateSpec = this.appData?.spec?.template?.spec;
             let vm = templateSpec?.containers?.[0]?.volumeMounts || [];
@@ -1394,23 +1423,6 @@ export default {
                 let find = volumes.find(v=>v.name==m.name);
                 
                 if(find?.configMap?.name || find?.secret?.secretName){
-                    let type = find?.configMap?.name? 'configmap' : 'secret';
-                    // 挂载文件
-                    mountsFile.push({
-                        name: find.name,
-                        mountPath: m.mountPath,
-                        subPath: m.subPath,
-                        configMap: JSON.parse(JSON.stringify(find?.configMap || {})),
-                        secret: JSON.parse(JSON.stringify(find?.secret || {})),
-
-                        f_type: type,
-                        f_name: {configmap: find?.configMap?.name, secret: find?.secret?.secretName}[type],
-                        
-                        rename: "", // 重命名
-                        delete: false, // 删除标记，点立即生效后删除
-                        edit: false,
-                        editValue: '',
-                    })
                 }else{
                     // 挂载目录
                     mounts.push({
@@ -1421,10 +1433,9 @@ export default {
                 }
             })
             this.mfDirs = mounts;
-            this.mfList = mountsFile;
-            
             this.mfEdit = false;
             this.form.isMount = this.testForever(this.form.path, true);
+            this.getMfList().catch(()=>({}));
         },
         // 解析ls返回内容
         parseLsOutput(lsOutput) {
@@ -1496,6 +1507,50 @@ export default {
 
             return result;
         },
+        getMfList(){
+            return panelApi.get(`/mountfiles`,{params:{
+                name: this.appData.metadata.name,
+                namespace: this.appData.metadata.namespace,
+                apiVersion: this.appData.apiVersion,
+                kind: this.appData.kind,
+                includeContent: false,
+            }}).then(res=>{
+                let arr = [];
+                res.data?.mounts?.map?.(m=>{
+                    m?.files?.map?.(f=>{
+                        arr.push({
+                            name: this.getMountFileName(f.path),
+                            mountPath: this.normalizeMountFilePath(f.path),
+                            edit: false,
+                            editValue: '',
+                            delete: false,
+                        });
+                    })
+                })
+                this.mfList = arr;
+                this.refreshCatch();
+            })
+        },
+        editMf({content,path,isEdit}){
+            return panelApi[isEdit?'put':'post'](`/mountfiles`, {
+                name: this.appData.metadata.name,
+                namespace: this.appData.metadata.namespace,
+                apiVersion: this.appData.apiVersion,
+                kind: this.appData.kind,
+                content: content,
+                path: path,
+            });
+        },
+        deleteMf(path){
+            return panelApi.delete(`/mountfiles`, {params:{
+                name: this.appData.metadata.name,
+                namespace: this.appData.metadata.namespace,
+                apiVersion: this.appData.apiVersion,
+                kind: this.appData.kind,
+                includeContent: false,
+                path: path,
+            }});
+        },
         // 点击文件
         async intoFile(row){
             if(row.type == 'directory'){
@@ -1517,8 +1572,8 @@ export default {
                     this.file.fromFileCatch = false;
                 }
                 if(row.mf){
-                    let find = this.mfList?.find(i=>i.name == row.mf)
-                    if(!find.delete){
+                    let find = this.findMfByPath(row.mf);
+                    if(find && !find.delete){
                         if(find.edit){
                             this.file.dialog = true;
                             this.file.title = row.name;
@@ -1531,21 +1586,23 @@ export default {
                             });
                             return;
                         }
-                        // let configmapName = find?.configMap?.name;
-                        // if(!configmapName){ this.$message.error('configmap不存在'); return;}
-                        // k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+configmapName).then(res=>{
-                        //     let data = res?.data?.data?.['default-cnf'];
-                        //     this.file.dialog = true;
-                        //     this.file.title = row.name;
-                        //     this.file.mf = row.mf;
-                        //     this.file.power = row.power;
-                        //     this.file.forever = row.mf || this.form.isMount || false;
-                        //     this.file.sidebarPath = '';
-                        //     this.init(()=>{
-                        //         this.inputContent(data);
-                        //     });
-                        // })
-                        // return;
+                        try{
+                            const data = await this.getMfContent(row.mf);
+                            this.file.dialog = true;
+                            this.file.row = row;
+                            this.file.title = row.name;
+                            this.file.mf = row.mf;
+                            this.file.power = row.power;
+                            this.file.forever = row.mf || this.form.isMount || false;
+                            this.file.sidebarPath = '';
+                            this.init(()=>{
+                                this.inputContent(data);
+                            });
+                            return;
+                        }catch(err){
+                            this.$message.error('加载挂载文件失败');
+                            return;
+                        }
                     }
                 }
                 
@@ -1590,13 +1647,7 @@ export default {
                     this.file.forever = row.mf || this.form.isMount || false;
 
                     let file = this.showPath + toname;
-                    this.file.mf = '';
-                    this.mfList.map(m=>{
-                        let mp = '/' + m.mountPath.replace(/^\//,'');
-                        if(file == mp){
-                            this.file.mf = m.name;
-                        }
-                    })
+                    this.file.mf = this.findMfByPath(file)?.mountPath || '';
 
                     this.init(()=>{
                         if(typeof data=='object'){
@@ -1657,7 +1708,8 @@ export default {
             if(this.currentTab.mf){
                 if(this.currentTab.checkForever){
                     // 永久文件
-                    let find = this.mfList?.find(i=>i.name==this.currentTab.mf);
+                    let find = this.findMfByPath(this.currentTab.mf);
+                    if(!find){ return; }
                     find.edit = true;
                     find.editValue = txt;
                     currentTab.modified = false;
@@ -1667,7 +1719,7 @@ export default {
                     return;
                 }else{
                     // 永久文件转普通文件
-                    let find = this.mfList.find(i=>i.name==this.currentTab.mf);
+                    let find = this.findMfByPath(this.currentTab.mf);
                     if(find){
                         find.delete = true;
                         this.mfEdit = true;
@@ -1717,82 +1769,14 @@ export default {
                 this.$message.error('保存失败: ' + (err.response?.data?.message || err.message || '未知错误'));
             })
             return;
-
-            // let onlyTitle = this.file.title.replace(/^.*\/([^/]+)$/,'$1');
-            // const blob = new Blob([txt], { type: 'text/plain' });
-            // const file = new File([blob], onlyTitle, { type: 'text/plain' });
-
-            // let data = new FormData();
-            // data.append('file', file);
-            // data.append('key', 'upload/'+onlyTitle);
-
-            // this.file.dialog = false;
-            // this.loading = true;
-            // let to = (this.origin=='nodes'?'/host':'') + '/proc/'+ this.form.pid+'/root' + (this.form.subPid?`/proc/${this.form.subPid}/root`:'') + this.partPath + this.file.title;
-            // axios.post('/s3bucket',data).then(res=>{
-            //     let data = {
-            //         from: 'upload/'+onlyTitle,
-            //         to: decodeURIComponent(to),
-            //         // fromOrTo: 'to',
-            //         upload: 1,
-            //         namespace: this.namespaceActive,
-            //         podName: this.form.pod_name,
-            //     }
-            //     const params = new URLSearchParams();
-            //     for (let key in data) {
-            //         params.append(key, data[key]);  
-            //     }
-            //     panelApi.post('/cp',params.toString(),{headers: {'Content-Type': 'application/x-www-form-urlencoded'}}).then(async res=>{
-            //         // 修改用户组
-            //         let row = this.file.row;
-            //         console.log(row);
-            //         if(!row){return}
-            //         let chown = this.userArr?.find(i=>i.name==row.user)?.id;
-            //         let chomd = row.power;
-            //         let ct = `'${this.partPath}${row.name}'`;
-            //         ct = decodeURIComponent(ct);
-            //     }).then(res=>{
-            //         this.loading = false;
-            //         this.$message.success('操作成功')
-            //     }).catch(()=>{
-            //         this.loading = false;
-            //     })
-            // }).catch(()=>{this.loading = false;})
         },
-        // // 取消挂载
-        // deleteMf(){
-        //     if(this.origin=='nodes'){return}
-        //     let kind = this.is_component? this.componentData.kind : this.$route.params.kind;
-        //     let id = this.is_component? this.componentData.id : this.$route.params.id;
-        //     k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ kind +"/"+ id ).then(async res=>{
-        //         let data = res?.data;
-        //         let spec = data?.spec?.template?.spec;
-        //         let itemIndex = spec?.containers?.[0]?.volumeMounts?.findIndex(i=>i.name == this.file.mf);
-        //         let volumeIndex = spec?.volumes?.findIndex(i=>i?.name == this.file.mf);
-
-        //         if(volumeIndex<0 || itemIndex<0){
-        //             return;
-        //         }
-        //         spec.volumes.splice(volumeIndex,1);
-        //         spec.containers[0].volumeMounts.splice(itemIndex,1);
-                
-        //         k8sproxy.put("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ kind +"/"+ id, data ).then(res=>{
-        //             this.$message.success('操作成功');
-        //             // 删除configmap
-        //             let configmapName = this.mfList?.find(i=>i.name == this.file.mf)?.configMap?.name;
-        //             k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+configmapName, {noAlert:true}).finally(()=>{
-        //                 this.$emit('refresh');
-        //             });
-        //         })
-        //     })
-        // },
         // 编辑器初始化
         init(callback){
             // 初始化标签页
             const filePath = decodeURIComponent(this.showPath) + this.file.title;
             
             // 挂载文件
-            const mf = this.mfList.find(m => filePath === `/${m.mountPath.replace(/^\//, '')}`)?.name || '';
+            const mf = this.findMfByPath(filePath)?.mountPath || '';
             // 挂载目录下
             const isMount = this.testForever(filePath,false);
 
@@ -2638,23 +2622,31 @@ export default {
             const filePath = this.file.sidebarPath + item.name;
             
             try {
-                const response = await fetch(
-                    `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${filePath}`,
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${this.outEditorInfo.webdavToken}`
+                const mountFile = this.findMfByPath(filePath);
+                let content = '';
+                if(mountFile?.edit){
+                    content = mountFile.editValue;
+                }else if(mountFile){
+                    content = await this.getMfContent(filePath);
+                }else{
+                    const response = await fetch(
+                        `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${filePath}`,
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${this.outEditorInfo.webdavToken}`
+                            }
                         }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
                     }
-                );
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+
+                    content = await response.text();
                 }
-                
-                let content = await response.text();
                 let readOnly = false;
                 // 挂载文件
-                const mf = this.mfList.find(m => filePath === `/${m.mountPath.replace(/^\//, '')}`)?.name || '';
+                const mf = this.findMfByPath(filePath)?.mountPath || '';
                 // 挂载目录下
                 const isMount = this.testForever(filePath,false);
 
@@ -3124,132 +3116,31 @@ export default {
         // 立即生效
         submitCatch(){
             Promise.all(this.fileCatch.map(i=>{
-                return this.createConfig(i);
-            })).then(async (namearr)=>{
-                let kind = this.is_component? this.componentData.kind : this.$route.params.kind;
-                let id = this.is_component? this.componentData.id : this.$route.params.id;
-                let { data } = await k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ kind +"/"+ id );
-                let spec = data?.spec?.template?.spec;
-                if(!spec){return}
-
-                spec.volumes = spec.volumes || [];
-                spec.containers[0].volumeMounts = spec.containers[0]?.volumeMounts || [];
-                if(this.mfEdit){
-                    // 清除挂载文件,重新push
-                    spec.volumes = spec.volumes.filter(v=>!v.configMap);
-                    spec.containers[0].volumeMounts = spec.containers[0].volumeMounts.filter(v=>{
-                        return spec.volumes.find(i=>i.name==v.name)
-                    })
-                    for(let idx=0; idx<this.mfList.length; idx++){
-                        let i = this.mfList[idx];
-                        if(i.delete){
-                            // 删除configmap
-                            let configmapName = i.configMap?.name;
-                            await k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+configmapName, {noAlert:true}).catch(()=>({}));
-                            continue;
-                        }
-                        if(i.edit){
-                            let txt = i.editValue;
-                            let configmapName = i.configMap?.name;
-                            await k8sproxy.patch("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+configmapName,{data:{'default-cnf':txt}},{
-                                loading: true,
-                                headers: {'Content-Type': 'application/strategic-merge-patch+json'},
-                            });
-                        }
-                        if(i.rename){
-                            i.configMap.items[0].path = i.rename;
-                        }
-                        spec.volumes.push({
-                            name: i.name,
-                            configMap: i.configMap,
-                        });
-                        spec.containers[0].volumeMounts.push({
-                            mountPath: i.rename? i.mountPath.replace(/[^\/]+$/,i.rename) : i.mountPath,
-                            subPath: i.rename || i.subPath,
-                            name: i.name,
-                        });
-                    }
-                    this.mfEdit = false;
+                const fullPath = this.normalizeMountFilePath(`${i.path.replace(/\/$/,'')}/${i.fileName}`);
+                return this.editMf({
+                    content: i.fileValue,
+                    path: fullPath,
+                    isEdit: false,
+                });
+            })).then(async ()=>{
+                const mfOps = this.mfList
+                    .filter(i=>i.delete || i.edit)
+                    .map(i=>i.delete ? this.deleteMf(i.mountPath) : this.editMf({
+                        content: i.editValue,
+                        path: i.mountPath,
+                        isEdit: true,
+                    }));
+                if(mfOps.length){
+                    await Promise.all(mfOps);
                 }
 
-                namearr.forEach(i=>{
-                    spec.volumes.push({
-                        name: i.name.replace(/\./g,'') + '-volume',
-                        configMap: {
-                            name: i.name,
-                            items: [{
-                                key: 'default-cnf',
-                                path: i.title,
-                            }],
-                            defaultMode: parseInt(i.prower,8),
-                        }
-                    })
-                    spec.containers[0].volumeMounts?.push({
-                        mountPath: i.path.replace(/\/$/,'') + '/' + i.title,
-                        subPath: i.title,
-                        name: i.name.replace(/\./g,'') + '-volume',
-                    })
-                })
-                // return;
-                // console.log(data);
-                return k8sproxy.put("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ kind +"/"+ id, data);
-            }).then((ref)=>{
-                if(!ref?.data){return}
                 this.$message.success('操作成功');
                 this.fileCatch = [];
+                this.mfEdit = false;
+                await this.getMfList().catch(()=>({}));
+                this.getFileList();
                 this.$emit('refresh');
             });
-        },
-        // 创建configmap
-        createConfig(item){
-            let title = item.fileName;
-
-            let newTitle = this.createName() + (/^\./.test(title)?'':'-') + title.toLowerCase().replace(/_/g,'-');
-            // metadata.name加标识防止重复，annotations.title不加
-            let o = {
-                apiVersion: 'v1',
-                kind: 'ConfigMap',
-                metadata: {
-                    name: newTitle,
-                    labels: { type: 'file' },
-                    annotations: {
-                        title: title,
-                        type: 'file'
-                    }
-                },
-            }
-            if(item.isImg){
-                // o.data = {
-                //     'default-cnf': item.fileValue,
-                // };
-                o.binaryData = {
-                    'default-cnf': item.fileValue,
-                };
-            }else{
-                o.data = {
-                    'default-cnf': item.fileValue,
-                };
-            }
-            
-            return k8sproxy.post("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps", o,{loading:true}).then(res=>{
-                return {
-                    title: title,
-                    name: newTitle,
-                    path: item.path,
-                    prower: item.prower,
-                    user: item.user,
-                }
-            });
-        },
-
-        createName(n){
-            let len = n || 8;
-            let s = 'abcdefghijklmnopqrstuvwxyz';
-            let p = '';
-            for(var i=0; i<len; i++){
-                p = p + s[parseInt(Math.random()*s.length)]
-            }
-            return p;
         },
         // 重命名 - 使用 WebDAV MOVE 替代 exec2
         async renameSubmit(){
@@ -3270,13 +3161,8 @@ export default {
                 this.rename.name = '';
                 return;
             }
-            if(!this.form.isMount && this.rename.row.mf){
-                let find = this.mfList.find(i=>i.name == this.rename.row.mf);
-                if(find){
-                    find.rename = this.rename.name;
-                    this.mfEdit = true;
-                    this.refreshCatch();
-                }
+            if(this.isMountFileRecord(this.rename.row)){
+                this.$message.warning('挂载文件暂不支持重命名');
                 this.rename.row = null;
                 this.rename.name = '';
                 return;
@@ -3312,8 +3198,8 @@ export default {
                 let arr = [];
                 this.selectedKeys.forEach(item=>{
                     let fdrow = this.fileList.find(i=>i.key == item);
-                    if(!this.form.isMount && fdrow?.mf){
-                        let mf = this.mfList.find(i=>i.name == fdrow.mf)
+                    if(this.isMountFileRecord(fdrow)){
+                        let mf = this.findMfByPath(fdrow.mf || this.getTransportPath(fdrow, fdrow?.type));
                         if(mf){
                             mf.delete = true;
                             this.mfEdit = true;
@@ -3327,8 +3213,8 @@ export default {
             }else{
                 ct = encodeURI(this.getTransportPath(row));
                 // 如果是挂载文件
-                if(row?.mf){
-                    let mf = this.mfList.find(i=>i.name == row.mf);
+                if(this.isMountFileRecord(row)){
+                    let mf = this.findMfByPath(row.mf || this.getTransportPath(row, row?.type));
                     if(mf){
                         mf.delete = true;
                         this.mfEdit = true;
@@ -3622,13 +3508,9 @@ export default {
                     this.authority.show = false;
                     return;
                 }
-                if(!this.form.isMount && this.authority?.row?.mf){
-                    let find = this.mfList.find(i=>i.mountPath == this.showPath + this.authority?.row?.key);
-                    if(find){
-                        find.configMap.defaultMode = parseInt(this.authority.chmod,8);
-                        this.mfEdit = true;
-                        this.refreshCatch();
-                    }
+                if(this.isMountFileRecord(this.authority.row)){
+                    this.$message.warning('挂载文件暂不支持权限修改');
+                    this.authority.show = false;
                     return;
                 }
                 ct = `'${this.getTransportPath(this.authority.row)}'`;
@@ -3636,13 +3518,8 @@ export default {
                 let arr = [];
                 this.selectedKeys.forEach(item=>{
                     let fdrow = this.fileList.find(i=>i.key == item);
-                    if(!this.form.isMount && fdrow?.mf){
-                        let mf = this.mfList.find(i=>i.name == fdrow.mf)
-                        if(mf){
-                            mf.configMap.defaultMode = parseInt(this.authority.chmod,8);
-                            this.mfEdit = true;
-                            this.refreshCatch();
-                        }
+                    if(this.isMountFileRecord(fdrow)){
+                        this.$message.warning('挂载文件暂不支持权限修改');
                     }else{
                         arr.push(`'${this.getTransportPath(fdrow || item, fdrow?.type)}'`);
                     }
