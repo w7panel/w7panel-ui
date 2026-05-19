@@ -517,6 +517,10 @@
                                     <icon-info-circle class="c-orange fs-16"/>
                                     <span class="c-orange ml-2">签发中</span>
                                 </span>
+                                <span v-else-if="tlsForm.testStatus.status=='issuing'" class="df ai-c">
+                                    <icon-info-circle class="c-orange fs-16"/>
+                                    <span class="c-orange ml-2">获取中</span>
+                                </span>
                                 <a-popover v-else-if="tlsForm.testStatus.status=='error'" position="bottom">
                                     <span class="cursor df ai-c" @click="retryTestStatus">
                                         <icon-close-circle class="c-red lh-1 fs-16"/>
@@ -768,6 +772,10 @@ export default {
                 let status = 'warning';
                 if(readyItem){
                     status = readyItem.status.toLowerCase() == 'true' ? 'success' : 'error';
+                }else{
+                    // 没有type Ready 有issuing  获取中    有ready 但是status: "False" 失败重试
+                    let Issuing = res.data?.status?.conditions?.find?.(i=>i.type == 'Issuing');
+                    status = Issuing? 'issuing' : 'warning';
                 }
                 this.tlsForm = {
                     ...this.tlsForm,
@@ -1192,6 +1200,10 @@ export default {
                 let status = 'warning';
                 if(readyItem){
                     status = readyItem.status.toLowerCase() == 'true' ? 'success' : 'error';
+                }else{
+                    // 没有type Ready 有issuing  获取中    有ready 但是status: "False" 失败重试
+                    let Issuing = res.data?.status?.conditions?.find?.(i=>i.type == 'Issuing');
+                    status = Issuing? 'issuing' : 'warning';
                 }
                 this.tlsForm = {
                     ...this.tlsForm,
