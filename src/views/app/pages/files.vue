@@ -309,9 +309,9 @@
                             <!-- 左侧设置 -->
                             <div class="toolbar-right">
                                 
-                                <a-checkbox v-if="!file.fromFileCatch&&origin!='nodes'" v-model="file.openTabs[file.activeTabIndex].checkForever" :disabled="file.openTabs[file.activeTabIndex].isMount && !file.openTabs[file.activeTabIndex].mf">
+                                <a-checkbox v-if="!file.fromFileCatch&&origin!='nodes'" v-model="file.openTabs[file.activeTabIndex].checkForever" :disabled="file.openTabs[file.activeTabIndex].isMount || !!file.openTabs[file.activeTabIndex].mf">
                                     <template #checkbox="{ checked }">
-                                        <span class="toolbar-toggle" :class="{'active': checked, 'disabled':file.openTabs[file.activeTabIndex].isMount && !file.openTabs[file.activeTabIndex].mf}">
+                                        <span class="toolbar-toggle" :class="{'active': checked, 'disabled':file.openTabs[file.activeTabIndex].isMount || !!file.openTabs[file.activeTabIndex].mf}">
                                             <span style="font-size:11px;">永久文件</span>
                                         </span>
                                     </template>
@@ -1719,12 +1719,10 @@ export default {
                     return;
                 }else{
                     // 永久文件转普通文件
-                    let find = this.findMfByPath(this.currentTab.mf);
-                    if(find){
-                        find.delete = true;
-                        this.mfEdit = true;
-                        this.refreshCatch();
-                    }
+                    currentTab.checkForever = true;
+                    currentTab.forever = true;
+                    this.$message.warning('永久文件不支持直接转成普通文件');
+                    return;
                 }
             }else if(this.currentTab.checkForever && !this.currentTab.isMount){
                 // 普通文件转永久文件
