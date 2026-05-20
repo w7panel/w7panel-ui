@@ -986,5 +986,5 @@ export default {
 <style>
 .extratable .arco-table-tr-expand>.arco-table-td{padding:10px; background:var(--color-bg-2);}
 .extratable .arco-table-tr-expand:hover>.arco-table-td{background:var(--color-bg-2)!important;}
-.extratable .arco-table-expand-btn{width:auto; height:auto; border: 0; outline: 0;}
+.extratable .arco-table-expand-btn{width:auto!important; height:auto!important; border: 0!important; outline: 0!important;}
 </style>
