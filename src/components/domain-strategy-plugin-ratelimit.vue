@@ -110,7 +110,7 @@
                                                 <tr class="thead">
                                                     <td style="width: 50%;">Key</td>
                                                     <td style="width: 20%;">周期</td>
-                                                    <td style="width: 15%;">阈值(次)</td>
+                                                    <td style="width: 15%;">阈值<span class="c-red">(次)</span></td>
                                                     <td style="width: 15%;">操作</td>
                                                 </tr>
                                                 <tr v-for="(limitKey, keyIndex) in item.limit_keys" :key="limitKey.id">
