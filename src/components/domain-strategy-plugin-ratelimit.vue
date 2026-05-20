@@ -440,7 +440,7 @@ export default{
             return !!item.dynamicValue;
         },
         getKeyTypeOptions(item = {}) {
-            if (this.isDynamicLimitItem(item)) {
+            if (!this.isDynamicLimitItem(item)) {
                 return [{ label: '精准匹配', value: 'exact' }];
             }
             return [
@@ -644,7 +644,7 @@ export default{
             if (this.isConsumerType(actualType)) {
                 item.limitValue = '';
             }
-            if (item.dynamicValue) {
+            if (!item.dynamicValue) {
                 item.limit_keys = (item.limit_keys || []).map((limitKey) => ({
                     ...limitKey,
                     key_type: 'exact',
