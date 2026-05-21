@@ -226,10 +226,11 @@
             
             <a-spin :loading="domainForm.loading" style="width:100%;">
                 <a-form :model="domainForm" ref="domainForm" :rules="rules" validate-trigger="blur" auto-label-width class="padding-20" >
-                    <a-form-item v-if="!domainForm.name&&inRvproxy" label="">
-                        <a-radio-group v-model="domainForm.originType">
-                            <a-radio :value="1">外部服务</a-radio>
+                    <a-form-item v-if="!domainForm.name" label="">
+                        <a-radio-group v-model="domainForm.originType" @change="chengeFormOriginType">
+                            <a-radio v-if="!domainForm.name&&inRvproxy" :value="1">外部服务</a-radio>
                             <a-radio :value="2">应用</a-radio>
+                            <a-radio :value="3">应用直达</a-radio>
                         </a-radio-group>
                     </a-form-item>
                     <template v-if="domainForm.originType==2 && !inRvproxy">
@@ -288,6 +289,16 @@
                             <a-checkbox v-model="domainForm.auto_ssl" class="mt-16">自动SSL证书</a-checkbox>
                         </div>
                     </a-form-item>
+
+                    <a-form-item v-if="domainForm.originType==3" label="直达应用" style="margin-top:20px;" field="zdApp">
+                        <a-select v-model="domainForm.zdApp" placeholder="请选择应用">
+                            <a-option v-for="item in topApps" :key="item.name" :label="item.title" :value="item.name"></a-option>
+                        </a-select>
+                    </a-form-item>
+                    <a-form-item v-if="domainForm.originType==3" label="游客访问">
+                        <a-switch v-model="domainForm.needlogin" :checked-value="false" :unchecked-value="true"></a-switch>
+                    </a-form-item>
+
                 </a-form>
             </a-spin>
         </a-drawer>
@@ -296,10 +307,11 @@
             <template #title>{{domain.title}}</template>
             <a-form ref="dialog" :model="domain" :rules="rules" validate-trigger="blur" class="padding-20" auto-label-width>
                 
-                <a-form-item label="" v-if="inRvproxy">
+                <a-form-item label="" v-if="inRvproxy && domain.originType!==3" @change="chengeFormOriginType">
                     <a-radio-group v-model="domain.originType">
-                        <a-radio :value="1">外部服务</a-radio>
+                        <a-radio v-if="inRvproxy" :value="1">外部服务</a-radio>
                         <a-radio :value="2">应用</a-radio>
+                        <!-- <a-radio :value="3">应用直达</a-radio> -->
                     </a-radio-group>
                 </a-form-item>
 
@@ -466,6 +478,16 @@
                         </div>
                     </div>
                 </a-form-item>
+
+                <a-form-item v-if="domain.originType==3" label="直达应用" field="zdApp">
+                    <a-select v-model="domain.zdApp" placeholder="请选择应用">
+                        <a-option v-for="item in topApps" :key="item.name" :label="item.title" :value="item.name"></a-option>
+                    </a-select>
+                </a-form-item>
+                <a-form-item v-if="domain.originType==3" label="游客访问">
+                    <a-switch v-model="domain.needlogin" :checked-value="false" :unchecked-value="true"></a-switch>
+                </a-form-item>
+
             </a-form>
         </a-drawer>
         <!-- 卡片添加域名 -->
@@ -580,7 +602,7 @@
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 
 import axios from 'axios'
 import domainStrategy from '@/components/domain-strategy.vue'
@@ -592,6 +614,13 @@ import CryptoJS  from 'crypto-js';
 import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
 import dayjs from 'dayjs';
+
+const type3Backend = {
+    service: {
+        name: 'w7panel-offline',
+        port: {number: 8000},
+    }
+}
 
 const templateData = {
     data: {
@@ -664,6 +693,7 @@ export default {
                 ingressclass: [{ required: true, message: '请选择ingressClass', trigger: 'blur' },],
                 domain: [{ required: true, message: '请输入域名', trigger: 'blur' },],
                 port: [{ required: true, message: '请选择端口', trigger: 'blur' },],
+                zdApp: [{ required: true, message: '请选择应用', trigger: 'blur' },],
             },
             checkedAll: false,
 
@@ -702,6 +732,8 @@ export default {
 
             multipleGrayreleaseShow: false,
             multipleStrategyShow: false,
+
+            topApps: [],
         };
     },
     components: {
@@ -733,6 +765,19 @@ export default {
         },
     },
     methods: {
+        chengeFormOriginType(v){
+            if(v==3){ this.getMenutop(); }
+        },
+        getMenutop(){
+            panelApi.get('/microapp/top').then(res=>{
+                let items = res.data?.items || [];
+                let topApps = items.map(i=>({
+                    title: i?.metadata?.annotations?.title || i?.spec?.title,
+                    name: i.metadata.name,
+                }))
+                this.topApps = topApps;
+            })
+        },
         async retryTestStatus(){
             let operation1 = [{
                 op: 'remove',
@@ -770,13 +815,18 @@ export default {
             k8sproxy.get('/apis/cert-manager.io/v1/namespaces/'+ this.namespaceActive +'/certificates/'+secretName, {noAlert:true,loading:true}).then(res=>{
                 let readyItem = res.data?.status?.conditions?.find?.(i=>i.type == 'Ready');
                 let status = 'warning';
-                if(readyItem){
-                    status = readyItem.status.toLowerCase() == 'true' ? 'success' : 'error';
+                let failedIssuanceAttempts = res.data?.status?.failedIssuanceAttempts;
+
+                if(readyItem && readyItem.status.toLowerCase() == 'true'){
+                    status = 'success';
                 }else{
-                    // 没有type Ready 有issuing  获取中    有ready 但是status: "False" 失败重试
-                    let Issuing = res.data?.status?.conditions?.find?.(i=>i.type == 'Issuing');
-                    status = Issuing? 'issuing' : 'warning';
+                    if(failedIssuanceAttempts > 0){
+                        status = 'error'
+                    }else{
+                        status = 'issuing';
+                    }
                 }
+                
                 this.tlsForm = {
                     ...this.tlsForm,
                     testStatus: {
@@ -1198,13 +1248,18 @@ export default {
             k8sproxy.get('/apis/cert-manager.io/v1/namespaces/'+ this.namespaceActive +'/certificates/'+secretName, {noAlert:true,loading:true}).then(res=>{
                 let readyItem = res.data?.status?.conditions?.find?.(i=>i.type == 'Ready');
                 let status = 'warning';
-                if(readyItem){
-                    status = readyItem.status.toLowerCase() == 'true' ? 'success' : 'error';
+                let failedIssuanceAttempts = res.data?.status?.failedIssuanceAttempts;
+
+                if(readyItem && readyItem.status.toLowerCase() == 'true'){
+                    status = 'success';
                 }else{
-                    // 没有type Ready 有issuing  获取中    有ready 但是status: "False" 失败重试
-                    let Issuing = res.data?.status?.conditions?.find?.(i=>i.type == 'Issuing');
-                    status = Issuing? 'issuing' : 'warning';
+                    if(failedIssuanceAttempts > 0){
+                        status = 'error'
+                    }else{
+                        status = 'issuing';
+                    }
                 }
+
                 this.tlsForm = {
                     ...this.tlsForm,
                     testStatus: {
@@ -1495,6 +1550,15 @@ export default {
             })
         },
         getListData(data, callback){
+            const parseConfig = (str)=>{
+                return str.split('\n').reduce((obj, line) => {
+                    const [k, v] = line.trim().split(/\s+/)
+                    if(k){
+                        obj[k] = (v==='true'||v==='false')? v==='true' : v;
+                    }
+                    return obj
+                }, {})
+            }
             this.dataList = JSON.parse(JSON.stringify(data));
             
             let nameMapPath = {};
@@ -1514,71 +1578,83 @@ export default {
                 
                 let {domain, whiteDomain} = this.matchWhiteDomain(i?.spec?.rules?.[0]?.host);
 
-
                 let part = [];
-                i?.spec?.rules?.[0]?.http?.paths?.map((p,index)=>{
-                    
-                    let matchMethod = i?.metadata?.annotations?.['higress.io/match-method'] || i?.metadata?.annotations?.['disabled.higress.io/match-method'] || '';
-                    matchMethod = matchMethod? matchMethod.split(' ') : [];
-                    let matchHeader = [];
-                    let matchQuery = [];
-                    let matchOpen = i?.metadata?.annotations?.['higress.io/match-method'] !== undefined;
-                    for(let f in i?.metadata?.annotations){
-                        let match = f.match(/^(disabled\.)?higress\.io\/(prefix|exact|regex)\-match\-(query|header)\-([^-]+)$/);
-                        if(!match){continue}
-                        let o = {
-                            type: match[2],
-                            key: match[4],
-                            value: i.metadata.annotations[f],
-                        }
-                        if(match[3]=='query'){ matchQuery.push(o) }
-                        if(match[3]=='header'){ matchHeader.push(o) }
+
+                let p = i?.spec?.rules?.[0]?.http?.paths?.[0];
+                let index = 0;
+                // i?.spec?.rules?.[0]?.http?.paths?.map((p,index)=>{})
+                
+                let matchMethod = i?.metadata?.annotations?.['higress.io/match-method'] || i?.metadata?.annotations?.['disabled.higress.io/match-method'] || '';
+                matchMethod = matchMethod? matchMethod.split(' ') : [];
+                let matchHeader = [];
+                let matchQuery = [];
+                let matchOpen = i?.metadata?.annotations?.['higress.io/match-method'] !== undefined;
+                for(let f in i?.metadata?.annotations){
+                    let match = f.match(/^(disabled\.)?higress\.io\/(prefix|exact|regex)\-match\-(query|header)\-([^-]+)$/);
+                    if(!match){continue}
+                    let o = {
+                        type: match[2],
+                        key: match[4],
+                        value: i.metadata.annotations[f],
                     }
-                    let grayRelease = this.filterGrayRelease({
-                        data,
-                        iname: i.metadata.name,
-                        ipath: p.path,
-                        type: i?.metadata?.annotations?.['higress.io/canary-type'] || 'header',
-                    })
-                    // console.log('grayRelease root',grayRelease)
+                    if(match[3]=='query'){ matchQuery.push(o) }
+                    if(match[3]=='header'){ matchHeader.push(o) }
+                }
+                let grayRelease = this.filterGrayRelease({
+                    data,
+                    iname: i.metadata.name,
+                    ipath: p.path,
+                    type: i?.metadata?.annotations?.['higress.io/canary-type'] || 'header',
+                })
+                // console.log('grayRelease root',grayRelease)
 
-                    // 根子目录
-                    // let noReplace = i?.metadata?.annotations?.['w7.cc/not-replace'] !== 'true';
-                    let filecache = i?.metadata?.annotations?.['w7.cc/filecache'] == 'true';
-                    let registrycache = i?.metadata?.annotations?.['w7.cc/registrycache'] == 'true';
+                // 根子目录
+                // let noReplace = i?.metadata?.annotations?.['w7.cc/not-replace'] !== 'true';
+                let filecache = i?.metadata?.annotations?.['w7.cc/filecache'] == 'true';
+                let registrycache = i?.metadata?.annotations?.['w7.cc/registrycache'] == 'true';
 
-                    part.push({
-                        is_root: index==0,
-                        index: index,
-                        name: i.metadata.name,
-                        parentName: i.metadata.name,
-                        // app: noReplace? (i?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name || '') : i.metadata.annotations?.['higress.io/destination'],
-                        app: i?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name,
-                        port: p?.backend?.service?.port?.number || '',
-                        path: p.path,
-                        
-                        fullDomain: (is_auto_ssl?'https://':'http://') + i?.spec?.rules?.[0]?.host + p.path,
+                let originType = i?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name? 2 : 1;
+                originType = i?.metadata?.labels['w7.cc/zhida'] == 'true' ? 3 : originType;
 
-                        path_type: p.pathType=='Prefix'? (i.metadata.annotations?.['higress.io/use-regex']=='true'?'ImplementationSpecific':'Prefix') : p.pathType,
-                        ingressclass: i.metadata.annotations?.['kubernetes.io/ingress.class'],
-                        rewrite: i.metadata.annotations?.['higress.io/enable-rewrite'] == 'true',
-                        rewrite_path: i.metadata.annotations?.['higress.io/rewrite-target'],
-                        rewrite_host: i.metadata.annotations?.['higress.io/upstream-vhost'],
-                        destination: i?.metadata?.annotations?.['higress.io/destination'],
-                        same: i?.metadata?.annotations?.['same'],
+                let RHC = i?.metadata?.annotations?.['higress.io/request-header-control-add'] || i?.metadata?.annotations?.['disabled.higress.io/request-header-control-add'];
+                RHC = RHC? parseConfig(RHC) : {};
 
-                        originType: i?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name? 2 : 1,
-                        // noReplace: noReplace,
-                        filecache: filecache,
-                        registrycache: registrycache,
-                        
-                        matchHeader: matchHeader || [],
-                        matchQuery: matchQuery || [],
-                        matchMethod: matchMethod || [],
-                        matchOpen: matchOpen,
+                part.push({
+                    is_root: index==0,
+                    index: index,
+                    name: i.metadata.name,
+                    parentName: i.metadata.name,
+                    // app: noReplace? (i?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name || '') : i.metadata.annotations?.['higress.io/destination'],
+                    app: i?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name,
+                    port: p?.backend?.service?.port?.number || '',
+                    path: p.path,
+                    
+                    fullDomain: (is_auto_ssl?'https://':'http://') + i?.spec?.rules?.[0]?.host + p.path,
 
-                        grayRelease: grayRelease,
-                    })
+                    path_type: p.pathType=='Prefix'? (i.metadata.annotations?.['higress.io/use-regex']=='true'?'ImplementationSpecific':'Prefix') : p.pathType,
+                    ingressclass: i.metadata.annotations?.['kubernetes.io/ingress.class'],
+                    rewrite: i.metadata.annotations?.['higress.io/enable-rewrite'] == 'true',
+                    rewrite_path: i.metadata.annotations?.['higress.io/rewrite-target'],
+                    rewrite_host: i.metadata.annotations?.['higress.io/upstream-vhost'],
+                    destination: i?.metadata?.annotations?.['higress.io/destination'],
+                    same: i?.metadata?.annotations?.['same'],
+
+                    originType: originType,
+                    ...{
+                        zdApp: RHC?.microapp_name,
+                        needlogin: RHC?.microapp_needlogin,
+                    },
+                    
+                    // noReplace: noReplace,
+                    filecache: filecache,
+                    registrycache: registrycache,
+                    
+                    matchHeader: matchHeader || [],
+                    matchQuery: matchQuery || [],
+                    matchMethod: matchMethod || [],
+                    matchOpen: matchOpen,
+
+                    grayRelease: grayRelease,
                 })
 
                 let children = JSON.parse(i.metadata.annotations?.['w7.cc/child-hosts'] || '[]');
@@ -1619,69 +1695,80 @@ export default {
 
                 let partItem = i;
                 let part = [];
-                partItem?.spec?.rules?.[0]?.http?.paths?.map((p,index)=>{
-                    
-                    let matchMethod = i?.metadata?.annotations?.['higress.io/match-method'] || i?.metadata?.annotations?.['disabled.higress.io/match-method'] || '';
-                    matchMethod = matchMethod? matchMethod.split(' ') : [];
-                    let matchHeader = [];
-                    let matchQuery = [];
-                    let matchOpen = i?.metadata?.annotations?.['higress.io/match-method'] !== undefined;
-                    for(let f in partItem?.metadata?.annotations){
-                        let match = f.match(/^(disabled\.)?higress\.io\/(prefix|exact|regex)\-match\-(query|header)\-([^-]+)$/);
-                        if(!match){continue}
-                        let o = {
-                            type: match[2],
-                            key: match[4],
-                            value: i.metadata.annotations[f],
-                        }
-                        if(match[3]=='query'){ matchQuery.push(o) }
-                        if(match[3]=='header'){ matchHeader.push(o) }
+                let p = partItem?.spec?.rules?.[0]?.http?.paths?.[0];
+                let index = 0;
+                // partItem?.spec?.rules?.[0]?.http?.paths?.map((p,index)=>{})
+                
+                let matchMethod = i?.metadata?.annotations?.['higress.io/match-method'] || i?.metadata?.annotations?.['disabled.higress.io/match-method'] || '';
+                matchMethod = matchMethod? matchMethod.split(' ') : [];
+                let matchHeader = [];
+                let matchQuery = [];
+                let matchOpen = i?.metadata?.annotations?.['higress.io/match-method'] !== undefined;
+                for(let f in partItem?.metadata?.annotations){
+                    let match = f.match(/^(disabled\.)?higress\.io\/(prefix|exact|regex)\-match\-(query|header)\-([^-]+)$/);
+                    if(!match){continue}
+                    let o = {
+                        type: match[2],
+                        key: match[4],
+                        value: i.metadata.annotations[f],
                     }
+                    if(match[3]=='query'){ matchQuery.push(o) }
+                    if(match[3]=='header'){ matchHeader.push(o) }
+                }
+                
+                let grayRelease = this.filterGrayRelease({
+                    data,
+                    iname: partItem.metadata.name,
+                    ipath: p.path,
+                    type: partItem?.metadata?.annotations?.['higress.io/canary-type'] || 'header',
+                })
+                // console.log('grayRelease part ',p.path, grayRelease)
+
+                // let noReplace = partItem?.metadata?.annotations?.['w7.cc/not-replace'] !== 'true';
+                let filecache = partItem?.metadata?.annotations?.['w7.cc/filecache'] == 'true';
+                let registrycache = partItem?.metadata?.annotations?.['w7.cc/registrycache'] == 'true';
+                let originType = partItem?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name? 2 : 1;
+                originType = partItem?.metadata?.labels['w7.cc/zhida'] == 'true' ? 3 : originType;
+
+                let RHC = partItem?.metadata?.annotations?.['higress.io/request-header-control-add'] || partItem?.metadata?.annotations?.['disabled.higress.io/request-header-control-add'];
+                RHC = RHC? parseConfig(RHC) : {};
+                
+                part.push({
+                    // is_root: index==0,
+                    index: index,
+                    name: partItem.metadata.name,
+                    parentName: find.metadata.name,
+                    // app: noReplace? (partItem?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name || '') : partItem.metadata.annotations?.['higress.io/destination'],
+                    app: partItem?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name || '',
+                    originType: originType,
+                    ...{
+                        zdApp: RHC?.microapp_name,
+                        needlogin: RHC?.microapp_needlogin,
+                    },
+
+                    // noReplace: noReplace,
+                    filecache: filecache,
+                    registrycache: registrycache,
+
+                    path: p.path,
+                    port: p?.backend?.service?.port?.number || '',
                     
-                    let grayRelease = this.filterGrayRelease({
-                        data,
-                        iname: partItem.metadata.name,
-                        ipath: p.path,
-                        type: partItem?.metadata?.annotations?.['higress.io/canary-type'] || 'header',
-                    })
-                    // console.log('grayRelease part ',p.path, grayRelease)
+                    fullDomain: (is_auto_ssl?'https://':'http://') + i?.spec?.rules?.[0]?.host + p.path,
 
-                    // let noReplace = partItem?.metadata?.annotations?.['w7.cc/not-replace'] !== 'true';
-                    let filecache = partItem?.metadata?.annotations?.['w7.cc/filecache'] == 'true';
-                    let registrycache = partItem?.metadata?.annotations?.['w7.cc/registrycache'] == 'true';
-                    
-                    part.push({
-                        // is_root: index==0,
-                        index: index,
-                        name: partItem.metadata.name,
-                        parentName: find.metadata.name,
-                        // app: noReplace? (partItem?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name || '') : partItem.metadata.annotations?.['higress.io/destination'],
-                        app: partItem?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name || '',
-                        originType: partItem?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.name? 2 : 1,
-                        // noReplace: noReplace,
-                        filecache: filecache,
-                        registrycache: registrycache,
+                    // path_type: p.pathType,
+                    path_type: p.pathType=='Prefix'? (i.metadata.annotations?.['higress.io/use-regex']=='true'?'ImplementationSpecific':'Prefix') : p.pathType,
+                    ingressclass: partItem.metadata.annotations?.['kubernetes.io/ingress.class'],
+                    rewrite: partItem.metadata.annotations?.['higress.io/enable-rewrite'] == 'true',
+                    rewrite_path: partItem.metadata.annotations?.['higress.io/rewrite-target'],
+                    rewrite_host: partItem.metadata.annotations?.['higress.io/upstream-vhost'],
+                    destination: partItem?.metadata?.annotations?.['higress.io/destination'],
 
-                        path: p.path,
-                        port: p?.backend?.service?.port?.number || '',
-                        
-                        fullDomain: (is_auto_ssl?'https://':'http://') + i?.spec?.rules?.[0]?.host + p.path,
+                    matchHeader: matchHeader || [],
+                    matchQuery: matchQuery || [],
+                    matchMethod: matchMethod || [],
+                    matchOpen: matchOpen,
 
-                        // path_type: p.pathType,
-                        path_type: p.pathType=='Prefix'? (i.metadata.annotations?.['higress.io/use-regex']=='true'?'ImplementationSpecific':'Prefix') : p.pathType,
-                        ingressclass: partItem.metadata.annotations?.['kubernetes.io/ingress.class'],
-                        rewrite: partItem.metadata.annotations?.['higress.io/enable-rewrite'] == 'true',
-                        rewrite_path: partItem.metadata.annotations?.['higress.io/rewrite-target'],
-                        rewrite_host: partItem.metadata.annotations?.['higress.io/upstream-vhost'],
-                        destination: partItem?.metadata?.annotations?.['higress.io/destination'],
-
-                        matchHeader: matchHeader || [],
-                        matchQuery: matchQuery || [],
-                        matchMethod: matchMethod || [],
-                        matchOpen: matchOpen,
-
-                        grayRelease: grayRelease,
-                    })
+                    grayRelease: grayRelease,
                 })
 
                 let liItem = list.find(i=>i.name==partItem.metadata.labels.parents)
@@ -1811,6 +1898,8 @@ export default {
                 path: '',
                 whiteDomain: item.name? item.whiteDomain : 0,
                 destination: item.destination,
+
+                needlogin: true, // 应用直达，游客访问
             }
             if(this.whiteList?.length && this.whiteList[this.domainForm?.whiteDomain]?.prefixRandom && !this.domainForm.domain){
                 this.domainForm.domain = this.createShortUuid();
@@ -1841,7 +1930,12 @@ export default {
                     if(!data.spec.rules){return}
 
                     data.spec.rules[0].host = fullDomain;
+                    
+                    delete data.metadata.resourceVersion;
+                    delete data.metadata.generation;
                     delete data.metadata.creationTimestamp;
+                    delete data.metadata.uid;
+                    delete data.status;
                     
                     if(this.domainForm.port && data?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.port?.number){
                         this.domainForm.port && (data.spec.rules[0].http.paths[0].backend.service.port.number = Number(this.domainForm.port));
@@ -1955,6 +2049,7 @@ export default {
                             }
                         }
                     }
+                    if(this.domainForm.originType==3){ backend = type3Backend; }
                     let data = {
                         apiVersion: 'networking.k8s.io/v1',
                         kind: 'Ingress',
@@ -1997,12 +2092,13 @@ export default {
                             secretName:  this.domainToname(fullDomain) + "-tls-secret"
                         }]
                     }
+
                     if(this.domainForm.originType==1){
                         data.metadata.annotations['higress.io/destination'] = this.domainForm.destination;
                         data.metadata.annotations['destination'] = this.domainForm.destination.replace(/\..*$/,'');
                         data.metadata.labels['higress.io/destination'] = this.domainForm.destination;
                         data.metadata.labels['destination'] =this.domainForm.destination.replace(/\..*$/,'');
-                    }else{
+                    }else if(this.domainForm.originType==2){
                         delete data.metadata.annotations['higress.io/destination'];
                         delete data.metadata.labels['higress.io/destination'];
                         if(this.inRvproxy){
@@ -2012,6 +2108,27 @@ export default {
                         }else{
                             delete data.metadata.annotations['destination'];
                             delete data.metadata.labels['destination'];
+                        }
+                    }else if(this.domainForm.originType==3){
+                        data.metadata.labels['w7.cc/zhida'] = "true";
+                        if(this.inRvproxy){
+                            let agent = this.agents?.[0]?.value || '';
+                            data.metadata.annotations['destination'] = agent.replace(/\..*$/,'');
+                            data.metadata.labels['destination'] = agent.replace(/\..*$/,'');
+                        }
+                        let ann = {
+                            "higress.io/enable-header-control": "true",
+                            "higress.io/request-header-control-add": [
+                                `microapp_name ${this.domainForm.zdApp}`,
+                                `microapp_do /`,
+                                `microapp_leftmenu true`,
+                                `microapp_breadcrumb true`,
+                                `microapp_needlogin ${this.domainForm.needlogin}`,
+                            ].join('\n')
+                        }
+                        data.metadata.annotations = {
+                            ...data.metadata.annotations,
+                            ...ann
                         }
                     }
                     
@@ -2040,7 +2157,7 @@ export default {
             
             // app: this.$route.params.id,
             // appPorts: this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id] || []),
-            
+            if(item.originType==3){ this.getMenutop(); }
             this.domain = {
                 ...this.domain,
                 show: true,
@@ -2054,6 +2171,8 @@ export default {
 
                 app: item?.app || '',
                 originType: item.originType || (this.inRvproxy? 1 : 2),
+                zdApp: item?.zdApp || '',
+                needlogin: !!item?.needlogin,
 
                 appPorts: this.inRvproxy? [] : (this.appPorts[item.app] || []),
                 isroot: item.is_root || false,
@@ -2073,6 +2192,15 @@ export default {
         },
         // 提交子目录
         submitForm(eve){
+            const parseConfig = (str)=>{
+                return str.split('\n').reduce((obj, line) => {
+                    const [k, v] = line.trim().split(/\s+/)
+                    if(k){
+                        obj[k] = (v==='true'||v==='false')? v==='true' : v;
+                    }
+                    return obj
+                }, {})
+            }
             return new Promise((resolve,reject)=>{
                 if(this.$refs.dialog){
                     this.$refs.dialog.validate((err) => {
@@ -2208,6 +2336,7 @@ export default {
                             }
                         }
                     }
+                    if(this.domain.originType==3){ backend = type3Backend; }
                     
                     // 正则匹配也是Prefix 并且 higress.io/use-regex == true
                     data.metadata.annotations['higress.io/use-regex'] = String(this.domain.path_type=='ImplementationSpecific')
@@ -2218,7 +2347,12 @@ export default {
                         pathType: this.domain.path_type=='ImplementationSpecific'? 'Prefix' : this.domain.path_type,
                         backend: backend,
                     };
+                    
+                    delete data.metadata.resourceVersion;
+                    delete data.metadata.generation;
                     delete data.metadata.creationTimestamp;
+                    delete data.metadata.uid;
+                    delete data.status;
                     
                     for(let i in data.metadata?.annotations){
                         if(/^higress\.io\/(prefix|exact|regex)\-match\-(header|query)\-[^-]+$/.test(i)){
@@ -2257,7 +2391,7 @@ export default {
                         data.metadata.annotations['destination'] = this.domain.destination.replace(/\..*$/,'');
                         data.metadata.labels['higress.io/destination'] = this.domain.destination;
                         data.metadata.labels['destination'] =this.domain.destination.replace(/\..*$/,'');
-                    }else{
+                    }else if(this.domain.originType==2){
                         delete data.metadata.annotations['higress.io/destination'];
                         delete data.metadata.labels['higress.io/destination'];
                         if(this.inRvproxy){
@@ -2268,6 +2402,18 @@ export default {
                             delete data.metadata.annotations['destination'];
                             delete data.metadata.labels['destination'];
                         }
+                    }else if(this.domain.originType==3){ 
+                        let key = (data.metadata.annotations['higress.io/enable-header-control']===true)? 'higress.io/request-header-control-add' : 'disabled.higress.io/request-header-control-add';
+                        let obj = parseConfig(data.metadata?.annotations?.[key] || '');
+                        obj = {
+                            ...obj,
+                            microapp_name: this.domain.zdApp,
+                            microapp_do: '/',
+                            microapp_leftmenu:  true,
+                            microapp_breadcrumb: true,
+                            microapp_needlogin: this.domain.needlogin,
+                        }
+                        data.metadata.annotations[key] = Object.entries(obj).map(([k,v])=>`${k} ${v}`).join('\n');
                     }
                     // 修改重写，同步策略
                     useLoadingStore().loading = true;

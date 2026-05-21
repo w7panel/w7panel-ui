@@ -110,16 +110,18 @@
                                                 <tr class="thead">
                                                     <td style="width: 50%;">Key</td>
                                                     <td style="width: 20%;">周期</td>
-                                                    <td style="width: 15%;">阈值(次)</td>
+                                                    <td style="width: 15%;">阈值<span class="c-red">(次)</span></td>
                                                     <td style="width: 15%;">操作</td>
                                                 </tr>
                                                 <tr v-for="(limitKey, keyIndex) in item.limit_keys" :key="limitKey.id">
                                                     <td style="white-space:nowrap;">
                                                         <a-select v-model="limitKey.key_type" placeholder="Key 类型" @change="v=>v=='full'?(limitKey.key=''):null" style="width:120px;margin-right:10px;">
-                                                            <a-option label="前缀匹配" value="prefix"></a-option>
-                                                            <a-option label="正则匹配" value="regex"></a-option>
-                                                            <a-option label="全量匹配" value="full"></a-option>
-                                                            <a-option label="精准匹配" value="exact"></a-option>
+                                                            <a-option
+                                                                v-for="option in getKeyTypeOptions(item)"
+                                                                :key="option.value"
+                                                                :label="option.label"
+                                                                :value="option.value"
+                                                            ></a-option>
                                                         </a-select>
                                                         <a-input v-if="limitKey.key_type=='full'" readonly model-value=".*" style="width:300px;" :input-attrs="{style:'color:var(--color-text-3);'}">
                                                             <template #prepend><span style="color:var(--color-text-3);">regexp:^</span></template>
@@ -434,6 +436,20 @@ export default{
         isDynamicValueLocked(item = {}) {
             return this.getLimitTypeOption(item.limitType).dynamicLocked;
         },
+        isDynamicLimitItem(item = {}) {
+            return !!item.dynamicValue;
+        },
+        getKeyTypeOptions(item = {}) {
+            if (!this.isDynamicLimitItem(item)) {
+                return [{ label: '精准匹配', value: 'exact' }];
+            }
+            return [
+                { label: '前缀匹配', value: 'prefix' },
+                { label: '正则匹配', value: 'regex' },
+                { label: '全量匹配', value: 'full' },
+                { label: '精准匹配', value: 'exact' },
+            ];
+        },
         limitValuePlaceholder(type) {
             if (type === 'limit_by_per_ip') {
                 return '例如：from-header-x-forwarded-for 或 from-remote-addr';
@@ -605,6 +621,7 @@ export default{
         },
         addLimitKey(item) {
             item.limit_keys.push(createLimitKey());
+            this.normalizeRuleItem(item);
         },
         removeLimitKey(item, index) {
             if (item.limit_keys.length === 1) {
@@ -626,6 +643,12 @@ export default{
             }
             if (this.isConsumerType(actualType)) {
                 item.limitValue = '';
+            }
+            if (!item.dynamicValue) {
+                item.limit_keys = (item.limit_keys || []).map((limitKey) => ({
+                    ...limitKey,
+                    key_type: 'exact',
+                }));
             }
             return item;
         },

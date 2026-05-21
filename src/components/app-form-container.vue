@@ -10,6 +10,25 @@
                     <span v-else>{{ form.name }}</span>
                 </template>
                 
+                <a-form-item
+                    row-class="ac-form-item"
+                    label="容器名称"
+                    field="customName"
+                    :help="testName(form.customName)?'':'最长63个字符，只能包含小写字母、数字及分隔符(-)，且不能以分隔符开头或结尾'"
+                    :validate-status="testName(form.customName)?'':'error'"
+                >
+                    <a-input v-if="!selectAppContainer.show" v-model="form.customName" placeholder='最长63个字符，只能包含小写字母、数字及分隔符(-)，且不能以分隔符开头或结尾' style="width:500px;" @change="form.name = (testName(form.customName)?form.customName:form.name)"></a-input>
+                    
+                    <select-container v-if="selectAppContainer.show" @complete="(v)=>selectAppContainer[index]=v" ></select-container>
+
+                    <span v-if="!selectAppContainer.show"  class="ml-20 cursor c-blue" @click="selectAppContainer.show=true;selectAppContainer[index]=null;">复用已创建应用</span>
+                    <div v-else class="df ai-c ml-20">
+                        <a-button type="primary" @click="selectAppContainer[index]?handleSelectContainer(selectAppContainer[index],index):$message.warning('请选择应用容器');">确定</a-button>
+                        <a-button @click="selectAppContainer.show=false;" class="ml-10">取消</a-button>
+                    </div>
+
+                </a-form-item>
+                
                 <div v-if="layout=='cronjob'" >
                     <!-- <a-form-item label="选择容器">
                         <select-container @complete="(v)=>handleSelectContainer(v,index)" ></select-container>
@@ -129,25 +148,6 @@
 
                 <!-- cronjob 高级配置 -->
                 <div v-show="showExtra || layout!='cronjob'">
-                    
-                <a-form-item
-                    row-class="ac-form-item"
-                    label="容器名称"
-                    field="customName"
-                    :help="testName(form.customName)?'':'最长63个字符，只能包含小写字母、数字及分隔符(-)，且不能以分隔符开头或结尾'"
-                    :validate-status="testName(form.customName)?'':'error'"
-                >
-                    <a-input v-if="!selectAppContainer.show" v-model="form.customName" placeholder='最长63个字符，只能包含小写字母、数字及分隔符(-)，且不能以分隔符开头或结尾' style="width:500px;" @change="form.name = (testName(form.customName)?form.customName:form.name)"></a-input>
-                    
-                    <select-container v-if="selectAppContainer.show" @complete="(v)=>selectAppContainer[index]=v" ></select-container>
-
-                    <span v-if="!selectAppContainer.show"  class="ml-20 cursor c-blue" @click="selectAppContainer.show=true;selectAppContainer[index]=null;">复用已创建应用</span>
-                    <div v-else class="df ai-c ml-20">
-                        <a-button type="primary" @click="selectAppContainer[index]?handleSelectContainer(selectAppContainer[index],index):$message.warning('请选择应用容器');">确定</a-button>
-                        <a-button @click="selectAppContainer.show=false;" class="ml-10">取消</a-button>
-                    </div>
-
-                </a-form-item>
 
                 <a-form-item label="CPU/内存限制" row-class="ac-form-item">
                     <a-space direction="vertical" style="padding:20px;width:500px;background:var(--color-neutral-1);" fill :size="0">
