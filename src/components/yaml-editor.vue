@@ -1,7 +1,7 @@
 <template>
     <div id="yamleditordom" style="height:100%;">
         <div id="editor_textarea"></div>
-        <div v-if="nofooter!==true" class="mt-16">
+        <div v-if="nofooter!==true" class="mt-16" style="padding-bottom:16px;">
             <a-button type="primary" @click="submit">确定</a-button>
             <a-button class="ml-10" @click="cancel">取消</a-button>
         </div>

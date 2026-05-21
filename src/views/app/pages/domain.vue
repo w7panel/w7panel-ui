@@ -307,11 +307,11 @@
             <template #title>{{domain.title}}</template>
             <a-form ref="dialog" :model="domain" :rules="rules" validate-trigger="blur" class="padding-20" auto-label-width>
                 
-                <a-form-item label="" v-if="inRvproxy && domain.originType!==3" @change="chengeFormOriginType">
-                    <a-radio-group v-model="domain.originType">
+                <a-form-item label="">
+                    <a-radio-group v-model="domain.originType" @change="chengeFormOriginType">
                         <a-radio v-if="inRvproxy" :value="1">外部服务</a-radio>
                         <a-radio :value="2">应用</a-radio>
-                        <!-- <a-radio :value="3">应用直达</a-radio> -->
+                        <a-radio :value="3">应用直达</a-radio>
                     </a-radio-group>
                 </a-form-item>
 
@@ -767,6 +767,10 @@ export default {
     methods: {
         chengeFormOriginType(v){
             if(v==3){ this.getMenutop(); }
+            if(v==2){
+                this.domain.app = '';
+                this.domain.port = '';
+            }
         },
         getMenutop(){
             panelApi.get('/microapp/top').then(res=>{
@@ -2098,7 +2102,7 @@ export default {
                         data.metadata.annotations['destination'] = this.domainForm.destination.replace(/\..*$/,'');
                         data.metadata.labels['higress.io/destination'] = this.domainForm.destination;
                         data.metadata.labels['destination'] =this.domainForm.destination.replace(/\..*$/,'');
-                    }else if(this.domainForm.originType==2){
+                    }else if(this.domainForm.originType==2 || this.domainForm.originType==3){
                         delete data.metadata.annotations['higress.io/destination'];
                         delete data.metadata.labels['higress.io/destination'];
                         if(this.inRvproxy){
@@ -2109,13 +2113,11 @@ export default {
                             delete data.metadata.annotations['destination'];
                             delete data.metadata.labels['destination'];
                         }
-                    }else if(this.domainForm.originType==3){
+                    }
+                    
+                    if(this.domainForm.originType==3){
                         data.metadata.labels['w7.cc/zhida'] = "true";
-                        if(this.inRvproxy){
-                            let agent = this.agents?.[0]?.value || '';
-                            data.metadata.annotations['destination'] = agent.replace(/\..*$/,'');
-                            data.metadata.labels['destination'] = agent.replace(/\..*$/,'');
-                        }
+                        
                         let ann = {
                             "higress.io/enable-header-control": "true",
                             "higress.io/request-header-control-add": [
@@ -2213,28 +2215,75 @@ export default {
             }).then(async ()=>{
                 let data = null;
                 // 添加子目录 = 创建新域名 设置metadata.labels.parents
+                
+                let backend = {
+                    "resource": {
+                        "apiGroup": "networking.higress.io",
+                        "kind": "McpBridge",
+                        "name": "default"
+                    }
+                };
+                if(this.domain.originType==2){
+                    backend = {
+                        service: {
+                            name: this.domain.app,
+                            port: { number: Number(this.domain.port), },
+                        }
+                    }
+                }
+                if(this.domain.originType==3){ backend = type3Backend; }
+
+                const setAnn = (data)=>{
+                    if(this.domain.originType==1){
+                        data.metadata.annotations['higress.io/destination'] = this.domain.destination;
+                        data.metadata.annotations['destination'] = this.domain.destination.replace(/\..*$/,'');
+                        data.metadata.labels['higress.io/destination'] = this.domain.destination;
+                        data.metadata.labels['destination'] =this.domain.destination.replace(/\..*$/,'');
+                    }else if(this.domain.originType==2 || this.domain.originType==3){
+                        delete data.metadata.annotations['higress.io/destination'];
+                        delete data.metadata.labels['higress.io/destination'];
+                        if(this.inRvproxy){
+                            let agent = this.agents?.[0]?.value || '';
+                            data.metadata.annotations['destination'] = agent.replace(/\..*$/,'');
+                            data.metadata.labels['destination'] = agent.replace(/\..*$/,'');
+                        }else{
+                            delete data.metadata.annotations['destination'];
+                            delete data.metadata.labels['destination'];
+                        }
+                    }
+                    if(this.domain.originType==3){
+                        data.metadata.labels['w7.cc/zhida'] = 'true';
+                        
+                        let key = (data.metadata.annotations['higress.io/enable-header-control']==='true')? 'higress.io/request-header-control-add' : 'disabled.higress.io/request-header-control-add';
+                        let obj = parseConfig(data.metadata?.annotations?.[key] || '');
+                        obj = {
+                            ...obj,
+                            microapp_name: this.domain.zdApp,
+                            microapp_do: '/',
+                            microapp_leftmenu:  true,
+                            microapp_breadcrumb: true,
+                            microapp_needlogin: this.domain.needlogin,
+                        }
+                        data.metadata.annotations[key] = Object.entries(obj).map(([k,v])=>`${k} ${v}`).join('\n');
+                    }else{
+                        
+                        delete data.metadata.labels?.['w7.cc/zhida'];
+                        let key = (data.metadata.annotations['higress.io/enable-header-control']==='true')? 'higress.io/request-header-control-add' : 'disabled.higress.io/request-header-control-add';
+                        let obj = parseConfig(data.metadata?.annotations?.[key] || '');
+                        delete obj.microapp_name;
+                        delete obj.microapp_do;
+                        delete obj.microapp_leftmenu;
+                        delete obj.microapp_breadcrumb;
+                        delete obj.microapp_needlogin;
+                        data.metadata.annotations[key] = Object.entries(obj).map(([k,v])=>`${k} ${v}`).join('\n');
+                    }
+                }
+
+
                 if(this.domain.is_create){
                     data = this.dataList.find(i=>i?.metadata?.name==this.domain.parent)
                     if(!data || !data.spec || !data.spec.rules){return}
                     data = JSON.parse(JSON.stringify(data))
-                    
-                    let backend = {
-                        "resource": {
-                            "apiGroup": "networking.higress.io",
-                            "kind": "McpBridge",
-                            "name": "default"
-                        }
-                    };
-                    if(this.domain.originType==2){
-                        backend = {
-                            service: {
-                                name: this.domain.app,
-                                port: {
-                                    number: Number(this.domain.port),
-                                },
-                            }
-                        }
-                    }
 
                     // 正则匹配也是Prefix 并且 higress.io/use-regex == true
                     data.metadata.annotations['higress.io/use-regex'] = String(this.domain.path_type=='ImplementationSpecific')
@@ -2289,23 +2338,7 @@ export default {
                         data.metadata.annotations['kubernetes.io/ingress.class'] = this.domain.ingressclass;
                     }
                     
-                    if(this.domain.originType==1){
-                        data.metadata.annotations['higress.io/destination'] = this.domain.destination;
-                        data.metadata.annotations['destination'] = this.domain.destination.replace(/\..*$/,'');
-                        data.metadata.labels['higress.io/destination'] = this.domain.destination;
-                        data.metadata.labels['destination'] =this.domain.destination.replace(/\..*$/,'');
-                    }else{
-                        delete data.metadata.annotations['higress.io/destination'];
-                        delete data.metadata.labels['higress.io/destination'];
-                        if(this.inRvproxy){
-                            let agent = this.agents?.[0]?.value || '';
-                            data.metadata.annotations['destination'] = agent.replace(/\..*$/,'');
-                            data.metadata.labels['destination'] = agent.replace(/\..*$/,'');
-                        }else{
-                            delete data.metadata.annotations['destination'];
-                            delete data.metadata.labels['destination'];
-                        }
-                    }
+                    setAnn(data)
                     
                     return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data).then(res=>{
                         this.domain.show = false;
@@ -2319,24 +2352,6 @@ export default {
                     data = this.dataList.find(i=>i?.metadata?.name==this.domain.parent)
                     if(!data || !data.spec || !data.spec.rules){return}
                     data = JSON.parse(JSON.stringify(data))
-                    let backend = {
-                        "resource": {
-                            "apiGroup": "networking.higress.io",
-                            "kind": "McpBridge",
-                            "name": "default"
-                        }
-                    };
-                    if(this.domain.originType==2){
-                        backend = {
-                            service: {
-                                name: this.domain.app,
-                                port: {
-                                    number: Number(this.domain.port),
-                                },
-                            }
-                        }
-                    }
-                    if(this.domain.originType==3){ backend = type3Backend; }
                     
                     // 正则匹配也是Prefix 并且 higress.io/use-regex == true
                     data.metadata.annotations['higress.io/use-regex'] = String(this.domain.path_type=='ImplementationSpecific')
@@ -2385,36 +2400,9 @@ export default {
                     if(this.domain.ingressclass){
                         data.metadata.annotations['kubernetes.io/ingress.class'] = this.domain.ingressclass;
                     }
+
+                    setAnn(data)
                     
-                    if(this.domain.originType==1){
-                        data.metadata.annotations['higress.io/destination'] = this.domain.destination;
-                        data.metadata.annotations['destination'] = this.domain.destination.replace(/\..*$/,'');
-                        data.metadata.labels['higress.io/destination'] = this.domain.destination;
-                        data.metadata.labels['destination'] =this.domain.destination.replace(/\..*$/,'');
-                    }else if(this.domain.originType==2){
-                        delete data.metadata.annotations['higress.io/destination'];
-                        delete data.metadata.labels['higress.io/destination'];
-                        if(this.inRvproxy){
-                            let agent = this.agents?.[0]?.value || '';
-                            data.metadata.annotations['destination'] = agent.replace(/\..*$/,'');
-                            data.metadata.labels['destination'] = agent.replace(/\..*$/,'');
-                        }else{
-                            delete data.metadata.annotations['destination'];
-                            delete data.metadata.labels['destination'];
-                        }
-                    }else if(this.domain.originType==3){ 
-                        let key = (data.metadata.annotations['higress.io/enable-header-control']===true)? 'higress.io/request-header-control-add' : 'disabled.higress.io/request-header-control-add';
-                        let obj = parseConfig(data.metadata?.annotations?.[key] || '');
-                        obj = {
-                            ...obj,
-                            microapp_name: this.domain.zdApp,
-                            microapp_do: '/',
-                            microapp_leftmenu:  true,
-                            microapp_breadcrumb: true,
-                            microapp_needlogin: this.domain.needlogin,
-                        }
-                        data.metadata.annotations[key] = Object.entries(obj).map(([k,v])=>`${k} ${v}`).join('\n');
-                    }
                     // 修改重写，同步策略
                     useLoadingStore().loading = true;
                     let nowRewrite = this.domain.rewrite? this.domain.rewrite_host : '';
