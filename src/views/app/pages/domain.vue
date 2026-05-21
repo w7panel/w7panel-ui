@@ -815,13 +815,18 @@ export default {
             k8sproxy.get('/apis/cert-manager.io/v1/namespaces/'+ this.namespaceActive +'/certificates/'+secretName, {noAlert:true,loading:true}).then(res=>{
                 let readyItem = res.data?.status?.conditions?.find?.(i=>i.type == 'Ready');
                 let status = 'warning';
-                if(readyItem){
-                    status = readyItem.status.toLowerCase() == 'true' ? 'success' : 'error';
+                let failedIssuanceAttempts = res.data?.status?.failedIssuanceAttempts;
+
+                if(readyItem && readyItem.status.toLowerCase() == 'true'){
+                    status = 'success';
                 }else{
-                    // 没有type Ready 有issuing  获取中    有ready 但是status: "False" 失败重试
-                    let Issuing = res.data?.status?.conditions?.find?.(i=>i.type == 'Issuing');
-                    status = Issuing? 'issuing' : 'warning';
+                    if(failedIssuanceAttempts > 0){
+                        status = 'error'
+                    }else{
+                        status = 'issuing';
+                    }
                 }
+                
                 this.tlsForm = {
                     ...this.tlsForm,
                     testStatus: {
@@ -1241,15 +1246,20 @@ export default {
             }
 
             k8sproxy.get('/apis/cert-manager.io/v1/namespaces/'+ this.namespaceActive +'/certificates/'+secretName, {noAlert:true,loading:true}).then(res=>{
-                let Issuing = res.data?.status?.conditions?.find?.(i=>i.type == 'Issuing');
                 let readyItem = res.data?.status?.conditions?.find?.(i=>i.type == 'Ready');
                 let status = 'warning';
-                
-                if(Issuing){
-                    status = 'issuing';
-                }else if(readyItem){
-                    status = readyItem.status.toLowerCase() == 'true' ? 'success' : 'error';
+                let failedIssuanceAttempts = res.data?.status?.failedIssuanceAttempts;
+
+                if(readyItem && readyItem.status.toLowerCase() == 'true'){
+                    status = 'success';
+                }else{
+                    if(failedIssuanceAttempts > 0){
+                        status = 'error'
+                    }else{
+                        status = 'issuing';
+                    }
                 }
+
                 this.tlsForm = {
                     ...this.tlsForm,
                     testStatus: {
@@ -1920,7 +1930,12 @@ export default {
                     if(!data.spec.rules){return}
 
                     data.spec.rules[0].host = fullDomain;
+                    
+                    delete data.metadata.resourceVersion;
+                    delete data.metadata.generation;
                     delete data.metadata.creationTimestamp;
+                    delete data.metadata.uid;
+                    delete data.status;
                     
                     if(this.domainForm.port && data?.spec?.rules?.[0]?.http?.paths?.[0]?.backend?.service?.port?.number){
                         this.domainForm.port && (data.spec.rules[0].http.paths[0].backend.service.port.number = Number(this.domainForm.port));
@@ -2332,7 +2347,12 @@ export default {
                         pathType: this.domain.path_type=='ImplementationSpecific'? 'Prefix' : this.domain.path_type,
                         backend: backend,
                     };
+                    
+                    delete data.metadata.resourceVersion;
+                    delete data.metadata.generation;
                     delete data.metadata.creationTimestamp;
+                    delete data.metadata.uid;
+                    delete data.status;
                     
                     for(let i in data.metadata?.annotations){
                         if(/^higress\.io\/(prefix|exact|regex)\-match\-(header|query)\-[^-]+$/.test(i)){

@@ -409,6 +409,7 @@ export default {
                 show: true,
                 data: {
                     name: data.name,
+                    namespace: data.namespace,
                     container: data.container,
                     containerList: data.containerList,
                 },

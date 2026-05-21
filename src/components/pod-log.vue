@@ -200,7 +200,8 @@ export default {
     },
     computed: {
         currentNamespace() {
-            return this.namespace || useNamespaceStore().namespace;
+            const ns = this.namespace || this.data?.namespace || useNamespaceStore().namespace;
+            return ns;
         },
     },
     watch: {
@@ -228,22 +229,17 @@ export default {
     },
     methods: {
         initData() {
-            // 初始化 currentContainer（优先使用 prop）
-            if (this.container && !this.currentContainer) {
-                this.currentContainer = this.container;
+            // 解析 data 或使用 props
+            let podName = this.podName || this.data?.name || '';
+            let containerList = this.containers || this.data?.containerList || null;
+            const defaultContainer = this.container || this.data?.container || '';
+
+            if (defaultContainer && !this.currentContainer) {
+                this.currentContainer = defaultContainer;
             }
             // 初始化 currentTailLines（优先使用 prop）
             if (this.tailLines && this.currentTailLines === 100) {
                 this.currentTailLines = this.tailLines;
-            }
-
-            // 解析 data 或使用 props
-            let podName = this.podName;
-            let containerList = this.containers;
-            
-            if (this.data) {
-                podName = this.data.name || this.podName;
-                containerList = this.data.containerList || this.containers;
             }
 
             if (!podName) return;
