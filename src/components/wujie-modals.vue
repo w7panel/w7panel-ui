@@ -217,6 +217,7 @@ export default {
         registerWujieEvent('checkSession', this.checkSession);
         registerWujieEvent('containerPlugin', this.openContainerPlugin);
         registerWujieEvent('buildContainerImage', this.openBuildContainerImage);
+        registerWujieEvent('getOidcCode', this.getOidcCode);
 
 // 测试
 // setTimeout(()=>{
@@ -243,6 +244,17 @@ export default {
         buildImageStatus,
     },
     methods: {
+        async getOidcCode(data,callback){
+            panelApi.post('/oidc/js-code',{
+                client_id: data?.client_id || 'default',
+                redirect_uri: data?.redirect_uri || 'http://127.0.0.1:3000/callback',
+                scope: data?.scope || 'openid',
+            }).then(res=>{
+                callback?.(res.data.code);
+            }).catch(()=>{
+                callback?.('');
+            })
+        },
         async openBuildContainerImage({podName,cmd,containerName,imageName,pinned,updateImage},callback,rejectCallback){
             console.log({podName,cmd,containerName,imageName})
             let {containerID,ip,ownerRef} = await k8sproxy.get("/api/v1/namespaces/" + this.namespaceActive + "/pods/" + podName,{
