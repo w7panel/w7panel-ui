@@ -14,6 +14,7 @@ import router from "@/router";
 interface CustomAxiosRequestConfig extends AxiosRequestConfig {
     loading?: boolean;
     customToken?:string;
+    noTokenRequired?: boolean; // 其他接口401时 不中止该请求
     name?: string;
     noAlert?:boolean;
 }
@@ -79,7 +80,7 @@ axios.interceptors.request.use(
 
         config.name = config.url + Math.random().toString(36).substring(2, 10);
 
-        if(!config?.customToken && config?.url!='/panel-api/v1/auth/refresh-token2'){
+        if(!config?.customToken && config?.url!='/panel-api/v1/auth/refresh-token2' && !config.noTokenRequired){
             const controller = new AbortController();
             config.signal = controller.signal;
             pendingRequests.set(config.name, controller);
@@ -133,7 +134,7 @@ axios.interceptors.response.use(
                 }
             }catch{console.log('401停止其他接口请求错误')}
             
-            if(!error?.config?.customToken && error?.config?.url!='/panel-api/v1/auth/refresh-token2'){
+            if(!error?.config?.customToken && error?.config?.url!='/panel-api/v1/auth/refresh-token2' && getRefreshToken()){
                 let t = await axios.post('/panel-api/v1/auth/refresh-token2',{token: getRefreshToken()},{
                     customToken: '',
                     noAlert: true,

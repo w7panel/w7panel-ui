@@ -59,6 +59,7 @@ const setUserInfo = (v: string[]) => {
 
 const clearToken = () => {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN);
     localStorage.removeItem(USERINFO);
     localStorage.removeItem(PERMISSION);
 };
