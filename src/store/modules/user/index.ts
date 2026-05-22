@@ -20,6 +20,7 @@ function getAllKeys(tree) {
 const useUserStore = defineStore('user', {
     state: () => ({
         treeData: treeData,
+        loginData: {},
     }),
 
     getters: {
@@ -39,6 +40,7 @@ const useUserStore = defineStore('user', {
                 }
                 setRefreshToken(loginData.refreshToken)
                 setToken(loginData.token);
+                this.loginData = loginData;
 
                 // let arr = [];
                 
