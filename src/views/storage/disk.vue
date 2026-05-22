@@ -782,7 +782,7 @@ export default {
                 }
             }else{
                 let n = 1;
-                while(this.list.find(i=>i.tags.find(t=>t=='union'+n))){ n++; }
+                while(this.list?.find?.(i=>i.tags?.find?.(t=>t=='union'+n))){ n++; }
                 this.loadForm = {
                     show: true,
                     isEdit: false,
