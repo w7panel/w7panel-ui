@@ -38,7 +38,10 @@ export default{
     },
     methods: {
         getList(){
-            panelApi.get('/noauth/site/lianxi',{noAlert:true}).then(res=>{
+            panelApi.get('/noauth/site/lianxi',{
+                noAlert: true,
+                noTokenRequired: true,
+            }).then(res=>{
                 
                 let list = res?.data?.items || [];
                 this.list = list.map(i=>{

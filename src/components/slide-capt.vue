@@ -35,7 +35,10 @@ export default {
     },
     methods: {
         getData(){
-            panelApi.get('/captcha',{noAlert:true}).then(res=>{
+            panelApi.get('/captcha',{
+                noAlert: true,
+                noTokenRequired: true,
+            }).then(res=>{
                 let data = res?.data;
                 if(!data){return}
                 this.data.image = data['image_base64'] || '';

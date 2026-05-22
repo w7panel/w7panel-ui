@@ -72,7 +72,7 @@ import { useUserStore,useNamespaceStore } from '@/store';
 import useLoading from '@/hooks/loading';
 import SlideCapt from "@/components/slide-capt.vue";
 import axios from 'axios';
-import { getK8sinfo } from '@/utils/auth';
+import { getK8sinfo, getToken } from '@/utils/auth';
 import useK3kinfo from '@/hooks/k3k-info';
 
 const router = useRouter();
@@ -84,7 +84,10 @@ const userStore = useUserStore();
 
 const logoimg = ref(window.origin + '/assets/logo.png')
 
-panelApi.get('/noauth/site/k3k-config',{noAlert:true}).then(res=>{
+panelApi.get('/noauth/site/k3k-config',{
+    noAlert: true,
+    noTokenRequired: true,
+}).then(res=>{
     if(res?.data?.data?.indexpage=='resource' && !sessionStorage.getItem('passResourcePage')){
         router.push({
             path: '/',
@@ -92,6 +95,13 @@ panelApi.get('/noauth/site/k3k-config',{noAlert:true}).then(res=>{
         });
     }
 }).catch(()=>{})
+
+if(getToken()){
+    panelApi.get('/k3k/info',{noAlert:true}).then(res=>{
+        // already login
+        handleSubmit({passLogin:true})
+    })
+}
 
 
 const canInitUser = reactive({
@@ -118,7 +128,7 @@ const toInit = ({ errors, values, })=>{
 }
 
 
-panelApi.get('/noauth/site/init-user').then(res=>{
+panelApi.get('/noauth/site/init-user',{noTokenRequired:true}).then(res=>{
     let resData = res.data;
     if(res.data && res.data.code === 200 && res.data.data) {
         resData = res.data.data;
@@ -221,15 +231,20 @@ const submit = ({ errors, values, })=>{
     }
 }
 
-const handleSubmit = async () => {
+const handleSubmit = async (am?:any) => {
     setLoading(true);
     try {
-        let {data} = await userStore.login({
-            ...userInfo,
-            password: encodeURIComponent(userInfo.password),
-        });
-        console.log('loooooooooogin',data)
-        
+        let loginData:any = {};
+        if(!am?.passLogin){
+            let {data} = await userStore.login({
+                ...userInfo,
+                password: encodeURIComponent(userInfo.password),
+            });
+            loginData = data;
+            console.log('loooooooooogin')
+        }else{
+            loginData = userStore.loginData;
+        }
         const authRequestID = router?.currentRoute?.value?.query?.authRequestID
         if(authRequestID){
             
@@ -244,7 +259,8 @@ const handleSubmit = async () => {
 
         const {data:k3kInfo} = await useK3kinfo();
         console.log('k3kinfo',k3kInfo)
-        if(!data.isK3kUser){
+        console.log('loginData',loginData)
+        if(!loginData.isK3kUser){
             beforeTest();
         }else{
             let couponCode = router?.currentRoute?.value?.query?.couponCode || '';

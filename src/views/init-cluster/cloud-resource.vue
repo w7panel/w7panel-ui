@@ -183,7 +183,10 @@ export default{
                 this.intoMicro();
                 return;
             }
-            panelApi.get('/idc-list',{loading:true}).then(res=>{
+            panelApi.get('/idc-list',{
+                loading: true,
+                noTokenRequired: true,
+            }).then(res=>{
                 let list = res?.data || [];
                 list = list.map(i=>{
                     i.discountprice = Number(i.discountprice).toFixed(2);
