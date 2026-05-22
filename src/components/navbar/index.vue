@@ -21,7 +21,7 @@
                 >{{ item.title }}</a-button> -->
 
                 <a-menu v-if="$route.name!='order-base-index'&&$route.name!='init-cluster-index'" mode="horizontal" v-model:selected-keys="selkeys">
-                    <a-menu-item key="cloudserver" @click="appStore.changeMenuFilter('cloudserver');$router.push('/cluster/panel');testMenu();">云主机</a-menu-item>
+                    <a-menu-item key="cloudserver" @click="appStore.changeMenuFilter('cloudserver');$router.push('/cluster/panel');testMenu();">集群控制台</a-menu-item>
                     <a-menu-item v-for="(item,index) in topApps" :key="item.name" @click="$router.push('/appgroup/'+item.name)">{{ item.title }}</a-menu-item>
                 </a-menu>
                 
