@@ -533,7 +533,7 @@
                         <!-- <a-input v-model="tlsForm.domain" disabled></a-input> -->
                         <div class="df ai-c mt-16">
                             <a-checkbox v-model="tlsForm.auto_ssl">自动https</a-checkbox>
-                            <span v-if="tlsForm.testStatus" class="ml-10">
+                            <span v-if="tlsForm.testStatus && tlsForm.auto_ssl" class="ml-10">
                                 <icon-check-circle v-if="tlsForm.testStatus.status=='success'" class="c-green fs-16"/>
                                 <span v-else-if="tlsForm.testStatus.status=='warning'" class="df ai-c">
                                     <icon-info-circle class="c-orange fs-16"/>
