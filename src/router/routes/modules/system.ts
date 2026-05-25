@@ -234,14 +234,37 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             },
         },
         {
-            path: 'apikey',
-            name: 'api-key',
-            component: () => import('@/views/system/apikey/index.vue'),
+            path: 'access-key',
+            name: 'access-key',
+            component: () => import('@/views/system/access-key/index.vue'),
+            redirect: '/system/access-key/api-key',
             meta: {
-                locale: 'API密钥管理',
+                locale: '访问密钥',
                 requiresAuth: true,
                 roles: ['*'],
             },
+            children: [
+                {
+                    path: 'api-key',
+                    name: 'api-key',
+                    component: () => import('@/views/system/access-key/api-key.vue'),
+                    meta: {
+                        locale: 'API密钥管理',
+                        requiresAuth: true,
+                        roles: ['*'],
+                    },
+                },
+                {
+                    path: 'oidc-key',
+                    name: 'oidc-key',
+                    component: () => import('@/views/system/access-key/oidc-key.vue'),
+                    meta: {
+                        locale: 'OIDC密钥管理',
+                        requiresAuth: true,
+                        roles: ['*'],
+                    },
+                }
+            ],
         },
     ],
 },
