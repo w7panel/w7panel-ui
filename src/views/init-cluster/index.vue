@@ -235,7 +235,7 @@ export default {
     methods: {
         async toManage(){
             if(!this.isCvm){
-                $router.push('/')
+                this.$router.push('/')
             }else{
                 await panelApi.post(`/k3k/cvm/${this.$route.query.cvmNamespace}/action/${this.$route.query.cvmName}/login`).then(res=>{
                     setRefreshToken(res?.data?.refreshToken)
