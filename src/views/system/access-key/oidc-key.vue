@@ -59,18 +59,19 @@
         <a-drawer v-model:visible="form.visible" title="OIDC" :width="800" :footer="true" @ok="handleSubmit" @cancel="form.visible = false" :ok-loading="form.submitting" unmount-on-close>
             <a-form :model="form.data" ref="formRef" auto-label-width>
                 <a-form-item label="clientName" field="clientName" :rules="[{ required: true, message: '请输入 clientName' }]">
-                    <a-input v-model="form.data.clientName" placeholder="自动生成，可修改" />
+                    <a-input v-model="form.data.clientName" placeholder="请输入 clientName" />
                 </a-form-item>
                 <a-form-item label="clientId" field="clientId" :rules="[{ required: true, message: '请输入 clientId' }]">
                     <a-input v-model="form.data.clientId" :disabled="form.isEdit" placeholder="请输入 clientId" />
                 </a-form-item>
                 <a-form-item label="clientSecret" field="clientSecret" :rules="[{ required: true, message: '请输入 clientSecret' }]">
-                    <a-input-password v-model="form.data.clientSecret" placeholder="请输入 clientSecret" />
+                    <a-input v-model="form.data.clientSecret" readonly placeholder="请输入 clientSecret" style="flex:1;" />
+                    <a-button type="primary" @click="form.data.clientSecret = generateSecret()">{{ form.isEdit ? '重新生成' : '生成' }}</a-button>
                 </a-form-item>
                 <a-form-item label="任意回调地址">
                     <a-switch v-model="form.data.allowAnyRedirectUri" />
                 </a-form-item>
-                <a-form-item v-if="!form.data.allowAnyRedirectUri" label="回调地址">
+                <a-form-item v-if="!form.data.allowAnyRedirectUri" label="回调白名单">
                     <div class="df df-c" style="flex:1;">
                         <div v-for="(item, index) in form.data.redirectUris" :key="index" class="df ai-c" style="margin-bottom:10px;">
                             <a-input v-model="form.data.redirectUris[index]" placeholder="请输入回调地址" style="width:400px;" />
@@ -103,8 +104,17 @@ const VERSION = 'v1alpha1';
 const RESOURCE = 'oidcclients';
 const scopeOptions = ['openid', 'profile', 'offline_access'];
 
-function randomName() {
-    return 'oidc-' + Math.random().toString(36).substring(2, 10);
+function randomId() {
+    return Math.random().toString(36).substring(2, 10);
+}
+
+function randomSecret() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 32; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
 }
 
 function buildSpec(data) {
@@ -157,11 +167,14 @@ export default {
                 }));
             });
         },
+        generateSecret() {
+            return randomSecret();
+        },
         getDefaultFormData() {
             return {
-                clientName: randomName(),
-                clientId: '',
-                clientSecret: '',
+                clientName: '',
+                clientId: randomId(),
+                clientSecret: randomSecret(),
                 allowAnyRedirectUri: false,
                 redirectUris: [''],
                 scopes: ['openid'],
@@ -202,7 +215,7 @@ export default {
                         apiVersion: `${GROUP}/${VERSION}`,
                         kind: 'OIDCClient',
                         metadata: {
-                            name: this.form.data.clientId || randomName(),
+                            name: this.form.data.clientId || randomId(),
                             namespace: this.namespaceActive,
                         },
                         spec,
