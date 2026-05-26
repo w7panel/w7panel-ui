@@ -261,17 +261,18 @@ const handleSubmit = async (am?:any) => {
         console.log('k3kinfo',k3kInfo)
         console.log('loginData',loginData)
         if(!loginData.isK3kUser){
-            if(k3kInfo?.['w7.cc/support-cvm']=='true' && k3kInfo?.['w7.cc/is-cvm-req']=='false'){
-                router.push('/fp/usermanage-resource')
-                return;
-            }
+            // if(k3kInfo?.['w7.cc/support-cvm']=='true' && k3kInfo?.['w7.cc/is-cvm-req']=='false'){
+            //     router.push('/fp/usermanage-resource')
+            //     return;
+            // }
             beforeTest();
         }else{
             let couponCode = router?.currentRoute?.value?.query?.couponCode || '';
             
-            if(k3kInfo?.['w7.cc/support-cvm']=='true' && k3kInfo?.['w7.cc/is-cvm-req']=='false'){
-                router.push('/usermanage/resource')
-            }else if(k3kInfo?.['w7.cc/need-create-order']=='true' || k3kInfo?.['w7.cc/need-renew']=='true'){
+            // if(k3kInfo?.['w7.cc/support-cvm']=='true' && k3kInfo?.['w7.cc/is-cvm-req']=='false'){
+            //     router.push('/usermanage/resource')
+            // }else 
+            if(k3kInfo?.['w7.cc/need-create-order']=='true' || k3kInfo?.['w7.cc/need-renew']=='true'){
                 router.push('/order-base?couponCode=' + couponCode);
             }else if(k3kInfo?.['w7.cc/k3k-job-status']=='complete'){
                 beforeTest();

@@ -23,8 +23,6 @@
 </template>
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
-
 
 export default{
     data(){

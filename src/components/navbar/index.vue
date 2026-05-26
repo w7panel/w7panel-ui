@@ -36,7 +36,7 @@
             </div>
             <div class="df ai-c">
 
-                <a-button class="mr-20" @click="appStore.changeMenuFilter('cloudserver');$router.push('/fp/usermanage-resource');testMenu();">资源管理</a-button>
+                <!-- <a-button class="mr-20" @click="appStore.changeMenuFilter('cloudserver');$router.push('/fp/usermanage-resource');testMenu();">资源管理</a-button> -->
                 
                 <div v-if="permissions && (permissions.includes('system-manage')||permissions.includes('system')) && $route.name!='order-base-index' && $route.name!='init-cluster-index'" class="df-s0">
                     <a-radio-group v-model="appStore.menuFilter" type="button" @change="v=>{appStore.changeMenuFilter(v);$router.push({usermanage:'/usermanage/users',system:'/system/cloud'}[v]);}">
