@@ -1,11 +1,13 @@
 <template>
     <div class="df df-c padding-20" style="height:100%;">
         <route-breadcrumb />
+
         <div class="mb-20">
             <a-button type="primary" @click="openCreate()"><template #icon><icon-plus /></template>新增</a-button>
         </div>
         <div class="bg-white padding-20 fc">
-            <a-table class="cptable" :data="list" :pagination="false" :bordered="false">
+            <a-alert >OpenID Connect发现端点：{{locationOrigin}}/panel-api/v1/oidc/.well-known/openid-configuration</a-alert>
+            <a-table class="cptable mt-20" :data="list" :pagination="false" :bordered="false">
                 <template #columns>
                     <a-table-column title="clientName">
                         <template #cell="{ record }">{{ record.clientName }}</template>
@@ -149,6 +151,7 @@ export default {
                 submitting: false,
                 data: this.getDefaultFormData(),
             },
+            locationOrigin: window.location.origin,
         };
     },
     created() {

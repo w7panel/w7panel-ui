@@ -411,7 +411,7 @@ export default {
                     let appmicro = this.$route.query?.appmicro;
                     appmicro = appmicro? decodeURIComponent(appmicro) : '';
                     appmicro = appmicro?.replace(this.info.frontendUrl,'');
-                    this.menuActive = appmicro || this.roles?.[0]?.menus?.find(i=>i.is_default==2)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
+                    this.menuActive = appmicro || this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
                     this.selectMenu = [appmicro];
                     if(!this.selectMenu[0] && this.menuActive){
                         this.selectMenu = [this.menuActive];
@@ -803,7 +803,7 @@ export default {
                     let gpustackbox = this.$route.query?.gpustackbox;
                     gpustackbox = gpustackbox? decodeURIComponent(gpustackbox) : '';
                     gpustackbox = gpustackbox?.match(/^.*(#.*)$/)?.[1] || '';
-                    this.menuActive = gpustackbox || menus?.find(i=>i.is_default==2)?.do || this.menus?.[0]?.do || '';
+                    this.menuActive = gpustackbox || menus?.find(i=>i.is_default==1)?.do || this.menus?.[0]?.do || '';
                     this.menus = this.transformMenu(menus)
                     this.selectMenu = [this.menuActive];
                     return Promise.reject();
