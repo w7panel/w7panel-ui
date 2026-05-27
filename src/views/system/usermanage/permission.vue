@@ -26,7 +26,7 @@
                         <a-tooltip content="修改">
                             <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
                         </a-tooltip>
-                        <a-button type="outline" class="ml-4" icon="plus" size="mini" @click="addCustom(record)">
+                        <a-button v-if="record.name!='k3k.permission.founder'" type="outline" class="ml-4" icon="plus" size="mini" @click="addCustom(record)">
                             <template #icon><icon-plus /></template>
                             <span>创建权限</span>
                         </a-button>
@@ -332,6 +332,7 @@ export default {
             originData.metadata.name = originData.metadata.name + '.' + this.createName();
             originData.metadata.labels = originData.metadata.labels || {};
             originData.metadata.labels.typemode = 'custom';
+            originData.metadata.labels['w7.cc/role'] = row.originData?.metadata?.name?.match?.(/^k3k\.permission\.(\w+)/)?.[1] || '';
             
             let originTitle = originData.metadata?.annotations?.title || '';
 
@@ -396,12 +397,14 @@ export default {
                     data.data.webshell = String(this.form.webshell);
                     data.data.fileeditor = String(this.form.fileeditor);
                     data.metadata.labels.clustermode = this.form.clustermode;
+                    
                     k8sproxy.post("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps",data).then(res=>{
                         this.$message.success('操作成功');
                         this.form.show = false;
                         this.getList();
                     });
                 }else{
+                    
                     k8sproxy.patch("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+this.form.name,[{
                         op: 'replace',
                         path: '/metadata/annotations/title',

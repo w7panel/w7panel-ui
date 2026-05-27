@@ -147,7 +147,7 @@ export default {
             let menus = [];
             try{ menus = JSON.parse(data?.metadata?.annotations?.['w7.cc/bindings'])?.[0]?.menu; }catch{}
             menus.sort((a,b)=>b.displayorder-a.displayorder);
-            this.menuActive = menus?.find(i=>i.is_default==2)?.do || this.menus?.[0]?.do || '';
+            this.menuActive = menus?.find(i=>i.is_default==1)?.do || this.menus?.[0]?.do || '';
             this.selectMenu = [decodeURIComponent(this.$route.query?.appmicro || '')?.replace(/^\//,'')];
             if(!this.selectMenu[0] && this.menuActive){
                 this.selectMenu = [this.menuActive];
