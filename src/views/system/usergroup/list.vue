@@ -582,7 +582,7 @@ export default {
                 title: '',
                 name: '',
                 demouser: false,
-                allowedMode: 'shared',
+                allowedMode: 'virtual',
                 permissionPackage: '',
                 showInShop: true,
             };

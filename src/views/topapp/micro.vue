@@ -111,7 +111,7 @@ export default{
             if(this.path || this.$route.query.path){
                 this.menuActive = this.path || this.$route.query.path;
             }else{
-                this.menuActive = this.roles?.[0]?.menus?.find(i=>i.is_default==2)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
+                this.menuActive = this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
             }
 
         },
