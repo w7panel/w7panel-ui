@@ -1,3 +1,6 @@
+const IFRAME_TOKEN = 'w7panel-iframe-token';
+const IFRAME_REFRESH_TOKEN = 'w7panel-iframe-refreshtoken';
+
 const TOKEN_KEY = 'w7panel-token';
 const REFRESH_TOKEN = 'w7panel-refresh-token'
 // const EXPIRE = 'expire';
@@ -18,9 +21,15 @@ const getToken = () => {
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return (window as any)?.microApp?.getData()?.token;
     }
+    if(window.self !== window.top){
+        return localStorage.getItem(IFRAME_TOKEN);
+    }
     return localStorage.getItem(TOKEN_KEY);
 };
 const getRefreshToken = () => {
+    if(window.self !== window.top){
+        return localStorage.getItem(IFRAME_REFRESH_TOKEN);
+    }
     return localStorage.getItem(REFRESH_TOKEN);
 };
 // const getExpire = () => {
@@ -47,6 +56,12 @@ const setToken = (token: string) => {
 const setRefreshToken = (token: string) => {
     localStorage.setItem(REFRESH_TOKEN, token);
 }
+const setIframeToken = (token: string) => {
+    localStorage.setItem(IFRAME_TOKEN, token);
+};
+const setIframeRefreshToken = (token: string) => {
+    localStorage.setItem(IFRAME_REFRESH_TOKEN, token);
+};
 // const setExpire = (v: number) => {
 //     localStorage.setItem(EXPIRE, String(v));
 // };
@@ -100,4 +115,6 @@ export { isLogin, getToken, setToken, clearToken,
     setK8sinfo,
     setRefreshToken,
     getRefreshToken,
+    setIframeToken,
+    setIframeRefreshToken,
  };
