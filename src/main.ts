@@ -45,7 +45,7 @@ app.use(GoCaptcha);
 
 app.mount('#w7panel');
 
-app.config.globalProperties.inMicro = (window as any).__MICRO_APP_ENVIRONMENT__;
+app.config.globalProperties.inMicro = (window as any).__POWERED_BY_WUJIE__ || (window as any).__MICRO_APP_ENVIRONMENT__;
 
 // if((window as any).__MICRO_APP_ENVIRONMENT__){
 //     let arcoStyleDom = document.createElement('link');
@@ -54,6 +54,6 @@ app.config.globalProperties.inMicro = (window as any).__MICRO_APP_ENVIRONMENT__;
 //     document.querySelector('head').appendChild(arcoStyleDom);
 // }
 // console.log('in micro',(window as any).__MICRO_APP_ENVIRONMENT__)
-if((window as any).__MICRO_APP_ENVIRONMENT__){
+if((window as any).__POWERED_BY_WUJIE__ || (window as any).__MICRO_APP_ENVIRONMENT__){
     document.body.classList.add('inmicro');
 }

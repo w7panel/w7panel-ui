@@ -6,7 +6,7 @@
             <div style="height:100%;" class="bg-white"></div>
         </a-spin>
 
-        <wujie-modals @changeLogin="loginPanel=true" />
+        <wujie-modals @changeLogin="$emit('changeLogin', $event)" />
 
     </div>
 </template>
@@ -19,7 +19,7 @@ import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
 
 export default{
-    props: ['menuActive','appgroup'],
+    props: ['menuActive','appgroup','loginPanel'],
     data(){
         return {
             namespaceActive: '',
@@ -27,7 +27,6 @@ export default{
             extra: {},
             page: '',
             downOk: true,
-            loginPanel: false,
         }
     },
     created(){

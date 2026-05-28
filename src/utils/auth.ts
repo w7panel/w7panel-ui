@@ -11,6 +11,9 @@ const K8SINFO_KEY = 'w7panel-k8sinfo';
 const isSubapp = (window.self !== window.top) || (window as any).__POWERED_BY_WUJIE__;
 
 const isLogin = () => {
+    if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
+        return true;
+    }
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return true;
     }
@@ -18,12 +21,18 @@ const isLogin = () => {
 };
 
 const getToken = () => {
+    if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
+        return (window as any)?.$wujie?.props?.paneltoken;
+    }
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return (window as any)?.microApp?.getData()?.token;
     }
     return localStorage.getItem((isSubapp? PRE : '' ) + TOKEN_KEY);
 };
 const getRefreshToken = () => {
+    if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.refreshToken){
+        return (window as any)?.$wujie?.props?.refreshToken;
+    }
     return localStorage.getItem((isSubapp? PRE : '' ) + REFRESH_TOKEN);
 };
 // const getExpire = () => {
