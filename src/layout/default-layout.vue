@@ -67,7 +67,7 @@
     const permission = usePermission();
     useResponsive(true);
     const navbarHeight = `60px`;
-    const navbar = computed(() => appStore.navbar && !isInIframe);
+    const navbar = computed(() => appStore.navbar && !isInIframe && !(window as any).__POWERED_BY_WUJIE__);
     const isInIframe = window.self !== window.top;
     const renderMenu = computed(() => appStore.menu && !appStore.topMenu);
     const hideMenu = computed(() => appStore.hideMenu);
@@ -84,7 +84,7 @@
                 ? { paddingLeft: `${menuWidth.value}px` }
                 : {};
         const paddingTop = navbar.value ? { paddingTop: navbarHeight } : {};
-        return { ...paddingLeft, ...paddingTop, minHeight: (window as any).__MICRO_APP_ENVIRONMENT__? `calc(100vh - 50px)` : '100vh'};
+        return { ...paddingLeft, ...paddingTop, minHeight: (window as any).__POWERED_BY_WUJIE__? `calc(100vh - 50px)` : '100vh'};
     });
     const setCollapsed = (val: boolean) => {
         if (!isInit.value) return; // for page initialization menu state problem

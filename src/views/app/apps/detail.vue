@@ -1,8 +1,15 @@
 <template>
-    <div class="padding-20 df df-c" style="height:100%;">
-        <Breadcrumb v-if="$route.name=='group-micro'||$route.name=='group-micro2'" :routes="topbc" />
-        <route-breadcrumb v-else class="df-s0" :data="{id:title || ($route.params.group || '')}" />
-        <a-layout class="fc">
+    <div class="app-detail-page padding-20 df df-c" :class="{ 'is-subaccount-panel': subaccountPanel.show }">
+        <Breadcrumb v-if="!subaccountPanel.show && ($route.name=='group-micro'||$route.name=='group-micro2')" :routes="topbc" />
+        <route-breadcrumb v-else-if="!subaccountPanel.show" class="df-s0" :data="{id:title || ($route.params.group || '')}" />
+        <subaccount-panel
+            v-if="subaccountPanel.show"
+            class="subaccount-panel-page"
+            :token="subaccountPanel.token"
+            :refresh-token="subaccountPanel.refreshToken"
+            @close="closeSubaccountPanel"
+        />
+        <a-layout v-else class="fc">
             <a-layout-sider :width="160">
                 <div class="df df-c menu-absolute-div" style="position:absolute;inset:0;overflow:auto;">
                     <div v-if="roles.length" style="width:100%;">
@@ -130,7 +137,7 @@
             </div>
         </a-modal>
 
-        <wujie-modals v-if="isMicroPage" @changeLogin="loginPanel()" />
+        <wujie-modals v-if="isMicroPage" @changeLogin="loginPanel" />
     </div>
 </template>
 
@@ -143,6 +150,7 @@ import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import gpuStack from '@/views/app/gpustack/index.vue';
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
+import subaccountPanel from '@/components/subaccount-panel.vue';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -205,6 +213,11 @@ export default {
 
             hasThirdpartyCd: false,
             downOk: true,
+            subaccountPanel: {
+                show: false,
+                token: '',
+                refreshToken: '',
+            },
             
         }
     },
@@ -269,6 +282,7 @@ export default {
         formDrawer,
         gpuStack,
         wujieModals,
+        subaccountPanel,
     },
     beforeUnmount(){
         if(this.watchInterval){
@@ -283,18 +297,27 @@ export default {
 
     },
     methods: {
-        loginPanel(){
+        loginPanel(data = {}){
+            this.subaccountPanel = {
+                show: true,
+                token: data.token || '',
+                refreshToken: data.refreshToken || '',
+            };
             try{
                 destroyApp('appmicro');
             }catch(e){console.log('destroy err')}
-
-            startApp({
-                name: "appmicro",
-                url: '/cluster/panel',
-                el: '#appmicro',
-                sync: true,
-                props: props,
-            })
+        },
+        closeSubaccountPanel(){
+            this.subaccountPanel = {
+                show: false,
+                token: '',
+                refreshToken: '',
+            };
+            this.$nextTick(() => {
+                if(this.isMicroPage && this.hasThirdpartyCd){
+                    this.wujieInit();
+                }
+            });
         },
         async wujieInit(){
             
@@ -1071,6 +1094,14 @@ export default {
 .point.green{background:#00A870;}
 
 .routerviewbox{border:1px solid var(--color-neutral-3);border-top:0;}
+.app-detail-page{height:100%;}
+.app-detail-page.is-subaccount-panel{
+    height:calc(100vh - 60px);
+    padding:0;
+    overflow:hidden;
+    background:var(--color-fill-2);
+}
+.subaccount-panel-page{height:100%;}
 .content{height:100%;}
 /* .appheader{height:50px; background:var(--color-bg-2); border-bottom:1px solid var(--color-border-1); padding:0 20px;} */
 .appheader .apps{background: var(--color-fill-2); height: 36px; padding: 0 8px; border-radius: 20px;}

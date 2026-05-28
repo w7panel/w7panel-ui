@@ -1,7 +1,7 @@
 <template>
-    <a-layout style="height:100%;overflow:auto;">
+    <a-layout class="topapp-micro-page" :class="{ 'is-subaccount-panel': subaccountPanel.show }">
         <TopappMenu
-            v-if="!hideAppMenu"
+            v-if="!hideAppMenu && !subaccountPanel.show"
             :roles="roles"
             :info="info"
             @routeChange="routeChange"
@@ -11,14 +11,25 @@
         @changeIdentifie="changeIdentifie" -->
         <a-layout class="layout-content" :style="paddingStyle">
             <a-layout-content>
-                <div class="padding-20" :class="{loginPanel:$route.query.loginPanel=='true'}" style="height:calc(100vh - 62px);box-sizing:border-box;">
+                <div
+                    v-if="subaccountPanel.show"
+                    class="subaccount-panel-wrap"
+                >
+                    <subaccount-panel
+                        :token="subaccountPanel.token"
+                        :refresh-token="subaccountPanel.refreshToken"
+                        @close="closeSubaccountPanel"
+                    />
+                </div>
+                <div v-else class="padding-20" :class="{loginPanel:loginPanel}" style="height:calc(100vh - 62px);box-sizing:border-box;">
                     <micro-container
                         ref="microcontainer"
                         :appgroup="groupName"
                         :menuActive="menuActive"
-                        :loginPanel="$route.query.loginPanel=='true'"
+                        :loginPanel="loginPanel"
                         @getinfo="v=>info=v"
                         @getBindings="v=>bindings=v"
+                        @changeLogin="changeLogin"
                     ></micro-container>
                 </div>
             </a-layout-content>
@@ -30,6 +41,7 @@ import TopappMenu from '@/components/topapp-menu.vue';
 import { useNamespaceStore,useLoadingStore } from '@/store';
 import { getToken,getK8sinfo } from '@/utils/auth';
 import microContainer from './micro-container.vue'
+import subaccountPanel from '@/components/subaccount-panel.vue';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -52,6 +64,13 @@ export default{
             bindings: [],
             groupName: '',
             hideAppMenu: false,
+
+            loginPanel: false,
+            subaccountPanel: {
+                show: false,
+                token: '',
+                refreshToken: '',
+            },
         }
     },
     created(){
@@ -63,6 +82,7 @@ export default{
     components: {
         TopappMenu,
         microContainer,
+        subaccountPanel,
     },
     computed: {
     },
@@ -78,6 +98,21 @@ export default{
         },
     },
     methods: {
+        changeLogin(data = {}){
+            this.subaccountPanel = {
+                show: true,
+                token: data.token || '',
+                refreshToken: data.refreshToken || '',
+            };
+            this.loginPanel = false;
+        },
+        closeSubaccountPanel(){
+            this.subaccountPanel = {
+                show: false,
+                token: '',
+                refreshToken: '',
+            };
+        },
         routeChange(v){
             this.$refs?.microcontainer?.routeChange?.(v);
         },
@@ -143,5 +178,16 @@ export default{
     flex-direction: column;
     margin: 0;
     padding: 0;
+}
+.subaccount-panel-wrap{
+    height:calc(100vh - 60px);
+    background:var(--color-fill-2);
+}
+.topapp-micro-page{
+    height:100%;
+    overflow:auto;
+}
+.topapp-micro-page.is-subaccount-panel{
+    overflow:hidden;
 }
 </style>

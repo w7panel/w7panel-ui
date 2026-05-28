@@ -246,12 +246,13 @@ export default {
         buildImageStatus,
     },
     methods: {
-        async changeLogin({token,refreshToken}){
+        async changeLogin({token,refreshToken} = {}){
+            if(!token){ return; }
 
             clearIframeToken();
             setIframeToken(token)
-            setIframeRefreshToken(refreshToken)
-            this.$emit('changeLogin')
+            refreshToken && setIframeRefreshToken(refreshToken)
+            this.$emit('changeLogin', { token, refreshToken })
 
             // setRefreshToken(refreshToken)
             // setToken(token);
