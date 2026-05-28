@@ -49,6 +49,12 @@
             "title": "存储分区"
         }
     },
+    "dns": {
+        "zones": {
+            "show": true,
+            "title": "DNS解析"
+        }
+    },
     "system": {
         "cloud": {
             "show": true,
