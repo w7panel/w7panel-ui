@@ -40,7 +40,7 @@ export default mergeConfig(
     mode: 'development',
     server: {
       host: '0.0.0.0',
-      open: true,
+      open: false,
       port: 8000,
       fs: {
         strict: true,
