@@ -29,15 +29,6 @@ const DASHBOARD: any = [
                 roles: ['*'],
             },
         },
-        {
-            path: "login-by-token",
-            name: "login-by-token",
-            component: () => import('@/views/topapp/iframe-page.vue'),
-            meta: {
-                hideInMenu: true,
-                requiresAuth: false,
-            },
-        }
     ],
 },{
     path: "/init-cluster",

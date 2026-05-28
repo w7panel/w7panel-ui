@@ -116,7 +116,7 @@
 <script>
 import { k8sproxy, panelApi } from '@/utils/api';
 import { useNamespaceStore, useLoadingStore } from '@/store';
-import { getRefreshToken, getToken, setPermission, setRefreshToken, setToken, setIframeToken, setIframeRefreshToken } from '@/utils/auth';
+import { getRefreshToken, getToken, setPermission, setRefreshToken, setToken, clearIframeToken, setIframeToken, setIframeRefreshToken } from '@/utils/auth';
 import axios from 'axios';
 import { compressFiles } from '@/api/cluster';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
@@ -248,14 +248,16 @@ export default {
     methods: {
         async changeLogin({token,refreshToken}){
 
+            clearIframeToken();
             setIframeToken(token)
             setIframeRefreshToken(refreshToken)
+            this.$emit('changeLogin')
 
             // setRefreshToken(refreshToken)
             // setToken(token);
             // setPermission([]);
             // await useK3kinfo();
-            this.$router.push('/fp/login-by-token');
+            // this.$router.push('/fp/login-by-token');
         },
         async getOidcCode(data,callback){
             panelApi.post('/oidc/js-code',{
