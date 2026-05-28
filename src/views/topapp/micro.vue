@@ -11,11 +11,12 @@
         @changeIdentifie="changeIdentifie" -->
         <a-layout class="layout-content" :style="paddingStyle">
             <a-layout-content>
-                <div class="padding-20" style="height:calc(100vh - 62px);box-sizing:border-box;">
+                <div class="padding-20" :class="{loginPanel:$route.query.loginPanel=='true'}" style="height:calc(100vh - 62px);box-sizing:border-box;">
                     <micro-container
                         ref="microcontainer"
                         :appgroup="groupName"
                         :menuActive="menuActive"
+                        :loginPanel="$route.query.loginPanel=='true'"
                         @getinfo="v=>info=v"
                         @getBindings="v=>bindings=v"
                     ></micro-container>
@@ -136,4 +137,11 @@ export default{
 </style>
 <style>
 .micro-iframe-modal .arco-modal-body{padding:0;}
+.loginPanel{
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+}
 </style>

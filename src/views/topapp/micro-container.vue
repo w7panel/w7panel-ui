@@ -6,7 +6,7 @@
             <div style="height:100%;" class="bg-white"></div>
         </a-spin>
 
-        <wujie-modals />
+        <wujie-modals @changeLogin="loginPanel=true" />
 
     </div>
 </template>
@@ -14,7 +14,7 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
-import { getToken, getK8sinfo } from '@/utils/auth';
+import { getToken, getK8sinfo, clearIframeToken } from '@/utils/auth';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
 
@@ -27,6 +27,7 @@ export default{
             extra: {},
             page: '',
             downOk: true,
+            loginPanel: false,
         }
     },
     created(){
@@ -46,19 +47,31 @@ export default{
                 this.getFront(v)
             })
         },
+        loginPanel(v){
+            this.$nextTick(()=>{
+                this.getFront(this.appgroup)
+            })
+            if(!v){clearIframeToken()}
+        },
     },
     beforeUnmount(){
         this.destroyMicro();
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
+        if(this.loginPanel){
+            clearIframeToken();
+        }
     },
     methods: {
         routeChange(v){
             bus.$emit("routeChange", v);
         },
         getFront(appgroup){
-            
+            if(this.loginPanel){
+                this.openLoginPanel();
+                return;
+            }
             // k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+appgroup).then(res=>{
 
             panelApi.get(`/microapp/${appgroup}/info`).then(res=>{
@@ -151,6 +164,15 @@ export default{
                 el: '#appmicro',
                 sync: true,
                 props: props,
+            })
+        },
+        openLoginPanel(){
+            startApp({
+                name: "appmicro",
+                url: '/cluster/panel',
+                exec: true,
+                el: '#appmicro',
+                sync: true,
             })
         },
         destroyMicro(){

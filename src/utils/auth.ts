@@ -1,5 +1,4 @@
-const IFRAME_TOKEN = 'w7panel-iframe-token';
-const IFRAME_REFRESH_TOKEN = 'w7panel-iframe-refreshtoken';
+const PRE = 'iframe-';
 
 const TOKEN_KEY = 'w7panel-token';
 const REFRESH_TOKEN = 'w7panel-refresh-token'
@@ -9,28 +8,23 @@ const USERINFO = 'w7panel-userinfo';
 const FILEEDITOR_KEY = 'w7panel-fileeditor';
 const WEBSHELL_KEY = 'w7panel-webshell';
 const K8SINFO_KEY = 'w7panel-k8sinfo';
+const isSubapp = (window.self !== window.top) || (window as any).__POWERED_BY_WUJIE__;
 
 const isLogin = () => {
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return true;
     }
-    return !!localStorage.getItem(TOKEN_KEY);
+    return !!localStorage.getItem((isSubapp? PRE : '' ) + TOKEN_KEY);
 };
 
 const getToken = () => {
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return (window as any)?.microApp?.getData()?.token;
     }
-    if(window.self !== window.top){
-        return localStorage.getItem(IFRAME_TOKEN);
-    }
-    return localStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem((isSubapp? PRE : '' ) + TOKEN_KEY);
 };
 const getRefreshToken = () => {
-    if(window.self !== window.top){
-        return localStorage.getItem(IFRAME_REFRESH_TOKEN);
-    }
-    return localStorage.getItem(REFRESH_TOKEN);
+    return localStorage.getItem((isSubapp? PRE : '' ) + REFRESH_TOKEN);
 };
 // const getExpire = () => {
 //     return Number(localStorage.getItem(EXPIRE));
@@ -38,38 +32,38 @@ const getRefreshToken = () => {
 const getPermission = () => {
     let permission = [];
     try{
-        permission = JSON.parse(localStorage.getItem(PERMISSION));
+        permission = JSON.parse(localStorage.getItem((isSubapp? PRE : '' ) + PERMISSION));
     }catch{}
     return permission?.length? permission : null;
 };
 const getUserInfo = () => {
     let userInfo = {};
     try{
-        userInfo = JSON.parse(localStorage.getItem(USERINFO));
+        userInfo = JSON.parse(localStorage.getItem((isSubapp? PRE : '' ) + USERINFO));
     }catch{}
     return userInfo;
 }
 
 const setToken = (token: string) => {
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem((isSubapp? PRE : '' ) + TOKEN_KEY, token);
 };
 const setRefreshToken = (token: string) => {
     localStorage.setItem(REFRESH_TOKEN, token);
 }
 const setIframeToken = (token: string) => {
-    localStorage.setItem(IFRAME_TOKEN, token);
+    localStorage.setItem(PRE+TOKEN_KEY, token);
 };
 const setIframeRefreshToken = (token: string) => {
-    localStorage.setItem(IFRAME_REFRESH_TOKEN, token);
+    localStorage.setItem(PRE+REFRESH_TOKEN, token);
 };
 // const setExpire = (v: number) => {
 //     localStorage.setItem(EXPIRE, String(v));
 // };
 const setPermission = (v: string[]) => {
-    localStorage.setItem(PERMISSION, JSON.stringify(v));
+    localStorage.setItem((isSubapp? PRE : '' ) + PERMISSION, JSON.stringify(v));
 };
 const setUserInfo = (v: string[]) => {
-    localStorage.setItem(USERINFO, JSON.stringify(v));
+    localStorage.setItem((isSubapp? PRE : '' ) + USERINFO, JSON.stringify(v));
 };
 
 const clearToken = () => {
@@ -77,30 +71,43 @@ const clearToken = () => {
     localStorage.removeItem(REFRESH_TOKEN);
     localStorage.removeItem(USERINFO);
     localStorage.removeItem(PERMISSION);
+    localStorage.removeItem(FILEEDITOR_KEY);
+    localStorage.removeItem(K8SINFO_KEY);
+    localStorage.removeItem(WEBSHELL_KEY);
+};
+
+const clearIframeToken = () => {
+    localStorage.removeItem(PRE+TOKEN_KEY);
+    localStorage.removeItem(PRE+REFRESH_TOKEN);
+    localStorage.removeItem(PRE+USERINFO);
+    localStorage.removeItem(PRE+PERMISSION);
+    localStorage.removeItem(PRE+FILEEDITOR_KEY);
+    localStorage.removeItem(PRE+K8SINFO_KEY);
+    localStorage.removeItem(PRE+WEBSHELL_KEY);
 };
 
 
 const getFileEditor = () => {
-    return localStorage.getItem(FILEEDITOR_KEY);
+    return localStorage.getItem((isSubapp? PRE : '' ) + FILEEDITOR_KEY);
 };
 const setFileEditor = (boo: string) => {
-    localStorage.setItem(FILEEDITOR_KEY, boo);
+    localStorage.setItem((isSubapp? PRE : '' ) + FILEEDITOR_KEY, boo);
 };
 const getWebshell = () => {
-    return localStorage.getItem(WEBSHELL_KEY);
+    return localStorage.getItem((isSubapp? PRE : '' ) + WEBSHELL_KEY);
 };
 const setWebshell = (boo: string) => {
-    localStorage.setItem(WEBSHELL_KEY, boo);
+    localStorage.setItem((isSubapp? PRE : '' ) + WEBSHELL_KEY, boo);
 };
 const getK8sinfo = () => {
     let k8sinfo = {};
     try{
-        k8sinfo = JSON.parse(localStorage.getItem(K8SINFO_KEY));
+        k8sinfo = JSON.parse(localStorage.getItem((isSubapp? PRE : '' ) + K8SINFO_KEY));
     }catch{}
     return k8sinfo
 };
 const setK8sinfo = (v) => {
-    localStorage.setItem(K8SINFO_KEY, JSON.stringify(v));
+    localStorage.setItem((isSubapp? PRE : '' ) + K8SINFO_KEY, JSON.stringify(v));
 };
 
 export { isLogin, getToken, setToken, clearToken,
@@ -117,4 +124,5 @@ export { isLogin, getToken, setToken, clearToken,
     getRefreshToken,
     setIframeToken,
     setIframeRefreshToken,
+    clearIframeToken,
  };

@@ -130,7 +130,7 @@
             </div>
         </a-modal>
 
-        <wujie-modals v-if="isMicroPage" />
+        <wujie-modals v-if="isMicroPage" @changeLogin="loginPanel()" />
     </div>
 </template>
 
@@ -283,6 +283,19 @@ export default {
 
     },
     methods: {
+        loginPanel(){
+            try{
+                destroyApp('appmicro');
+            }catch(e){console.log('destroy err')}
+
+            startApp({
+                name: "appmicro",
+                url: '/cluster/panel',
+                el: '#appmicro',
+                sync: true,
+                props: props,
+            })
+        },
         async wujieInit(){
             
             try{
