@@ -84,7 +84,7 @@
                 ? { paddingLeft: `${menuWidth.value}px` }
                 : {};
         const paddingTop = navbar.value ? { paddingTop: navbarHeight } : {};
-        return { ...paddingLeft, ...paddingTop, minHeight: (window as any).__POWERED_BY_WUJIE__? `calc(100vh - 50px)` : '100vh'};
+        return { ...paddingLeft, ...paddingTop, minHeight: (window as any).__POWERED_BY_WUJIE__? `calc(100vh - 62px)` : '100vh'};
     });
     const setCollapsed = (val: boolean) => {
         if (!isInit.value) return; // for page initialization menu state problem
