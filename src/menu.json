@@ -59,6 +59,10 @@
         "cloud": {
             "show": true,
             "title": "云端注册"
+        },
+        "audit": {
+            "show": true,
+            "title": "审计日志"
         }
     },
     "database": {
