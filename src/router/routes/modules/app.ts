@@ -27,6 +27,29 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 },
             },
             {
+                path: 'config-center',
+                name: 'app-config-center',
+                component: () => import('@/views/app/config-center/index.vue'),
+                meta: {
+                    locale: '配置中心',
+                    requiresAuth: true,
+                    roles: ['*'],
+                    key: 'app-config-center',
+                },
+            },
+            {
+                path: 'config-center/:id',
+                name: 'app-config-center-detail',
+                component: () => import('@/views/app/config-center/detail.vue'),
+                meta: {
+                    locale: { key: 'id' },
+                    hideInMenu: true,
+                    requiresAuth: true,
+                    roles: ['*'],
+                    key: 'app-config-center',
+                },
+            },
+            {
                 path: 'form',
                 name: 'app-form',
                 component: () => import('@/views/app/pages/form.vue'),
