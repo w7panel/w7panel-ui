@@ -17,7 +17,7 @@
             <a-alert type="info" class="mb-20">
                 <template #title>使用提示：</template>
                 <ul style="padding-inline-start: 18px; margin: 0;">
-                    <li>API密钥是构建面板 API 请求的重要凭证。用于您<span class="cursor c-blue">调用API</span>时生成签名，查看<span class="cursor c-blue">生成签名算法</span></li>
+                    <li>API密钥是构建面板 API 请求的重要凭证。用于您<a class="cursor c-blue" target="_blank" href="https://github.com/w7panel/w7panel/blob/dev-v1/docs/hawk/calling.md">调用API</a>时生成签名，查看<a class="cursor c-blue" target="_blank" href="https://github.com/w7panel/w7panel/blob/dev-v1/docs/hawk/signature.md">生成签名算法</a></li>
                     <li>最近访问时间指最近一次使用密钥调用 API 接口的时间。此时间仅供判断密钥近期是否活跃，以此决定是否要禁用或删除密钥。</li>
                 </ul>
             </a-alert>

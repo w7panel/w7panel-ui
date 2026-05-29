@@ -1,9 +1,5 @@
 <template>
     <div class="subaccount-panel">
-        <div class="subaccount-panel__bar">
-            <div class="subaccount-panel__title">子账户面板</div>
-            <a-button size="small" @click="$emit('close')">退出子账户面板</a-button>
-        </div>
         <a-spin
             v-if="loading"
             class="subaccount-panel__loading"
@@ -57,6 +53,7 @@ export default {
                 refreshToken: this.refreshToken,
                 paneltoken: this.token,
                 subaccountPanel: true,
+                closeSubaccountPanel: () => this.$emit('close'),
             };
         },
     },
@@ -118,24 +115,7 @@ export default {
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-height: 360px;
     overflow: hidden;
-    background: var(--color-fill-2);
-}
-.subaccount-panel__bar {
-    display: flex;
-    flex: 0 0 44px;
-    align-items: center;
-    justify-content: space-between;
-    height: 44px;
-    padding: 0 16px;
-    background: var(--color-bg-2);
-    border-bottom: 1px solid var(--color-border-2);
-}
-.subaccount-panel__title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--color-text-1);
 }
 .subaccount-panel__container {
     flex: 1;
@@ -145,12 +125,11 @@ export default {
 }
 .subaccount-panel__loading {
     position: absolute;
-    inset: 44px 0 0;
+    inset: 0;
     z-index: 2;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-fill-2);
 }
 
 .subaccount-panel__container :deep(iframe),
