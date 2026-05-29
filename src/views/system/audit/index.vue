@@ -51,7 +51,7 @@
                 :data="list"
                 :pagination="false"
                 :bordered="false"
-                :scroll="{ x: activeTab === 'operation' ? 1460 : 930 }"
+                :scroll="{ x: activeTab === 'operation' ? 1240 : 710 }"
                 row-key="rowKey"
             >
                 <template #columns>
@@ -71,7 +71,7 @@
                         </a-table-column>
                     </template>
                     <template v-else>
-                        <a-table-column title="中文说明" :width="200">
+                        <a-table-column title="操作记录" :width="200">
                             <template #cell="{ record }">
                                 <span class="ellipsis" :title="operationDescription(record)">{{ operationDescription(record) }}</span>
                             </template>
@@ -98,11 +98,6 @@
                         </a-table-column>
                     </template>
                     <a-table-column title="IP" :width="140" data-index="ip"></a-table-column>
-                    <a-table-column title="消息" :width="220">
-                        <template #cell="{ record }">
-                            <span class="ellipsis" :title="record.message">{{ record.message || '-' }}</span>
-                        </template>
-                    </a-table-column>
                     <a-table-column title="操作" :width="90" fixed="right">
                         <template #cell="{ record }">
                             <a-tooltip content="详情">
@@ -189,7 +184,7 @@ export default {
                 _time: '时间',
                 audit_type: '类型',
                 username: '用户名',
-                route_description: '中文说明',
+                route_description: '操作记录',
                 login_method: '登录方式',
                 success: '成功',
                 reason: '失败原因',
