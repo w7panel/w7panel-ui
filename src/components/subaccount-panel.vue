@@ -13,7 +13,7 @@
 
 <script>
 import { startApp, destroyApp } from 'wujie';
-import { clearIframeToken, setIframeRefreshToken, setIframeToken } from '@/utils/auth';
+import { setIframeRefreshToken, setIframeToken } from '@/utils/auth';
 
 export default {
     name: 'SubaccountPanel',
@@ -70,7 +70,6 @@ export default {
     },
     beforeUnmount() {
         this.destroyPanel();
-        clearIframeToken();
     },
     methods: {
         destroyPanel() {

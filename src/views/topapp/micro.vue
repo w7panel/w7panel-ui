@@ -38,8 +38,8 @@
 </template>
 <script>
 import TopappMenu from '@/components/topapp-menu.vue';
-import { useNamespaceStore,useLoadingStore } from '@/store';
-import { getToken,getK8sinfo } from '@/utils/auth';
+import { useNamespaceStore } from '@/store';
+import { clearIframeToken, getIframeRefreshToken, getIframeToken, getK8sinfo } from '@/utils/auth';
 import microContainer from './micro-container.vue'
 import subaccountPanel from '@/components/subaccount-panel.vue';
 
@@ -78,6 +78,13 @@ export default{
         this.groupName = this.group || this.$route.params.group;
         this.menuActive = this.do || this.$route.query.do;
         this.hideAppMenu = this.isHideMenu();
+        this.restoreSubaccountPanel();
+    },
+    beforeRouteLeave(to, from, next) {
+        if (this.subaccountPanel.show) {
+            clearIframeToken();
+        }
+        next();
     },
     components: {
         TopappMenu,
@@ -105,13 +112,51 @@ export default{
                 refreshToken: data.refreshToken || '',
             };
             this.loginPanel = false;
+            this.syncSubaccountPanelQuery(true);
         },
         closeSubaccountPanel(){
+            clearIframeToken();
             this.subaccountPanel = {
                 show: false,
                 token: '',
                 refreshToken: '',
             };
+            this.syncSubaccountPanelQuery(false);
+        },
+        restoreSubaccountPanel(){
+            if(this.$route.query.subaccountPanel !== '1'){ return; }
+
+            const token = getIframeToken() || '';
+            if(!token){
+                this.syncSubaccountPanelQuery(false);
+                return;
+            }
+
+            this.subaccountPanel = {
+                show: true,
+                token,
+                refreshToken: getIframeRefreshToken() || '',
+            };
+            this.loginPanel = false;
+        },
+        syncSubaccountPanelQuery(show){
+            const isOpen = this.$route.query.subaccountPanel === '1';
+            if(show === isOpen){ return; }
+
+            const query = {
+                ...this.$route.query,
+            };
+            if(show){
+                query.subaccountPanel = '1';
+            }else{
+                delete query.subaccountPanel;
+            }
+
+            this.$router.replace({
+                path: this.$route.path,
+                query,
+                hash: this.$route.hash,
+            }).catch(()=>{});
         },
         routeChange(v){
             this.$refs?.microcontainer?.routeChange?.(v);
