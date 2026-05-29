@@ -74,8 +74,8 @@
                 <div class="df ai-s jc-b">
                     <div class="title fs-16">系统信息</div>
                     <div class="df ai-c">
-                        <a-button :href="'/order-base?expand=true'+cvmInfo.expandQuery" target="_blank" v-if="(userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canExpandBuy && !cvmInfo.isExpired)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-expand']=='true')" size="small" type="primary">扩容</a-button>
-<!-- <a-button size="small" type="primary" @click="submitExpand">扩容</a-button> -->
+                        <a-button :href="'/order-base?expand=true'+cvmInfo.expandQuery" target="_blank" v-if="!inMicro&&((userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canExpandBuy && !cvmInfo.isExpired)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-expand']=='true'))" size="small" type="primary">扩容</a-button>
+                        <!-- <a-button size="small" type="primary" @click="submitExpand">扩容</a-button> -->
                     </div>
                 </div>
                 <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || userInfo['w7.cc/is-cvm-req']=='true'" class="mt-20" label-align="left" auto-label-width>
@@ -97,7 +97,11 @@
                     </a-form-item>
                     <a-form-item v-if="quotsInfo.expiretime" label="到期时间" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.expiretime}}</span>
+<<<<<<< HEAD
                         <a v-if="(userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true')" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>
+=======
+                        <a v-if="!inMicro&&userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'" class="c-blue cursor ml-20" target="_blank" href="/order-base?renew=true">续费</a>
+>>>>>>> dev-v1
                     </a-form-item>
                 </a-form>
                 <a-form v-else class="mt-20" label-align="left" auto-label-width>
@@ -666,7 +670,7 @@ export default {
 
         this.webshell = getWebshell();
         let webshelllink = '';
-        if(window?.__MICRO_APP_ENVIRONMENT__){
+        if(window?.__POWERED_BY_WUJIE__){
             let token = getToken();
             webshelllink = window?.microApp?.getData()?.originUrl || '';
             webshelllink = webshelllink.replace(/\/$/,'') + '/fp/webshell?api_token=' + token;

@@ -127,7 +127,7 @@ import k8syamlDrawer from '@/components/k8syaml-drawer.vue';
 import podLog from '@/components/pod-log.vue';
 import webShell from "@/components/web-shell.vue";
 import { getUserInfo } from '@/utils/auth';
-// import { getToken } from '@/utils/auth';
+import { getToken } from '@/utils/auth';
 
 export default {
     data(){
@@ -194,7 +194,8 @@ export default {
     components: { yamlDrawer, k8syamlDrawer, podLog, webShell },
     computed: {
         webshelllink(){
-            return `/fp/pod-webshell?pod=${this.ws.podName}&namespace=${this.ws.namespace}&containerName=${this.ws.container}&type=`
+            let token = getToken();
+            return `/fp/pod-webshell?pod=${this.ws.podName}&namespace=${this.ws.namespace}&containerName=${this.ws.container}&api_token=${token}&type=`
         }
     },
     methods: {
