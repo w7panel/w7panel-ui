@@ -115,6 +115,9 @@
     },{
         "title": "授权管理",
         "key": "system-license"
+    },{
+        "title": "审计日志",
+        "key": "system-audit"
     }]
 },{
     "title": "多租户管理",

@@ -129,7 +129,7 @@ router.beforeEach(async (to, from, next) => {
     const appStore = useAppStore();
     if(['usermanage','users','system-resource','user-resource','usermanage-whitedomain','usermanage-system'].includes(to.name)){
         appStore.changeMenuFilter('usermanage');
-    }else if(['cloud-cloud','cloud-register','system-permission','system-order-center','system-order-detail','system-cost-center','system-cost-detail','license-index','access-key','api-key','oidc-key',].includes(to.name)){
+    }else if(['cloud-cloud','cloud-register','system-permission','system-order-center','system-order-detail','system-cost-center','system-cost-detail','license-index','system-audit','access-key','api-key','oidc-key',].includes(to.name)){
         appStore.changeMenuFilter('system');
     }else if(['topapp','topapp-micro'].includes(to.name)){
         appStore.changeMenuFilter('topapp');
