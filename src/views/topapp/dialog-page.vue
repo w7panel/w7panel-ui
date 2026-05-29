@@ -17,7 +17,7 @@ export default{
         }
     },
     created(){
-        this.menuActive = decodeURIComponent(this.$route.query?.path || '');
+        this.menuActive = decodeURIComponent(this.$route.query?.do || '');
         // this.namespaceActive = useNamespaceStore().namespace;
         // this.getGroup();
     },

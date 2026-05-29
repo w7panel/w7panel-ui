@@ -6,8 +6,8 @@
         <a-layout-content class="layout-content " >
             <micro-app
                 :group="micro.group"
-                :hide-menu="micro.hideMenu"
-                :path="micro.path"
+                :show-menu="micro.showMenu"
+                :do="micro.do"
             ></micro-app>
         </a-layout-content>
     </a-layout>
@@ -166,8 +166,8 @@ export default{
             this.micro = {
                 show: true,
                 group: window.w7_microapp.name,
-                hideMenu: !window.w7_microapp.leftmenu,
-                path: window.w7_microapp.do,
+                showMenu: window.w7_microapp.leftmenu !== false,
+                do: window.w7_microapp.do,
             }
         },
         getData(){

@@ -52,7 +52,7 @@ const ROLE_NAME = {
 }
 
 export default{
-    props: ['hideMenu','group','path'],
+    props: ['showMenu','group','do'],
     data(){
         return {
             namespaceActive: '',
@@ -76,8 +76,8 @@ export default{
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
         this.groupName = this.group || this.$route.params.group;
-        this.menuActive = this.path || this.$route.query.path;
-        this.hideAppMenu = this.hideMenu || this.$route.query.hideMenu;
+        this.menuActive = this.do || this.$route.query.do;
+        this.hideAppMenu = this.isHideMenu();
     },
     components: {
         TopappMenu,
@@ -87,7 +87,7 @@ export default{
     computed: {
     },
     watch:{
-        path(v){
+        do(v){
             v && (this.menuActive = v);
         },
         bindings(v){
@@ -144,12 +144,16 @@ export default{
                 let find = roles.find(i=>i.name==userRole)
                 this.roles = find?[find]:[];
             }
-            if(this.path || this.$route.query.path){
-                this.menuActive = this.path || this.$route.query.path;
+            if(this.do || this.$route.query.do){
+                this.menuActive = this.do || this.$route.query.do;
             }else{
                 this.menuActive = this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
             }
 
+        },
+        isHideMenu(){
+            const showMenu = this.showMenu ?? this.$route.query.showMenu;
+            return showMenu === false || showMenu === 'false';
         },
         transformMenu(data) {
             const map = new Map();
