@@ -10,12 +10,6 @@
                 <a-form-item label="用户名">
                     <a-input v-model="search.username" placeholder="请输入用户名"></a-input>
                 </a-form-item>
-                <a-form-item label="用户组">
-                    <a-select v-model="search.usergroup">
-                        <a-option label="全部" value=""></a-option>
-                        <a-option v-for="(item,index) in groupList" :key="index" :label="item.title" :value="item.name"></a-option>
-                    </a-select>
-                </a-form-item>
                 <!-- <a-form-item label="过期状态">
                     <a-select v-model="search.expiretime" placeholder="请选择" style="min-width:150px;">
                         <a-option label="全部" value=""></a-option>
@@ -44,10 +38,7 @@
                 <template #columns>
                     <a-table-column title="用户名" data-index="name">
                         <template #cell="{ record }">
-                            <div>
-                                <span v-if="record.policy!='normal'&&record.policyTitle" class="c-blue cursor mr-4" @click="search.usergroup = record.policy; getList();">[{{record.policyTitle}}]</span>
-                                <span>{{record.name}}</span>
-                            </div>
+                            <div>{{record.name}}</div>
                         </template>
                     </a-table-column>
 
@@ -64,7 +55,6 @@
                     <!-- <a-table-column title="配额" :width="400">
                         <template #cell="{record,rowIndex}">
                             <div class="df df-c">
-                                <div v-if="record.policy=='normal'">-</div>
                                 <div v-else class="df ai-c">
                                     <span v-if="record.clusterStatusTxt" class="cursor lh-20 mr-4" :class="{'ready':'c-blue','new':'c-99','wait':'c-red','recycle':'c-99','creating':'c-orange'}[record.clusterStatus]"  @click="search.clusterStatus = record.clusterStatus; getList();">[{{record.clusterStatusTxt}}]</span>
                                     <span>
@@ -113,7 +103,6 @@
                                         <span v-if="record.userMode!=='cluster'">-</span>
                                         <span v-else-if="record.clusterStatus=='new'">-</span>
                                         <span v-else class="lh-20">{{record.expiretime? (record.expiretime+' 到期') : '永久'}}</span>
-                                        <a-tooltip v-if="record.clusterStatus!=='new' && record.policy!=='normal' && record.peie" content="修改到期时间">
                                             <i class="opt-icon hovershow" @click="editExpiretime(record)"><icon-edit /></i>
                                         </a-tooltip>
                                     </div>
@@ -161,22 +150,6 @@
                 </template>
             </a-table>
         </div>
-        <!-- <a-drawer :width="600" title="注册设置" :visible="register.show" @ok="submitRegister" @cancel="register.show=false;">
-            <a-form ref="register" :model="register" auto-label-width class="padding-20">
-                <a-form-item label="默认用户组">
-                    <a-select v-model="register.defaultPolicyName" placeholder="请选择">
-                        <a-option v-for="item in groupList" :key="item.name" :label="item.title" :value="item.name"></a-option>
-                    </a-select>
-                </a-form-item>
-                <a-form-item label="开启注册">
-                    <a-switch v-model="register.allowConsoleRegister"></a-switch>
-                </a-form-item>
-                <a-form-item label="上架微擎云市场">
-                    <a-switch v-model="register.showInShop"></a-switch>
-                    <template #extra>开启后，会将用户组作为服务器套餐上架至微擎云市场</template>
-                </a-form-item>
-            </a-form>
-        </a-drawer> -->
         <a-drawer :width="600" :title="form.isEdit?'修改用户':'添加用户'" :visible="form.show" @ok="submit" @cancel="form.show=false;" @open="$refs.form.clearValidate()" :popup-container="false?'#allmodalbox':'body'">
             <a-form ref="form" :rules="rules" :model="form" auto-label-width class="padding-20">
                 <a-form-item label="用户名" field="username">
@@ -186,14 +159,8 @@
                     <a-input v-model="form.password" type="password" :spellcheck="false" placeholder="请输入"></a-input>
                 </a-form-item>
                 
-                <a-form-item label="用户组" field="policy">
-                    <a-select v-model="form.policy" @change="changePolicy" placeholder="请选择用户组">
-                        <a-option label="无" value="normal"></a-option>
-                        <a-option v-for="item in groupList" :key="item.name" :label="item.title" :value="item.name"></a-option>
-                    </a-select>
-                </a-form-item>
                 <!-- <a-form-item label="集群模式" field="clustermode">
-                    <a-select v-model="form.clustermode" :disabled="true||!!form.policy" placeholder="请选择集群模式">
+                    <a-select v-model="form.clustermode" :disabled="true" placeholder="请选择集群模式">
                         <a-option label="全局" value="global"></a-option>
                         <a-option label="共享" value="shared"></a-option>
                         <a-option label="独享" value="virtual"></a-option>
@@ -340,7 +307,6 @@ export default {
                 username: '',
                 expiretime: '',
                 clusterStatus: '',
-                usergroup: '',
             },
             list: [],
             form: {
@@ -365,7 +331,6 @@ export default {
                 storageclass: [{ required: true, message: '请选择存储设备', trigger: 'blur' },],
                 storageSize: [{ required: true, message: '请输入存储大小', trigger: 'blur' },],
                 clustermode: [{ required: true, message: '请选择集群模式', trigger: 'blur' },],
-                policy: [{ required: true, message: '请选择用户组', trigger: 'blur' },],
                 expiretime: [{required:true, validator: (value, cb) => {
                     if(!value&&!this.form.forever){cb('请选择到期时间'); return}
                     cb();
@@ -389,7 +354,6 @@ export default {
                 type: 'bin/sh',
                 row: {},
             },
-            groupList: [],
             debug: false,
             pmsForm: {
                 show: false,
@@ -452,7 +416,6 @@ export default {
         this.getList();
         this.getStatus();
         // this.getStorageList();
-        this.getUserGroup();
         this.getPermissionPackages();
     },
     components: {
@@ -638,26 +601,6 @@ export default {
         //         this.register.show = false;
         //     })
         // },
-        changePolicy(){
-            if(!this.form.policy){return}
-            this.form.clustermode = 'virtual';
-            if(this.form.policy=='normal'){
-                
-                this.form.menu = '';
-                this.form.menuname = '';
-                this.form.whitelist = [];
-                this.form.demouser = false;
-                this.form.cvmuser = false;
-            }
-            let find = this.groupList.find(i=>i.name==this.form.policy);
-            if(!find){return}
-            
-            this.form.menu = find.menu
-            this.form.menuname = find.menuname;
-            this.form.whitelist = find.whitelist;
-            this.form.demouser = find.demouser;
-            this.form.cvmuser = find.cvmuser;
-        },
         editQuota(row){
             this.quotaForm = {
                 show: true,
@@ -789,51 +732,6 @@ export default {
         //         },600)
         //     }
         // },
-        getUserGroup(){
-            k8sproxy.get('/apis/k3k.io/v1alpha1/virtualclusterpolicies',{
-                // params:{ limit:500, },
-                noAlert: true
-            }).then(res=>{
-                let list = res?.data?.items || [];
-                list = list.map(i=>{
-                    let md = i.metadata;
-                    let spec = i.spec;
-                    
-                    let whitelist = i.metadata?.annotations?.['w7.cc/domain-white-list'] || '[]';
-                    whitelist = JSON.parse(whitelist);
-                    return {
-                        name: md.name,
-                        title: md.annotations?.title || md.name,
-                        allowedMode: spec.allowedMode,
-                        limit: md.annotations?.['w7.cc/quota-limit'] || '{}',
-                        menu: md.annotations?.['w7.cc/menu'] || '[]',
-                        
-                        menuname: md.annotations?.['w7.cc/menu-name'] || '',
-                        debug: md.annotations?.['w7.cc/debug'] == 'true',
-                        webshell: md.annotations?.['w7.cc/web-shell'] == 'true',
-                        fileeditor: md.annotations?.['w7.cc/file-editor'] == 'true',
-                        whitelist: whitelist,
-                        costName: md.annotations?.['w7.cc/cost-name'] || '',
-                        cost: md.annotations?.['w7.cc/cost'] || '',
-                        demouser: md.labels?.['w7.cc/demo-user']=='true',
-                        cvmuser: md.labels?.['w7.cc/cvm-user']=='true',
-                        role: md.labels?.['w7.cc/role'] || '',
-                    }
-                })
-                this.groupList = list;
-                if(this.list?.length){
-                    this.list.map((i,index)=>{
-                        let name = i.policy || '';
-                        let title = i.policyTitle;
-                        if(name){
-                            let find = this.groupList.find(i=>i.name == name);
-                            title = find?.title || title;
-                        }
-                        i.policyTitle = title;
-                    })
-                }
-            })
-        },
         openWs(row){
             if(row?.status!=='complete'){return;}
             this.ws.row = row;
@@ -892,8 +790,6 @@ export default {
         getList(){
             let labelSelector = "w7.cc/user-mode";
             if(this.search.clusterStatus){ labelSelector = labelSelector + `,k3k.io/cluster-status=${this.search.clusterStatus}`; }
-            // if(this.search.usergroup){ labelSelector = labelSelector + `,k3k.io/policy=${this.search.usergroup}`; }
-
             k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts',{
                 params:{
                     // limit: 500,
@@ -982,8 +878,6 @@ export default {
                         status: i.metadata.annotations?.['w7.cc/k3k-job-status'],
                         jobname: i.metadata.annotations?.['w7.cc/k3k-job-name'],
                         clustermode: i.metadata.annotations?.['k3k.io/cluster-mode'] || '',
-                        policy: i.metadata.annotations?.['k3k.io/policy'] || '',
-                        policyTitle: i.metadata.annotations?.['k3k.io/policy-title'] || '',
                         debug: i.metadata.annotations?.['w7.cc/debug'] == 'true',
                         webshell: i.metadata.annotations?.['w7.cc/web-shell'] == 'true',
                         fileeditor: i.metadata.annotations?.['w7.cc/file-editor'] == 'true',
@@ -1021,25 +915,11 @@ export default {
                 if(this.search.expiretime){
                     list = list.filter(i=>i.is_expired==(this.search.expiretime=='expired'))
                 }
-                if(this.search.usergroup){
-                    list = list.filter(i=>i.policy==this.search.usergroup)
-                }
                 if(this.search.username){
                     list = list.filter(i=>new RegExp(this.search.username).test(i.name));
                 }
                 list.sort((a, b) => b.createTime - a.createTime);
                 this.list = list;
-                if(this.groupList?.length){
-                    this.list.map((i,index)=>{
-                        let name = i.policy || '';
-                        let title = i.policyTitle;
-                        if(name){
-                            let find = this.groupList.find(i=>i.name == name);
-                            title = find?.title || title;
-                        }
-                        i.policyTitle = title;
-                    })
-                }
                 if(this.statusList?.length){
                     this.statusList.map(data=>{
                         let findIndex = this.list.findIndex(li=>li.name == data.metadata.name);
@@ -1212,7 +1092,6 @@ export default {
                 storageclass: '',
                 storageSize: '',
                 storageSizeDw: 'Gi',
-                policy: 'normal',
                 clustermode: 'virtual',
                 // debug: false,
                 version: 0,
@@ -1234,7 +1113,6 @@ export default {
                 old_password: row.password,
                 storageclass: row.storageclass || '',
                 expiretime: row.expiretime || '',
-                policy: row.policy,
                 clustermode: row.clustermode || '',
                 // debug: row.debug,
                 version: row.version || 0,
@@ -1248,28 +1126,8 @@ export default {
             // console.log(this.form)
         },
         submit(){
-            let findPolicy = this.groupList.find(i=>i.name==this.form.policy)
-            
-            this.form.clustermode = 'virtual'; //findPolicy.allowedMode;
-            
-            if(findPolicy){
-                
-                this.form.menu = findPolicy.menu
-                this.form.menuname = findPolicy.menuname;
-                this.form.debug = findPolicy.debug;
-                this.form.fileeditor = findPolicy.fileeditor;
-                this.form.webshell = findPolicy.webshell;
-                this.form.whitelist = findPolicy.whitelist;
-            }else{
-                
-                this.form.menu = '';
-                this.form.menuname = '';
-                this.form.debug = false;
-                this.form.fileeditor = false;
-                this.form.webshell = false;
-                this.form.whitelist = '';
-            }
-            
+            this.form.clustermode = 'virtual';
+
             this.$refs.form.validate((err) => {
                 if (err) {
                     this.$refs.form.scrollToField(Object.keys(err)[0])
@@ -1284,38 +1142,17 @@ export default {
                     delete data.metadata.resourceVersion;
                     delete data.metadata.creationTimestamp;
                     delete data.metadata.uid;
+                    data.metadata.annotations = data.metadata.annotations || {};
+                    data.metadata.labels = data.metadata.labels || {};
                     data.metadata.annotations.password = this.form.password? hash : this.form.old_password;
-                    
+
                     data.metadata.annotations['k3k.io/storageclass'] = this.form.storageclass;
                     data.metadata.annotations['k3k.io/cluster-mode'] = this.form.clustermode;
-                    data.metadata.annotations['k3k.io/policy'] = this.form.policy;
-                    data.metadata.annotations['k3k.io/policy-title'] = findPolicy?.title || '';
-                    data.metadata.labels['k3k.io/policy'] = this.form.policy;
                     data.metadata.labels['w7.cc/weihu'] = this.form.weihu? 'true' : 'false';
                     data.metadata.labels['w7.cc/demo-user'] = String(this.form.demouser);
                     data.metadata.labels['w7.cc/cvm-user'] = String(this.form.cvmuser);
-                    data.metadata.labels['w7.cc/role'] = findPolicy?.role || '';
-                    
                     data.metadata.annotations['k3k.io/storage-request-size'] = this.form.storageSize!==''? (this.form.storageSize + this.form.storageSizeDw) : '';
-                    data.metadata.annotations['w7.cc/debug'] = String(this.form.debug);
-                    data.metadata.annotations['w7.cc/web-shell'] = String(this.form.webshell);
-                    data.metadata.annotations['w7.cc/file-editor'] = String(this.form.fileeditor);
                     data.metadata.annotations['w7.cc/version'] = String(this.form.version + 1);
-                    data.metadata.annotations['w7.cc/cost'] = findPolicy?.cost || '';
-                    data.metadata.annotations['w7.cc/cost-name'] = findPolicy?.costName || '';
-                    
-                    if(findPolicy?.costName && data.metadata.annotations['w7.cc/quota-limit-lock']!=='true'){
-                        let cost = this.costList.find(i=>i.name==findPolicy?.costName);
-                        data.metadata.annotations['w7.cc/quota-limit'] = cost?.quota || '';
-                    }
-                    data.metadata.annotations['w7.cc/menu'] = this.form.menu || '',
-                    
-                    data.metadata.annotations['w7.cc/menu-name'] = this.form.menuname || '';
-                    data.metadata.annotations['w7.cc/domain-white-list'] = JSON.stringify(this.form.whitelist||[]);
-
-                    if(this.form.policy=='normal'){
-                        data.metadata.labels['w7.cc/user-mode'] = 'normal';
-                    }
 
                     if(this.form.waitToReady){
                         data.metadata.labels['k3k.io/cluster-status'] = 'ready';
@@ -1331,73 +1168,28 @@ export default {
                         this.form.show = false;
                         this.getList();
                     })
-                    // k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+this.form.username,[{
-                    //     op: 'replace',
-                    //     path: '/metadata/annotations/password',
-                    //     value: hash,
-                    // },{
-                    //     op: 'replace',
-                    //     path: '/metadata/annotations/k3k.io/storageclass',
-                    //     value: this.form.storageclass,
-                    // },{
-                    //     op: 'replace',
-                    //     path: '/metadata/annotations/k3k.io/cluster-mode',
-                    //     value: this.form.clustermode,
-                    // },{
-                    //     op: 'replace',
-                    //     path: '/metadata/annotations/k3k.io/policy',
-                    //     value: this.form.policy,
-                    // },{
-                    //     op: 'replace',
-                    //     path: '/metadata/annotations/k3k.io/policy-title',
-                    //     value: findPolicy?.title || '',
-                    // },{
-                    //     op: this.form.forever? 'remove' : 'replace',
-                    //     path: '/metadata/annotations/w7.cc/expiretime',
-                    //     ...(this.form.forever? {} : {value: this.form.expiretime}),
-                    // }],{
-                    //     headers: {'Content-Type': 'application/json-patch+json'},
-                    // }).then(res=>{
-                    //     this.$message.success('操作成功');
-                    //     this.form.show = false;
-                    //     this.getList();
-                    // })
                 }else{
                     let data = JSON.parse(JSON.stringify(dataTemplate));
                     data.metadata.name = this.form.username;
-    
+
                     const salt = bcrypt.genSaltSync(10);
                     const hash = bcrypt.hashSync(this.form.password, salt);
                     data.metadata.annotations.password = hash;
                     data.metadata.annotations['k3k.io/storageclass'] = this.form.storageclass;
                     data.metadata.annotations['k3k.io/cluster-mode'] = this.form.clustermode;
-                    data.metadata.annotations['k3k.io/policy'] = this.form.policy;
-                    data.metadata.annotations['k3k.io/policy-title'] = findPolicy?.title || '';
-                    data.metadata.labels['k3k.io/policy'] = this.form.policy;
                     data.metadata.labels['w7.cc/weihu'] = this.form.weihu? 'true' : 'false';
                     data.metadata.labels['w7.cc/demo-user'] = String(this.form.demouser);
                     data.metadata.labels['w7.cc/cvm-user'] = String(this.form.cvmuser);
-                    data.metadata.labels['w7.cc/role'] = findPolicy?.role || '';
+                    data.metadata.labels['w7.cc/role'] = '';
 
                     data.metadata.annotations['k3k.io/storage-request-size'] =  this.form.storageSize!==""? (this.form.storageSize + this.form.storageSizeDw) : '';
-                    data.metadata.annotations['w7.cc/debug'] = String(this.form.debug);
-                    data.metadata.annotations['w7.cc/web-shell'] = String(this.form.webshell);
-                    data.metadata.annotations['w7.cc/file-editor'] = String(this.form.fileeditor);
+                    data.metadata.annotations['w7.cc/debug'] = 'false';
+                    data.metadata.annotations['w7.cc/web-shell'] = 'false';
+                    data.metadata.annotations['w7.cc/file-editor'] = 'false';
                     data.metadata.annotations['w7.cc/version'] = '1';
-                    data.metadata.annotations['w7.cc/cost'] = findPolicy?.cost || '';
-                    data.metadata.annotations['w7.cc/cost-name'] = findPolicy?.costName || '';
-                    
-                    let cost = this.costList.find(i=>i.name==findPolicy?.costName);
-                    data.metadata.annotations['w7.cc/quota-limit'] = cost?.quota || '';
-
-                    data.metadata.annotations['w7.cc/menu'] = this.form.menu || '',
-                    data.metadata.annotations['w7.cc/quota-limit-name'] = this.form.limitname || '';
-                    data.metadata.annotations['w7.cc/menu-name'] = this.form.menuname || '';
-                    data.metadata.annotations['w7.cc/domain-white-list'] = JSON.stringify(this.form.whitelist||[]);
-                    
-                    if(this.form.policy=='normal'){
-                        data.metadata.labels['w7.cc/user-mode'] = 'normal';
-                    }
+                    data.metadata.annotations['w7.cc/menu'] = '[]';
+                    data.metadata.annotations['w7.cc/menu-name'] = '';
+                    data.metadata.annotations['w7.cc/domain-white-list'] = '[]';
 
                     data.metadata.namespace = this.namespaceActive;
                     if(!this.form.forever){
