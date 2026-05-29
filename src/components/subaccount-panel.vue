@@ -93,7 +93,7 @@ export default {
                         name: this.name,
                         url: this.panelUrl,
                         el: `#${this.containerId}`,
-                        sync: false,
+                        sync: true,
                         exec: true,
                         props: this.panelProps,
                     })).finally(() => {
