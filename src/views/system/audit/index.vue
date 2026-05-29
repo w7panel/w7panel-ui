@@ -270,16 +270,8 @@ export default {
                 }));
                 this.pagination.current = Number(data?.page || this.pagination.current);
                 this.pagination.pageSize = Number(data?.pageSize || this.pagination.pageSize);
-                this.pagination.total = this.resolveTotal(data?.total, this.list.length);
+                this.pagination.total = Number(data?.total || 0);
             });
-        },
-        resolveTotal(total, length) {
-            const currentTotal = Number(total || 0);
-            const minimum = (this.pagination.current - 1) * this.pagination.pageSize + length;
-            if (length >= this.pagination.pageSize) {
-                return Math.max(currentTotal, minimum + this.pagination.pageSize);
-            }
-            return Math.max(currentTotal, minimum);
         },
         search() {
             this.pagination.current = 1;
