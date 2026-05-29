@@ -41,7 +41,8 @@ export default async function useK3kinfo(){
                 arr = arr.filter(i => i != 'cluster-resource');
             }
             // 测试
-            // arr.push('')
+            // arr.push('dns')
+            // arr.push('system-audit')
             setPermission(arr);
             cacheManager.set(PERMISSION_CACHE_KEY, Date.now(), {
                 duration: PERMISSION_CACHE_DURATION,

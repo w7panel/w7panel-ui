@@ -105,6 +105,29 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 roles: ['*'],
             },
         },
+        {
+            path: 'dns',
+            name: 'cluster-dns',
+            component: () => import('@/views/dns/index.vue'),
+            meta: {
+                locale: 'DNS解析',
+                requiresAuth: true,
+                roles: ['*'],
+                key: 'dns',
+            },
+        },
+        {
+            path: 'dns/:domain',
+            name: 'dns-records',
+            component: () => import('@/views/dns/detail.vue'),
+            meta: {
+                locale: { key: 'domain' },
+                hideInMenu: true,
+                requiresAuth: true,
+                roles: ['*'],
+                key: 'dns',
+            },
+        },
     ],
 },
 ];
