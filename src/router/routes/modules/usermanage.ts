@@ -1,4 +1,3 @@
-
 import { DEFAULT_LAYOUT } from '../base';
 
 const DASHBOARD: any = [{
@@ -23,39 +22,6 @@ const DASHBOARD: any = [{
             requiresAuth: true,
             roles: ['*'],
             key: 'system-user',
-        },
-    },{
-        path: 'user-group',
-        name: 'user-group',
-        component: () => import('@/views/system/usergroup/list.vue'),
-        meta: {
-            locale: '用户组',
-            hideInMenu: false,
-            requiresAuth: true,
-            roles: ['*'],
-            key: 'system-usergroup'
-        },
-    },{
-        path: 'permission',
-        name: 'usermanage-permission',
-        component: ()=>import('@/views/system/usermanage/permission.vue'),
-        meta: {
-            locale: '权限套餐',
-            hideInMenu: false,
-            requireAuth: true,
-            rules: ['*'],
-            key: 'system-permission'
-        },
-    },{
-        path: 'cost',
-        name: 'usermanage-cost',
-        component: ()=>import('@/views/system/usermanage/cost.vue'),
-        meta: {
-            locale: '费用套餐',
-            hideInMenu: false,
-            requireAuth: true,
-            rules: ['*'],
-            key: 'system-cost'
         },
     },{
         path: 'user-resource',

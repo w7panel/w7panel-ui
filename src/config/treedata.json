@@ -123,15 +123,6 @@
         "title": "用户管理",
         "key": "system-user"
     },{
-        "title": "用户组",
-        "key": "system-usergroup"
-    },{
-        "title": "权限套餐",
-        "key": "system-permission"
-    },{
-        "title": "费用套餐",
-        "key": "system-cost"
-    },{
         "title": "备案域名",
         "key": "system-white-domain"
     },{

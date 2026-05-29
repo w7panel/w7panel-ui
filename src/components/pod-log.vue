@@ -196,6 +196,7 @@ export default {
             podcont: '',
             currentContainer: '',
             currentTailLines: 100,
+            logRequestId: 0,
         };
     },
     computed: {
@@ -234,11 +235,13 @@ export default {
             let containerList = this.containers || this.data?.containerList || null;
             const defaultContainer = this.container || this.data?.container || '';
 
-            if (defaultContainer && !this.currentContainer) {
-                this.currentContainer = defaultContainer;
-            }
+            this.stopStream();
+            this.disposeTerm();
+            this.containerList = [];
+            this.currentContainer = defaultContainer || '';
+            this.podcont = '';
             // 初始化 currentTailLines（优先使用 prop）
-            if (this.tailLines && this.currentTailLines === 100) {
+            if (this.tailLines) {
                 this.currentTailLines = this.tailLines;
             }
 
@@ -263,6 +266,9 @@ export default {
                 params,
                 noAlert: true,
             }).then(res => {
+                const currentPodName = this.podName || this.data?.name || '';
+                if (!this.visible || currentPodName !== podName) return;
+
                 const pod = res?.data;
                 if (!pod) return;
 
@@ -311,12 +317,16 @@ export default {
             });
         },
         cleanup() {
+            this.logRequestId += 1;
             this.stopStream();
             this.disposeTerm();
             // 重置状态
             this.containerList = [];
             this.podcont = '';
+            this.currentContainer = '';
+            this.currentTailLines = this.tailLines || 100;
             this.follow = true;
+            this.fullscreen = false;
         },
         stopStream() {
             if (this.controller) {
@@ -346,6 +356,7 @@ export default {
             });
         },
         fetchLog() {
+            const requestId = ++this.logRequestId;
             let podName = this.podName;
             if (this.data) {
                 podName = this.data.name || this.podName;
@@ -375,6 +386,7 @@ export default {
                     customToken: this.token || undefined,
                     noAlert: true,
                 }).then(res => {
+                    if (requestId !== this.logRequestId) return;
                     this.podcont = res?.data || '';
                     this.displayLog(this.podcont);
                 }).catch(err => {
@@ -382,10 +394,10 @@ export default {
                 });
             } else {
                 // 跟踪模式：流式获取
-                this.streamLog(podName, params);
+                this.streamLog(podName, params, requestId);
             }
         },
-        streamLog(podName, params) {
+        streamLog(podName, params, requestId) {
             const queryString = new URLSearchParams(
                 Object.entries(params).filter(([_, v]) => v !== undefined).map(([k, v]) => [k, String(v)])
             ).toString();
@@ -413,7 +425,7 @@ export default {
                 const readStream = () => {
                     return reader.read().then(({ done, value }) => {
                         if (done) return;
-                        if (!this.follow || !this.visible) {
+                        if (requestId !== this.logRequestId || !this.follow || !this.visible) {
                             this.controller.abort();
                             return;
                         }
