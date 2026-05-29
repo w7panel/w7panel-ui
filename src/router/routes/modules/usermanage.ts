@@ -24,6 +24,17 @@ const DASHBOARD: any = [{
             key: 'system-user',
         },
     },{
+        path: 'permission',
+        name: 'usermanage-permission',
+        component: ()=>import('@/views/system/usermanage/permission.vue'),
+        meta: {
+            locale: '权限套餐',
+            hideInMenu: false,
+            requireAuth: true,
+            rules: ['*'],
+            key: 'system-permission'
+        },
+    },{
         path: 'user-resource',
         name: 'user-resource',
         component: ()=>import('@/views/system/users/user-resource.vue'),

@@ -126,6 +126,9 @@
         "title": "用户管理",
         "key": "system-user"
     },{
+        "title": "权限套餐",
+        "key": "system-permission"
+    },{
         "title": "备案域名",
         "key": "system-white-domain"
     },{
