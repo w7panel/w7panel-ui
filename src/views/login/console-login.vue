@@ -57,6 +57,10 @@ export default {
                 
                 const {data:k3kInfo} = await useK3kinfo();
 
+                if(k3kInfo?.['w7.cc/role']=='normal'||k3kInfo?.['w7.cc/role']=='tech'){
+                    this.$router.push('/appgroup/w7panel-ckm-root/micro')
+                    return;
+                }
                 if(!data.isK3kUser){
                     // if(k3kInfo?.['w7.cc/support-cvm']=='true' && k3kInfo?.['w7.cc/is-cvm-req']=='false'){
                     //     this.$router.push('/fp/usermanage-resource')

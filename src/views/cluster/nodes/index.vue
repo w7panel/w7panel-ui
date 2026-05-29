@@ -887,10 +887,10 @@ export default {
         submitForm(){
             this.$refs.form.validate(error=>{
                 if(error){return}
-                let origin = window.origin;
-                if(window.__MICRO_APP_ENVIRONMENT__){
-                    origin = window.microApp?.getData()?.requestUrl?.replace(/\/$/,'') || '';
-                }
+                // let origin = window.origin;
+                // if(window.__MICRO_APP_ENVIRONMENT__){
+                //     origin = window.microApp?.getData()?.requestUrl?.replace(/\/$/,'') || '';
+                // }
                 let master = this.list.find(i=>i.master);
                 let nodename = ' K3S_NODE_NAME=' + this.form.type + this.getMaxNum(this.form.type);
                 let version = master? ' INSTALL_K3S_VERSION='+master.version : '';
