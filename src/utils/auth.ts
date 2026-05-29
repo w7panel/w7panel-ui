@@ -8,7 +8,7 @@ const USERINFO = 'w7panel-userinfo';
 const FILEEDITOR_KEY = 'w7panel-fileeditor';
 const WEBSHELL_KEY = 'w7panel-webshell';
 const K8SINFO_KEY = 'w7panel-k8sinfo';
-const isSubapp = (window.self !== window.top) || (window as any).__POWERED_BY_WUJIE__;
+const isSubapp = (window as any).__POWERED_BY_WUJIE__;
 
 const isLogin = () => {
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
