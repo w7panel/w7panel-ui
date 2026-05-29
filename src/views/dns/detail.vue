@@ -2,8 +2,8 @@
     <div class="padding-20 dns-page">
         <route-breadcrumb />
         <div class="title-row">
-            <div>
-                <div class="page-title">{{ domain }}</div>
+            <div class="title-content">
+                <div class="dns-domain-title">{{ domain }}</div>
                 <div class="sub-title">解析记录</div>
             </div>
             <div class="toolbar">
@@ -245,16 +245,22 @@ export default {
     gap: 16px;
 }
 
+.title-content {
+    min-width: 0;
+}
+
 .toolbar {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.page-title {
+.dns-domain-title {
     font-size: 18px;
     font-weight: 600;
     line-height: 24px;
+    overflow-wrap: anywhere;
 }
 
 .sub-title,
