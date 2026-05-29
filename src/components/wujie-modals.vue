@@ -376,7 +376,7 @@ export default {
         openApp(data) {
             this.appDialog = {
                 show: true,
-                src: '/dialog/appgroup/' + data.appgroup + '/micro?path=' + encodeURIComponent(data?.path || ''),
+                src: '/dialog/appgroup/' + data.appgroup + '/micro?do=' + encodeURIComponent(data?.path || ''),
                 title: data?.title || '',
                 fullscreen: false,
             };

@@ -18,6 +18,10 @@
             "show": true,
             "title": "应用列表"
         },
+        "config-center": {
+            "show": true,
+            "title": "配置中心"
+        },
         "cronjob": {
             "show": true,
             "title": "计划任务"
@@ -43,6 +47,12 @@
         "zone": {
             "show": true,
             "title": "存储分区"
+        }
+    },
+    "dns": {
+        "zones": {
+            "show": true,
+            "title": "DNS解析"
         }
     },
     "system": {

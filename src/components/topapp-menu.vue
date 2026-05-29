@@ -4,6 +4,7 @@
         v-show="!hideMenu"
         breakpoint="xl"
         class="layout-sider"
+        :class="{ 'is-collapsed': collapsed }"
         :collapsed="collapsed"
         :collapsible="true"
         :width="menuWidth"
@@ -24,9 +25,9 @@
                 @menu-item-click="handelMicroMenu"
             >
                 <template v-for="role in roles" :key="role.name">
-                    <div v-if="role.menus && role.menus.length" class="c-aa" style="padding:10px 0; margin-left:12px;">
+                    <div v-if="role.menus && role.menus.length" class="role-header c-aa">
                         <IconUserGroup />
-                        <span class="ml-10">{{ role.title }}端</span>
+                        <span v-if="!collapsed" class="role-title">{{ role.title }}端</span>
                     </div>
                     <template v-if="role.menus && role.menus.length">
                         <template v-for="(menu,index) in role.menus" :key="menu.do">
@@ -74,9 +75,9 @@
             @menu-item-click="handelMicroMenu"
         >
             <template v-for="role in roles" :key="role.name">
-                <div class="c-aa" style="padding:10px 0; margin-left:12px;">
+                <div class="role-header c-aa">
                     <IconUserGroup />
-                    <span class="ml-10">{{ role.title }}端</span>
+                    <span class="role-title">{{ role.title }}端</span>
                 </div>
                 <template v-if="role.menus && role.menus.length">
                     <template v-for="(menu,index) in role.menus" :key="menu.do">
@@ -338,6 +339,24 @@ const setCollapse = (val) => {
     }
 }
 
+.role-header {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 16px;
+    line-height: 40px;
+
+    .arco-icon {
+        flex: 0 0 16px;
+        width: 16px;
+        font-size: 16px;
+    }
+}
+
+.role-title {
+    margin-left: 10px;
+}
+
 .layout-sider {
     // position: fixed;
     // top: 0;
@@ -357,6 +376,13 @@ const setCollapse = (val) => {
     }
     > :deep(.arco-layout-sider-children) {
         overflow-y: hidden;
+    }
+
+    &.is-collapsed {
+        .role-header {
+            justify-content: center;
+            padding: 0;
+        }
     }
 }
 </style>
