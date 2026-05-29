@@ -65,6 +65,12 @@ const setIframeToken = (token: string) => {
 const setIframeRefreshToken = (token: string) => {
     localStorage.setItem(PRE+REFRESH_TOKEN, token);
 };
+const getIframeToken = () => {
+    return localStorage.getItem(PRE+TOKEN_KEY);
+};
+const getIframeRefreshToken = () => {
+    return localStorage.getItem(PRE+REFRESH_TOKEN);
+};
 // const setExpire = (v: number) => {
 //     localStorage.setItem(EXPIRE, String(v));
 // };
@@ -133,5 +139,7 @@ export { isLogin, getToken, setToken, clearToken,
     getRefreshToken,
     setIframeToken,
     setIframeRefreshToken,
+    getIframeToken,
+    getIframeRefreshToken,
     clearIframeToken,
  };
