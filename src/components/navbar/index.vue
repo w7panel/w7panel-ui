@@ -202,16 +202,6 @@ import { panelApi } from '@/utils/api';
     
     // 选择namespace
     const namespaceList = useNamespaceStore().namespaceList;
-    let webshelllink = ref('');
-    let isInMicro = ref(false);
-    if((window as any).__MICRO_APP_ENVIRONMENT__){
-        let token = getToken();
-        isInMicro.value = true;
-        webshelllink.value = (window as any)?.microApp?.getData()?.originUrl || '';
-        webshelllink.value = webshelllink.value.replace(/\/$/,'') + '/fp/webshell?api_token=' + token;
-    }else{
-        webshelllink.value = '/fp/webshell';
-    }
 
     // 应用
     const topApps = ref([]);
