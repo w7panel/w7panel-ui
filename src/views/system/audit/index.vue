@@ -115,7 +115,7 @@
                     :total="pagination.total"
                     :page-size-options="[20, 50, 100, 200]"
                     show-page-size
-                    @change="getList"
+                    @change="pageChange"
                     @page-size-change="pageSizeChange"
                 />
             </div>
@@ -285,6 +285,10 @@ export default {
             this.filter.method = '';
             this.filter.path = '';
             this.pagination.current = 1;
+            this.getList();
+        },
+        pageChange(current) {
+            this.pagination.current = current;
             this.getList();
         },
         pageSizeChange(pageSize) {
