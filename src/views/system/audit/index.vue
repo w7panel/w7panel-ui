@@ -20,7 +20,6 @@
 
             <div class="audit-filter mt-10">
                 <a-input v-model="filter.username" placeholder="用户名" allow-clear @press-enter="search" />
-                <a-input v-model="filter.tenant" placeholder="租户" allow-clear @press-enter="search" />
                 <a-select v-model="filter.success" placeholder="状态" allow-clear>
                     <a-option value="true">成功</a-option>
                     <a-option value="false">失败</a-option>
@@ -52,16 +51,14 @@
                 :data="list"
                 :pagination="false"
                 :bordered="false"
-                :scroll="{ x: activeTab === 'operation' ? 1450 : 1180 }"
+                :scroll="{ x: activeTab === 'operation' ? 1460 : 930 }"
                 row-key="rowKey"
             >
                 <template #columns>
                     <a-table-column title="时间" :width="180" fixed="left">
-                        <template #cell="{ record }">{{ formatTime(record.time) }}</template>
+                        <template #cell="{ record }">{{ formatTime(record.time || record._time) }}</template>
                     </a-table-column>
                     <a-table-column title="用户名" :width="140" data-index="username"></a-table-column>
-                    <a-table-column title="租户" :width="140" data-index="tenant"></a-table-column>
-                    <a-table-column title="用户模式" :width="110" data-index="user_mode"></a-table-column>
                     <template v-if="activeTab === 'login'">
                         <a-table-column title="登录方式" :width="120" data-index="login_method"></a-table-column>
                         <a-table-column title="状态" :width="90">
@@ -74,6 +71,11 @@
                         </a-table-column>
                     </template>
                     <template v-else>
+                        <a-table-column title="中文说明" :width="200">
+                            <template #cell="{ record }">
+                                <span class="ellipsis" :title="operationDescription(record)">{{ operationDescription(record) }}</span>
+                            </template>
+                        </a-table-column>
                         <a-table-column title="方法" :width="90" data-index="method"></a-table-column>
                         <a-table-column title="路径" :width="300">
                             <template #cell="{ record }">
@@ -146,7 +148,6 @@ import { panelApi } from '@/utils/api';
 
 const defaultFilter = () => ({
     username: '',
-    tenant: '',
     success: '',
     method: '',
     path: '',
@@ -185,10 +186,10 @@ export default {
         detailRows() {
             const labels = {
                 time: '时间',
+                _time: '时间',
                 audit_type: '类型',
-                tenant: '租户',
                 username: '用户名',
-                user_mode: '用户模式',
+                route_description: '中文说明',
                 login_method: '登录方式',
                 success: '成功',
                 reason: '失败原因',
@@ -202,9 +203,9 @@ export default {
                 user_agent: 'User-Agent',
                 message: '消息',
             };
-            return Object.keys(this.detail.data || {}).map((key) => {
+            return Object.keys(this.detail.data || {}).filter((key) => !['tenant', 'user_mode'].includes(key)).map((key) => {
                 let value = this.detail.data[key];
-                if (key === 'time') { value = this.formatTime(value); }
+                if (key === 'time' || key === '_time') { value = this.formatTime(value); }
                 if (key === 'success') { value = value ? '成功' : '失败'; }
                 if (key === 'duration_ms') { value = `${value}ms`; }
                 if (value && typeof value === 'object') { value = JSON.stringify(value, null, 2); }
@@ -245,7 +246,6 @@ export default {
                 page: this.pagination.current,
                 pageSize: this.pagination.pageSize,
                 username: this.filter.username,
-                tenant: this.filter.tenant,
                 success: this.filter.success,
             };
             if (this.activeTab === 'operation') {
@@ -269,8 +269,9 @@ export default {
                 const data = this.normalizeData(res);
                 const list = data?.list || [];
                 this.list = list.map((item, index) => ({
-                    rowKey: `${this.activeTab}-${this.pagination.current}-${index}-${item.time || ''}`,
+                    rowKey: `${this.activeTab}-${this.pagination.current}-${index}-${item.time || item._time || ''}`,
                     ...item,
+                    time: item.time || item._time || '',
                 }));
                 this.pagination.current = Number(data?.page || this.pagination.current);
                 this.pagination.pageSize = Number(data?.pageSize || this.pagination.pageSize);
@@ -310,9 +311,18 @@ export default {
                 data: record,
             };
         },
+        operationDescription(record) {
+            return record?.route_description || record?.message || '-';
+        },
         formatTime(value) {
             if (!value) { return '-'; }
-            return window.formatDate ? window.formatDate(value) : value;
+            const dateValue = this.normalizeTimeValue(value);
+            if (Number.isNaN(new Date(dateValue).getTime())) { return value; }
+            return window.formatDate ? window.formatDate(dateValue) : dateValue;
+        },
+        normalizeTimeValue(value) {
+            if (typeof value !== 'string') { return value; }
+            return value.replace(/\.(\d{3})\d+(Z|[+-]\d{2}:?\d{2})$/, '.$1$2');
         },
         toQueryTime(value) {
             if (!value) { return ''; }
