@@ -30,10 +30,30 @@
       const topMenu = computed(() => appStore.topMenu);
       const openKeys = ref<string[]>([]);
       const selectedKey = ref<string[]>([]);
+      const isMicroFrontend = computed(() => {
+        const win = window as any;
+        return !!(win.__POWERED_BY_WUJIE__ || win.__MICRO_APP_ENVIRONMENT__);
+      });
+      const showMicroBack = computed(() => isMicroFrontend.value && !topMenu.value);
 
       watch(route, () => {
         selectedKey.value = [route.name as string];
       });
+
+      const goBackFromMicro = () => {
+        const win = window as any;
+        const closeSubaccountPanel = win.$wujie?.props?.closeSubaccountPanel;
+        if (typeof closeSubaccountPanel === 'function') {
+          closeSubaccountPanel();
+          return;
+        }
+        const microBack = win.microApp?.getData?.()?.goBack;
+        if (typeof microBack === 'function') {
+          microBack();
+          return;
+        }
+        router.back();
+      };
 
       const goto = (item: RouteRecordRaw) => {
         // Open external link
@@ -127,26 +147,57 @@
       };
 
       return () => (
-        <a-menu
-          mode={topMenu.value ? 'horizontal' : 'vertical'}
-          v-model:collapsed={collapsed.value}
-          v-model:open-keys={openKeys.value}
-          show-collapse-button={appStore.device !== 'mobile'}
-          auto-open={false}
-          selected-keys={selectedKey.value}
-          auto-open-selected={true}
-          level-indent={34}
-          style="height: 100%;width:100%;"
-          onCollapse={setCollapse}
-        >
-          {renderSubMenu()}
-        </a-menu>
+        <div class="menu-panel">
+          {showMicroBack.value ? (
+            <div class="menu-micro-back" onClick={goBackFromMicro}>
+              <icon-left />
+              <span>返回</span>
+            </div>
+          ) : null}
+          <a-menu
+            mode={topMenu.value ? 'horizontal' : 'vertical'}
+            v-model:collapsed={collapsed.value}
+            v-model:open-keys={openKeys.value}
+            show-collapse-button={appStore.device !== 'mobile'}
+            auto-open={false}
+            selected-keys={selectedKey.value}
+            auto-open-selected={true}
+            level-indent={34}
+            style="flex:1;min-height:0;width:100%;"
+            onCollapse={setCollapse}
+          >
+            {renderSubMenu()}
+          </a-menu>
+        </div>
       );
     },
   });
 </script>
 
 <style lang="less" scoped>
+  .menu-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+  }
+  .menu-micro-back {
+    display: flex;
+    flex: 0 0 44px;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 16px;
+    color: var(--color-text-1);
+    cursor: pointer;
+    border-bottom: 1px solid var(--color-border-2);
+  }
+  .menu-micro-back:hover {
+    background: var(--color-fill-2);
+  }
+  .menu-micro-back :deep(.arco-icon) {
+    font-size: 18px;
+  }
   :deep(.arco-menu-inner) {
     .arco-menu-inline-header {
       display: flex;
