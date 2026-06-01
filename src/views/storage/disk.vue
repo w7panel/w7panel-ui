@@ -58,7 +58,8 @@
                         <template #columns>
                             <a-table-column title="名称">
                                 <template #cell="{ record }">
-                                    <span>{{record.name}}</span>
+                                    <span v-if="!record.isExtra||record.name!='local-path'">{{record.name}}</span>
+                                    <span v-else>/var/lib/rancher/k3s/storage</span>
                                     <template v-if="!record.isExtra">
                                         <a-tag v-for="(item, index) of record.tags.filter(t=>/^union\d+$/.test(t))" :key="index" size="small" color="blue" class="ml-4" bordered>{{ item }}</a-tag>
                                     </template>
