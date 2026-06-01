@@ -140,7 +140,7 @@
                         <span class="c-blue cursor" style="white-space:nowrap;" @click="path_key_cache_rules.splice(index,1);">删除</span>
                     </td>
                 </tr>
-                <tr><td colspan="7" class="cursor" @click="path_key_cache_rules.push({cache_type:'all',paths:[],keys:[],ignore_case:false,ignore_key_rule:'keep',weight:'1'})">
+                <tr><td colspan="7" class="cursor" @click="path_key_cache_rules.push({cache_type:'all',paths:[],keys:[],ignore_case:false,ignore_key_rule:'keep',weight:'1'})" style="background: var(--color-neutral-1);">
                     <div class="df ai-c jc-c">
                         <icon-plus :size="14" class="c-99" />
                         <span class="c-99 lh-1" style="margin-left:6px;">添加</span>

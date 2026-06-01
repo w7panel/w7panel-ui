@@ -120,7 +120,7 @@
 import { panelApi } from '@/utils/api';
 import axios from 'axios';
 import { isLogin } from '@/utils/auth';
-import { getUserInfo } from '@/utils/auth';
+import { getUserInfo,getK8sinfo } from '@/utils/auth';
 import { clearToken } from '@/utils/auth';
 import contactUs from '@/components/contact-us.vue';
 import microApp from '@/views/topapp/micro.vue';
@@ -217,7 +217,12 @@ export default{
             if(!isLogin()){
                 this.$router.push('/login?policyName='+(o?.policyName||'')+'&couponCode='+(o?.couponCode || ''))
             }else{
-                this.$router.push('/cluster/panel');
+                let role = getK8sinfo()['w7.cc/role'];
+                if(role=='normal'||role=='tech'){
+                    this.$router.push('/appgroup/w7panel-ckm-root/micro')
+                }else{
+                    this.$router.push('/cluster/panel');
+                }
             }
         },
         discountTxt(discount){
