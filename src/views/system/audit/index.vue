@@ -201,7 +201,7 @@ export default {
             return Object.keys(this.detail.data || {}).filter((key) => !['tenant', 'user_mode'].includes(key)).map((key) => {
                 let value = this.detail.data[key];
                 if (key === 'time' || key === '_time') { value = this.formatTime(value); }
-                if (key === 'success') { value = value ? '成功' : '失败'; }
+                if (key === 'success') { value = this.normalizeSuccess(value) ? '成功' : '失败'; }
                 if (key === 'duration_ms') { value = `${value}ms`; }
                 if (value && typeof value === 'object') { value = JSON.stringify(value, null, 2); }
                 return {
@@ -260,16 +260,19 @@ export default {
         },
         getList() {
             const path = this.activeTab === 'login' ? '/audit/login-logs' : '/audit/operation-logs';
+            const currentPage = this.pagination.current;
+            const currentPageSize = this.pagination.pageSize;
             panelApi.get(path, { params: this.buildParams(), loading: true }).then((res) => {
                 const data = this.normalizeData(res);
                 const list = data?.list || [];
                 this.list = list.map((item, index) => ({
-                    rowKey: `${this.activeTab}-${this.pagination.current}-${index}-${item.time || item._time || ''}`,
+                    rowKey: `${this.activeTab}-${currentPage}-${index}-${item.time || item._time || ''}`,
                     ...item,
+                    success: this.normalizeSuccess(item?.success),
                     time: item.time || item._time || '',
                 }));
-                this.pagination.current = Number(data?.page || this.pagination.current);
-                this.pagination.pageSize = Number(data?.pageSize || this.pagination.pageSize);
+                this.pagination.current = currentPage;
+                this.pagination.pageSize = currentPageSize;
                 this.pagination.total = Number(data?.total || 0);
             });
         },
@@ -304,6 +307,16 @@ export default {
         },
         operationDescription(record) {
             return record?.route_description || record?.message || '-';
+        },
+        normalizeSuccess(value) {
+            if (typeof value === 'boolean') { return value; }
+            if (typeof value === 'number') { return value !== 0; }
+            if (typeof value === 'string') {
+                const normalized = value.trim().toLowerCase();
+                if (['false', '0', 'fail', 'failed', 'error'].includes(normalized)) { return false; }
+                if (['true', '1', 'success', 'ok'].includes(normalized)) { return true; }
+            }
+            return Boolean(value);
         },
         formatTime(value) {
             if (!value) { return '-'; }
