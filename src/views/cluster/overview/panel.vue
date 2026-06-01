@@ -97,12 +97,7 @@
                     </a-form-item>
                     <a-form-item v-if="quotsInfo.expiretime" label="到期时间" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.expiretime}}</span>
-<<<<<<< HEAD
-                        <a v-if="(userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true')" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>
-=======
-                        <a v-if="!inMicro&&userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'" class="c-blue cursor ml-20" target="_blank" href="/order-base?renew=true">续费</a>
->>>>>>> dev-v1
-                    </a-form-item>
+                        <a v-if="!inMicro&&((userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'))" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>                    </a-form-item>
                 </a-form>
                 <a-form v-else class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="集群版本" style="margin-bottom:0;">
