@@ -17,6 +17,9 @@
     },{
         "title": "资源对象浏览器",
         "key": "cluster-resource"
+    },{
+        "title": "DNS解析",
+        "key": "dns"
     }]
 },{
     "title": "应用管理",
