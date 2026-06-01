@@ -8,7 +8,7 @@
                     <div v-if="roles.length" style="width:100%;">
                         <div v-for="role in roles" :key="role.name">
                             <!-- <div v-if="roles.length>1" class="c-99 ml-16" style="padding:10px 0;">{{ role.title }}</div> -->
-                            <div v-if="roles.length>1 && role.menus && role.menus.length" class="c-aa ml-20" style="padding:10px 0;">
+                            <div v-if="role.menus && role.menus.length" class="c-aa ml-20" style="padding:10px 0;">
                                 <IconUserGroup />
                                 <span class="ml-10">{{ role.title }}</span>
                             </div>
