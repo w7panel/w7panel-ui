@@ -124,7 +124,9 @@
             mode="modal" 
             title="执行记录"
             :jobList="jobLogModal.jobList"
+            :jobName="jobLogModal.jobName"
             :label-selector="jobLogModal.labelSelector"
+            :showTabs="!jobLogModal.showTabs===false"
             :namespace="namespaceActive"
             :tail-lines="100"
             @close="jobLogModal.show = false; jobLogModal.jobName = ''; jobLogModal.labelSelector = '';"
@@ -218,10 +220,11 @@ export default {
         },
         showHis(item){
             // 如果是 Job（有 dataItem），直接用 JobLog 组件
-            if(item.dataItem?.kind === 'Job'){
+            if(item?.type === 'jobs'){
                 this.jobLogModal.jobName = item.name;
                 this.jobLogModal.labelSelector = '';
                 this.jobLogModal.show = true;
+                this.jobLogModal.showTabs = false;
                 return;
             }
             
@@ -234,6 +237,7 @@ export default {
                     this.jobLogModal.jobName = '';
                     this.jobLogModal.labelSelector = label;
                     this.jobLogModal.show = true;
+                    this.jobLogModal.showTabs = true;
                 }
                 return;
             }
@@ -271,6 +275,7 @@ export default {
                 this.jobLogModal.jobList = list;
                 this.jobLogModal.labelSelector = '';
                 this.jobLogModal.show = true;
+                this.jobLogModal.showTabs = true;
             });
         },
         closeForm(v){
