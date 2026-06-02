@@ -43,8 +43,14 @@ export default{
     watch: {
         appgroup(v){
             this.$nextTick(()=>{
+                this.resetMicro();
                 this.getFront(v)
             })
+        },
+        menuActive(v){
+            if(!v || this.loginPanel || this.page==v){return}
+            this.page = v;
+            this.routeChange(v);
         },
         loginPanel(v){
             this.$nextTick(()=>{
@@ -65,6 +71,16 @@ export default{
     methods: {
         routeChange(v){
             bus.$emit("routeChange", v);
+        },
+        resetMicro(){
+            try{
+                this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
+            }catch{}
+            this.destroyMicro();
+            this.info = {};
+            this.extra = {};
+            this.page = '';
+            this.downOk = true;
         },
         getFront(appgroup){
             if(this.loginPanel){
