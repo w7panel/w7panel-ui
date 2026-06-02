@@ -36,7 +36,7 @@ export default defineStore('namespace', {
             this.error = null;
 
             try {
-                const res = await axios.get('/k8s-proxy/api/v1/namespaces', {
+                const res = await axios.get('/panel-api/v1/namespaces', {
                     headers: {
                         'Content-Type': 'application/json',
                     },
