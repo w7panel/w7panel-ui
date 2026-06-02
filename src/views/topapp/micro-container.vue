@@ -175,11 +175,17 @@ export default{
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.page || ''),
 // url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.page || ''),
 // url: 'http://localhost:8080' + (this.page || ''),
+// url: 'https://idc.w7.com' + this.info.frontendUrl + (this.page || ''),
                 exec: true,
                 el: '#appmicro',
                 sync: true,
                 props: props,
             })
+            setTimeout(()=>{
+                requestAnimationFrame(() => {
+                    window.dispatchEvent(new Event('resize'));
+                });
+            }, 500)
         },
         openLoginPanel(){
             startApp({
@@ -189,6 +195,11 @@ export default{
                 el: '#appmicro',
                 sync: true,
             })
+            setTimeout(()=>{
+                requestAnimationFrame(() => {
+                    window.dispatchEvent(new Event('resize'));
+                });
+            }, 500)
         },
         destroyMicro(){
             try{
