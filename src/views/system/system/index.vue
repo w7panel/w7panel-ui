@@ -11,9 +11,9 @@
             </a-tabs>
             <div v-if="tab=='1'">
                 <a-form ref="register" :model="register" auto-label-width class="padding-20">
-                    <a-form-item label="默认用户组">
-                        <a-select v-model="register.defaultPolicyName" placeholder="请选择">
-                            <a-option v-for="item in groupList" :key="item.name" :label="item.title" :value="item.name"></a-option>
+                    <a-form-item label="默认权限">
+                        <a-select v-model="register.defaultPermissionName" placeholder="请选择">
+                            <a-option v-for="item in permissionPackageList" :key="item.name" :label="item.title" :value="item.name"></a-option>
                         </a-select>
                     </a-form-item>
                     <a-form-item label="开启注册">
@@ -184,7 +184,7 @@ export default{
             register: {},
             filing: {},
             domainParse: {},
-            groupList: [],
+            permissionPackageList: [],
         }
     },
     created(){
@@ -269,25 +269,24 @@ export default{
             })
         },
         initRegister(){
-            k8sproxy.get('/apis/k3k.io/v1alpha1/virtualclusterpolicies',{
-                params:{ limit:500, },
+            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps?labelSelector=type=permission',{
                 noAlert: true
             }).then(res=>{
                 let list = res?.data?.items || [];
-                list = list.map(i=>{
+                list = list.filter(i=>i.metadata?.labels?.typemode=='custom').map(i=>{
                     return {
                         name: i.metadata?.name,
                         title: i.metadata?.annotations?.title || i.metadata?.name,
                     }
                 })
-                this.groupList = list;
+                this.permissionPackageList = list;
             });
             k8sproxy.get('/api/v1/namespaces/kube-system/configmaps/k3k.config',{noAlert:true}).then(res=>{
                 this.register = {
                     ...this.register,
                     allowConsoleRegister: res?.data?.data?.allowConsoleRegister === 'true',
                     // showInShop: res?.data?.data?.showInShop === 'true',
-                    defaultPolicyName: res?.data?.data?.defaultPolicyName,
+                    defaultPermissionName: res?.data?.data?.defaultPermissionName,
                     indexpage: res?.data?.data?.indexpage || 'login',
                 }
             }).catch((err)=>{
@@ -313,7 +312,7 @@ export default{
                         ...this.register,
                         allowConsoleRegister: false,
                         // showInShop: false,
-                        defaultPolicyName: '',
+                        defaultPermissionName: '',
                         indexpage: 'login',
                     }
                 });
@@ -362,7 +361,7 @@ export default{
                 data:{
                     allowConsoleRegister: String(this.register.allowConsoleRegister),
                     // showInShop: String(this.register.showInShop),
-                    defaultPolicyName: this.register.defaultPolicyName,
+                    defaultPermissionName: this.register.defaultPermissionName,
                     indexpage: this.register.indexpage,
                 }
             },{
