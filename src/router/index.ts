@@ -143,9 +143,8 @@ router.beforeEach(async (to, from, next) => {
             if(to.name=='login' || !isLogin()){
                 resolve();
             }else{
-                useNamespaceStore().setNamespaceList().finally(()=>{
-                    resolve();
-                })
+                // useNamespaceStore().setNamespaceList().finally(()=>{})
+                resolve();
             }
         }
     }).then(()=>{

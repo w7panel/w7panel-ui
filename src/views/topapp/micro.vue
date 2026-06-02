@@ -103,6 +103,9 @@ export default{
         group(){
             this.groupName = this.group || this.$route.params.group;
         },
+        '$route.params.group'(){
+            this.groupName = this.group || this.$route.params.group;
+        },
     },
     methods: {
         changeLogin(data = {}){
