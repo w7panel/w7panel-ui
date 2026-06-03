@@ -153,14 +153,17 @@ export default {
             if(filterArr?.length){
                 filter = `,device!~"${filterArr.join('|')}"`
             }
+            const nodeResourceJob = this.currentMetricsService === DEFAULT_METRICS_SERVICE
+                ? 'default/w7panel-metrics-node-resource'
+                : 'default/w7panel-metrics-k8s-offline-metrics-node-resource';
             return axios.get(path,{params:{
                 query: {
                     ...(userMode=='cluster'?{
                         'cpu': 'rate(pod_cpu_usage_seconds_total{pod="' + Name + '"})',
                         'memory': 'pod_memory_working_set_bytes{pod="' + Name + '"}',
                     }:{
-                        'cpu': 'rate(node_cpu_usage_seconds_total{job="default/w7panel-metrics-k8s-offline-metrics-node-resource"})',
-                        'memory': '(node_memory_working_set_bytes{job="default/w7panel-metrics-k8s-offline-metrics-node-resource"})',
+                        'cpu': 'rate(node_cpu_usage_seconds_total{job="' + nodeResourceJob + '"})',
+                        'memory': '(node_memory_working_set_bytes{job="' + nodeResourceJob + '"})',
                     }),
 
                     'HostGPUMemoryUsage': '(HostGPUMemoryUsage)',
