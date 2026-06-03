@@ -1,13 +1,15 @@
 <template>
     <div style="height:100%;">
-        <div v-show="downOk" id="appmicro" style="height:100%;transform:translate(0,0);"></div>
+        <iframe v-if="info.load_mode === 'iframe'" :src="info.iframeSrc" style="display:block;width:100%;height:100%;border:0;"></iframe>
+        <template v-else >
+            <div v-show="downOk" id="appmicro" style="height:100%;transform:translate(0,0);"></div>
 
-        <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:100%;">
-            <div style="height:100%;" class="bg-white"></div>
-        </a-spin>
+            <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:100%;">
+                <div style="height:100%;" class="bg-white"></div>
+            </a-spin>
 
-        <wujie-modals @changeLogin="$emit('changeLogin', $event)" />
-
+            <wujie-modals @changeLogin="$emit('changeLogin', $event)" />
+        </template>
     </div>
 </template>
 <script>
@@ -70,7 +72,12 @@ export default{
     },
     methods: {
         routeChange(v){
-            bus.$emit("routeChange", v);
+            if(this.info.load_mode === 'iframe'){
+                this.info.iframeRoute = v;
+                this.info.iframeSrc = this.info.iframePath + this.info.iframeRoute;
+            }else{
+                bus.$emit("routeChange", v.replace(/^#/,''));
+            }
         },
         resetMicro(){
             try{
@@ -139,12 +146,21 @@ export default{
         async wujieInit(){
             let is_register = false;
             let thirdparty_cd_token = '';
-            await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
+            let {data} = await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
                 version: this.extra.version,
                 releaseName: this.extra.name,
             }}).then(res=>{
                 this.downOk = res.data?.status !== 'no_download';
+                return res;
             })
+
+            if(this.info.load_mode=='iframe'){
+                this.info.iframePath = data.proxyUrl;
+                this.info.iframeRoute = this.page || '';
+                this.info.iframeSrc = this.info.iframePath + this.info.iframeRoute;
+                return;
+            }
+
             if(!this.downOk){
                 panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
                 this.extra.setTimeout = setTimeout(()=>{

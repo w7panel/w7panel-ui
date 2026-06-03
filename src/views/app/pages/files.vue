@@ -29,13 +29,6 @@
                             </a-dropdown>
 
                         </a-button-group>
-                        
-                        <a-button v-if="outEditorLink" type="outline" class="ml-20" size="small" :href="outEditorLink" target="_blank">
-                            <template #icon>
-                                <icon-code />
-                            </template>
-                            <span>开发编辑器</span>
-                        </a-button>
                     </div>
                     <div class="df">
                         <div v-if="fileCatch.length || mfEdit" class="df ai-c ml-20">
@@ -715,7 +708,6 @@ export default {
 
             userArr: [],
             outEditorInfo: null,
-            outEditorLink: '',
 
             appData: null,
         }
@@ -793,11 +785,6 @@ export default {
             this.getFileList();
             if(!this.is_component || this.origin=='nodes'){
                 this.$router.push({query:this.$route.query,hash:'#path='+ encodeURIComponent(this.form.path)});
-            }
-            let o = this.outEditorInfo;
-            if(o){
-                let wsBaseUrl = `${o.origin}/panel-api/v1/exec`;
-                this.outEditorLink = `${o.origin}/ui/plugin/codeblitz/editor.html?ws-base-url=${encodeURIComponent(wsBaseUrl)}&api-url=${o.webdavUrl?.replace(/\/$/,'')}&api-base-path=${o.webdavBasePath?.replace(/\/$/,'')}&initial-path=${encodeURIComponent(v)}&api-token=${encodeURIComponent(o.webdavToken || '')}`;
             }
         },
         'upload.show'(v){
@@ -1146,8 +1133,6 @@ export default {
                     // if (res.data.users && res.data.users.length > 0) {
                     //     this.userArr = res.data.users;
                     // }
-                    let wsBaseUrl = `${origin}/panel-api/v1/exec`;
-                    this.outEditorLink = `${origin}/ui/plugin/codeblitz/editor.html?ws-base-url=${encodeURIComponent(wsBaseUrl)}&api-url=${res.data.webdavUrl?.replace(/\/$/,'')}&api-base-path=${res.data.webdavBasePath?.replace(/\/$/,'')}&initial-path=${encodeURIComponent(this.form.path || '/')}&api-token=${encodeURIComponent(res.data.webdavToken)}`;
                 })
                 return;
             }
@@ -1243,8 +1228,6 @@ export default {
                     // if (res.data.users && res.data.users.length > 0) {
                     //     this.userArr = res.data.users;
                     // }
-                    let wsBaseUrl = `${origin}/panel-api/v1/exec`;
-                    this.outEditorLink = `${origin}/ui/plugin/codeblitz/editor.html?ws-base-url=${encodeURIComponent(wsBaseUrl)}&api-url=${res.data.webdavUrl?.replace(/\/$/,'')}&api-base-path=${res.data.webdavBasePath?.replace(/\/$/,'')}&initial-path=${encodeURIComponent(this.form.path || '/')}&api-token=${encodeURIComponent(res.data.webdavToken)}`;
                 })
             })
         },

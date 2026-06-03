@@ -185,7 +185,7 @@ watch(()=>props.roles,filterMenu)
 const selectMenu = ref([]);
 const handelMicroMenu = (v)=>{
     selectMenu.value = [v];
-    emit("routeChange", v.replace(/^#/,''));
+    emit("routeChange", v);
 }
 
 const defaultSelectMenu = ()=>{

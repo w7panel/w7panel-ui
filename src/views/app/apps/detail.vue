@@ -74,10 +74,13 @@
             </a-layout-content>
             <a-layout-content v-else-if="isMicroPage" class="ml-6 df df-c">
                 <div class="bg-white routerviewbox fc ml-6" >
-                    <div v-show="downOk" id="appmicro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
-                    <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:calc(100vh - 146px);">
-                        <div style="height:100%;" class="bg-white"></div>
-                    </a-spin>
+                    <iframe v-if="info.load_mode === 'iframe'" :src="info.iframeSrc" style="display:block;width:100%;height:100%;border:0;"></iframe>
+                    <template v-else> 
+                        <div v-show="downOk" id="appmicro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
+                        <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:calc(100vh - 146px);">
+                            <div style="height:100%;" class="bg-white"></div>
+                        </a-spin>
+                    </template>
                 </div>
             </a-layout-content>
             <a-layout-content v-else class="ml-6 df df-c">
@@ -284,18 +287,26 @@ export default {
     methods: {
         async wujieInit(){
             
+            const {data} = await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
+                version: this.extra.version,
+                releaseName: this.extra.name,
+            }}).then(res=>{
+                this.downOk = res.data?.status !== 'no_download';
+                return res;
+            })
+            if(this.info.load_mode=='iframe'){
+                this.info.iframeSrcPath = data.proxyUrl;
+                this.info.iframeSrcRote = this.menuActive || '';
+                this.info.iframeSrc = this.info.iframeSrcPath + this.info.iframeSrcRote;
+                return;
+            }
+            
             try{
                 destroyApp('appmicro');
             }catch(e){console.log('destroy err')}
 
             let is_register = false;
             let thirdparty_cd_token = '';
-            await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
-                version: this.extra.version,
-                releaseName: this.extra.name,
-            }}).then(res=>{
-                this.downOk = res.data?.status !== 'no_download';
-            })
             if(!this.downOk){
                 panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
                 this.extra.setTimeout = setTimeout(()=>{
@@ -357,7 +368,12 @@ export default {
                     this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?gpustackbox='+encodeURIComponent(this.info.frontendUrl + this.menuActive))
                 }
             }else if(this.isMicroPage){
-                bus.$emit("routeChange", v.replace(/^#/,''));
+                if(this.info.load_mode=='iframe'){
+                    this.info.iframeSrcRoute = v;
+                    this.info.iframeSrc = this.info.iframeSrcPath + this.info.iframeSrcRoute;
+                }else{
+                    bus.$emit("routeChange", v.replace(/^#/,''));
+                }
             }else{
                 this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?appmicro='+encodeURIComponent(this.info.frontendUrl + this.menuActive)).then(res=>{
                     this.$nextTick(()=>{
