@@ -162,12 +162,14 @@ export default{
             }
 
             if(!this.downOk){
-                panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
-                this.extra.setTimeout = setTimeout(()=>{
-                    this.wujieInit();
-                    clearTimeout(this.extra.setTimeout);
-                }, 5000)
-                return;
+                this.info.frontendUrl = data.proxyUrl;
+                this.downOk = true;
+                // panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
+                // this.extra.setTimeout = setTimeout(()=>{
+                //     this.wujieInit();
+                //     clearTimeout(this.extra.setTimeout);
+                // }, 5000)
+                // return;
             }
             await panelApi.get("/auth/console/info").then(res=>{
                 let data = res.data;

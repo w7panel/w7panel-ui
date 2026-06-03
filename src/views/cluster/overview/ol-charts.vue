@@ -28,9 +28,10 @@ import * as echarts from 'echarts'
 import { useDarkStore } from '@/store'
 import { getUserInfo } from '@/utils/auth';
 import dayjs from 'dayjs'
+import { getMetricsService, DEFAULT_METRICS_SERVICE } from '@/utils/metrics-service';
 
 export default {
-    props: ['list','node','activeType','noMonitor','pickerValue','step','virtualDiskFilterCache'],
+    props: ['list','node','activeType','noMonitor','pickerValue','step','virtualDiskFilterCache','metricsServices'],
     data(){
         return {
             // activeType: 'cpu',
@@ -64,6 +65,7 @@ export default {
             },
             chart: null,
             userInfo: {},
+            currentMetricsService: DEFAULT_METRICS_SERVICE,
         }
     },
     created(){
@@ -71,6 +73,12 @@ export default {
             this._virtualDiskFilterCache = this.virtualDiskFilterCache;
         }
         this.userInfo = getUserInfo();
+        this.currentMetricsService = this.metricsServices || DEFAULT_METRICS_SERVICE;
+        if(!this.metricsServices){
+            getMetricsService().then(service=>{
+                this.currentMetricsService = service;
+            });
+        }
     },
     mounted(){
         this.init();
@@ -81,6 +89,9 @@ export default {
     watch: {
         virtualDiskFilterCache(v){
             this._virtualDiskFilterCache = v;
+        },
+        metricsServices(v){
+            this.currentMetricsService = v || DEFAULT_METRICS_SERVICE;
         },
         node(){this.init();},
         list(){this.init();},
@@ -101,9 +112,13 @@ export default {
     },
     methods: {
         resize(){},
-        init(){
+        async ensureMetricsService(){
+            this.currentMetricsService = this.metricsServices || await getMetricsService();
+        },
+        async init(){
             // if(!this.list?.length && !this.node){return}
             if(!this.activeType){return}
+            await this.ensureMetricsService();
             this.$nextTick(()=>{
                 this.chartInit(this.activeType);
             })
@@ -122,14 +137,14 @@ export default {
                 step = this.step;
             }
 
-            let agent = '/k8s-proxy/api/v1/namespaces/default/services/vmsingle-w7panel-metrics-k8s-offline-metrics-single:8429/proxy';
+            let agent = '/k8s-proxy/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy';
             let userMode = this.userInfo?.['w7.cc/user-mode'];
 
             if(this.userInfo?.["k3k.io/cluster-mode"]=='virtual'){
-                agent = '/k8s-proxy/api/v1/namespaces/default/services/vmsingle-w7panel-metrics-k8s-offline-metrics-single:8429/proxy';
+                agent = '/k8s-proxy/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy';
             }
             if(this.userInfo?.["k3k.io/cluster-mode"]=='shared'){
-                agent = '/k8s-proxy/api/v1/namespaces/default/services/vmsingle-w7panel-metrics-k8s-offline-metrics-single:8429/proxy-root'
+                agent = '/k8s-proxy/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy-root'
             }
             let path = agent + '/prometheus/api/v1/query_range';
             // this.noMonitor? '/k8s-proxy/metrics/node' : path
@@ -188,6 +203,7 @@ export default {
         },
 
         async chartInit(chartType){
+            await this.ensureMetricsService();
             let c = this[chartType] || {};
             if(c.loading){return}
             c.loading = true;
@@ -325,7 +341,7 @@ export default {
                 let filterArr = [];
                 if(needFilter){
                     if(!this._virtualDiskFilterCache){
-                        this._virtualDiskFilterCache = await k8sproxy.get('/api/v1/namespaces/default/services/vmsingle-w7panel-metrics-k8s-offline-metrics-single:8429/proxy/prometheus/api/v1/query_range',{
+                        this._virtualDiskFilterCache = await k8sproxy.get('/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy/prometheus/api/v1/query_range',{
                             params: {
                                 query: '(node_disk_info{model="VIRTUAL-DISK"})'
                             }

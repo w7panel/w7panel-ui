@@ -268,16 +268,16 @@
             <div class="mt-20" >
                 <a-tabs v-model:active-key="tabActive">
                     <a-tab-pane :key="1" title="CPU使用">
-                        <ol-charts v-if="tabActive==1&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" :list="nodelist" activeType="cpu"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" v-if="tabActive==1&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" :list="nodelist" activeType="cpu"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane :key="2" title="内存使用">
-                        <ol-charts v-if="tabActive==2&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" :list="nodelist" activeType="memory"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" v-if="tabActive==2&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" :list="nodelist" activeType="memory"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane v-if="gpuIsOpen" :key="3" title="GPU显存使用">
-                        <ol-charts v-if="tabActive==3&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="HostGPUMemoryUsage"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" v-if="tabActive==3&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="HostGPUMemoryUsage"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane v-if="gpuIsOpen" :key="4" title="GPU算力使用率">
-                        <ol-charts v-if="tabActive==4&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="HostCoreUtilization"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" v-if="tabActive==4&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="HostCoreUtilization"></ol-charts>
                     </a-tab-pane>
                 </a-tabs>
             </div>
@@ -326,22 +326,22 @@
                     <a-button v-for="item in nodelist" :key="item.name" :type="chartNodeActive==item.name?'primary':'outline'" @click="chartNodeActive=item.name">{{item.name}}</a-button>
                 </a-button-group>
                 <div v-if="!noMonitor" class="mt-20">
-                    <ol-charts v-if="chartActive==1&&chartNodeActive" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" :list="nodelist" activeType="load"></ol-charts>
+                    <ol-charts :metricsServices="metricsServices" v-if="chartActive==1&&chartNodeActive" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" :list="nodelist" activeType="load"></ol-charts>
                     <div v-if="chartActive==2&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-write" class="ml-20 fc"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read" class="fc"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-write" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==3&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-in" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-out" class="ml-20 fc"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-in" class="fc"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-out" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==4&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read-bytes" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-written-bytes" class="ml-20 fc"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read-bytes" class="fc"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-written-bytes" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==5&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-receive-bytes" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-transmit-bytes" class="ml-20 fc"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-receive-bytes" class="fc"></ol-charts>
+                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-transmit-bytes" class="ml-20 fc"></ol-charts>
                     </div>
                 </div>
             </div>
@@ -439,6 +439,7 @@ import { useDarkStore } from '@/store'
 import dayjs from 'dayjs'
 import { getToken } from '@/utils/auth';
 import { getWebshell } from '@/utils/auth';
+import { getMetricsServiceByVersion, DEFAULT_METRICS_SERVICE, LEGACY_METRICS_SERVICE } from '@/utils/metrics-service';
 
 export default {
     data(){
@@ -611,6 +612,8 @@ export default {
             webshell: 'false',
 
             virtualDiskFilterCache: [],
+            oldVersion: false,
+            metricsServices: DEFAULT_METRICS_SERVICE,
         }
     },
     async created(){
@@ -618,20 +621,23 @@ export default {
         
         await this.initInfo();
 
-        await panelApi.get('/metrics/state').then(async res=>{
-            this.metricsState = res.data;
-            if(this.metricsState?.canShowNodeMetrics){
-                
-                this.virtualDiskFilterCache = await k8sproxy.get('/api/v1/namespaces/default/services/vmsingle-w7panel-metrics-k8s-offline-metrics-single:8429/proxy/prometheus/api/v1/query_range',{
-                    params: {
-                        query: '(node_disk_info{model="VIRTUAL-DISK"})'
-                    }
-                }).then(res=>{
-                    return res?.data?.data?.result?.map(i=>i.metric?.device) || [];
-                }).catch(()=>[]);
-            }
-        })
-        await panelApi.get('/helm/releases/w7panel-metrics',{noAlert:true}).then(res=>{
+        // await panelApi.get('/helm/releases/w7panel-metrics',{noAlert:true}).then(res=>{
+        //     this.noMonitor = false;
+
+        //     this.clusterMonitor.pickerValue = [
+        //         dayjs().subtract(1, 'hour'),
+        //         dayjs(),
+        //     ]
+        //     if(this.clusterMode!='virtual' && this.clusterMode!='shared'){
+        //         this.hostMonitor.pickerValue = [
+        //             dayjs().subtract(1, 'hour'),
+        //             dayjs(),
+        //         ]
+        //     }
+        // }).catch(()=>{
+        //     this.noMonitor = true;
+        // })
+        await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups/w7panel-metrics',{noAlert:true}).then(res=>{
             this.noMonitor = false;
             
             this.clusterMonitor.pickerValue = [
@@ -644,8 +650,26 @@ export default {
                     dayjs(),
                 ]
             }
+            this.metricsServices = getMetricsServiceByVersion(res?.data?.spec?.version || '');
+            if(this.metricsServices === LEGACY_METRICS_SERVICE){
+                this.oldVersion = true;
+            }
         }).catch(()=>{
             this.noMonitor = true;
+        })
+
+        await panelApi.get('/metrics/state').then(async res=>{
+            this.metricsState = res.data;
+            if(this.metricsState?.canShowNodeMetrics){
+
+                this.virtualDiskFilterCache = await k8sproxy.get('/api/v1/namespaces/default/services/'+ this.metricsServices +'/proxy/prometheus/api/v1/query_range',{
+                    params: {
+                        query: '(node_disk_info{model="VIRTUAL-DISK"})'
+                    }
+                }).then(res=>{
+                    return res?.data?.data?.result?.map(i=>i.metric?.device) || [];
+                }).catch(()=>[]);
+            }
         })
 
         // await panelApi.get('/metrics/installed').then(res=>{
