@@ -1,28 +1,16 @@
 <template>
     <div class="padding-20 dns-page">
-        <route-breadcrumb />
+        <Breadcrumb :routes="topbc" />
         <div class="title-row">
-            <div class="title-content">
-                <div class="dns-domain-title">{{ domain }}</div>
-                <div class="sub-title">解析记录</div>
-            </div>
-            <div class="toolbar">
-                <a-button @click="$router.push({ name: 'dns-zones' })">
-                    <template #icon><icon-left /></template>
-                    返回
-                </a-button>
-                <a-button type="primary" :disabled="form.show" @click="openRecordForm()">
-                    <template #icon><icon-plus /></template>
-                    添加记录
-                </a-button>
-                <a-button @click="getRecords">
-                    <template #icon><icon-refresh /></template>
-                </a-button>
-            </div>
+            
+            <a-button type="primary" :disabled="form.show" @click="openRecordForm()">
+                <template #icon><icon-plus /></template>
+                添加记录
+            </a-button>
         </div>
 
         <div class="bg-white padding-20 mt-20">
-            <table class="com-table">
+            <table class="com-table dns-record-table">
                 <tbody>
                     <tr>
                         <td>主机记录</td>
@@ -32,82 +20,98 @@
                         <td>MX优先级</td>
                         <td style="width:180px;">操作</td>
                     </tr>
-                    <tr v-if="isAdding" class="record-edit-row">
-                        <td>
-                            <a-input v-model="form.name" placeholder="@ 或 www" allow-clear />
-                            <div class="full-domain">{{ fullDomain(form.name) }}</div>
-                        </td>
-                        <td>
-                            <a-select v-model="form.type" @change="handleTypeChange">
-                                <a-option label="A" value="A"></a-option>
-                                <a-option label="AAAA" value="AAAA"></a-option>
-                                <a-option label="CNAME" value="CNAME"></a-option>
-                                <a-option label="TXT" value="TXT"></a-option>
-                                <a-option label="MX" value="MX"></a-option>
-                            </a-select>
-                        </td>
-                        <td><a-input v-model="form.value" :placeholder="valuePlaceholder" allow-clear /></td>
-                        <td><a-input-number v-model="form.ttl" :min="1" :max="86400" /></td>
-                        <td>
-                            <a-input-number v-if="form.type === 'MX'" v-model="form.mxPriority" :min="1" :max="65535" />
-                            <span v-else>-</span>
-                        </td>
-                        <td>
-                            <a-tooltip content="保存">
-                                <i class="opt-icon c-green" @click="submitRecord"><icon-check /></i>
-                            </a-tooltip>
-                            <a-tooltip content="取消">
-                                <i class="opt-icon c-99" @click="cancelRecordForm"><icon-close /></i>
-                            </a-tooltip>
-                        </td>
-                    </tr>
-                    <tr v-for="item in records" :key="item.id" :class="{ 'record-edit-row': isEditing(item) }">
-                        <td v-if="isEditing(item)">
-                            <a-input v-model="form.name" placeholder="@ 或 www" allow-clear />
-                            <div class="full-domain">{{ fullDomain(form.name) }}</div>
-                        </td>
-                        <td v-else>
-                            <div>{{ item.name || '@' }}</div>
-                            <div class="full-domain">{{ fullDomain(item.name) }}</div>
-                        </td>
-                        <td v-if="isEditing(item)">
-                            <a-select v-model="form.type" @change="handleTypeChange">
-                                <a-option label="A" value="A"></a-option>
-                                <a-option label="AAAA" value="AAAA"></a-option>
-                                <a-option label="CNAME" value="CNAME"></a-option>
-                                <a-option label="TXT" value="TXT"></a-option>
-                                <a-option label="MX" value="MX"></a-option>
-                            </a-select>
-                        </td>
-                        <td v-else>{{ item.type }}</td>
-                        <td v-if="isEditing(item)"><a-input v-model="form.value" :placeholder="valuePlaceholder" allow-clear /></td>
-                        <td v-else>{{ item.value }}</td>
-                        <td v-if="isEditing(item)"><a-input-number v-model="form.ttl" :min="1" :max="86400" /></td>
-                        <td v-else>{{ item.ttl }}</td>
-                        <td v-if="isEditing(item)">
-                            <a-input-number v-if="form.type === 'MX'" v-model="form.mxPriority" :min="1" :max="65535" />
-                            <span v-else>-</span>
-                        </td>
-                        <td v-else>{{ item.type === 'MX' ? item.mxPriority : '-' }}</td>
-                        <td v-if="isEditing(item)">
-                            <a-tooltip content="保存">
-                                <i class="opt-icon c-green" @click="submitRecord"><icon-check /></i>
-                            </a-tooltip>
-                            <a-tooltip content="取消">
-                                <i class="opt-icon c-99" @click="cancelRecordForm"><icon-close /></i>
-                            </a-tooltip>
-                        </td>
-                        <td v-else>
-                            <a-tooltip content="编辑">
-                                <i class="opt-icon" :class="{ disabled: form.show }" @click="openRecordForm(item)"><icon-edit /></i>
-                            </a-tooltip>
-                            <a-popconfirm content="确认要删除该记录吗" @ok="deleteRecord(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{ status: 'danger' }" :disabled="form.show">
-                                <a-tooltip content="删除">
-                                    <i class="opt-icon" :class="{ disabled: form.show }"><icon-delete /></i>
+                    <template v-if="isAdding">
+                        <tr class="record-edit-row">
+                            <td>
+                                <div class="full-domain mb-10">{{ fullDomain(form.name) }}</div>
+                                <a-input v-model="form.name" placeholder="@ 或 www" allow-clear @focus="setHelpFocus('name')" />
+                            </td>
+                            <td>
+                                <a-select v-model="form.type" @change="handleTypeChange" @focus="setHelpFocus('type')">
+                                    <a-option label="A" value="A"></a-option>
+                                    <a-option label="AAAA" value="AAAA"></a-option>
+                                    <a-option label="CNAME" value="CNAME"></a-option>
+                                    <a-option label="TXT" value="TXT"></a-option>
+                                    <a-option label="MX" value="MX"></a-option>
+                                </a-select>
+                            </td>
+                            <td><a-input v-model="form.value" :placeholder="valuePlaceholder" allow-clear @focus="setHelpFocus('value')" /></td>
+                            <td><a-input-number v-model="form.ttl" :min="1" :max="86400" @focus="setHelpFocus('ttl')" /></td>
+                            <td>
+                                <a-input-number v-if="form.type === 'MX'" v-model="form.mxPriority" :min="1" :max="65535" />
+                                <span v-else>-</span>
+                            </td>
+                            <td>
+                                <a-tooltip content="保存">
+                                    <i class="opt-icon c-green" @click="submitRecord"><icon-check /></i>
                                 </a-tooltip>
-                            </a-popconfirm>
-                        </td>
-                    </tr>
+                                <a-tooltip content="取消">
+                                    <i class="opt-icon c-99" @click="cancelRecordForm"><icon-close /></i>
+                                </a-tooltip>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="6" style="background:var(--color-neutral-2);">
+                                <resolution-help :focus="helpFocus" :domain="domain" :type="form.type"></resolution-help>
+                            </td>
+                        </tr>
+                    </template>
+                    <template v-for="item in records" :key="item.id">
+                        <tr v-if="isEditing(item)" class="record-edit-row">
+                            <td>
+                                <a-input v-model="form.name" placeholder="@ 或 www" allow-clear @focus="setHelpFocus('name')" />
+                                <!-- <div class="full-domain">{{ fullDomain(form.name) }}</div> -->
+                            </td>
+                            <td>
+                                <a-select v-model="form.type" @change="handleTypeChange" @focus="setHelpFocus('type')">
+                                    <a-option label="A" value="A"></a-option>
+                                    <a-option label="AAAA" value="AAAA"></a-option>
+                                    <a-option label="CNAME" value="CNAME"></a-option>
+                                    <a-option label="TXT" value="TXT"></a-option>
+                                    <a-option label="MX" value="MX"></a-option>
+                                </a-select>
+                            </td>
+                            <td><a-input v-model="form.value" :placeholder="valuePlaceholder" allow-clear @focus="setHelpFocus('value')" /></td>
+                            <td><a-input-number v-model="form.ttl" :min="1" :max="86400" @focus="setHelpFocus('ttl')" /></td>
+                            <td>
+                                <a-input-number v-if="form.type === 'MX'" v-model="form.mxPriority" :min="1" :max="65535" />
+                                <span v-else>-</span>
+                            </td>
+                            <td>
+                                <a-tooltip content="保存">
+                                    <i class="opt-icon c-green" @click="submitRecord"><icon-check /></i>
+                                </a-tooltip>
+                                <a-tooltip content="取消">
+                                    <i class="opt-icon c-99" @click="cancelRecordForm"><icon-close /></i>
+                                </a-tooltip>
+                            </td>
+                        </tr>
+                        <tr v-else>
+                            <td>
+                                <div>{{ item.name || '@' }}</div>
+                                <!-- <div class="full-domain">{{ fullDomain(item.name) }}</div> -->
+                            </td>
+                            <td>{{ item.type }}</td>
+                            <td>{{ item.value }}</td>
+                            <td>{{ item.ttl }}</td>
+                            <td>{{ item.type === 'MX' ? item.mxPriority : '-' }}</td>
+                            <td>
+                                <a-tooltip content="编辑">
+                                    <i class="opt-icon" :class="{ disabled: form.show }" @click="openRecordForm(item)"><icon-edit /></i>
+                                </a-tooltip>
+                                <a-popconfirm content="确认要删除该记录吗" @ok="deleteRecord(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{ status: 'danger' }" :disabled="form.show">
+                                    <a-tooltip content="删除">
+                                        <i class="opt-icon" :class="{ disabled: form.show }"><icon-delete /></i>
+                                    </a-tooltip>
+                                </a-popconfirm>
+                            </td>
+                        </tr>
+                        <tr v-if="isEditing(item)">
+                            <td colspan="6" style="background:var(--color-neutral-2);">
+                                <resolution-help :focus="helpFocus" :domain="domain" :type="form.type"></resolution-help>
+                            </td>
+                        </tr>
+                    </template>
                     <tr v-if="!records.length && !isAdding">
                         <td colspan="6"><a-empty /></td>
                     </tr>
@@ -119,6 +123,7 @@
 
 <script>
 import { panelApi } from '@/utils/api';
+import ResolutionHelp from './resolution-help.vue';
 
 const defaultForm = () => ({
     show: false,
@@ -131,10 +136,20 @@ const defaultForm = () => ({
 });
 
 export default {
+    components: {
+        ResolutionHelp,
+    },
     data() {
         return {
             records: [],
             form: defaultForm(),
+            helpFocus: 'name',
+            topbc: [
+                {name:'root'},
+                {name: "cluster", label: "集群管理"},
+                {name: "cluster-dns", label: "DNS解析"},
+                {name: "dns-records", label: this.$route.params.domain},
+            ],
         };
     },
     computed: {
@@ -180,17 +195,24 @@ export default {
                     ttl: row.ttl || 60,
                     mxPriority: row.mxPriority || 10,
                 };
+                this.helpFocus = 'name';
                 return;
             }
             this.form = { ...defaultForm(), show: true };
+            this.helpFocus = 'name';
         },
         cancelRecordForm() {
             this.form = defaultForm();
+            this.helpFocus = 'name';
         },
         isEditing(row) {
             return this.form.show && this.form.id && this.form.id === row.id;
         },
+        setHelpFocus(focus) {
+            this.helpFocus = focus || 'name';
+        },
         handleTypeChange() {
+            this.setHelpFocus('type');
             if (this.form.type !== 'MX') {
                 this.form.mxPriority = 10;
             }
@@ -238,6 +260,10 @@ export default {
 </script>
 
 <style scoped>
+.com-table.dns-record-table td {
+    vertical-align: bottom;
+}
+
 .title-row {
     display: flex;
     align-items: center;

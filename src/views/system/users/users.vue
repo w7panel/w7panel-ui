@@ -181,9 +181,9 @@
                 <a-form-item label="演示用户">
                     <a-switch v-model="form.demouser"></a-switch>
                 </a-form-item>
-                <a-form-item label="CVM用户">
+                <!-- <a-form-item label="CVM用户">
                     <a-switch v-model="form.cvmuser"></a-switch>
-                </a-form-item>
+                </a-form-item> -->
                 <!-- <a-form-item label="救援模式">
                     <a-switch v-model="form.weihu"></a-switch>
                 </a-form-item> -->
@@ -1120,7 +1120,7 @@ export default {
                 waitToReady: recycle || false,
                 waitToReadyDisabled: recycle,
                 demouser: row.demouser,
-                cvmuser: row.cvmuser,
+                // cvmuser: row.cvmuser,
                 weihu: row.weihu,
             }
             // console.log(this.form)
@@ -1150,7 +1150,7 @@ export default {
                     data.metadata.annotations['k3k.io/cluster-mode'] = this.form.clustermode;
                     data.metadata.labels['w7.cc/weihu'] = this.form.weihu? 'true' : 'false';
                     data.metadata.labels['w7.cc/demo-user'] = String(this.form.demouser);
-                    data.metadata.labels['w7.cc/cvm-user'] = String(this.form.cvmuser);
+                    // data.metadata.labels['w7.cc/cvm-user'] = String(this.form.cvmuser);
                     data.metadata.annotations['k3k.io/storage-request-size'] = this.form.storageSize!==''? (this.form.storageSize + this.form.storageSizeDw) : '';
                     data.metadata.annotations['w7.cc/version'] = String(this.form.version + 1);
 
@@ -1179,7 +1179,7 @@ export default {
                     data.metadata.annotations['k3k.io/cluster-mode'] = this.form.clustermode;
                     data.metadata.labels['w7.cc/weihu'] = this.form.weihu? 'true' : 'false';
                     data.metadata.labels['w7.cc/demo-user'] = String(this.form.demouser);
-                    data.metadata.labels['w7.cc/cvm-user'] = String(this.form.cvmuser);
+                    // data.metadata.labels['w7.cc/cvm-user'] = String(this.form.cvmuser);
                     data.metadata.labels['w7.cc/role'] = '';
 
                     data.metadata.annotations['k3k.io/storage-request-size'] =  this.form.storageSize!==""? (this.form.storageSize + this.form.storageSizeDw) : '';

@@ -6,13 +6,13 @@
                 <template #icon><icon-plus /></template>
                 新增域名
             </a-button>
-            <a-button @click="openServerDrawer">
+            <!-- <a-button @click="openServerDrawer">
                 <template #icon><icon-settings /></template>
                 DNS服务器
             </a-button>
             <a-button @click="getZones">
                 <template #icon><icon-refresh /></template>
-            </a-button>
+            </a-button> -->
         </div>
 
         <div class="bg-white padding-20 mt-20">
@@ -56,29 +56,6 @@
             </a-form>
         </a-modal>
 
-        <a-drawer :width="520" :visible="server.show" @ok="submitServer" @cancel="server.show=false">
-            <template #title>DNS服务器</template>
-            <div class="server-panel">
-                <div class="server-row">
-                    <span>暴露53端口</span>
-                    <a-switch v-model="server.enabled" />
-                </div>
-                <div class="server-info">
-                    <div>
-                        <span class="label">Service</span>
-                        <span>{{ server.serviceName || '-' }}</span>
-                    </div>
-                    <div>
-                        <span class="label">类型</span>
-                        <span>{{ server.serviceType || '-' }}</span>
-                    </div>
-                    <div>
-                        <span class="label">外部地址</span>
-                        <span>{{ externalAddress }}</span>
-                    </div>
-                </div>
-            </div>
-        </a-drawer>
     </div>
 </template>
 
@@ -93,19 +70,9 @@ export default {
                 show: false,
                 domain: '',
             },
-            server: {
-                show: false,
-                enabled: false,
-                serviceName: '',
-                serviceType: '',
-                externalIPs: [],
-            },
         };
     },
     computed: {
-        externalAddress() {
-            return this.server.externalIPs && this.server.externalIPs.length ? this.server.externalIPs.join(', ') : '-';
-        },
     },
     created() {
         this.getZones();
@@ -143,30 +110,6 @@ export default {
         },
         toDetail(domain) {
             this.$router.push({ name: 'dns-records', params: { domain } });
-        },
-        openServerDrawer() {
-            panelApi.get('/dns/server', { loading: true }).then((res) => {
-                this.server = {
-                    show: true,
-                    enabled: !!res?.data?.enabled,
-                    serviceName: res?.data?.serviceName || '',
-                    serviceType: res?.data?.serviceType || '',
-                    externalIPs: res?.data?.externalIPs || [],
-                };
-            });
-        },
-        submitServer() {
-            return panelApi.put('/dns/server', { enabled: this.server.enabled }, { loading: true }).then((res) => {
-                this.$message.success('操作成功');
-                this.server = {
-                    ...this.server,
-                    enabled: !!res?.data?.enabled,
-                    serviceName: res?.data?.serviceName || '',
-                    serviceType: res?.data?.serviceType || '',
-                    externalIPs: res?.data?.externalIPs || [],
-                    show: false,
-                };
-            });
         },
     },
 };
