@@ -156,6 +156,9 @@ export default {
             const nodeResourceJob = this.currentMetricsService === DEFAULT_METRICS_SERVICE
                 ? 'default/w7panel-metrics-node-resource'
                 : 'default/w7panel-metrics-k8s-offline-metrics-node-resource';
+
+            let jobArg = (this.currentMetricsService==DEFAULT_METRICS_SERVICE)?'w7panel-metrics-node-exporter' : 'w7panel-metrics-k8s-offline-metrics-node-exporter';
+            
             return axios.get(path,{params:{
                 query: {
                     ...(userMode=='cluster'?{
@@ -170,15 +173,15 @@ export default {
                     'HostCoreUtilization': '(HostCoreUtilization)',
                     'load': 'avg(node_load1{"instance"="'+Name+'"}[1m0s])',
 
-                    'disk-read': 'irate(node_disk_reads_completed_total{"instance"="'+Name+'",job="default/w7panel-metrics-k8s-offline-metrics-node-exporter"'+filter+'}[1m0s])',
-                    'disk-write': 'irate(node_disk_writes_completed_total{"instance"="'+Name+'",job="default/w7panel-metrics-k8s-offline-metrics-node-exporter"'+filter+'}[1m0s])',
-                    'network-in': 'irate(node_network_receive_packets_total{"instance"="'+Name+'",job="default/w7panel-metrics-k8s-offline-metrics-node-exporter"'+filter+'}[1m0s])',
-                    'network-out': 'irate(node_network_transmit_packets_total{"instance"="'+Name+'",job="default/w7panel-metrics-k8s-offline-metrics-node-exporter"'+filter+'}[1m0s])',
-                    'disk-read-bytes': 'irate(node_disk_read_bytes_total{"instance"="'+Name+'",job="default/w7panel-metrics-k8s-offline-metrics-node-exporter"'+filter+'}[15s])',
-                    'disk-written-bytes': 'irate(node_disk_written_bytes_total{"instance"="'+Name+'",job="default/w7panel-metrics-k8s-offline-metrics-node-exporter"'+filter+'}[15s])',
+                    'disk-read': 'irate(node_disk_reads_completed_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
+                    'disk-write': 'irate(node_disk_writes_completed_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
+                    'network-in': 'irate(node_network_receive_packets_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
+                    'network-out': 'irate(node_network_transmit_packets_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
+                    'disk-read-bytes': 'irate(node_disk_read_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[15s])',
+                    'disk-written-bytes': 'irate(node_disk_written_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[15s])',
 
-                    'network-receive-bytes': 'irate(node_network_receive_bytes_total{"instance"="'+Name+'",job="default/w7panel-metrics-k8s-offline-metrics-node-exporter"}[1m0s])*8',
-                    'network-transmit-bytes': 'irate(node_network_transmit_bytes_total{"instance"="'+Name+'",job="default/w7panel-metrics-k8s-offline-metrics-node-exporter"}[1m0s])*8',
+                    'network-receive-bytes': 'irate(node_network_receive_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"}[1m0s])*8',
+                    'network-transmit-bytes': 'irate(node_network_transmit_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"}[1m0s])*8',
                 }[MetricName],
                 start: startTime,
                 end: endTime,
