@@ -23,20 +23,28 @@
                     <template v-if="isAdding">
                         <tr class="record-edit-row">
                             <td>
-                                <div class="full-domain mb-10">{{ fullDomain(form.name) }}</div>
-                                <a-input v-model="form.name" placeholder="@ 或 www" allow-clear @focus="setHelpFocus('name')" />
+                                <div>
+                                    <div v-if="form.type=='A'" class="mb-10">{{fullDomain(form.name)||'{域名}'}} 指向 {{ form.value?form.value:'{IPv4地址}'}}</div>
+                                    <div v-if="form.type=='AAAA'" class="mb-10">{{fullDomain(form.name)||'{域名}'}} 指向 {{ form.value?form.value:'{IPv6地址}'}}</div>
+                                    <div v-if="form.type=='CNAME'" class="mb-10">{{fullDomain(form.name)||'{域名}'}} 是 {{ form.value?form.value:'{域名}'}} 的别名</div>
+                                    <div v-if="form.type=='TXT'" class="mb-10">{{fullDomain(form.name)||'{域名}'}} 具有 {{ form.value?form.value:'{文本内容}'}}</div>
+                                    <div v-if="form.type=='MX'" class="mb-10">{{ form.value?form.value:'{邮件服务器}'}} 为 {{fullDomain(form.name)||'{域名}'}} 处理邮件</div>
+                                    <div v-if="form.type=='NS'" class="mb-10">{{fullDomain(form.name)||'{域名}'}} 将由 {{ form.value?form.value:'{DNS服务器}'}} 提供解析服务</div>
+                                </div>
+                                <a-input v-model="form.name" placeholder="@ 或 www" allow-clear @mouseover="setHelpFocus('name')" />
                             </td>
                             <td>
-                                <a-select v-model="form.type" @change="handleTypeChange" @focus="setHelpFocus('type')">
+                                <a-select v-model="form.type" @change="handleTypeChange" @mouseover="setHelpFocus('type')">
                                     <a-option label="A" value="A"></a-option>
                                     <a-option label="AAAA" value="AAAA"></a-option>
                                     <a-option label="CNAME" value="CNAME"></a-option>
                                     <a-option label="TXT" value="TXT"></a-option>
                                     <a-option label="MX" value="MX"></a-option>
+                                    <a-option label="NS" value="NS"></a-option>
                                 </a-select>
                             </td>
-                            <td><a-input v-model="form.value" :placeholder="valuePlaceholder" allow-clear @focus="setHelpFocus('value')" /></td>
-                            <td><a-input-number v-model="form.ttl" :min="1" :max="86400" @focus="setHelpFocus('ttl')" /></td>
+                            <td><a-input v-model="form.value" :placeholder="valuePlaceholder" allow-clear @mouseover="setHelpFocus('value')" /></td>
+                            <td><a-input-number v-model="form.ttl" :min="1" :max="86400" @mouseover="setHelpFocus('ttl')" /></td>
                             <td>
                                 <a-input-number v-if="form.type === 'MX'" v-model="form.mxPriority" :min="1" :max="65535" />
                                 <span v-else>-</span>
@@ -59,20 +67,20 @@
                     <template v-for="item in records" :key="item.id">
                         <tr v-if="isEditing(item)" class="record-edit-row">
                             <td>
-                                <a-input v-model="form.name" placeholder="@ 或 www" allow-clear @focus="setHelpFocus('name')" />
-                                <!-- <div class="full-domain">{{ fullDomain(form.name) }}</div> -->
+                                <a-input v-model="form.name" placeholder="@ 或 www" allow-clear @mouseover="setHelpFocus('name')" />
                             </td>
                             <td>
-                                <a-select v-model="form.type" @change="handleTypeChange" @focus="setHelpFocus('type')">
+                                <a-select v-model="form.type" @change="handleTypeChange" @mouseover="setHelpFocus('type')">
                                     <a-option label="A" value="A"></a-option>
                                     <a-option label="AAAA" value="AAAA"></a-option>
                                     <a-option label="CNAME" value="CNAME"></a-option>
                                     <a-option label="TXT" value="TXT"></a-option>
                                     <a-option label="MX" value="MX"></a-option>
+                                    <a-option label="NS" value="NS"></a-option>
                                 </a-select>
                             </td>
-                            <td><a-input v-model="form.value" :placeholder="valuePlaceholder" allow-clear @focus="setHelpFocus('value')" /></td>
-                            <td><a-input-number v-model="form.ttl" :min="1" :max="86400" @focus="setHelpFocus('ttl')" /></td>
+                            <td><a-input v-model="form.value" :placeholder="valuePlaceholder" allow-clear @mouseover="setHelpFocus('value')" /></td>
+                            <td><a-input-number v-model="form.ttl" :min="1" :max="86400" @mouseover="setHelpFocus('ttl')" /></td>
                             <td>
                                 <a-input-number v-if="form.type === 'MX'" v-model="form.mxPriority" :min="1" :max="65535" />
                                 <span v-else>-</span>
@@ -89,7 +97,6 @@
                         <tr v-else>
                             <td>
                                 <div>{{ item.name || '@' }}</div>
-                                <!-- <div class="full-domain">{{ fullDomain(item.name) }}</div> -->
                             </td>
                             <td>{{ item.type }}</td>
                             <td>{{ item.value }}</td>
@@ -147,7 +154,7 @@ export default {
             topbc: [
                 {name:'root'},
                 {name: "cluster", label: "集群管理"},
-                {name: "cluster-dns", label: "DNS解析"},
+                {name: "cluster-dns", label: "私有DNS解析"},
                 {name: "dns-records", label: this.$route.params.domain},
             ],
         };
@@ -175,7 +182,8 @@ export default {
     },
     methods: {
         fullDomain(name) {
-            if (!name || name === '@') { return this.domain; }
+            if(!name){return ''}
+            if(name=='@'){return this.domain;}
             return `${name}.${this.domain}`;
         },
         getRecords() {
@@ -289,8 +297,7 @@ export default {
     overflow-wrap: anywhere;
 }
 
-.sub-title,
-.full-domain {
+.sub-title{
     margin-top: 4px;
     color: var(--color-text-3);
     font-size: 12px;
