@@ -310,7 +310,7 @@ export default {
             if(!this.downOk){
                 this.info.frontendUrl = data.proxyUrl;
                 this.downOk = true;
-                // panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
+                panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
                 // this.extra.setTimeout = setTimeout(()=>{
                 //     this.wujieInit();
                 // }, 5000)
