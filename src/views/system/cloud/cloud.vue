@@ -112,7 +112,7 @@
 <script>
 import { panelApi } from '@/utils/api';
 import axios from 'axios'
-import { setPermission, getPermission,clearToken, getUserInfo } from '@/utils/auth';
+import { clearToken, getUserInfo } from '@/utils/auth';
 
 export default {
     data(){
@@ -306,7 +306,6 @@ export default {
                     panelApi.get('/app-info').then(res=>{
                         this.version = res?.data?.helmVersion;
                     })
-                    this.testPermission();
                 }else if(this.require_oauth){
                     this.step = 0;
                 }else{
@@ -318,28 +317,6 @@ export default {
                 //     this.oauth();
                 // }
             })
-        },
-        async testPermission(){
-            let permission = getPermission();
-            // if(permission.includes('system-order-center')||permission.includes('system-cost-center')){return}
-            
-            let userInfo = getUserInfo();
-            if(userInfo?.['w7.cc/user-mode']=='cluster'){
-                let arr = JSON.parse(userInfo?.['w7.cc/menu'])
-                arr = arr.filter(i=>i=='system-order-center'||i=='system-cost-center');
-                if(arr.length){
-                    setPermission([
-                        ...permission,
-                        ...arr
-                    ]);
-                }
-            }else{
-                setPermission([
-                    ...permission,
-                    'system-order-center',
-                    'system-cost-center',
-                ]);
-            }
         },
         changeUser(){
             window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+(window.location.origin + '/system/cloud-register');

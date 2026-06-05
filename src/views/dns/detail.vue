@@ -60,7 +60,7 @@
                         </tr>
                         <tr>
                             <td colspan="6" style="background:var(--color-neutral-2);">
-                                <resolution-help :focus="helpFocus" :domain="domain" :type="form.type"></resolution-help>
+                                <resolution-help :focus="helpFocus" :domain="domain" :type="form.type" @setValue="setFormValue"></resolution-help>
                             </td>
                         </tr>
                     </template>
@@ -111,11 +111,6 @@
                                         <i class="opt-icon" :class="{ disabled: form.show }"><icon-delete /></i>
                                     </a-tooltip>
                                 </a-popconfirm>
-                            </td>
-                        </tr>
-                        <tr v-if="isEditing(item)">
-                            <td colspan="6" style="background:var(--color-neutral-2);">
-                                <resolution-help :focus="helpFocus" :domain="domain" :type="form.type"></resolution-help>
                             </td>
                         </tr>
                     </template>
@@ -170,6 +165,7 @@ export default {
                 CNAME: 'target.example.com',
                 TXT: '文本内容',
                 MX: 'mail.example.com',
+                NS: 'f1g1ns1.dnspod.net',
             };
             return placeholders[this.form.type] || '';
         },
@@ -224,6 +220,11 @@ export default {
             if (this.form.type !== 'MX') {
                 this.form.mxPriority = 10;
             }
+        },
+        setFormValue(field, value) {
+            if (!field || !this.form.show) { return; }
+            this.form[field] = value;
+            this.setHelpFocus(field);
         },
         validateForm() {
             if (!this.form.name) {

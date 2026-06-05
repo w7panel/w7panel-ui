@@ -55,7 +55,6 @@ export default async function useK3kinfo(){
             if(cData && cData.code === 200 && cData.data) {
                 cData = cData.data;
             }
-            let is_register = cData?.is_register;
             let license_type = cData?.license_type;
 
             let data = cData;
@@ -66,9 +65,6 @@ export default async function useK3kinfo(){
                 }).then(() => { }).catch(() => { })
             }
 
-            if (!is_register) {
-                arr = arr.filter(i => i != 'system-order-center' && i != 'system-cost-center')
-            }
             if (license_type == 'free') {
                 arr = arr.filter(i => i != 'system-user' && i != 'system-usergroup')
             }
