@@ -18,7 +18,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             name: 'person-account',
             component: () => import('@/views/system/person-center/account.vue'),
             meta: {
-                locale: '账户管理',
+                locale: '账号管理',
                 hideInMenu: false,
                 requiresAuth: true,
                 roles: ['*'],

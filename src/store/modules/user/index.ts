@@ -41,46 +41,46 @@ const useUserStore = defineStore('user', {
                 setToken(loginData.token);
                 this.loginData = loginData;
 
-                let arr = [];
+                // let arr = [];
+                
+                // // 使用 Promise.all 并行请求，优化性能
+                // const [userInfoRes, consoleInfoRes] = await Promise.all([
+                //     axios.get('/panel-api/v1/auth/userinfo'),
+                //     axios.get("/panel-api/v1/auth/console/info?code=test")
+                // ]);
+                
+                // // 处理 userinfo
+                // let userData = userInfoRes.data;
+                // if(userData && userData.code === 200 && userData.data) {
+                //     userData = userData.data;
+                // }
+                // setUserInfo(userData);
+                // arr = JSON.parse(userData?.['w7.cc/menu'] || '[]')
+                // if (userData?.['w7.cc/debug'] != 'true') {
+                //     arr = arr.filter(i => i != 'cluster-resource');
+                // }
+                
+                // // 处理 console info
+                // const consoleDataRes = consoleInfoRes.data;
+                // let consoleData = consoleDataRes;
+                // if(consoleDataRes && consoleDataRes.code === 200 && consoleDataRes.data) {
+                //     consoleData = consoleDataRes.data;
+                // }
+                // let license_type = consoleData?.license_type;
 
-                // 使用 Promise.all 并行请求，优化性能
-                const [userInfoRes, consoleInfoRes] = await Promise.all([
-                    axios.get('/panel-api/v1/auth/userinfo'),
-                    axios.get('/panel-api/v1/auth/console/info?code=test')
-                ]);
+                // if (consoleData.cluster_id == "" && consoleData.thirdparty_cd_token != "") {
+                //     axios.post('/panel-api/v1/auth/console/register-to-console?offline_url=' + window.location.origin, {
+                //         offline_url: window.location.origin,
+                //         offlineUrl: window.location.origin,
+                //     }).then(() => { }).catch(() => { })
+                // }
 
-                // 处理 userinfo
-                let userData = userInfoRes.data;
-                if (userData && userData.code === 200 && userData.data) {
-                    userData = userData.data;
-                }
-                setUserInfo(userData);
-                arr = JSON.parse(userData?.['w7.cc/menu'] || '[]');
-                if (userData?.['w7.cc/debug'] != 'true') {
-                    arr = arr.filter((i) => i != 'cluster-resource');
-                }
+                // if (license_type == 'free') {
+                //     arr = arr.filter(i => i != 'system-user' && i != 'system-usergroup')
+                // }
+                // setPermission(arr);
 
-                // 处理 console info
-                const consoleDataRes = consoleInfoRes.data;
-                let consoleData = consoleDataRes;
-                if (consoleDataRes && consoleDataRes.code === 200 && consoleDataRes.data) {
-                    consoleData = consoleDataRes.data;
-                }
-                const licenseType = consoleData?.license_type;
-
-                if (consoleData.cluster_id == '' && consoleData.thirdparty_cd_token != '') {
-                    axios.post('/panel-api/v1/auth/console/register-to-console?offline_url=' + window.location.origin, {
-                        offline_url: window.location.origin,
-                        offlineUrl: window.location.origin,
-                    }).then(() => { }).catch(() => { });
-                }
-
-                if (licenseType == 'free') {
-                    arr = arr.filter((i) => i != 'system-user' && i != 'system-usergroup');
-                }
-                setPermission(arr);
-
-                res.data = loginData; // 直接将真正的 data 覆盖上去，这样所有的外层组件不用改
+                // res.data = loginData; // 直接将真正的 data 覆盖上去，这样所有的外层组件不用改
                 return res;
             } catch (err) {
                 clearToken();
