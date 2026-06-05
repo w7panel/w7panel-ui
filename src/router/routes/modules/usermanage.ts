@@ -10,6 +10,7 @@ const DASHBOARD: any = [{
         requiresAuth: true,
         icon: 'icon-cloud',
         order: 5,
+        menuGroup: 'usermanage',
         key: 'system-manage',
     },
     children: [{

@@ -12,6 +12,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         requiresAuth: true,
         icon: 'icon-cloud',
         order: 5,
+        menuGroup: 'system',
         key: 'system',
     },
     children: [

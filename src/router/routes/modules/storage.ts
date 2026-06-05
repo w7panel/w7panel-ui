@@ -11,6 +11,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             requiresAuth: true,
             icon: 'icon-storage',
             order: 2,
+            menuGroup: 'cloudserver',
             key: 'storage',
         },
         redirect: (route) => {
