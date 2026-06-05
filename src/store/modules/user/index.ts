@@ -67,7 +67,6 @@ const useUserStore = defineStore('user', {
                 if(consoleDataRes && consoleDataRes.code === 200 && consoleDataRes.data) {
                     consoleData = consoleDataRes.data;
                 }
-                let is_register = consoleData?.is_register;
                 let license_type = consoleData?.license_type;
 
                 if (consoleData.cluster_id == "" && consoleData.thirdparty_cd_token != "") {
@@ -77,9 +76,6 @@ const useUserStore = defineStore('user', {
                     }).then(() => { }).catch(() => { })
                 }
 
-                if (!is_register) {
-                    arr = arr.filter(i => i != 'system-order-center' && i != 'system-cost-center')
-                }
                 if (license_type == 'free') {
                     arr = arr.filter(i => i != 'system-user' && i != 'system-usergroup')
                 }

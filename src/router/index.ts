@@ -62,6 +62,7 @@ const router = createRouter(({
 
 router.beforeEach(async (to, from, next) => {
     const namespaceList = useNamespaceStore().namespaceList;
+    const routeName = String(to.name || '');
 
     // 检查需要登录的路由
     if (to.meta.requiresAuth !== false && !isLogin()) {
@@ -126,11 +127,14 @@ router.beforeEach(async (to, from, next) => {
     }
 
     const appStore = useAppStore();
-    if(['usermanage','users','user-group','usermanage-permission','usermanage-cost','user-resource','usermanage-whitedomain','usermanage-system'].includes(to.name)){
+    // 根据当前访问的路由切换顶部菜单分组
+    if(['usermanage','users','user-group','usermanage-permission','usermanage-cost','user-resource','usermanage-whitedomain','usermanage-system'].includes(routeName)){
         appStore.changeMenuFilter('usermanage');
-    }else if(['cloud-cloud','cloud-register','system-permission','system-order-center','system-order-detail','system-cost-center','system-cost-detail','license-index','access-key','api-key','oidc-key',].includes(to.name)){
+    }else if(['person','person-account','system-order-center','system-order-detail','system-cost-center','system-cost-detail',].includes(routeName)){
+        appStore.changeMenuFilter('person');
+    }else if(['cloud-cloud','cloud-register','system-permission','license-index','access-key','api-key','oidc-key',].includes(routeName)){
         appStore.changeMenuFilter('system');
-    }else if(['topapp','topapp-micro'].includes(to.name)){
+    }else if(['topapp','topapp-micro'].includes(routeName)){
         appStore.changeMenuFilter('topapp');
     }else{
         appStore.changeMenuFilter('cloudserver')

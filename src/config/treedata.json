@@ -107,12 +107,6 @@
         "title": "云端注册",
         "key": "system-cloud"
     },{
-        "title": "订单中心",
-        "key": "system-order-center"
-    },{
-        "title": "费用中心",
-        "key": "system-cost-center"
-    },{
         "title": "授权管理",
         "key": "system-license"
     }]

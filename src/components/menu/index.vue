@@ -36,9 +36,17 @@
       });
       const showMicroBack = computed(() => isMicroFrontend.value && !topMenu.value);
 
-      watch(route, () => {
-        selectedKey.value = [route.name as string];
-      });
+      const syncSelectedKey = () => {
+        selectedKey.value = route.name ? [String(route.name)] : [];
+      };
+
+      watch(
+        () => route.name,
+        () => {
+          syncSelectedKey();
+        },
+        { immediate: true }
+      );
 
       const goBackFromMicro = () => {
         const win = window as any;
@@ -90,13 +98,16 @@
               const shouldExclude = (() => {
                 if (!element.name) return false;
                 if (menuFilter === 'cloudserver') {
-                  return ['system','usermanage'].includes(element.name as string);
+                  return ['system','usermanage','person'].includes(element.name as string);
                 }
                 if (menuFilter === 'usermanage') {
-                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','system'].includes(element.name as string);
+                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','system','person'].includes(element.name as string);
                 }
                 if (menuFilter === 'system') {
-                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','usermanage'].includes(element.name as string);
+                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','usermanage','person'].includes(element.name as string);
+                }
+                if (menuFilter === 'person') {
+                  return ['cluster', 'app', 'zpk', 'sitemanage', 'storage','system','usermanage'].includes(element.name as string);
                 }
                 // 其他情况不排除
                 return false;
@@ -104,7 +115,7 @@
               
               // 如果需要排除则跳过当前菜单
               if (shouldExclude) return;
-              if(element.name=='system'||element.name=='usermanage'){
+              if(element.name=='system'||element.name=='usermanage'||element.name=='person'){
                 if (element.children && element.children.length > 0) {
                   travel(element.children, nodes);
                 }
