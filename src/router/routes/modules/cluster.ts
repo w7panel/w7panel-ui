@@ -12,6 +12,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         requiresAuth: true,
         icon: 'icon-common',
         order: 0,
+        menuGroup: 'cloudserver',
         key: 'cluster',
     },
     children: [

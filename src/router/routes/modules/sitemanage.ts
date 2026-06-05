@@ -13,6 +13,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         requiresAuth: true,
         icon: 'icon-archive',
         order: 3,
+        menuGroup: 'cloudserver',
         key: 'sitemanage',
         linkIcon: true,
     },

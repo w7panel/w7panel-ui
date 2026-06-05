@@ -11,6 +11,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         locale: '个人中心',
         requiresAuth: true,
         icon: 'icon-cloud',
+        menuGroup: 'person',
     },
     children: [
         {
