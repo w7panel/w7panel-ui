@@ -3,7 +3,6 @@
         <div class="left-side">
             <a-space>
                 <div @click="$router.push('/')">
-                    <!-- <img v-if="isDark" alt="logo" src="@/assets/images/logo-dark.png" style="height:30px;" /> -->
                     <img alt="logo" :src="logoimg" style="height:30px;" class="nav-logo" />
                 </div>
                 <icon-menu-fold v-if="!topMenu && appStore.device === 'mobile'" style="font-size: 22px; cursor: pointer" @click="toggleDrawerMenu"/>
@@ -11,30 +10,12 @@
         </div>
         <div class="center-side df ai-c jc-b">
             <div class="fc df ai-c">
-                <!-- <a-button :type="appStore.menuFilter=='cloudserver'?'primary':'outline'" @click="appStore.changeMenuFilter('cloudserver');$router.push('/cluster/panel');">云主机</a-button>
-                <a-button
-                    v-for="(item,index) in topApps"
-                    :key="index"
-                    :type="($route.name=='topapp-micro'&&$route.params.group==item.name)?'primary':'outline'"
-                    @click="$router.push('/appgroup/'+item.name)"
-                    class="ml-10"
-                >{{ item.title }}</a-button> -->
-
                 <a-menu v-if="$route.name!='order-base-index'&&$route.name!='init-cluster-index'" mode="horizontal" v-model:selected-keys="selkeys">
                     <template v-if="userRole!='normal'&&userRole!='tech'">
                         <a-menu-item key="cloudserver" @click="appStore.changeMenuFilter('cloudserver');$router.push('/cluster/panel');testMenu();">集群控制台</a-menu-item>
                     </template>
                     <a-menu-item v-for="(item,index) in topApps" :key="item.name" @click="$router.push('/appgroup/'+item.name)">{{ item.title }}</a-menu-item>
                 </a-menu>
-                
-                <!-- <a-button-group v-if="topApps.length" size="small" class="topapp-group">
-                    <a-button
-                        v-for="(item,index) in topApps"
-                        :key="index"
-                        :class="{active:$route.name=='topapp-micro'&&$route.params.group==item.name}"
-                        @click="$router.push('/appgroup/'+item.name)"
-                    >{{ item.title }}</a-button>
-                </a-button-group> -->
             </div>
             <div class="df ai-c">
                 <div v-if="permissions && (permissions.includes('system-manage')||permissions.includes('system')) && $route.name!='order-base-index' && $route.name!='init-cluster-index'">
@@ -42,8 +23,6 @@
                         <a-radio v-if="permissions.includes('system-manage')" value="usermanage">多租户管理</a-radio>
                         <a-radio v-if="permissions.includes('system')" value="system">系统管理</a-radio>
                     </a-radio-group>
-                    <!-- <a-button :type="appStore.menuFilter=='usermanage'?'primary':'outline'" @click="appStore.changeMenuFilter('usermanage');$router.push('/usermanage/users');"></a-button>
-                    <a-button :type="appStore.menuFilter=='system'?'primary':'outline'" @click="appStore.changeMenuFilter('system');$router.push('/system/cloud');" class="ml-20"></a-button> -->
                 </div>
             </div>
         </div>
@@ -69,9 +48,38 @@
                 </a-tooltip>
             </li>
             <li>
-                <a-dropdown trigger="click" position="br">
+                <a-popover position="br" trigger="hover" content-class="user-popover">
+                    <div class="df ai-c cursor">
+                        <a-avatar :size="32">
+                            <icon-user style="font-size:24; stroke-width: 5;" class="df ai-c jc-c"/>
+                        </a-avatar>
+                        <span class="ml-8">{{userInfo&&userInfo['w7.cc/username']}}</span>
+                    </div>
+                    <template #content>
+                        <div class="user-popover-card">
+                            <div class="user-popover-card__top">
+                                <div class="user-popover-card__avatar">
+                                    <icon-user />
+                                </div>
+                                <div class="user-popover-card__info">
+                                    <div class="user-popover-card__name">{{ userInfo && userInfo['w7.cc/username'] }}</div>
+                                    <div class="user-popover-card__status" :class="{ 'is-bound': isRegister }">
+                                        <icon-exclamation-circle-fill />
+                                        <span>{{ isRegister ? '已绑定' : '未绑定' }}</span>
+                                    </div>
+                                </div>
+                                <a-button type="outline" @click="$router.push('/person/account')">个人中心 ></a-button>
+                            </div>
+                            <div class="user-popover-card__divider"></div>
+                            <div class="user-popover-card__bottom">
+                                <span class="user-popover-card__action" @click="openChangePwd">修改密码</span>
+                                <span class="user-popover-card__action" @click="handleLogout">退出登录</span>
+                            </div>
+                        </div>
+                    </template>
+                </a-popover>
+                <!-- <a-dropdown trigger="click" position="br">
                     <a-avatar :size="32" :style="{ marginRight: '8px', cursor: 'pointer' }">
-                        <!-- <img alt="avatar" :src="avatar" /> -->
                         <icon-user style="font-size:24; stroke-width: 5;" class="df ai-c jc-c"/>
                     </a-avatar>
                     <span>{{userInfo&&userInfo['w7.cc/username']}}</span>
@@ -89,7 +97,7 @@
                             </a-space>
                         </a-doption>
                     </template>
-                </a-dropdown>
+                </a-dropdown> -->
             </li>
         </ul>
 
@@ -100,7 +108,7 @@
         </a-modal>
 
         <a-drawer :visible="changePwd.show" title="修改密码" width="600px" @ok="submitPwd" @cancel="changePwd.show=false;">
-            <a-alert v-if="hasPwd=='false'" style="margin-bottom:20px;">暂未设置账号密码，建议尽快设置，方便后续直接登录</a-alert>
+            <a-alert v-if="hasPwd=='false'" style="margin-bottom:20px;">当前账号尚未设置密码，建议尽快设置，方便后续直接登录</a-alert>
             <a-form ref="pwdForm" :model="changePwd" auto-label-width >
                 <a-form-item label="用户名">
                     <a-input v-model="changePwd.username" disabled/>
@@ -121,208 +129,180 @@
 
 <script lang="ts" setup>
 import { panelApi } from '@/utils/api';
-    import { k8sproxy } from '@/utils/api';
-    
-    import { computed, ref, inject, reactive, watch} from 'vue';
-    import { Message } from '@arco-design/web-vue';
-    import { useDark, useToggle, useFullscreen } from '@vueuse/core';
-    import { useAppStore, useNamespaceStore} from '@/store';
-    import useUser from '@/hooks/user';
-    import axios from 'axios';
-    import {useDarkStore} from '@/store'
-    import { getToken,getK8sinfo } from '@/utils/auth';
-    import { useStorage } from '@vueuse/core';
-    import { useRoute } from 'vue-router'
+import { k8sproxy } from '@/utils/api';
 
-    import { getWebshell } from '@/utils/auth';
-    import { getUserInfo } from '@/utils/auth';
-    import { getPermission } from '@/utils/auth';
+import { computed, ref, inject, reactive, watch } from 'vue';
+import { Message } from '@arco-design/web-vue';
+import { useDark, useToggle, useFullscreen } from '@vueuse/core';
+import { useAppStore, useNamespaceStore } from '@/store';
+import useUser from '@/hooks/user';
+import { useDarkStore } from '@/store';
+import { getK8sinfo, getWebshell, getUserInfo, getPermission } from '@/utils/auth';
+import { useStorage } from '@vueuse/core';
+import { useRoute } from 'vue-router';
 
-    const appStore = useAppStore();
-    const route = useRoute()
+const appStore = useAppStore();
+const route = useRoute();
 
-    const webshell = ref(getWebshell());
+const webshell = ref(getWebshell());
+const userInfo = ref(getUserInfo());
+const isRegister = ref(false);
+const logoimg = ref(window.origin + '/assets/logo.png');
+const permissions = ref(getPermission());
 
-    const userInfo = ref(getUserInfo());
-
-    const logoimg = ref(window.origin + '/assets/logo.png')
-
-    const permissions = ref(getPermission());
-    
-    const selkeys = ref([]);
-    const testMenu = ()=>{
-        if(appStore.menuFilter=='cloudserver'){
-            selkeys.value = ['cloudserver']
-        }else if(route.name=='topapp-micro'){
-            selkeys.value = [route.params.group]
-        }else{
-            selkeys.value = [];
-        }
+const selkeys = ref([]);
+const testMenu = () => {
+    if (appStore.menuFilter == 'cloudserver') {
+        selkeys.value = ['cloudserver'];
+    } else if (route.name == 'topapp-micro') {
+        selkeys.value = [route.params.group];
+    } else {
+        selkeys.value = [];
     }
-    testMenu();
-    const stopWatch = watch(
-        () => route.path,
-        () => {
-            testMenu();
-        }
-    )
-
-
-    // 修改密码
-    const changePwd = reactive({
-        show: false,
-        username: '',
-        oldPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-    });
-    const loginConfig = useStorage('login-config', {username:''})
-    changePwd.username = loginConfig?.value?.username || '';
-
-    const openChangePwd = ()=>{
-        changePwd.show = true;
-        changePwd.oldPassword = '';
-        changePwd.newPassword = '';
-        changePwd.confirmPassword = '';
+};
+testMenu();
+watch(
+    () => route.path,
+    () => {
+        testMenu();
     }
-    const pwdForm = ref(null);
-    const submitPwd = ()=>{
-        pwdForm.value.validate((err) => {
-            if (err) {return;}
-            panelApi.post('/auth/reset-password-current',{
-                username: changePwd.username,
-                password: encodeURIComponent(changePwd.oldPassword),
-                newPassword: encodeURIComponent(changePwd.newPassword),
-            }).then(res=>{
-                if(!res?.data){return;}
-                Message.success('修改成功');
-                changePwd.show = false;
-                logout();
-            })
+);
+
+const changePwd = reactive({
+    show: false,
+    username: '',
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+});
+const loginConfig = useStorage('login-config', { username: '' });
+changePwd.username = loginConfig?.value?.username || '';
+
+const openChangePwd = () => {
+    changePwd.show = true;
+    changePwd.oldPassword = '';
+    changePwd.newPassword = '';
+    changePwd.confirmPassword = '';
+};
+const pwdForm = ref(null);
+const submitPwd = () => {
+    pwdForm.value.validate((err) => {
+        if (err) { return; }
+        panelApi.post('/auth/reset-password-current', {
+            username: changePwd.username,
+            password: encodeURIComponent(changePwd.oldPassword),
+            newPassword: encodeURIComponent(changePwd.newPassword),
+        }).then((res) => {
+            if (!res?.data) { return; }
+            Message.success('修改成功');
+            changePwd.show = false;
+            logout();
         });
-    }
-    
-    // 选择namespace
-    const namespaceList = useNamespaceStore().namespaceList;
+    });
+};
 
-    // 应用
-    const topApps = ref([]);
-    const alreadyGetMenu = ref(false);
-    
-    let userRole = getK8sinfo()['w7.cc/role'];
+const namespaceList = useNamespaceStore().namespaceList;
 
-    const hasPwd = ref(getK8sinfo()['w7.cc/has-password'])
-    
-    const getMenutop = ()=>{
-        panelApi.get('/microapp/top').then(res=>{
-            let items = res.data?.items || [];
-            alreadyGetMenu.value = true;
-            topApps.value = items.map(i=>{
-                let roles = []
-                try{
-                    let rl = i?.spec?.bindings || [];
-                    rl = rl.filter(i=>i.support == "thirdparty_cd")
-                    rl.map(r=>{
-                        roles.push(r.name)
-                    })
-                }catch{}
-                
-                return {
-                    title: i?.metadata?.annotations?.title || i?.spec?.title,
-                    name: i.metadata.name,
-                    roles: roles,
-                }
-            })
-            console.log(topApps.value)
-            // topApps.value = topApps.value.filter(i=>i.roles?.length >=2 )
-        })
-        // k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups?labelSelector=w7.cc/menu-location=top').then(res=>{
-        //     let items = res.data.items;
-        //     alreadyGetMenu.value = true;
-        //     topApps.value = items.map(i=>{
-        //         let roles = []
-        //         try{
-        //             let rl = JSON.parse(i?.metadata?.annotations?.['w7.cc/bindings']) || [];
-        //             rl = rl.filter(i=>i.support == "thirdparty_cd")
-        //             rl.map(r=>{
-        //                 roles.push(r.name)
-        //             })
-        //         }catch{}
-                
-        //         return {
-        //             title: i?.spec?.title,
-        //             name: i.metadata.name,
-        //             roles: roles,
-        //         }
-        //     })
-        //     topApps.value = topApps.value.filter(i=>i.roles?.length >=2 )
-        // })
-    }
-    if(route.name!='order-base-index' && route.name!='init-cluster-index'){
+const topApps = ref([]);
+const alreadyGetMenu = ref(false);
+
+const userRole = getK8sinfo()['w7.cc/role'];
+const hasPwd = ref(getK8sinfo()['w7.cc/has-password']);
+
+const getMenutop = () => {
+    panelApi.get('/microapp/top').then((res) => {
+        const items = res.data?.items || [];
+        alreadyGetMenu.value = true;
+        topApps.value = items.map((i) => {
+            const roles = [];
+            try {
+                let rl = i?.spec?.bindings || [];
+                rl = rl.filter((item) => item.support == 'thirdparty_cd');
+                rl.map((r) => {
+                    roles.push(r.name);
+                });
+            } catch {}
+
+            return {
+                title: i?.metadata?.annotations?.title || i?.spec?.title,
+                name: i.metadata.name,
+                roles,
+            };
+        });
+    });
+};
+
+const getConsoleInfo = () => {
+    panelApi.get('/auth/console/info?code=test').then((res) => {
+        let data = res?.data;
+        if (data && data.code === 200 && data.data) {
+            data = data.data;
+        }
+        isRegister.value = !!data?.is_register;
+    }).catch(() => {});
+};
+
+if (route.name != 'order-base-index' && route.name != 'init-cluster-index') {
+    getMenutop();
+    getConsoleInfo();
+}
+watch(() => route.name, () => {
+    if (!alreadyGetMenu.value && route.name != 'order-base-index' && route.name != 'init-cluster-index') {
         getMenutop();
     }
-    watch(() => route.name, () => {
-        if(!alreadyGetMenu.value && route.name!='order-base-index' && route.name!='init-cluster-index'){
-            getMenutop();
-        }
-    })
-    
-    // 创建namespace
-    let nsValue = ref('');
-    let nsVisible = ref(false);
-    let createNamespace = ()=>{
-        let value = nsValue.value;
-        if (!value) {Message.warning('请输入命名空间名称'); return;}
-        if (namespaceList.includes(value)) {Message.warning('命名空间已存在'); return;}
-        let data = {
-            "kind": "Namespace",
-            "apiVersion": "v1",
-            "metadata": {
-                "name": value
-            },
-        }
-        k8sproxy.post('/api/v1/namespaces',data).then(res=>{
-            Message.success('创建成功');
-            useNamespaceStore().setNamespaceList()
-        })
+    if (route.name != 'order-base-index' && route.name != 'init-cluster-index') {
+        getConsoleInfo();
     }
-    
-    const { logout } = useUser();
-    const { isFullscreen, toggle: toggleFullScreen } = useFullscreen();
-    const theme = computed(() => {
-        return appStore.theme;
-    });
-    const topMenu = computed(() => appStore.topMenu && appStore.menu);
-    const isDark = useDark({
-        selector: 'body',
-        attribute: 'arco-theme',
-        valueDark: 'dark',
-        valueLight: 'light',
-        storageKey: 'arco-theme',
-        onChanged(dark: boolean) {
-            // overridden default behavior
-            appStore.toggleTheme(dark);
-            useDarkStore().setDark(dark);
-            // document.body.setAttribute('data-theme', dark?'dark':'light');
-        },
-    });
-    const toggleTheme = useToggle(isDark);
-    const handleToggleTheme = () => {
-        toggleTheme();
-    };
-    const handleLogout = () => {
-        logout();
-    };
+});
 
-    
-    const ttInject = inject('toggleDrawerMenu') as () => void;
-    const toggleDrawerMenu = ()=>{
-        ttInject?.();
-        // 创建自定义事件，可携带参数
-        const toggleEvent = new CustomEvent('toggle-drawer');
-        // 派发全局事件
-        window.dispatchEvent(toggleEvent);
-    }
+const nsValue = ref('');
+const nsVisible = ref(false);
+const createNamespace = () => {
+    const value = nsValue.value;
+    if (!value) { Message.warning('请输入命名空间名称'); return; }
+    if (namespaceList.includes(value)) { Message.warning('命名空间已存在'); return; }
+    const data = {
+        kind: 'Namespace',
+        apiVersion: 'v1',
+        metadata: {
+            name: value
+        },
+    };
+    k8sproxy.post('/api/v1/namespaces', data).then(() => {
+        Message.success('创建成功');
+        useNamespaceStore().setNamespaceList();
+    });
+};
+
+const { logout } = useUser();
+const { isFullscreen, toggle: toggleFullScreen } = useFullscreen();
+const theme = computed(() => appStore.theme);
+const topMenu = computed(() => appStore.topMenu && appStore.menu);
+const isDark = useDark({
+    selector: 'body',
+    attribute: 'arco-theme',
+    valueDark: 'dark',
+    valueLight: 'light',
+    storageKey: 'arco-theme',
+    onChanged(dark: boolean) {
+        appStore.toggleTheme(dark);
+        useDarkStore().setDark(dark);
+    },
+});
+const toggleTheme = useToggle(isDark);
+const handleToggleTheme = () => {
+    toggleTheme();
+};
+const handleLogout = () => {
+    logout();
+};
+
+const ttInject = inject('toggleDrawerMenu') as () => void;
+const toggleDrawerMenu = () => {
+    ttInject?.();
+    const toggleEvent = new CustomEvent('toggle-drawer');
+    window.dispatchEvent(toggleEvent);
+};
 </script>
 
 <style scoped lang="less">
@@ -387,4 +367,90 @@ import { panelApi } from '@/utils/api';
 .topapp-group .arco-btn-secondary:hover, .arco-btn-secondary[type='button']:hover{background-color: var(--color-bg-5);}
 .topapp-group .arco-btn-secondary.active{background-color: var(--color-bg-5);color:rgb(var(--primary-6));}
 
+.user-popover.arco-popover-popup-content{
+    padding:0;
+    border:0;
+    border-radius: 10px;
+    background-color: transparent;
+    box-shadow: none;
+}
+.user-popover-card{
+    width: 360px;
+    padding: 18px 20px;
+    border: 1px solid var(--color-border-2);
+    border-radius: 10px;
+    background: var(--color-bg-2);
+    color: var(--color-text-1);
+}
+
+.user-popover-card__top{
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-popover-card__avatar{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border: 1px solid var(--color-border-2);
+    border-radius: 50%;
+    color: rgb(var(--primary-6));
+    flex-shrink: 0;
+}
+
+.user-popover-card__avatar .arco-icon{
+    font-size: 34px;
+}
+
+.user-popover-card__info{
+    flex: 1;
+    min-width: 0;
+}
+
+.user-popover-card__name{
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-text-1);
+    word-break: break-all;
+}
+
+.user-popover-card__status{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: rgb(var(--warning-6));
+}
+
+.user-popover-card__status.is-bound{
+    color: rgb(var(--success-6));
+}
+
+.user-popover-card__divider{
+    height: 1px;
+    margin: 18px 0 14px;
+    background: var(--color-border-2);
+}
+
+.user-popover-card__bottom{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.user-popover-card__action{
+    color: rgb(var(--primary-6));
+    cursor: pointer;
+    transition: opacity .2s ease;
+}
+
+.user-popover-card__action:hover{
+    opacity: .8;
+}
 </style>
