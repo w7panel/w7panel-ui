@@ -130,16 +130,6 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 },
             },
             {
-                path: 'micro-test',
-                name: 'micro-test',
-                component: ()=>import('@/views/topapp/test-page.vue'),
-                meta: {
-                    hideInMenu: true,
-                    requiresAuth: true,
-                    roles: ['*'],
-                }
-            },
-            {
                 path: 'appgroup/:group/helm',
                 name: 'group-helm',
                 component: ()=>import('@/views/app/apps/detail.vue'),
