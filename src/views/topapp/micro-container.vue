@@ -16,12 +16,12 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
-import { getToken, getK8sinfo, clearIframeToken } from '@/utils/auth';
+import { getToken, getK8sinfo } from '@/utils/auth';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
 
 export default{
-    props: ['menuActive','appgroup','loginPanel'],
+    props: ['menuActive','appgroup'],
     data(){
         return {
             namespaceActive: '',
@@ -50,15 +50,9 @@ export default{
             })
         },
         menuActive(v){
-            if(!v || this.loginPanel || this.page==v){return}
+            if(!v || this.page==v){return}
             this.page = v;
             this.routeChange(v);
-        },
-        loginPanel(v){
-            this.$nextTick(()=>{
-                this.getFront(this.appgroup)
-            })
-            if(!v){clearIframeToken()}
         },
     },
     beforeUnmount(){
@@ -66,9 +60,6 @@ export default{
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
-        if(this.loginPanel){
-            clearIframeToken();
-        }
     },
     methods: {
         routeChange(v){
@@ -90,11 +81,6 @@ export default{
             this.downOk = true;
         },
         getFront(appgroup){
-            if(this.loginPanel){
-                this.openLoginPanel();
-                return;
-            }
-            // k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+appgroup).then(res=>{
 
             panelApi.get(`/microapp/${appgroup}/info`).then(res=>{
                 let item  = res?.data;
@@ -197,21 +183,10 @@ export default{
                 exec: true,
                 el: '#appmicro',
                 sync: true,
+                prefix: {
+                    frontend: this.info.frontendUrl,
+                },
                 props: props,
-            })
-            setTimeout(()=>{
-                requestAnimationFrame(() => {
-                    window.dispatchEvent(new Event('resize'));
-                });
-            }, 500)
-        },
-        openLoginPanel(){
-            startApp({
-                name: "appmicro",
-                url: '/cluster/panel',
-                exec: true,
-                el: '#appmicro',
-                sync: true,
             })
             setTimeout(()=>{
                 requestAnimationFrame(() => {
