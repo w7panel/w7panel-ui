@@ -94,7 +94,7 @@ export default{
                 this.openLoginPanel();
                 return;
             }
-            // k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+appgroup).then(res=>{
+            // k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+appgroup).then(res=>{
 
             panelApi.get(`/microapp/${appgroup}/info`).then(res=>{
                 let item  = res?.data;

@@ -183,7 +183,7 @@ export default {
                 this.data.canEnabledGpu = r.canEnabledGpu;
             });
             
-            k8sproxy.get('/apis/gpuclass.k8s.io/v1alpha1/namespaces/'+this.namespaceActive+'/gpuclasses?limit=500').then(async res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/gpuclasses?limit=500').then(async res=>{
                 let items = res.data?.items || [];
                 // this.data.typeList = items.map(i=>({
                 //     label: i.metadata?.annotations?.title || i.metadata.name,
@@ -194,7 +194,7 @@ export default {
                     let d = items[i];
                     let name = d.metadata.name;
                     let title = d.metadata?.annotations?.title || name;
-                    await k8sproxy.get('/apis/gpuclass.k8s.io/v1alpha1/namespaces/'+this.namespaceActive+'/gpuclasses/'+name, {noAlert:true}).then(res=>{
+                    await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/gpuclasses/'+name, {noAlert:true}).then(res=>{
                         let r = res.data;
                         this.data.list.push({
                             type: name,
@@ -217,7 +217,7 @@ export default {
             for(let i in this.data.list){
                 let item = this.data.list[i];
                 if(item.step==1 || (item.hamiMode=='2'&&item.gpuOperatorMode=='2')){continue;}
-                await k8sproxy.get('/apis/gpuclass.k8s.io/v1alpha1/namespaces/'+this.namespaceActive+'/gpuclasses/'+item.type, {noAlert:true}).then(res=>{
+                await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/gpuclasses/'+item.type, {noAlert:true}).then(res=>{
                     item.hamiMode = res.data?.spec?.hamiMode || '0';
                     item.gpuOperatorMode = res.data?.spec?.gpuOperatorMode || '0';
                     if(item.hamiMode!='2'||item.gpuOperatorMode!='2'){ complete = false; }
@@ -230,7 +230,7 @@ export default {
         toInstall(item){
             // console.log(item);return;
             let data = {
-                apiVersion: 'gpuclass.k8s.io/v1alpha1',
+                apiVersion: 'w7panel.w7.com/v1alpha1',
                 kind: 'GpuClass',
                 metadata: {
                     name: item.type,
@@ -244,7 +244,7 @@ export default {
                     gpuOperatorMode: '0',
                 }
             };
-            k8sproxy.post('/apis/gpuclass.k8s.io/v1alpha1/namespaces/default/gpuclasses',data,{loading:true}).then(res=>{
+            k8sproxy.post('/apis/w7panel.w7.com/v1alpha1/namespaces/default/gpuclasses',data,{loading:true}).then(res=>{
                 this.closeDrawer();
                 this.$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/nvidia_gpuoperator');
             });

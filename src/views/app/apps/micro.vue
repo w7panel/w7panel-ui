@@ -106,7 +106,7 @@ export default {
             })
         },
         getFront(identifie,data){
-            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ identifie +'&limit=500').then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ identifie +'&limit=500').then(res=>{
 
                 let item  = res?.data?.items?.[0];
                 if(!item){

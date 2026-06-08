@@ -88,7 +88,7 @@ export default {
         },
         testFileCache() {
             if (!this.data || !Object.keys(this.data).length) { return }
-            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/' + this.namespaceActive + '/microapps?labelSelector=w7.cc/identifie=w7-cdncache', { loading: true }).then(res => {
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/' + this.namespaceActive + '/microapps?labelSelector=w7.cc/identifie=w7-cdncache', { loading: true }).then(res => {
                 if (!res?.data) { return Promise.reject(); }
                 const app = res?.data?.items?.[0];
                 if (!app || !app.spec) { return }

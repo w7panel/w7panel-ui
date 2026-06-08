@@ -676,7 +676,7 @@ export default{
 
         },
         openBuildImage(form){
-            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`).then(res=>{
+            k8sproxy.get(`/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`).then(res=>{
                 let runningTaskExist = (res?.data?.items || [])?.length>0;
                 if(runningTaskExist){
                     this.$message.warning('有正在运行的构建任务，请稍候');

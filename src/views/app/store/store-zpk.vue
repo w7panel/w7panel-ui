@@ -48,7 +48,7 @@ export default{
     },
     methods: {
         // getZpk(){
-        //     k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ this.identifie +'&limit=500',{
+        //     k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ this.identifie +'&limit=500',{
         //         loading: true,
         //     }).then(res=>{
         //         if(!res?.data?.items?.[0]){

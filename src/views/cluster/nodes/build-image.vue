@@ -142,7 +142,7 @@ export default{
     },
     methods: {
         getList(){
-            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages`).then(res=>{
+            k8sproxy.get(`/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/buildimages`).then(res=>{
                 let list = res.data?.items || [];
                 this.list = list.map(i=>{
                     return {
@@ -188,7 +188,7 @@ export default{
             }
         },
         testIsBuilding(){
-            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`).then(res=>{
+            k8sproxy.get(`/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`).then(res=>{
                 this.runningTask.exist = (res?.data?.items || [])?.length>0;
                 if(this.runningTask.exist){
                     let jobName = res.data.items[0]?.status?.jobName || '';
@@ -205,14 +205,14 @@ export default{
             this.biModal.data = record.data;
         },
         delItem(record){
-            k8sproxy.delete(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages/${record.name}`).then(()=>{
+            k8sproxy.delete(`/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/buildimages/${record.name}`).then(()=>{
                 this.$message.success('删除成功');
                 this.getList();
             });
         },
         toYaml(record){
             let resourceVersion = record.data?.metadata?.resourceVersion;
-            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages/${record.name}`).then(res=>{
+            k8sproxy.get(`/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/buildimages/${record.name}`).then(res=>{
                 let data = res?.data || {};
                 this.yamlData = {
                     show: true,
@@ -220,7 +220,7 @@ export default{
                     title: data?.metadata?.name,
                     submit: (data)=>{
                         data.metadata.resourceVersion = resourceVersion || data.metadata.resourceVersion;
-                        return k8sproxy.put('/apis/buildimage.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/buildimages/'+data?.metadata?.name, data).then(()=>{
+                        return k8sproxy.put('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/buildimages/'+data?.metadata?.name, data).then(()=>{
                             this.$message.success('修改成功');
                             this.yamlData = {...this.yamlData, show:false};
                             this.getList();

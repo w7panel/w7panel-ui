@@ -293,7 +293,7 @@ export default {
             })
         },
         getZpk(){
-            // k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps?labelSelector=w7.cc/identifie=w7-zpkv2',{noAlert:true}).then(res=>{
+            // k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps?labelSelector=w7.cc/identifie=w7-zpkv2',{noAlert:true}).then(res=>{
             //     if(res?.data?.items?.length){ this.zpk.show = true; }
             // })
             panelApi.get('/microapp/w7-zpkv2-root/info',{noAlert:true}).then(res=>{

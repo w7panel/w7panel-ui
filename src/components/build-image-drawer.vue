@@ -46,7 +46,7 @@ import {useLoadingStore, useNamespaceStore} from "@/store";
 import { getToken } from '@/utils/auth';
 
 let templateData = {
-    apiVersion: "buildimage.w7.cc/v1alpha1",
+    apiVersion: "w7panel.w7.com/v1alpha1",
     kind: "BuildImage",
     metadata: {
         name: "",
@@ -212,7 +212,7 @@ export default{
                             value: this.form.password,
                         },
                     ];
-                    k8sproxy.patch('/apis/buildimage.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/buildimages/'+this.currentData.metadata.name, operation, {
+                    k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/buildimages/'+this.currentData.metadata.name, operation, {
                         headers: {'Content-Type': 'application/json-patch+json'},
                     }).then(()=>{
                         this.$message.success('操作成功');
@@ -230,7 +230,7 @@ export default{
                     this.currentData.spec.targetImage.auth.username = this.form.username;
                     this.currentData.spec.targetImage.auth.password = this.form.password;
                     
-                    k8sproxy.post('/apis/buildimage.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/buildimages',this.currentData).then(res=>{
+                    k8sproxy.post('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/buildimages',this.currentData).then(res=>{
                         this.$message.success('操作成功')
                         this.closeDrawer({
                             ...this.form,
