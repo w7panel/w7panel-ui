@@ -597,7 +597,7 @@ export default {
             let item = this.applist.find(i=>i.key==key);
             if(!item){return}
             if(item.isHelm){
-                k8sproxy.delete('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ item.groupName).then(res=>{
+                k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ item.groupName).then(res=>{
                     this.$message.success('操作成功');
                     if(this.appname=='helm-'+item.groupName){
                         this.$router.push({
@@ -706,7 +706,7 @@ export default {
             // console.log('watch', status)
             if(status==1){return;}
             this.watchInterval = setInterval(()=>{
-                k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group).then(async res=>{
+                k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group).then(async res=>{
                     let items = res?.data?.status?.items;
                     let status = 1;
                     for(let i in items){
@@ -793,7 +793,7 @@ export default {
             }else{
                 this.appname = this.$route.params.kind + this.$route.params.id;
             }
-            await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
+            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
                 noAlert: this.$route.params.group=='gpustack-backend',
             }).then(async res=>{
                 this.groupTitle = res?.data?.metadata?.annotations?.title || this.groupTitle;
@@ -831,7 +831,7 @@ export default {
                 }
                 
                 if(res?.data?.metadata?.labels?.['w7.cc/parent']){
-                    await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ res?.data?.metadata?.labels?.['w7.cc/parent']).then(res=>{
+                    await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ res?.data?.metadata?.labels?.['w7.cc/parent']).then(res=>{
                         let items = res.data?.items || [];
                         for(let i in items){
                             if(items[i]?.metadata?.name==this.$route.params.group){continue}
@@ -841,13 +841,13 @@ export default {
                             list = list.concat(subapp.list);
                         }
                     })
-                    await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ res?.data?.metadata?.labels?.['w7.cc/parent']).then(res=>{
+                    await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ res?.data?.metadata?.labels?.['w7.cc/parent']).then(res=>{
                         let parentapp = this.arrangeList(res?.data);
                         helmTab = parentapp.helmTab.concat(helmTab);
                         list = parentapp.list.concat(list);
                     })
                 }else{
-                    await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ this.$route.params.group).then(res=>{
+                    await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ this.$route.params.group).then(res=>{
                         let items = res.data?.items || [];
                         for(let i in items){
                             if(!items[i]?.spec?.isHelm){continue}

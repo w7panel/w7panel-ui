@@ -63,7 +63,7 @@ export default {
     methods: {
         getList(){
             // "/apis/apps/v1/namespaces/"+ this.namespaceActive +"/deployments"
-            k8sproxy.get(`/apis/appgroup.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/appgroups`,{loading:true}).then(res=>{
+            k8sproxy.get(`/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/appgroups`,{loading:true}).then(res=>{
                 let list = res?.data?.items || [];
                 this.apps = {};
                 list.map(i=>this.apps[i.metadata.name] = i);

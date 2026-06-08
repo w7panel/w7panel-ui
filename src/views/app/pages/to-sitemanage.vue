@@ -38,7 +38,7 @@ export default {
                     return;
                 }
                 let group = res?.data?.items?.[0]?.metadata?.annotations?.['meta.helm.sh/release-name'];
-                // let {data} = await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ group,{loading:true})
+                // let {data} = await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ group,{loading:true})
                 // let menuActive = this.getMenu(data);
                 // let url = res.data.items[0]?.spec?.frontendUrl + menuActive;
                 

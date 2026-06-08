@@ -174,7 +174,7 @@ export default {
     },
     methods: {
         async testInstall(){
-            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/vgpu-hami',{noAlert:true}).then(res=>{
+            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/vgpu-hami',{noAlert:true}).then(res=>{
                 this.isInstall = true;
             }).catch(()=>{})
         },

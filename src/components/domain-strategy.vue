@@ -482,7 +482,7 @@ export default {
         },
 
         changeGroup(v){
-            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ v).then(res=>{
+            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ v).then(res=>{
                 this.requests.service = '';
                 this.appList = res.data?.status?.items?.map(i=>{
                     return {
@@ -494,7 +494,7 @@ export default {
             });
         },
         getGroups(){
-            k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups').then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups').then(res=>{
                 let items = res?.data?.items;
                 this.groupList =items?.map(i=>{
                     return {

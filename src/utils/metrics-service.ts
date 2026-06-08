@@ -24,7 +24,7 @@ export async function getMetricsService() {
   if (cachedMetricsService) return cachedMetricsService;
 
   cachedMetricsService = await k8sproxy
-    .get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups/w7panel-metrics', { noAlert: true })
+    .get('/apis/w7panel.w7.com/v1alpha1/namespaces/default/appgroups/w7panel-metrics', { noAlert: true })
     .then((res) => {
       const version = res?.data?.spec?.version || '';
       return getMetricsServiceByVersion(version);

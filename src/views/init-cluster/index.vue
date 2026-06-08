@@ -282,7 +282,7 @@ export default {
             this.logModal.show = true;
         },
         deleteAppgroup(item){
-            k8sproxy.delete('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups/'+item.name,{noAlert:true}).then(res=>{
+            k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/namespaces/default/appgroups/'+item.name,{noAlert:true}).then(res=>{
                 this.$message.success('操作成功');
                 this.getStatus();
             })
@@ -316,7 +316,7 @@ export default {
                     })
                 }
 
-                k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups',{
+                k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/default/appgroups',{
                     noAlert: true,
                     customToken: token,
                 }).then(res=>{

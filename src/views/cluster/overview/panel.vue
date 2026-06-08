@@ -641,7 +641,7 @@ export default {
         // }).catch(()=>{
         //     this.noMonitor = true;
         // })
-        await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups/w7panel-metrics',{noAlert:true}).then(res=>{
+        await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/default/appgroups/w7panel-metrics',{noAlert:true}).then(res=>{
             this.noMonitor = false;
             
             this.clusterMonitor.pickerValue = [
@@ -1092,7 +1092,7 @@ export default {
                     return (is_auto_ssl?'https://':'http://') + host + (path=='/'?'':path);
                 })
                 // 修改group
-                return k8sproxy.patch('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.domain.groupName,
+                return k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.domain.groupName,
                     {metadata: { annotations: {'w7.cc/domains': JSON.stringify(arr)}}},
                     {headers: {'Content-Type': 'application/merge-patch+json'}},
                 );
@@ -1488,7 +1488,7 @@ export default {
                 })
             })
 
-            k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then(async res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then(async res=>{
                 let list = res?.data?.items || [];
                 this.info.deployments = list.length;
             });

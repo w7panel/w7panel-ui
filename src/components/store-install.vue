@@ -505,7 +505,7 @@ export default {
             }
         },
         getAppgroups(){
-            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups').then(res=>{
+            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups').then(res=>{
                 let items = res?.data?.items || [];
                 let o = {};
                 items.map(i=>{
@@ -523,7 +523,7 @@ export default {
         },
         async getInfo(){
             if((!this.path||this.path=='undefined') && this.$route.query.completeName){
-                let {data} = await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/'+this.$route.query.completeName);
+                let {data} = await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/'+this.$route.query.completeName);
                 this.info = {
                     ...this.info,
                     title: data?.spec?.title,
@@ -816,7 +816,7 @@ export default {
             this.form.ingressclass = this.ingressclassList?.[0] || '';
         },
         // updateRelease(){
-        //     k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+this.releaseName,{loading:true}).then(async res=>{
+        //     k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+this.releaseName,{loading:true}).then(async res=>{
         //         let apps = res?.data?.status?.items || [];
         //         useLoadingStore().loading = true;
         //         for(let i in apps){
@@ -1099,7 +1099,7 @@ export default {
         // 安装状态
         getStatus(name){
             this.appGroup = name;
-            k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+name).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+name).then(res=>{
                 this.isHelm = res?.data?.spec?.isHelm;
                 let deployInfo = res?.data?.status?.deployInfo || [];
                 let deployStatus = res?.data?.status?.deployStatus;
