@@ -552,12 +552,12 @@ export default {
         //     })
         // },
         // openRegister(){
-        //     k8sproxy.get('/api/v1/namespaces/kube-system/configmaps/k3k.config',{noAlert:true}).then(res=>{
+        //     k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{noAlert:true}).then(res=>{
         //         this.register = {
         //             show: true,
-        //             allowConsoleRegister: res?.data?.data?.allowConsoleRegister === 'true',
-        //             showInShop: res?.data?.data?.showInShop === 'true',
-        //             defaultPolicyName: res?.data?.data?.defaultPolicyName,
+        //             allowConsoleRegister: res?.data?.spec?.data?.allowConsoleRegister === 'true',
+        //             showInShop: res?.data?.spec?.data?.showInShop === 'true',
+        //             defaultPolicyName: res?.data?.spec?.data?.defaultPolicyName,
         //         }
         //     }).catch((err)=>{
         //         if(err?.response?.status != 404){
@@ -568,16 +568,16 @@ export default {
         //         }
                 
         //         let o = {
-        //             apiVersion: 'v1',
-        //             kind: 'ConfigMap',
+        //             apiVersion: 'w7panel.w7.com/v1alpha1',
+        //             kind: 'K3kConfig',
         //             metadata: {
         //                 name: 'k3k.config',
         //                 labels: {},
         //                 annotations: {},
         //             },
-        //             data: {},
+        //             spec: {data: {}},
         //         }
-        //         k8sproxy.post("/api/v1/namespaces/kube-system/configmaps", o,{loading:true}).then(res=>{
+        //         k8sproxy.post("/apis/w7panel.w7.com/v1alpha1/k3kconfigs", o,{loading:true}).then(res=>{
         //             this.register = {
         //                 show: true,
         //                 allowConsoleRegister: false,
@@ -588,11 +588,13 @@ export default {
         //     })
         // },
         // submitRegister(){
-        //     k8sproxy.patch('/api/v1/namespaces/kube-system/configmaps/k3k.config',{
-        //         data:{
-        //             allowConsoleRegister: String(this.register.allowConsoleRegister),
-        //             showInShop: String(this.register.showInShop),
-        //             defaultPolicyName: this.register.defaultPolicyName,
+        //     k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{
+        //         spec:{
+        //             data:{
+        //                 allowConsoleRegister: String(this.register.allowConsoleRegister),
+        //                 showInShop: String(this.register.showInShop),
+        //                 defaultPolicyName: this.register.defaultPolicyName,
+        //             },
         //         }
         //     },{
         //         headers: {'Content-Type': 'application/merge-patch+json'}

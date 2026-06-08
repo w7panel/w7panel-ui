@@ -578,13 +578,13 @@ export default {
             let enable = this.clusterInfo.ips.filter(i=>!i.onlyshow&&i.enable)?.map(i=>i.ip);
             let disable = this.clusterInfo.ips.filter(i=>!i.onlyshow&&!i.enable)?.map(i=>i.ip);
 
-            k8sproxy.patch('/api/v1/namespaces/kube-system/configmaps/k3s.config',[{
+            k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config',[{
                 op: 'replace',
-                path: '/data/k3s.tls-san',
+                path: '/spec/data/k3s.tls-san',
                 value: enable.join(','),
             },{
                 op: 'replace',
-                path: '/data/k3s.tls-san.disabled',
+                path: '/spec/data/k3s.tls-san.disabled',
                 value: disable.join(','),
             },{
                 op: 'replace',
@@ -605,8 +605,8 @@ export default {
                 ips: [],
                 addIps: [],
             };
-            k8sproxy.get('/api/v1/namespaces/kube-system/configmaps/k3s.config').then(res=>{
-                let ips = res?.data?.data?.['k3s.default-tls-san'] || '';
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config').then(res=>{
+                let ips = res?.data?.spec?.data?.['k3s.default-tls-san'] || '';
                 ips = ips?.split(',')?.filter(i=>i);
                 ips = ips.map(i=>{
                     return {
@@ -616,7 +616,7 @@ export default {
                     }
                 })
                 
-                let enable = res?.data?.data?.['k3s.tls-san'] || '';
+                let enable = res?.data?.spec?.data?.['k3s.tls-san'] || '';
                 enable = enable?.split(',')?.filter(i=>i);
                 ips = ips.concat(enable.map(i=>{
                     return {
@@ -625,7 +625,7 @@ export default {
                         enable: true,
                     }
                 }))
-                let disabled = res?.data?.data?.['k3s.tls-san.disabled'] || '';
+                let disabled = res?.data?.spec?.data?.['k3s.tls-san.disabled'] || '';
                 disabled = disabled?.split(',')?.filter(i=>i);
                 ips = ips.concat(disabled.map(i=>{
                     return {
@@ -673,16 +673,16 @@ export default {
         },
         getConfig(){
             // config
-            k8sproxy.get('/api/v1/namespaces/kube-system/configmaps/k3s.config').then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config').then(res=>{
                 // console.log(res.data);
                 let data = res?.data || {};
-                if(data.data?.['k3s.cluster-init']==='false' && data.data?.['k3s.datastore-endpoint']===''){
+                if(data.spec?.data?.['k3s.cluster-init']==='false' && data.spec?.data?.['k3s.datastore-endpoint']===''){
                     this.config.type = 1;
-                }else if(data.data?.['k3s.cluster-init']==='true'){
+                }else if(data.spec?.data?.['k3s.cluster-init']==='true'){
                     this.config.type = 2;
-                }else if(data.data?.['k3s.datastore-endpoint']!==''){
+                }else if(data.spec?.data?.['k3s.datastore-endpoint']!==''){
                     this.config.type = 3;
-                    this.config.value = data.data?.['k3s.datastore-endpoint'];
+                    this.config.value = data.spec?.data?.['k3s.datastore-endpoint'];
                 }
             })
         },

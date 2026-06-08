@@ -281,33 +281,35 @@ export default{
                 })
                 this.permissionPackageList = list;
             });
-            k8sproxy.get('/api/v1/namespaces/kube-system/configmaps/k3k.config',{noAlert:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{noAlert:true}).then(res=>{
                 this.register = {
                     ...this.register,
-                    allowConsoleRegister: res?.data?.data?.allowConsoleRegister === 'true',
-                    // showInShop: res?.data?.data?.showInShop === 'true',
-                    defaultPermissionName: res?.data?.data?.defaultPermissionName,
-                    indexpage: res?.data?.data?.indexpage || 'login',
+                    allowConsoleRegister: res?.data?.spec?.data?.allowConsoleRegister === 'true',
+                    // showInShop: res?.data?.spec?.data?.showInShop === 'true',
+                    defaultPermissionName: res?.data?.spec?.data?.defaultPermissionName,
+                    indexpage: res?.data?.spec?.data?.indexpage || 'login',
                 }
             }).catch((err)=>{
                 if(err?.response?.status != 404){
-                    if(error?.response?.data?.message){
-                        this.$message.error(error?.response?.data?.message);
+                    if(err?.response?.data?.message){
+                        this.$message.error(err?.response?.data?.message);
                     }
                     return;
                 }
                 
                 let o = {
-                    apiVersion: 'v1',
-                    kind: 'ConfigMap',
+                    apiVersion: 'w7panel.w7.com/v1alpha1',
+                    kind: 'K3kConfig',
                     metadata: {
                         name: 'k3k.config',
                         labels: {},
                         annotations: {},
                     },
-                    data: {},
+                    spec: {
+                        data: {},
+                    },
                 }
-                k8sproxy.post("/api/v1/namespaces/kube-system/configmaps", o,{loading:true}).then(res=>{
+                k8sproxy.post("/apis/w7panel.w7.com/v1alpha1/k3kconfigs", o,{loading:true}).then(res=>{
                     this.register = {
                         ...this.register,
                         allowConsoleRegister: false,
@@ -357,12 +359,14 @@ export default{
             }
         },
         async submitRegister(){
-            await k8sproxy.patch('/api/v1/namespaces/kube-system/configmaps/k3k.config',{
-                data:{
-                    allowConsoleRegister: String(this.register.allowConsoleRegister),
-                    // showInShop: String(this.register.showInShop),
-                    defaultPermissionName: this.register.defaultPermissionName,
-                    indexpage: this.register.indexpage,
+            await k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{
+                spec:{
+                    data:{
+                        allowConsoleRegister: String(this.register.allowConsoleRegister),
+                        // showInShop: String(this.register.showInShop),
+                        defaultPermissionName: this.register.defaultPermissionName,
+                        indexpage: this.register.indexpage,
+                    },
                 }
             },{
                 headers: {'Content-Type': 'application/merge-patch+json'}
