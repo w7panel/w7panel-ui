@@ -85,6 +85,7 @@ export default {
     },
     beforeDestroy(){
         window.removeEventListener("resize",  this.resize);
+        this.chart?.dispose?.();
     },
     watch: {
         virtualDiskFilterCache(v){
@@ -106,7 +107,7 @@ export default {
         },
         'dark.isDark'(v){
             this.$nextTick(() => {
-                this.chartInit(this.activeType);
+                this.renderChart(this.activeType);
             });
         }
     },
@@ -217,23 +218,6 @@ export default {
             // if(chart){ chart.dispose();}
             c.x = {};
             c.y = [];
-            let dw = '';
-            switch(chartType){
-                case 'cpu': dw = '核'; break;
-                case 'memory': dw = 'M'; break;
-                case 'HostGPUMemoryUsage': dw = 'M'; break;
-                case 'HostCoreUtilization': dw = '%'; break;
-                case 'disk': dw = 'io/s'; break;
-                case 'disk-read': dw = 'io/s'; break;
-                case 'disk-write': dw = 'io/s'; break;
-                case 'network': dw = 'p/s'; break;
-                case 'network-in': dw = 'p/s'; break;
-                case 'network-out': dw = 'p/s'; break;
-                case 'disk-read-bytes': dw = 'MB/s'; break;
-                case 'disk-written-bytes': dw = 'MB/s'; break;
-                case 'network-receive-bytes': dw = 'Mb/s'; break;
-                case 'network-transmit-bytes': dw = 'Mb/s'; break;
-            }
             let gpuNames = {};
             if(chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
                 let { data } = await axios('/panel-api/v1/gpu/node/devices');
@@ -442,6 +426,27 @@ export default {
             }
             
             c.loading = false;
+            this.renderChart(chartType);
+        },
+        renderChart(chartType){
+            let c = this[chartType] || {};
+            let dw = '';
+            switch(chartType){
+                case 'cpu': dw = '核'; break;
+                case 'memory': dw = 'M'; break;
+                case 'HostGPUMemoryUsage': dw = 'M'; break;
+                case 'HostCoreUtilization': dw = '%'; break;
+                case 'disk': dw = 'io/s'; break;
+                case 'disk-read': dw = 'io/s'; break;
+                case 'disk-write': dw = 'io/s'; break;
+                case 'network': dw = 'p/s'; break;
+                case 'network-in': dw = 'p/s'; break;
+                case 'network-out': dw = 'p/s'; break;
+                case 'disk-read-bytes': dw = 'MB/s'; break;
+                case 'disk-written-bytes': dw = 'MB/s'; break;
+                case 'network-receive-bytes': dw = 'Mb/s'; break;
+                case 'network-transmit-bytes': dw = 'Mb/s'; break;
+            }
 
             let option = {
                 tooltip: {
@@ -492,16 +497,20 @@ export default {
             if(c.x?.data?.length){
                 option.xAxis = c.x;
                 option.series = c.y;
-                let chart = null;
                 let dom = document.getElementById(chartType.replaceAll('-','')+'Chart')
                 if(dom){
-                    dom.removeAttribute("_echarts_instance_");
-                    chart = echarts.init(dom);
-                    this.resize = ()=>{
-                        chart.resize();
+                    let sameDom = this.chart && this.chart.getDom && this.chart.getDom() === dom;
+                    if(!sameDom){
+                        this.chart?.dispose?.();
+                        dom.removeAttribute("_echarts_instance_");
+                        this.chart = echarts.init(dom);
+                        window.removeEventListener("resize",  this.resize);
+                        this.resize = ()=>{
+                            this.chart?.resize();
+                        }
+                        window.addEventListener("resize",  this.resize);
                     }
-                    window.addEventListener("resize",  this.resize);
-                    chart.setOption(option);
+                    this.chart?.setOption(option,true);
                 }
             }
         },
