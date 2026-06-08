@@ -22,12 +22,11 @@
                         @close="closeSubaccountPanel"
                     />
                 </div>
-                <div v-else class="padding-20" :class="{loginPanel:loginPanel}" style="height:calc(100vh - 62px);box-sizing:border-box;">
+                <div v-else class="padding-20" style="height:calc(100vh - 62px);box-sizing:border-box;">
                     <micro-container
                         ref="microcontainer"
                         :appgroup="groupName"
                         :menuActive="menuActive"
-                        :loginPanel="loginPanel"
                         @getinfo="v=>info=v"
                         @getBindings="v=>bindings=v"
                         @changeLogin="changeLogin"
@@ -66,7 +65,6 @@ export default{
             groupName: '',
             hideAppMenu: false,
 
-            loginPanel: false,
             subaccountPanel: {
                 show: false,
                 token: '',
@@ -84,7 +82,7 @@ export default{
     },
     beforeRouteLeave(to, from, next) {
         if (this.subaccountPanel.show) {
-            clearIframeToken();
+            this.resetSubaccountPanel(false);
         }
         next();
     },
@@ -102,11 +100,17 @@ export default{
         bindings(v){
             this.getMenu(v)
         },
-        group(){
+        group(v, oldV){
             this.groupName = this.group || this.$route.params.group;
+            if(oldV && v !== oldV){
+                this.resetSubaccountPanel(true);
+            }
         },
-        '$route.params.group'(){
+        '$route.params.group'(v, oldV){
             this.groupName = this.group || this.$route.params.group;
+            if(oldV && v !== oldV){
+                this.resetSubaccountPanel(true);
+            }
         },
     },
     methods: {
@@ -117,10 +121,12 @@ export default{
                 refreshToken: data.refreshToken || '',
                 path: this.getSubaccountPanelPath(),
             };
-            this.loginPanel = false;
             this.syncSubaccountPanelQuery(true);
         },
         closeSubaccountPanel(){
+            this.resetSubaccountPanel(true);
+        },
+        resetSubaccountPanel(syncQuery = true){
             clearIframeToken();
             this.subaccountPanel = {
                 show: false,
@@ -128,7 +134,9 @@ export default{
                 refreshToken: '',
                 path: '/cluster/panel',
             };
-            this.syncSubaccountPanelQuery(false);
+            if(syncQuery){
+                this.syncSubaccountPanelQuery(false);
+            }
         },
         restoreSubaccountPanel(){
             if(this.$route.query.subaccountPanel !== '1'){ return; }
@@ -145,7 +153,6 @@ export default{
                 refreshToken: getIframeRefreshToken() || getRefreshToken() || '',
                 path: this.getSubaccountPanelPath(),
             };
-            this.loginPanel = false;
         },
         getSubaccountPanelPath(){
             const value = this.$route.query['w7panel-subaccount-panel'];
@@ -240,13 +247,6 @@ export default{
 </style>
 <style>
 .micro-iframe-modal .arco-modal-body{padding:0;}
-.loginPanel{
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    margin: 0;
-    padding: 0;
-}
 .subaccount-panel-wrap{
     height:calc(100vh - 60px);
     background:var(--color-fill-2);
