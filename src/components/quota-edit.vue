@@ -2,7 +2,7 @@
     <a-drawer :width="800" :visible="visible" @cancel="closeDrawer()" @ok="submit">
         <template #title>配额管理</template>
         <div>
-            <a-form ref="quotaForm" class="label-width-100" auto-label-width>
+            <!-- <a-form ref="quotaForm" class="label-width-100" auto-label-width>
                 
                 <a-form-item label="集群模式" disabled>
                     <a-select :model-value="clustermode" placeholder="请选择集群模式">
@@ -17,10 +17,9 @@
                     </template>
                 </a-form-item>
 
-            </a-form>
+            </a-form> -->
             <quota-config
                 ref="quotaconfig"
-                :clustermode="clustermode"
                 :data="quotaForm"
                 @setQuotaPage="()=>quotaForm.isLock=true"
             ></quota-config>
@@ -33,7 +32,7 @@ import { useNamespaceStore } from '@/store';
 import quotaConfig from './quota-config.vue';
 
 export default {
-    props: ['show', 'data', 'name','clustermode'],
+    props: ['show', 'data', 'name'],
     data(){
         return {
             namespaceActive: '',

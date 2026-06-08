@@ -15,6 +15,9 @@
             "key": "cluster-nodes-registries"
         }]
     },{
+        "title": "私有DNS解析",
+        "key": "dns"
+    },{
         "title": "资源对象浏览器",
         "key": "cluster-resource"
     }]
@@ -109,6 +112,9 @@
     },{
         "title": "授权管理",
         "key": "system-license"
+    },{
+        "title": "审计日志",
+        "key": "system-audit"
     }]
 },{
     "title": "多租户管理",
@@ -117,14 +123,8 @@
         "title": "用户管理",
         "key": "system-user"
     },{
-        "title": "用户组",
-        "key": "system-usergroup"
-    },{
         "title": "权限套餐",
         "key": "system-permission"
-    },{
-        "title": "费用套餐",
-        "key": "system-cost"
     },{
         "title": "备案域名",
         "key": "system-white-domain"

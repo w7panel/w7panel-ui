@@ -1,4 +1,3 @@
-
 import { DEFAULT_LAYOUT } from '../base';
 
 const DASHBOARD: any = [{
@@ -26,17 +25,6 @@ const DASHBOARD: any = [{
             key: 'system-user',
         },
     },{
-        path: 'user-group',
-        name: 'user-group',
-        component: () => import('@/views/system/usergroup/list.vue'),
-        meta: {
-            locale: '用户组',
-            hideInMenu: false,
-            requiresAuth: true,
-            roles: ['*'],
-            key: 'system-usergroup'
-        },
-    },{
         path: 'permission',
         name: 'usermanage-permission',
         component: ()=>import('@/views/system/usermanage/permission.vue'),
@@ -46,17 +34,6 @@ const DASHBOARD: any = [{
             requireAuth: true,
             rules: ['*'],
             key: 'system-permission'
-        },
-    },{
-        path: 'cost',
-        name: 'usermanage-cost',
-        component: ()=>import('@/views/system/usermanage/cost.vue'),
-        meta: {
-            locale: '费用套餐',
-            hideInMenu: false,
-            requireAuth: true,
-            rules: ['*'],
-            key: 'system-cost'
         },
     },{
         path: 'user-resource',
@@ -69,6 +46,17 @@ const DASHBOARD: any = [{
             rules: ['*'],
         }
     },{
+    //     path: 'resource',
+    //     name: 'system-resource',
+    //     component: () => import('@/views/system/resource/list.vue'),
+    //     meta: {
+    //         locale: '资源管理',
+    //         hideInMenu: false,
+    //         requiresAuth: true,
+    //         roles: ['*'],
+    //         // key: 'system-resource'
+    //     },
+    // },{
         path: 'usermanage-whitedomain',
         name: 'usermanage-whitedomain',
         component: ()=>import('@/views/system/white-domain/index.vue'),

@@ -1,7 +1,9 @@
 <template>
-    <div class="padding-20" style="height:100%;">
+    <div class="padding-20" style="height:100%; overflow:auto;">
 
-        <div class="padding-20 bg-white" style="height:100%;">
+        <!-- <Breadcrumb :routes="$route.name=='fp-user-resource'?fproutes:routes" /> -->
+
+        <div class="padding-20 bg-white" >
             <div v-if="$route.query.status=='wait'" style="margin-bottom:20px;">
                 <a-alert type="warning">当前资源为待回收状态，请通知用户及时续费。<span v-if="$route.query.time">回收时间：{{ $route.query.time }}</span></a-alert>
             </div>
@@ -70,6 +72,19 @@ import resourceTree from '@/views/system/users/resource-tree.vue';
 export default {
     data(){
         return {
+            
+            routes: [
+                {name:'root'},
+                {name: "usermanage", label: "多租户管理"},
+                {name: "system-resource", label: "资源管理"},
+                {name: "user-resource", label: '查看资源'},
+            ],
+            fproutes: [
+                {name:'root'},
+                {name: "fp-usermanage-resource", label: "资源管理"},
+                {name: "fp-user-resource", label: '查看资源'},
+            ],
+
             info:{
                 cpu: 0,
                 usedCpu: 0,
@@ -123,11 +138,14 @@ export default {
     },
     methods: {
         getToken(){
-            return panelApi.post('/k3k/login',{
-                k3kUserName: this.$route.query.username,
-            }).then(res=>{
+            panelApi.post(`/k3k/cvm/${this.$route.query.namespace}/action/${this.$route.query.username}/login`).then(res=>{
                 this.loginInfo = res.data;
             })
+            // return panelApi.post('/k3k/login',{
+            //     k3kUserName: this.$route.query.username,
+            // }).then(res=>{
+            //     this.loginInfo = res.data;
+            // })
         },
         
         tableFilter(value){
@@ -341,9 +359,10 @@ export default {
             })
         },
         getData(){
-            panelApi.get('/metrics/usage/normal',{
-                customToken: this.loginInfo.token,
-            }).then(res=>{
+            // panelApi.get('/metrics/usage/normal',{
+            //     customToken: this.loginInfo.token,
+            // }).then(res=>{
+            panelApi.get(`/metrics/usage/cvm/${this.$route.query.namespace}/name/${this.$route.query.username}/normal`,{noAlert:true}).then(res=>{
                 let data = res.data;
 
                 let cpu = data?.cpu?.total || 0;
@@ -371,9 +390,11 @@ export default {
                 this.info.memoryPercent = Number((usedMemory / memory).toFixed(2));
             })
             
-            panelApi.get('/metrics/usage/disk',{                
-                customToken: this.loginInfo.token,
-            }).then(res=>{
+            // panelApi.get('/metrics/usage/disk',{
+            //     customToken: this.loginInfo.token,
+            // }).then(res=>{
+            
+            panelApi.get(`/metrics/usage/cvm/${this.$route.query.namespace}/name/${this.$route.query.username}/disk`,{noAlert:true}).then(res=>{ 
                 let data = res?.data;
 
                 let fs = data?.disk?.total || 0;

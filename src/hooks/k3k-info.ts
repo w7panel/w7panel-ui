@@ -20,17 +20,18 @@ export default async function useK3kinfo(){
         return res;
     })
     
-    const shouldRefresh = () => {
-        if (!getPermission()) return true;
-        const cached = cacheManager.get<number>(PERMISSION_CACHE_KEY);
-        if (!cached) return true;
-        return Date.now() - cached > PERMISSION_CACHE_DURATION;
-    };
+    // const shouldRefresh = () => {
+    //     if (!getPermission()) return true;
+    //     const cached = cacheManager.get<number>(PERMISSION_CACHE_KEY);
+    //     if (!cached) return true;
+    //     return Date.now() - cached > PERMISSION_CACHE_DURATION;
+    // };
 
-    if (shouldRefresh()) {
+    if (true) {
         let arr = [];
-        await axios.get('/panel-api/v1/auth/userinfo').then(res => {
-            let uData = res.data;
+        // await axios.get('/panel-api/v1/auth/userinfo').then(res => {})
+        if(data){
+            let uData = data;
             if(uData && uData.code === 200 && uData.data) {
                 uData = uData.data;
             }
@@ -39,12 +40,16 @@ export default async function useK3kinfo(){
             if (uData?.['w7.cc/debug'] != 'true') {
                 arr = arr.filter(i => i != 'cluster-resource');
             }
+            // 测试
+            // arr.push('dns')
+            // arr.push('system-audit')
             setPermission(arr);
             cacheManager.set(PERMISSION_CACHE_KEY, Date.now(), {
                 duration: PERMISSION_CACHE_DURATION,
                 prefix: CachePresets.PERMISSION,
             });
-        })
+        }
+
         await axios.get("/panel-api/v1/auth/console/info?code=test").then(res => {
             let cData = res.data;
             if(cData && cData.code === 200 && cData.data) {

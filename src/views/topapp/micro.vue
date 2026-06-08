@@ -18,6 +18,7 @@
                     <subaccount-panel
                         :token="subaccountPanel.token"
                         :refresh-token="subaccountPanel.refreshToken"
+                        :path="subaccountPanel.path"
                         @close="closeSubaccountPanel"
                     />
                 </div>
@@ -38,7 +39,7 @@
 <script>
 import TopappMenu from '@/components/topapp-menu.vue';
 import { useNamespaceStore } from '@/store';
-import { clearIframeToken, getIframeRefreshToken, getIframeToken, getK8sinfo } from '@/utils/auth';
+import { clearIframeToken, getIframeRefreshToken, getIframeToken, getK8sinfo, getRefreshToken, getToken } from '@/utils/auth';
 import microContainer from './micro-container.vue'
 import subaccountPanel from '@/components/subaccount-panel.vue';
 
@@ -68,6 +69,7 @@ export default{
                 show: false,
                 token: '',
                 refreshToken: '',
+                path: '/cluster/panel',
             },
         }
     },
@@ -117,6 +119,7 @@ export default{
                 show: true,
                 token: data.token || '',
                 refreshToken: data.refreshToken || '',
+                path: this.getSubaccountPanelPath(),
             };
             this.syncSubaccountPanelQuery(true);
         },
@@ -129,6 +132,7 @@ export default{
                 show: false,
                 token: '',
                 refreshToken: '',
+                path: '/cluster/panel',
             };
             if(syncQuery){
                 this.syncSubaccountPanelQuery(false);
@@ -137,7 +141,7 @@ export default{
         restoreSubaccountPanel(){
             if(this.$route.query.subaccountPanel !== '1'){ return; }
 
-            const token = getIframeToken() || '';
+            const token = getIframeToken() || getToken() || '';
             if(!token){
                 this.syncSubaccountPanelQuery(false);
                 return;
@@ -146,8 +150,20 @@ export default{
             this.subaccountPanel = {
                 show: true,
                 token,
-                refreshToken: getIframeRefreshToken() || '',
+                refreshToken: getIframeRefreshToken() || getRefreshToken() || '',
+                path: this.getSubaccountPanelPath(),
             };
+        },
+        getSubaccountPanelPath(){
+            const value = this.$route.query['w7panel-subaccount-panel'];
+            const path = Array.isArray(value) ? value[0] : value;
+            if(!path){ return '/cluster/panel'; }
+
+            try{
+                return decodeURIComponent(path);
+            }catch{
+                return path;
+            }
         },
         syncSubaccountPanelQuery(show){
             const isOpen = this.$route.query.subaccountPanel === '1';

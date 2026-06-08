@@ -84,7 +84,7 @@ const virtualPass = [
     'zpk',
 ]
 export default {
-    props: ['show','list','name','type','debug','fileeditor','whitelist','webshell','permissionPackage','disabledBase','disabledMenu','noCustom'],
+    props: ['show','list','name', 'debug','fileeditor','whitelist','webshell','permissionPackage','disabledBase','disabledMenu','noCustom'],
     data(){
         return {
             namespaceActive: '',
@@ -93,7 +93,7 @@ export default {
             permissionPackageListShared: [],
             permissionPackageListVirtual: [],
             pmsForm: {
-                type: 'shared',
+                type: 'virtual',
                 permissionPackage: '',
                 list: [],
                 treeData: [],
@@ -134,14 +134,16 @@ export default {
             this.pmsForm.fileeditor = this.fileeditor || false;
             this.pmsForm.webshell = this.webshell || false;
             this.pmsForm.list = this.list || [];
-            this.pmsForm.type = this.type || 'shared';
+            this.pmsForm.type = 'virtual'; //this.type || 'shared';
             this.pmsForm.permissionPackage = this.permissionPackage || '';
             this.hasDebug = this.debug===true || this.debug===false;
             this.pmsForm.whitelist = this.whitelist || [];
             
             this.pmsls = this.permissionPackageList;
-            if(this.type=='shared'){ this.pmsls = this.permissionPackageListShared; }
-            if(this.type=='virtual'){ this.pmsls = this.permissionPackageListVirtual; }
+
+            // this.pmsls = this.permissionPackageList;
+            // if(this.type=='shared'){ this.pmsls = this.permissionPackageListShared; }
+            // if(this.type=='virtual'){ this.pmsls = this.permissionPackageListVirtual; }
         },
         submit(){
             let whitelist = this.$refs.whitelist.getList() || [];
@@ -190,11 +192,12 @@ export default {
                     }
                 });
                 this.permissionPackageList = list;
-                this.permissionPackageListShared = list.filter(i=>i.clustermode=='shared');
-                this.permissionPackageListVirtual = list.filter(i=>i.clustermode=='virtual');
-                this.pmsls = this.permissionPackageList;
-                if(this.type=='shared'){ this.pmsls = this.permissionPackageListShared; }
-                if(this.type=='virtual'){ this.pmsls = this.permissionPackageListVirtual; }
+                this.pmsls = list; //.filter(i=>i.clustermode=='virtual');
+                // this.permissionPackageListShared = list.filter(i=>i.clustermode=='shared');
+                // this.permissionPackageListVirtual = list.filter(i=>i.clustermode=='virtual');
+                // this.pmsls = this.permissionPackageList;
+                // if(this.type=='shared'){ this.pmsls = this.permissionPackageListShared; }
+                // if(this.type=='virtual'){ this.pmsls = this.permissionPackageListVirtual; }
             })
         },
         // 修改权限切换套餐

@@ -74,11 +74,11 @@
                 <div class="df ai-s jc-b">
                     <div class="title fs-16">系统信息</div>
                     <div class="df ai-c">
-                        <a-button href="/order-base?expand=true" target="_blank" v-if="!inMicro&&userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-expand']=='true'" size="small" type="primary">扩容</a-button>
-<!-- <a-button size="small" type="primary" @click="submitExpand">扩容</a-button> -->
+                        <a-button :href="'/order-base?expand=true'+cvmInfo.expandQuery" target="_blank" v-if="!inMicro&&((userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canExpandBuy && !cvmInfo.isExpired)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-expand']=='true'))" size="small" type="primary">扩容</a-button>
+                        <!-- <a-button size="small" type="primary" @click="submitExpand">扩容</a-button> -->
                     </div>
                 </div>
-                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster'" class="mt-20" label-align="left" auto-label-width>
+                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || userInfo['w7.cc/is-cvm-req']=='true'" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="CPU" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.cpu}}</span>
                     </a-form-item>
@@ -97,8 +97,7 @@
                     </a-form-item>
                     <a-form-item v-if="quotsInfo.expiretime" label="到期时间" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.expiretime}}</span>
-                        <a v-if="!inMicro&&userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'" class="c-blue cursor ml-20" target="_blank" href="/order-base?renew=true">续费</a>
-                    </a-form-item>
+                        <a v-if="!inMicro&&((userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'))" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>                    </a-form-item>
                 </a-form>
                 <a-form v-else class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="集群版本" style="margin-bottom:0;">
@@ -612,6 +611,11 @@ export default {
             webshell: 'false',
 
             virtualDiskFilterCache: [],
+
+            cvmInfo: {
+                renewQuery: '',
+                expandQuery: '',
+            },
             oldVersion: false,
             metricsServices: DEFAULT_METRICS_SERVICE,
         }
@@ -793,6 +797,35 @@ export default {
             return panelApi.get('/k3k/info').then(res=>{
                 this.userInfo = res?.data;
                 this.clusterMode = this.userInfo?.["k3k.io/cluster-mode"];
+
+                if(res?.data?.['w7.cc/is-cvm-req']=='true'){
+                    let name = res?.data?.['w7.cc/cvm-name'];
+                    let namespace = res?.data?.['w7.cc/cvm-namespace'];
+                    panelApi.get(`/k3k/cvm/v1/${namespace}/info/${name}`).then(res=>{
+                        let effectiveResource = res?.data?.status?.effectiveResource;
+                        this.quotsInfo = {
+                            cpu: (effectiveResource?.cpu || 0) + ' 核',
+                            memory: (effectiveResource?.memory || 0) + 'Gi',
+                            bandwidth: (effectiveResource?.bandwidth || 0) + 'Mbps',
+                            storagesize: (effectiveResource?.storage || 0) + 'Gi',
+                            expiretime: res.data?.spec?.expireTime || '永久',
+                            storageclass: res.data?.spec?.storageClassName || '',
+                        }
+                        this.cvmInfo = {
+                            ...this.cvmInfo,
+                            canExpandBuy: res?.data?.status?.canExpandBuy,
+                            isExpired: res?.data?.status?.isExpired,
+                            canRenewBuy: res?.data?.status?.canRenewBuy,
+                        };
+                        if(res?.data?.status?.canExpandBuy && !res?.data?.status?.isExpired){
+                            this.cvmInfo.expandQuery = `&cvmName=${name}&cvmNamespace=${namespace}`;
+                        }
+                        if(res?.data?.status?.canRenewBuy){
+                            this.cvmInfo.renewQuery = `&cvmName=${name}&cvmNamespace=${namespace}`;
+                        }
+                    });
+                    return;
+                }
 
                 if(this.userInfo?.['w7.cc/user-mode']!='cluster'){return}
                 let data = this.userInfo?.['w7.cc/quota-limit'] || '{}';

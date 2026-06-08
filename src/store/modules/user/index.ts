@@ -4,7 +4,6 @@ import { setToken, setPermission, clearToken, setUserInfo, setRefreshToken } fro
 import axios from 'axios';
 import treeData from '@/config/treedata.json';
 
-
 function getAllKeys(tree) {
     const keys = [];
     function traverse(node) {
@@ -35,10 +34,10 @@ const useUserStore = defineStore('user', {
             try {
                 const res = await userLogin(loginForm);
                 let loginData = res.data;
-                if(loginData && loginData.code === 200 && loginData.data) {
+                if (loginData && loginData.code === 200 && loginData.data) {
                     loginData = loginData.data;
                 }
-                setRefreshToken(loginData.refreshToken)
+                setRefreshToken(loginData.refreshToken);
                 setToken(loginData.token);
                 this.loginData = loginData;
 

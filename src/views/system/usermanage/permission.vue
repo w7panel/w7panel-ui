@@ -11,14 +11,14 @@
                     <td>名称</td>
                     <td>类型</td>
                     <td>创建时间</td>
-                    <td>集群模式</td>
+                    <!-- <td>集群模式</td> -->
                     <td>操作</td>
                 </tr>
                 <tr v-for="(record,index) in list.filter(i=>i.type=='in')" :key="index+'in'">
                     <td>{{ record.title }}</td>
                     <td>{{ record.type=='in'? '系统内置' : '自定义'}}</td>
                     <td>-</td>
-                    <td>{{ record.clustermodeTxt }}</td>
+                    <!-- <td>{{ record.clustermodeTxt }}</td> -->
                     <td>
                         <a-tooltip v-if="debug" content="yaml">
                             <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
@@ -45,7 +45,7 @@
                     <td>{{ record.title }}</td>
                     <td>{{ record.type=='in'? '系统内置' : '自定义'}}</td>
                     <td>{{ record.created }}</td>
-                    <td>{{ record.clustermodeTxt }}</td>
+                    <!-- <td>{{ record.clustermodeTxt }}</td> -->
                     <td>
                         <a-tooltip v-if="debug" content="yaml">
                             <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
@@ -137,7 +137,7 @@
                 <a-form-item label="名称" field="title">
                     <a-input v-model="form.title" placeholder="请输入"></a-input>
                 </a-form-item>
-                <a-form-item label="集群模式" :disabled="!!form.name && !form.isAdd" field="clustermode" :rules="[{required:true,message:'请选择集群模式', trigger: 'blur' }]">
+                <!-- <a-form-item label="集群模式" :disabled="!!form.name && !form.isAdd" field="clustermode" :rules="[{required:true,message:'请选择集群模式', trigger: 'blur' }]">
                     <a-select v-model="form.clustermode" placeholder="请选择集群模式">
                         <a-option label="全局" value="global"></a-option>
                         <a-option label="共享" value="shared"></a-option>
@@ -148,7 +148,7 @@
                         <div v-if="form.clustermode=='virtual'">独享：基于主集群完全隔离，完整的集群架构，适用于商业多租户场景。</div>
                         <div v-if="form.clustermode=='global'">全局：可直接对创始人端后台进行管理。</div>
                     </template>
-                </a-form-item>
+                </a-form-item> -->
 
                 <a-tabs default-active-key="1" style="margin-bottom:20px;">
 
@@ -229,7 +229,7 @@ export default {
                 debug: false,
                 webshell: false,
                 fileeditor: false,
-                clustermode: 'shared',
+                clustermode: 'virtual',
                 permission: [],
             },
             rules: {
@@ -302,8 +302,10 @@ export default {
                         debug: i.data?.debug == 'true',
                         webshell: i.data?.webshell == 'true',
                         fileeditor: i.data?.fileeditor == 'true',
-                        clustermode: i?.metadata?.labels?.clustermode,
-                        clustermodeTxt: {shared:'共享',virtual:'独享',global:'全局'}?.[i.metadata?.labels?.clustermode],
+                        clustermode: 'virtual',
+                        clustermodeTxt: '独享',
+                        // clustermode: i?.metadata?.labels?.clustermode,
+                        // clustermodeTxt: {shared:'共享',virtual:'独享',global:'全局'}?.[i.metadata?.labels?.clustermode],
                         whitelist: whitelist,
 
                         type: i.metadata?.labels?.typemode,
