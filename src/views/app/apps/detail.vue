@@ -146,6 +146,7 @@ import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import gpuStack from '@/views/app/gpustack/index.vue';
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
+import { normalizeWujieSyncRoute } from '@/utils/wujie-route';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -336,6 +337,7 @@ export default {
                 url: this.info.frontendUrl + (this.menuActive || ''),
 // 测试
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.menuActive || ''),
+// url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.menuActive || ''),
                 el: '#appmicro',
                 // alive: true,
                 sync: true,
@@ -428,9 +430,9 @@ export default {
 
                 this.getMenu(item?.spec?.bindings||[]);
                 if(this.isMicroPage){
-                    let appmicro = this.$route.query?.appmicro;
-                    appmicro = appmicro? decodeURIComponent(appmicro) : '';
-                    appmicro = appmicro?.replace(this.info.frontendUrl,'');
+                    const appmicro = normalizeWujieSyncRoute(this.$route.query?.appmicro, {
+                        frontend: this.info.frontendUrl,
+                    });
                     this.menuActive = appmicro || this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
                     this.selectMenu = [appmicro];
                     if(!this.selectMenu[0] && this.menuActive){

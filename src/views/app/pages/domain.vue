@@ -1915,26 +1915,32 @@ export default {
             if(!app){ return; }
 
             let { data } = await k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ app.kind +"/"+ app.name);
-            let startParams = data?.metadata?.annotations?.['w7.cc/start-params'];
-            if(!startParams){ return; }
+            let containers = JSON.parse(JSON.stringify(data?.spec?.template?.spec?.containers || []));
+            if(!containers?.[0]?.name){ return; }
 
-            try{
-                let params = JSON.parse(startParams);
-                if(!Array.isArray(params)){ return; }
-                let domainParam = params.find(i=>String(i?.name || '').toLowerCase() == 'domain_url');
-                if(!domainParam){ return; }
+            let env = containers[0]?.env || [];
+            let envItem = env.find(i=>String(i?.name || '').toLowerCase() == 'domain_url');
+            if(!envItem){
+                env.push({ name: 'DOMAIN_URL', value: domain });
+            }else{
+                envItem.value = domain;
+                delete envItem.valueFrom;
+            }
 
-                domainParam.values_text = domain;
-                await k8sproxy.patch("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ app.kind +"/"+ app.name, {
-                    metadata: {
-                        annotations: {
-                            'w7.cc/start-params': JSON.stringify(params)
+            await k8sproxy.patch("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ app.kind +"/"+ app.name, {
+                spec: {
+                    template: {
+                        spec: {
+                            containers: [{
+                                name: containers[0].name,
+                                env,
+                            }]
                         }
                     }
-                },{
-                    headers: {'Content-Type': 'application/merge-patch+json'}
-                })
-            }catch{}
+                }
+            },{
+                headers: {'Content-Type': 'application/strategic-merge-patch+json'}
+            }).catch(()=>{})
         },
         submitDomainForm(eve){
             return new Promise((resolve,reject)=>{
@@ -1996,7 +2002,7 @@ export default {
                     //     data.metadata.labels['higress.io/destination'] = this.domainForm.destination;
                     //     data.metadata.labels['destination'] =this.domainForm.destination?.replace(/\..*$/,'');
                     // }
-
+                    
                     // 修改默认域名
                     if(this.domainForm.is_default){
                         let domain = (this.domainForm.auto_ssl?'https://':'http://') + fullDomain;
