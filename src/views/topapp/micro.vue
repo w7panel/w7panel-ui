@@ -22,12 +22,11 @@
                         @close="closeSubaccountPanel"
                     />
                 </div>
-                <div v-else class="padding-20" :class="{loginPanel:loginPanel}" style="height:calc(100vh - 62px);box-sizing:border-box;">
+                <div v-else class="padding-20" style="height:calc(100vh - 62px);box-sizing:border-box;">
                     <micro-container
                         ref="microcontainer"
                         :appgroup="groupName"
                         :menuActive="menuActive"
-                        :loginPanel="loginPanel"
                         @getinfo="v=>info=v"
                         @getBindings="v=>bindings=v"
                         @changeLogin="changeLogin"
@@ -66,7 +65,6 @@ export default{
             groupName: '',
             hideAppMenu: false,
 
-            loginPanel: false,
             subaccountPanel: {
                 show: false,
                 token: '',
@@ -117,7 +115,6 @@ export default{
                 refreshToken: data.refreshToken || '',
                 path: this.getSubaccountPanelPath(),
             };
-            this.loginPanel = false;
             this.syncSubaccountPanelQuery(true);
         },
         closeSubaccountPanel(){
@@ -145,7 +142,6 @@ export default{
                 refreshToken: getIframeRefreshToken() || getRefreshToken() || '',
                 path: this.getSubaccountPanelPath(),
             };
-            this.loginPanel = false;
         },
         getSubaccountPanelPath(){
             const value = this.$route.query['w7panel-subaccount-panel'];
@@ -240,13 +236,6 @@ export default{
 </style>
 <style>
 .micro-iframe-modal .arco-modal-body{padding:0;}
-.loginPanel{
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    margin: 0;
-    padding: 0;
-}
 .subaccount-panel-wrap{
     height:calc(100vh - 60px);
     background:var(--color-fill-2);

@@ -340,6 +340,9 @@ export default {
                 // alive: true,
                 sync: true,
                 props: props,
+                prefix: {
+                    frontend: this.info.frontendUrl,
+                },
             })
             // startApp({name:'appmicro'});
             

@@ -1910,6 +1910,32 @@ export default {
             }
         },
         // 提交域名
+        async patchFirstAppStartParamsDomainUrl(domain){
+            let app = this.appList?.[0];
+            if(!app){ return; }
+
+            let { data } = await k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ app.kind +"/"+ app.name);
+            let startParams = data?.metadata?.annotations?.['w7.cc/start-params'];
+            if(!startParams){ return; }
+
+            try{
+                let params = JSON.parse(startParams);
+                if(!Array.isArray(params)){ return; }
+                let domainParam = params.find(i=>String(i?.name || '').toLowerCase() == 'domain_url');
+                if(!domainParam){ return; }
+
+                domainParam.values_text = domain;
+                await k8sproxy.patch("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ app.kind +"/"+ app.name, {
+                    metadata: {
+                        annotations: {
+                            'w7.cc/start-params': JSON.stringify(params)
+                        }
+                    }
+                },{
+                    headers: {'Content-Type': 'application/merge-patch+json'}
+                })
+            }catch{}
+        },
         submitDomainForm(eve){
             return new Promise((resolve,reject)=>{
                 if(this.$refs.domainForm){
@@ -1982,6 +2008,9 @@ export default {
                             },{
                                 headers: {'Content-Type': 'application/merge-patch+json'}
                             })
+                        }catch{}
+                        try{
+                            await this.patchFirstAppStartParamsDomainUrl(domain);
                         }catch{}
                     }
                     return k8sproxy.put("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.domainForm.name, data, {loading:true}).then(async res=>{
