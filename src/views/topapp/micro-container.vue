@@ -19,6 +19,7 @@ import { useNamespaceStore } from '@/store';
 import { getToken, getK8sinfo } from '@/utils/auth';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
+import { normalizeWujieSyncRoute } from '@/utils/wujie-route';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -121,9 +122,9 @@ export default{
                 this.$emit('getinfo',{...this.info})
                 this.$nextTick(()=>{
                     
-                    let appmicro = this.$route.query?.appmicro;
-                    appmicro = appmicro? decodeURIComponent(appmicro) : '';
-                    appmicro = appmicro?.replace(this.info.frontendUrl,'');
+                    const appmicro = normalizeWujieSyncRoute(this.$route.query?.appmicro, {
+                        frontend: this.info.frontendUrl,
+                    });
                     this.page = appmicro || this.menuActive || '';
 
                     this.wujieInit();
