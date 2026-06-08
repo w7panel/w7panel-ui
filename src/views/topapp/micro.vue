@@ -80,7 +80,7 @@ export default{
     },
     beforeRouteLeave(to, from, next) {
         if (this.subaccountPanel.show) {
-            clearIframeToken();
+            this.resetSubaccountPanel(false);
         }
         next();
     },
@@ -98,11 +98,17 @@ export default{
         bindings(v){
             this.getMenu(v)
         },
-        group(){
+        group(v, oldV){
             this.groupName = this.group || this.$route.params.group;
+            if(oldV && v !== oldV){
+                this.resetSubaccountPanel(true);
+            }
         },
-        '$route.params.group'(){
+        '$route.params.group'(v, oldV){
             this.groupName = this.group || this.$route.params.group;
+            if(oldV && v !== oldV){
+                this.resetSubaccountPanel(true);
+            }
         },
     },
     methods: {
@@ -115,13 +121,18 @@ export default{
             this.syncSubaccountPanelQuery(true);
         },
         closeSubaccountPanel(){
+            this.resetSubaccountPanel(true);
+        },
+        resetSubaccountPanel(syncQuery = true){
             clearIframeToken();
             this.subaccountPanel = {
                 show: false,
                 token: '',
                 refreshToken: '',
             };
-            this.syncSubaccountPanelQuery(false);
+            if(syncQuery){
+                this.syncSubaccountPanelQuery(false);
+            }
         },
         restoreSubaccountPanel(){
             if(this.$route.query.subaccountPanel !== '1'){ return; }
