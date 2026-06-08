@@ -18,6 +18,9 @@
     (function(){
         let v = false;
         let theme = localStorage.getItem('arco-theme');
+        if((window as any).$wujie?.props?.theme){
+            theme = (window as any).$wujie.props.theme;
+        }
         if(theme=='light'){
             v = false;
         }
@@ -40,6 +43,13 @@
     window.addEventListener('beforeunload', () => {
         sessionStorage.setItem('w7panel_store', JSON.stringify(useNamespaceStore().$state));
     });
+
+    if((window as any).__POWERED_BY_WUJIE__){
+        (window as any).$wujie?.bus.$on("changeTheme", (v)=>{
+            appStore.toggleTheme(v);
+            useDarkStore().setDark(v);
+        });
+    }
     
     const { currentLocale } = useLocale();
     const locale = computed(() => {
