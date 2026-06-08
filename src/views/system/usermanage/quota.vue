@@ -266,14 +266,14 @@ export default {
                 bandwidth: 1000,
                 bandwidthPercent: 1000,
             };
-            await k8sproxy.get('/api/v1/namespaces/kube-system/configmaps/k3k.overselling.config',{noAlert:true,loading:true}).then(res=>{
+            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/k3k.overselling.config',{noAlert:true,loading:true}).then(res=>{
                 this.oversold.exist = true;
-                let data = res.data.data;
-                this.oversold.cpuPercent = Number(data.cpu);
-                this.oversold.memoryPercent = Number(data.memory);
-                this.oversold.storagePercent = Number(data.storage);
-                this.oversold.bandwidthPercent = Number(data.bandwidth);
-                this.oversold.bandwidth = Number(data.bandwidthNum);
+                let spec = res.data.spec;
+                this.oversold.cpuPercent = Number(spec.cpu);
+                this.oversold.memoryPercent = Number(spec.memory);
+                this.oversold.storagePercent = Number(spec.storage);
+                this.oversold.bandwidthPercent = Number(spec.bandwidth);
+                this.oversold.bandwidth = Number(spec.bandwidthNum);
             }).catch(()=>{
                 this.oversold.exist = false;
             });
@@ -283,32 +283,32 @@ export default {
         async submitOversold(){
             let exist = this.oversold.exist;
             
-            let o = {
-                cpu: String(this.oversold.cpuPercent),
-                memory: String(this.oversold.memoryPercent),
-                storage: String(this.oversold.storagePercent),
-                bandwidth: String(this.oversold.bandwidthPercent),
-                bandwidthNum: String(this.oversold.bandwidth),
+            let spec = {
+                cpu: Number(this.oversold.cpuPercent),
+                memory: Number(this.oversold.memoryPercent),
+                storage: Number(this.oversold.storagePercent),
+                bandwidth: Number(this.oversold.bandwidthPercent),
+                bandwidthNum: Number(this.oversold.bandwidth),
             }
 
             if(exist){
-                k8sproxy.patch("/api/v1/namespaces/kube-system/configmaps/k3k.overselling.config",{data:o},{
+                k8sproxy.patch("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/k3k.overselling.config",{spec},{
                     loading: true,
-                    headers: {'Content-Type': 'application/strategic-merge-patch+json'},
+                    headers: {'Content-Type': 'application/merge-patch+json'},
                 }).then(()=>{
                     this.$message.success('操作成功');
                     this.oversold.show = false;
                 })
             }else{
-                k8sproxy.post("/api/v1/namespaces/kube-system/configmaps", {
-                    apiVersion: 'v1',
-                    kind: 'ConfigMap',
+                k8sproxy.post("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs", {
+                    apiVersion: 'w7panel.w7.com/v1alpha1',
+                    kind: 'OverSellingConfig',
                     metadata: {
                         name: 'k3k.overselling.config',
                         labels: {},
                         annotations: {},
                     },
-                    data: o
+                    spec,
                 },{loading:true}).then(res=>{
                     this.$message.success('操作成功');
                     this.oversold.show = false;
