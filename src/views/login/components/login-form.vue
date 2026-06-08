@@ -118,7 +118,7 @@ const toInit = ({ errors, values, })=>{
     if (errors) { return };
     panelApi.post('/auth/init-user',{
         username: values.username,
-        password: encodeURIComponent(values.pwd),
+        password: values.pwd,
     }).then(res=>{
         Message.success('初始化成功');
         canInitUser.init = false;
@@ -238,7 +238,7 @@ const handleSubmit = async (am?:any) => {
         if(!am?.passLogin){
             let {data} = await userStore.login({
                 ...userInfo,
-                password: encodeURIComponent(userInfo.password),
+                password: userInfo.password,
             });
             loginData = data;
             console.log('loooooooooogin')

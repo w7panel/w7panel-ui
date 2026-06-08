@@ -2,10 +2,7 @@ import axios from 'axios';
 import { buildApiPath } from '@/config/api';
 
 export function login(data: any) {
-    let str = 'username=' + data.username + '&password=' + data.password + '&point=' + data.point + '&key=' + data.key;
-    return axios.post(buildApiPath('AUTH_LOGIN'), str, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
+    return axios.post(buildApiPath('AUTH_LOGIN'), data);
 }
 
 export function getUserInfo() {
