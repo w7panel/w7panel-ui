@@ -372,7 +372,7 @@ export default {
             // register: {
             //     show: false,
             //     allowConsoleRegister: false,
-            //     defaultPolicyName: '',
+            //     defaultPermissionName: '',
             //     showInShop: false,
             // },
             costList: [],
@@ -557,7 +557,7 @@ export default {
         //             show: true,
         //             allowConsoleRegister: res?.data?.spec?.data?.allowConsoleRegister === 'true',
         //             showInShop: res?.data?.spec?.data?.showInShop === 'true',
-        //             defaultPolicyName: res?.data?.spec?.data?.defaultPolicyName,
+        //             defaultPermissionName: res?.data?.spec?.data?.defaultPermissionName,
         //         }
         //     }).catch((err)=>{
         //         if(err?.response?.status != 404){
@@ -582,7 +582,7 @@ export default {
         //                 show: true,
         //                 allowConsoleRegister: false,
         //                 showInShop: false,
-        //                 defaultPolicyName: '',
+        //                 defaultPermissionName: '',
         //             }
         //         });
         //     })
@@ -593,7 +593,7 @@ export default {
         //             data:{
         //                 allowConsoleRegister: String(this.register.allowConsoleRegister),
         //                 showInShop: String(this.register.showInShop),
-        //                 defaultPolicyName: this.register.defaultPolicyName,
+        //                 defaultPermissionName: this.register.defaultPermissionName,
         //             },
         //         }
         //     },{
