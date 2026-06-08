@@ -40,6 +40,7 @@ export default {
         return {
             containerId: `subaccount-panel-${Math.random().toString(36).slice(2)}`,
             loading: false,
+            themeObserver: null,
         };
     },
     computed: {
@@ -58,6 +59,7 @@ export default {
         },
     },
     mounted() {
+        this.initThemeObserver();
         this.startPanel();
     },
     watch: {
@@ -69,9 +71,33 @@ export default {
         },
     },
     beforeUnmount() {
+        this.themeObserver?.disconnect?.();
         this.destroyPanel();
     },
     methods: {
+        syncThemeToPanel() {
+            const iframe = this.$el?.querySelector?.('iframe');
+            const iframeBody = iframe?.contentDocument?.body;
+            if (!iframeBody) {
+                return;
+            }
+            const theme = document.body.getAttribute('arco-theme');
+            if (theme === 'dark') {
+                iframeBody.setAttribute('arco-theme', 'dark');
+            } else {
+                iframeBody.removeAttribute('arco-theme');
+            }
+        },
+        initThemeObserver() {
+            this.themeObserver?.disconnect?.();
+            this.themeObserver = new MutationObserver(() => {
+                this.syncThemeToPanel();
+            });
+            this.themeObserver.observe(document.body, {
+                attributes: true,
+                attributeFilter: ['arco-theme'],
+            });
+        },
         destroyPanel() {
             try {
                 destroyApp(this.name);
@@ -96,6 +122,9 @@ export default {
                         exec: true,
                         props: this.panelProps,
                     })).finally(() => {
+                        this.$nextTick(() => {
+                            this.syncThemeToPanel();
+                        });
                         this.loading = false;
                     });
                 } catch (e) {
