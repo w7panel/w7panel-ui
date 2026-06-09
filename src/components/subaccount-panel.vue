@@ -14,6 +14,7 @@
 <script>
 import { startApp, destroyApp } from 'wujie';
 import { setIframeRefreshToken, setIframeToken } from '@/utils/auth';
+import { bus } from "wujie";
 
 export default {
     name: 'SubaccountPanel',
@@ -49,11 +50,13 @@ export default {
             return path.startsWith('/') ? path : `/${path}`;
         },
         panelProps() {
+            const theme = document.body.getAttribute('arco-theme');
             return {
                 token: this.token,
                 refreshToken: this.refreshToken,
                 paneltoken: this.token,
                 subaccountPanel: true,
+                theme,
                 closeSubaccountPanel: () => this.$emit('close'),
             };
         },
@@ -76,17 +79,8 @@ export default {
     },
     methods: {
         syncThemeToPanel() {
-            const iframe = this.$el?.querySelector?.('iframe');
-            const iframeBody = iframe?.contentDocument?.body;
-            if (!iframeBody) {
-                return;
-            }
-            const theme = document.body.getAttribute('arco-theme');
-            if (theme === 'dark') {
-                iframeBody.setAttribute('arco-theme', 'dark');
-            } else {
-                iframeBody.removeAttribute('arco-theme');
-            }
+            const theme = document.body.getAttribute('arco-theme') || 'light';
+            bus.$emit('changeTheme', theme === 'dark');
         },
         initThemeObserver() {
             this.themeObserver?.disconnect?.();
