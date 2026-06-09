@@ -227,13 +227,14 @@ export default{
                 list = list.filter(i=>i);
                 this.domainParse.alist = list;
             }).catch(()=>{});
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-parse',{noAlert:true,loading:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/domainparseconfigs/domain-parse',{noAlert:true,loading:true}).then(res=>{
+                let spec = res.data?.spec || {};
                 this.domainParse = {
                     ...this.domainParse,
                     exist: true,
-                    type: res.data?.data?.type || 'A',
-                    cname: res.data?.data?.cname || '',
-                    ips: res.data?.data?.ips?.split?.(',') || [],
+                    type: spec.type || 'A',
+                    cname: spec.cname || '',
+                    ips: spec.ips || [],
                 }
             }).catch(()=>{
                 this.domainParse = {
@@ -246,15 +247,16 @@ export default{
             })
         },
         initFiling(){
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/beian',{noAlert:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/filingconfigs/beian',{noAlert:true}).then(res=>{
+                let spec = res.data?.spec || {};
                 this.filing = {
                     exist: true,
-                    icpnumber: res.data?.data?.icpnumber || '',
-                    number: res.data?.data?.number || '',
-                    location: res.data?.data?.location || '',
-                    locationNumber: res.data?.data?.location || '',
-                    license: res.data?.data?.license || '',
-                    tbol: res.data?.data?.tbol || '',
+                    icpnumber: spec.icpnumber || '',
+                    number: spec.number || '',
+                    location: spec.location || '',
+                    locationNumber: spec.location || '',
+                    license: spec.license || '',
+                    tbol: spec.tbol || '',
                 }
             }).catch(()=>{
                 this.filing = {
@@ -328,31 +330,30 @@ export default{
             }).catch(()=>{});
         },
         submitdomainParse(){
-            let o = {
+            let spec = {
                 type: this.domainParse.type,
                 ...(this.domainParse.type=='A'?{
-                    ips: this.domainParse.ips?.join(','),
+                    ips: this.domainParse.ips || [],
                 }:{
                     cname: this.domainParse.cname,
                 })
             }
             if(this.domainParse.exist){
-                k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-parse', {
-                    data: o
+                k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/domainparseconfigs/domain-parse', {
+                    spec,
                 },{
                     headers: {'Content-Type': 'application/merge-patch+json'}
                 }).then(()=>{
                     this.$message.success('操作成功');
                 }).catch(()=>{});
             }else{
-                k8sproxy.post('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps',{
-                    kind: 'ConfigMap',
-                    apiVersion: 'v1',
+                k8sproxy.post('/apis/w7panel.w7.com/v1alpha1/domainparseconfigs',{
+                    kind: 'DomainParseConfig',
+                    apiVersion: 'w7panel.w7.com/v1alpha1',
                     metadata: {
                         name: 'domain-parse',
-                        namespace: this.namespaceActive,
                     },
-                    data: o,
+                    spec,
                 }).then(()=>{
                     this.$message.success('操作成功');
                 }).catch(()=>{});
@@ -413,7 +414,7 @@ export default{
         submitFiling(){
             let number = this.filing.locationNumber.match(/(\d{14})/)?.[1];
             let location = this.filing.locationNumber;
-            let o = {
+            let spec = {
                 icpnumber: this.filing.icpnumber,
                 number: number,
                 location: location,
@@ -421,22 +422,21 @@ export default{
                 tbol: this.filing.tbol,
             }
             if(this.filing.exist){
-                k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/beian', {
-                    data: o
+                k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/filingconfigs/beian', {
+                    spec,
                 },{
                     headers: {'Content-Type': 'application/merge-patch+json'}
                 }).then(()=>{
                     this.$message.success('操作成功');
                 }).catch(()=>{});
             }else{
-                k8sproxy.post('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps',{
-                    kind: 'ConfigMap',
-                    apiVersion: 'v1',
+                k8sproxy.post('/apis/w7panel.w7.com/v1alpha1/filingconfigs',{
+                    kind: 'FilingConfig',
+                    apiVersion: 'w7panel.w7.com/v1alpha1',
                     metadata: {
                         name: 'beian',
-                        namespace: this.namespaceActive,
                     },
-                    data: o,
+                    spec,
                 }).then(()=>{
                     this.$message.success('操作成功');
                 }).catch(()=>{});

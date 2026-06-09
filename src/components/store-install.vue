@@ -1151,15 +1151,15 @@ export default {
                 let domain = d?.spec?.rules?.[0]?.host || '';
                 this.complete.items[i].resourcesList[j].domain = domain;
 
-                let domainParse = null;
-                await k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-parse',{noAlert:true}).then(res=>{
-                    domainParse = res?.data?.data || null;
+                let domainParse = {};
+                await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/domainparseconfigs/domain-parse',{noAlert:true}).then(res=>{
+                    domainParse = res?.data?.spec || {};
                 }).catch(()=>{})
 
                 if(domainParse.type){
                     this.complete.items[i].resourcesList[j].domainParseType = domainParse.type;
                     if(domainParse.type=='A'){
-                        this.complete.items[i].resourcesList[j].ips = domainParse.ips || '';
+                        this.complete.items[i].resourcesList[j].ips = (domainParse.ips || []).join(',');
                     }
                     if(domainParse.type=='cname'){
                         this.complete.items[i].resourcesList[j].cname = domainParse.cname;

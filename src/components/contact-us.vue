@@ -45,18 +45,19 @@ export default{
                 
                 let list = res?.data?.items || [];
                 this.list = list.map(i=>{
+                    let spec = i.spec || {};
                     return {
-                        type: i.data.type,
-                        name: i.data.name,
-                        showName: i.data.showName == 'true',
+                        type: spec.type,
+                        name: spec.name,
+                        showName: !!spec.showName,
                         configmapName: i.metadata.name,
-                        text: i.data.text,
-                        link: i.data.link,
-                        customIcon: Boolean(i.binaryData.icon),
-                        icon: i.binaryData.icon? i.data.iconHeader + i.binaryData.icon : i.data.selicon,
-                        qrcode: i.data.qrcodeHeader + i.binaryData.qrcode,
-                        style: i.data.style,
-                        index: Number(i.data.index) || 1,
+                        text: spec.text,
+                        link: spec.link,
+                        customIcon: Boolean(spec.icon),
+                        icon: spec.icon || spec.selicon,
+                        qrcode: spec.qrcode,
+                        style: spec.style,
+                        index: Number(spec.index) || 1,
                     }
                 })
                 // 根据 index 字段排序
