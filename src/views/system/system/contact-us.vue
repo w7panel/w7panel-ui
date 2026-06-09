@@ -186,6 +186,7 @@ export default{
                     icon: '',
                     styleIndex: 0,
                     file: null,
+                    data: null,
                 }
             }else{
                 this.form = {
@@ -203,6 +204,7 @@ export default{
                     styleIndex: Number(row.style),
                     index: row.index || 1,
                     file: null,
+                    data: row.data,
                 }
             }
         },
@@ -223,6 +225,7 @@ export default{
                         qrcode: spec.qrcode,
                         style: spec.style,
                         index: Number(spec.index) || 1,
+                        data: i,
                     }
                 })
             })
@@ -274,6 +277,7 @@ export default{
                     this.getList();
                 }
                 if(this.form.configmapName){
+                    data.metadata.resourceVersion = this.form?.data?.metadata?.resourceVersion || '';
                     k8sproxy.put("/apis/w7panel.w7.com/v1alpha1/contactconfigs/"+this.form.configmapName,data).then(callback)
                 }else{
                     k8sproxy.post("/apis/w7panel.w7.com/v1alpha1/contactconfigs",data).then(callback)
