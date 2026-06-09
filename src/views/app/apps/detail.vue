@@ -286,6 +286,20 @@ export default {
 
     },
     methods: {
+        buildIframeSrc(path, route){
+            const token = getToken();
+            const base = (path || '') + (route || '');
+            if(!token){ return base; }
+            return base + (base.includes('?') ? '&' : '?') + 'api-token=' + token;
+        },
+        routeChange(v){
+            if(this.info.load_mode === 'iframe'){
+                this.info.iframeRoute = v || '';
+                this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
+            }else{
+                bus.$emit("routeChange", (v || '').replace(/^#/,''));
+            }
+        },
         async wujieInit(){
             
             const {data} = await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
@@ -296,9 +310,9 @@ export default {
                 return res;
             })
             if(this.info.load_mode=='iframe'){
-                this.info.iframeSrcPath = data.proxyUrl;
-                this.info.iframeSrcRote = this.menuActive || '';
-                this.info.iframeSrc = this.info.iframeSrcPath + this.info.iframeSrcRote;
+                this.info.iframePath = this.info.url;
+                this.info.iframeRoute = this.menuActive || '';
+                this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
                 return;
             }
             
@@ -375,12 +389,7 @@ export default {
                     this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?gpustackbox='+encodeURIComponent(this.info.frontendUrl + this.menuActive))
                 }
             }else if(this.isMicroPage){
-                if(this.info.load_mode=='iframe'){
-                    this.info.iframeSrcRoute = v;
-                    this.info.iframeSrc = this.info.iframeSrcPath + this.info.iframeSrcRoute;
-                }else{
-                    bus.$emit("routeChange", v.replace(/^#/,''));
-                }
+                this.routeChange(v);
             }else{
                 this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?appmicro='+encodeURIComponent(this.info.frontendUrl + this.menuActive)).then(res=>{
                     this.$nextTick(()=>{

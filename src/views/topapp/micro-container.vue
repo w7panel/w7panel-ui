@@ -63,12 +63,18 @@ export default{
         }catch{}
     },
     methods: {
+        buildIframeSrc(path, route){
+            const token = getToken();
+            const base = (path || '') + (route || '');
+            if(!token){ return base; }
+            return base + (base.includes('?') ? '&' : '?') + 'api-token=' + token;
+        },
         routeChange(v){
             if(this.info.load_mode === 'iframe'){
-                this.info.iframeRoute = v;
-                this.info.iframeSrc = this.info.iframePath + this.info.iframeRoute;
+                this.info.iframeRoute = v || '';
+                this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
             }else{
-                bus.$emit("routeChange", v.replace(/^#/,''));
+                bus.$emit("routeChange", (v || '').replace(/^#/,''));
             }
         },
         resetMicro(){
@@ -142,9 +148,9 @@ export default{
             })
 
             if(this.info.load_mode=='iframe'){
-                this.info.iframePath = data.proxyUrl;
+                this.info.iframePath = this.info.url;
                 this.info.iframeRoute = this.page || '';
-                this.info.iframeSrc = this.info.iframePath + this.info.iframeRoute;
+                this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
                 return;
             }
 
