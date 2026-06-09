@@ -288,8 +288,9 @@ export default{
                     ...this.register,
                     allowConsoleRegister: res?.data?.spec?.data?.allowConsoleRegister === 'true',
                     // showInShop: res?.data?.spec?.data?.showInShop === 'true',
-                    defaultPermissionName: res?.data?.spec?.data?.defaultPermissionName,
                     indexpage: res?.data?.spec?.data?.indexpage || 'login',
+                    defaultPermissionName: 'k3k.permission.normal',
+                    // defaultPermissionName: res?.data?.spec?.data?.defaultPermissionName,
                 }
             }).catch((err)=>{
                 if(err?.response?.status != 404){
@@ -316,7 +317,7 @@ export default{
                         ...this.register,
                         allowConsoleRegister: false,
                         // showInShop: false,
-                        defaultPermissionName: '',
+                        defaultPermissionName: 'k3k.permission.normal',
                         indexpage: 'login',
                     }
                 });
