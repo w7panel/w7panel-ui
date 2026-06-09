@@ -901,7 +901,7 @@ export default {
         testFileCache(){
             if(this.inRvproxy){return}
             let group = this.$route.params.group;
-            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps/'+group,{noAlert:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps/'+group,{noAlert:true}).then(res=>{
                 if(!res?.data){return Promise.reject();}
                 this.fileCache.exist = true;
                 this.fileCache.backendUrl = res.data?.spec?.backendUrl;
@@ -1081,7 +1081,7 @@ export default {
                     find.auto_ssl = this.formcard.auto_ssl;
                 }
                 
-                return k8sproxy.patch('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group,
+                return k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group,
                     {metadata: { annotations: {'w7.cc/ingress-domains': JSON.stringify(this.ingressDomains)}}},
                     {headers: {'Content-Type': 'application/merge-patch+json'}},
                 )
@@ -1095,7 +1095,7 @@ export default {
         },
         refreshGroup(){
             if(this.inRvproxy){return;}
-            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group).then(res=>{
+            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group).then(res=>{
                 this.groupData = res?.data;
                 this.appList = res.data?.status?.items?.map(i=>{
                     return {
@@ -1493,7 +1493,7 @@ export default {
         // 获取域名列表
         getList(callback){
 
-            k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups',{loading:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups',{loading:true}).then(res=>{
                 let allGroup = [];
                 let allAppList = {};
                 let list = res?.data?.items || [];
@@ -1864,7 +1864,7 @@ export default {
                 return;
             }
             
-            k8sproxy.patch('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
+            k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
                 metadata: { annotations: {'w7.cc/domains': arr} }
             }, {
                 headers: {'Content-Type': 'application/merge-patch+json'}
@@ -2007,7 +2007,7 @@ export default {
                     if(this.domainForm.is_default){
                         let domain = (this.domainForm.auto_ssl?'https://':'http://') + fullDomain;
                         try{
-                            await k8sproxy.patch('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
+                            await k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
                                 metadata: {
                                     annotations: { 'w7.cc/default-domain': domain }
                                 }
@@ -2062,7 +2062,7 @@ export default {
                             find.host = fullDomain;
                             find.auto_ssl = this.domainForm.auto_ssl;
                             
-                            k8sproxy.patch('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group,
+                            k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group,
                                 {metadata: { annotations: {'w7.cc/ingress-domains': JSON.stringify(this.ingressDomains)}}},
                                 {headers: {'Content-Type': 'application/merge-patch+json'}},
                             ).then(res=>{
@@ -2573,7 +2573,7 @@ export default {
 
                 this.ingressDomains.splice(this.ingressDomains.findIndex(i=>i.ing_name==row.name),1);
 
-                return k8sproxy.patch('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group,
+                return k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group,
                     {metadata:{annotations: {'w7.cc/ingress-domains': JSON.stringify(this.ingressDomains)}}},
                     {headers: {'Content-Type': 'application/merge-patch+json'}}
                 ).then(res=>{

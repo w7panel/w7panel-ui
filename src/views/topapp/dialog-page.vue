@@ -26,7 +26,7 @@ export default{
     },
     methods: {
         // getGroup(){
-        //     return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {loading:true}).then(async res=>{
+        //     return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {loading:true}).then(async res=>{
         //         let data = res?.data;
         //         this.identifie = data?.metadata?.annotations?.['w7.cc/identifie'];
         //     });

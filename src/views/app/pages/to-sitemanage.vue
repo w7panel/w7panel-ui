@@ -32,13 +32,13 @@ export default {
     },
     methods:{
         getZpk(){
-            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie=w7-sitemanager&limit=500').then(async res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie=w7-sitemanager&limit=500').then(async res=>{
                 if(!res?.data?.items?.[0]){
                     this.$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7_sitemanager');
                     return;
                 }
                 let group = res?.data?.items?.[0]?.metadata?.annotations?.['meta.helm.sh/release-name'];
-                // let {data} = await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ group,{loading:true})
+                // let {data} = await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ group,{loading:true})
                 // let menuActive = this.getMenu(data);
                 // let url = res.data.items[0]?.spec?.frontendUrl + menuActive;
                 

@@ -240,7 +240,7 @@ export default {
             });
         },
         getData(){
-            k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/'+this.$route.params.group).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/'+this.$route.params.group).then(res=>{
                 this.info = {
                     ...this.info,
                     version: res.data.spec.version,

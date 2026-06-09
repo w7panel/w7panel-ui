@@ -318,7 +318,7 @@ export default {
         },
 
         openBuildImage(){
-            k8sproxy.get(`/apis/buildimage.w7.cc/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=true`).then(res=>{
+            k8sproxy.get(`/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=true`).then(res=>{
                 let list = res.data?.items || [];
             })
         },

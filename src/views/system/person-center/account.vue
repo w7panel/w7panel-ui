@@ -181,8 +181,8 @@ export default {
                 if (err) { return; }
                 panelApi.post('/auth/reset-password-current', {
                     username: this.changePwd.username,
-                    password: encodeURIComponent(this.changePwd.oldPassword),
-                    newPassword: encodeURIComponent(this.changePwd.newPassword),
+                    password: this.changePwd.oldPassword,
+                    newPassword: this.changePwd.newPassword,
                 }).then((res) => {
                     if (!res?.data) { return; }
                     Message.success('修改成功，请重新登录');

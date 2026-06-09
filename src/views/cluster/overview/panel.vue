@@ -641,7 +641,7 @@ export default {
         // }).catch(()=>{
         //     this.noMonitor = true;
         // })
-        await k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/default/appgroups/w7panel-metrics',{noAlert:true}).then(res=>{
+        await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/default/appgroups/w7panel-metrics',{noAlert:true}).then(res=>{
             this.noMonitor = false;
             
             this.clusterMonitor.pickerValue = [
@@ -855,11 +855,11 @@ export default {
                     };
                 }
                 if(this.config.editType==2){
-                    k8sproxy.patch('/api/v1/namespaces/kube-system/configmaps/k3s.config',{
+                    k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config',{
                         metadata: {labels:{'data-hash': String(Date.now())}},
-                        data: {'k3s.cluster-init':"true"}
+                        spec: {data: {'k3s.cluster-init':"true"}}
                     },{
-                        headers: {'Content-Type': 'application/strategic-merge-patch+json'},
+                        headers: {'Content-Type': 'application/merge-patch+json'},
                     }).then(res=>{
                         this.$message.success('操作成功');
                         this.config.type = this.config.editType;
@@ -883,11 +883,11 @@ export default {
         setConfigtype3(){
             this.$refs.configdb.validate(err=>{
                 if(err){return}
-                k8sproxy.patch('/api/v1/namespaces/kube-system/configmaps/k3s.config',{
+                k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config',{
                     metadata: {labels:{'data-hash': String(Date.now())}},
-                    data: {'k3s.datastore-endpoint': this.config.form.dsn}
+                    spec: {data: {'k3s.datastore-endpoint': this.config.form.dsn}}
                 },{
-                    headers: {'Content-Type': 'application/strategic-merge-patch+json'},
+                    headers: {'Content-Type': 'application/merge-patch+json'},
                 }).then(res=>{
                     this.$message.success('操作成功');
                     this.config.type = this.config.editType;
@@ -904,14 +904,14 @@ export default {
         },
         getConfig(){
             // config
-            k8sproxy.get('/api/v1/namespaces/kube-system/configmaps/k3s.config').then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config').then(res=>{
                 // console.log(res.data);
                 let data = res?.data || {};
-                if(data.data?.['k3s.cluster-init']==='false' && data.data?.['k3s.datastore-endpoint']===''){
+                if(data.spec?.data?.['k3s.cluster-init']==='false' && data.spec?.data?.['k3s.datastore-endpoint']===''){
                     this.config.type = this.config.editType = 1;
-                }else if(data.data?.['k3s.cluster-init']==='true'){
+                }else if(data.spec?.data?.['k3s.cluster-init']==='true'){
                     this.config.type = this.config.editType = 2;
-                }else if(data.data?.['k3s.datastore-endpoint']!==''){
+                }else if(data.spec?.data?.['k3s.datastore-endpoint']!==''){
                     this.config.type = this.config.editType = 3;
                 }
             })
@@ -1092,7 +1092,7 @@ export default {
                     return (is_auto_ssl?'https://':'http://') + host + (path=='/'?'':path);
                 })
                 // 修改group
-                return k8sproxy.patch('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.domain.groupName,
+                return k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.domain.groupName,
                     {metadata: { annotations: {'w7.cc/domains': JSON.stringify(arr)}}},
                     {headers: {'Content-Type': 'application/merge-patch+json'}},
                 );
@@ -1488,7 +1488,7 @@ export default {
                 })
             })
 
-            k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then(async res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then(async res=>{
                 let list = res?.data?.items || [];
                 this.info.deployments = list.length;
             });

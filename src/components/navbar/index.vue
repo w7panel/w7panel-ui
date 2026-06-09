@@ -246,8 +246,8 @@ const submitPwd = () => {
         }
         panelApi.post('/auth/reset-password-current', {
             username: changePwd.username,
-            password: encodeURIComponent(changePwd.oldPassword),
-            newPassword: encodeURIComponent(changePwd.newPassword),
+            password: changePwd.oldPassword,
+            newPassword: changePwd.newPassword,
         }).then((res) => {
             if (!res?.data) {
                 return;

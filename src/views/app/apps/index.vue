@@ -280,7 +280,7 @@ export default {
     },
     methods: {
         submitEditTitle(){
-            k8sproxy.patch('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.editTitle.appgroup,[{
+            k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.editTitle.appgroup,[{
                 op: 'replace',
                 path: '/spec/title',
                 value: this.editTitle.title
@@ -293,7 +293,7 @@ export default {
             })
         },
         getZpk(){
-            // k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps?labelSelector=w7.cc/identifie=w7-zpkv2',{noAlert:true}).then(res=>{
+            // k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps?labelSelector=w7.cc/identifie=w7-zpkv2',{noAlert:true}).then(res=>{
             //     if(res?.data?.items?.length){ this.zpk.show = true; }
             // })
             panelApi.get('/microapp/w7-zpkv2-root/info',{noAlert:true}).then(res=>{
@@ -379,7 +379,7 @@ export default {
             //     await k8sproxy.delete("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+dm, {noAlert:true, loading: true});
             // }
 
-            k8sproxy.delete('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+item.groupName).then(res=>{
+            k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+item.groupName).then(res=>{
                 this.$message.success('删除成功');
                 this.getList();
             })
@@ -399,7 +399,7 @@ export default {
         //     })
         // },
         refreshList(){
-            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then((res)=>{
+            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then((res)=>{
                 let list = res?.data?.items || [];
                 list = list.filter(i=>!i?.metadata?.labels?.['w7.cc/parent']).map(i=>{
                     

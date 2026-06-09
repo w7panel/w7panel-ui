@@ -184,7 +184,7 @@ export default {
                 })
             })
 
-            // k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ this.identifie +'&limit=500').then(res=>{
+            // k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ this.identifie +'&limit=500').then(res=>{
             //     if(!res?.data?.items?.[0]){
             //         // this.$router.push('/app/store?keyword=GPUSTACK');
             //         this.$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/gpustack_backend');

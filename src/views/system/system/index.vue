@@ -227,13 +227,14 @@ export default{
                 list = list.filter(i=>i);
                 this.domainParse.alist = list;
             }).catch(()=>{});
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-parse',{noAlert:true,loading:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/domainparseconfigs/domain-parse',{noAlert:true,loading:true}).then(res=>{
+                let spec = res.data?.spec || {};
                 this.domainParse = {
                     ...this.domainParse,
                     exist: true,
-                    type: res.data?.data?.type || 'A',
-                    cname: res.data?.data?.cname || '',
-                    ips: res.data?.data?.ips?.split?.(',') || [],
+                    type: spec.type || 'A',
+                    cname: spec.cname || '',
+                    ips: spec.ips || [],
                 }
             }).catch(()=>{
                 this.domainParse = {
@@ -246,15 +247,16 @@ export default{
             })
         },
         initFiling(){
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/beian',{noAlert:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/filingconfigs/beian',{noAlert:true}).then(res=>{
+                let spec = res.data?.spec || {};
                 this.filing = {
                     exist: true,
-                    icpnumber: res.data?.data?.icpnumber || '',
-                    number: res.data?.data?.number || '',
-                    location: res.data?.data?.location || '',
-                    locationNumber: res.data?.data?.location || '',
-                    license: res.data?.data?.license || '',
-                    tbol: res.data?.data?.tbol || '',
+                    icpnumber: spec.icpnumber || '',
+                    number: spec.number || '',
+                    location: spec.location || '',
+                    locationNumber: spec.location || '',
+                    license: spec.license || '',
+                    tbol: spec.tbol || '',
                 }
             }).catch(()=>{
                 this.filing = {
@@ -281,33 +283,35 @@ export default{
                 })
                 this.permissionPackageList = list;
             });
-            k8sproxy.get('/api/v1/namespaces/kube-system/configmaps/k3k.config',{noAlert:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{noAlert:true}).then(res=>{
                 this.register = {
                     ...this.register,
-                    allowConsoleRegister: res?.data?.data?.allowConsoleRegister === 'true',
-                    // showInShop: res?.data?.data?.showInShop === 'true',
-                    defaultPermissionName: res?.data?.data?.defaultPermissionName,
-                    indexpage: res?.data?.data?.indexpage || 'login',
+                    allowConsoleRegister: res?.data?.spec?.data?.allowConsoleRegister === 'true',
+                    // showInShop: res?.data?.spec?.data?.showInShop === 'true',
+                    defaultPermissionName: res?.data?.spec?.data?.defaultPermissionName,
+                    indexpage: res?.data?.spec?.data?.indexpage || 'login',
                 }
             }).catch((err)=>{
                 if(err?.response?.status != 404){
-                    if(error?.response?.data?.message){
-                        this.$message.error(error?.response?.data?.message);
+                    if(err?.response?.data?.message){
+                        this.$message.error(err?.response?.data?.message);
                     }
                     return;
                 }
                 
                 let o = {
-                    apiVersion: 'v1',
-                    kind: 'ConfigMap',
+                    apiVersion: 'w7panel.w7.com/v1alpha1',
+                    kind: 'K3kConfig',
                     metadata: {
                         name: 'k3k.config',
                         labels: {},
                         annotations: {},
                     },
-                    data: {},
+                    spec: {
+                        data: {},
+                    },
                 }
-                k8sproxy.post("/api/v1/namespaces/kube-system/configmaps", o,{loading:true}).then(res=>{
+                k8sproxy.post("/apis/w7panel.w7.com/v1alpha1/k3kconfigs", o,{loading:true}).then(res=>{
                     this.register = {
                         ...this.register,
                         allowConsoleRegister: false,
@@ -326,43 +330,44 @@ export default{
             }).catch(()=>{});
         },
         submitdomainParse(){
-            let o = {
+            let spec = {
                 type: this.domainParse.type,
                 ...(this.domainParse.type=='A'?{
-                    ips: this.domainParse.ips?.join(','),
+                    ips: this.domainParse.ips || [],
                 }:{
                     cname: this.domainParse.cname,
                 })
             }
             if(this.domainParse.exist){
-                k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-parse', {
-                    data: o
+                k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/domainparseconfigs/domain-parse', {
+                    spec,
                 },{
                     headers: {'Content-Type': 'application/merge-patch+json'}
                 }).then(()=>{
                     this.$message.success('操作成功');
                 }).catch(()=>{});
             }else{
-                k8sproxy.post('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps',{
-                    kind: 'ConfigMap',
-                    apiVersion: 'v1',
+                k8sproxy.post('/apis/w7panel.w7.com/v1alpha1/domainparseconfigs',{
+                    kind: 'DomainParseConfig',
+                    apiVersion: 'w7panel.w7.com/v1alpha1',
                     metadata: {
                         name: 'domain-parse',
-                        namespace: this.namespaceActive,
                     },
-                    data: o,
+                    spec,
                 }).then(()=>{
                     this.$message.success('操作成功');
                 }).catch(()=>{});
             }
         },
         async submitRegister(){
-            await k8sproxy.patch('/api/v1/namespaces/kube-system/configmaps/k3k.config',{
-                data:{
-                    allowConsoleRegister: String(this.register.allowConsoleRegister),
-                    // showInShop: String(this.register.showInShop),
-                    defaultPermissionName: this.register.defaultPermissionName,
-                    indexpage: this.register.indexpage,
+            await k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{
+                spec:{
+                    data:{
+                        allowConsoleRegister: String(this.register.allowConsoleRegister),
+                        // showInShop: String(this.register.showInShop),
+                        defaultPermissionName: this.register.defaultPermissionName,
+                        indexpage: this.register.indexpage,
+                    },
                 }
             },{
                 headers: {'Content-Type': 'application/merge-patch+json'}
@@ -409,7 +414,7 @@ export default{
         submitFiling(){
             let number = this.filing.locationNumber.match(/(\d{14})/)?.[1];
             let location = this.filing.locationNumber;
-            let o = {
+            let spec = {
                 icpnumber: this.filing.icpnumber,
                 number: number,
                 location: location,
@@ -417,22 +422,21 @@ export default{
                 tbol: this.filing.tbol,
             }
             if(this.filing.exist){
-                k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/beian', {
-                    data: o
+                k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/filingconfigs/beian', {
+                    spec,
                 },{
                     headers: {'Content-Type': 'application/merge-patch+json'}
                 }).then(()=>{
                     this.$message.success('操作成功');
                 }).catch(()=>{});
             }else{
-                k8sproxy.post('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps',{
-                    kind: 'ConfigMap',
-                    apiVersion: 'v1',
+                k8sproxy.post('/apis/w7panel.w7.com/v1alpha1/filingconfigs',{
+                    kind: 'FilingConfig',
+                    apiVersion: 'w7panel.w7.com/v1alpha1',
                     metadata: {
                         name: 'beian',
-                        namespace: this.namespaceActive,
                     },
-                    data: o,
+                    spec,
                 }).then(()=>{
                     this.$message.success('操作成功');
                 }).catch(()=>{});
@@ -472,14 +476,14 @@ export default{
                 bandwidth: 1000,
                 bandwidthPercent: 1000,
             };
-            await k8sproxy.get('/api/v1/namespaces/kube-system/configmaps/k3k.overselling.config',{noAlert:true}).then(res=>{
+            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/k3k.overselling.config',{noAlert:true}).then(res=>{
                 this.oversold.exist = true;
-                let data = res.data.data;
-                this.oversold.cpuPercent = Number(data.cpu);
-                this.oversold.memoryPercent = Number(data.memory);
-                this.oversold.storagePercent = Number(data.storage);
-                this.oversold.bandwidthPercent = Number(data.bandwidth);
-                this.oversold.bandwidth = Number(data.bandwidthNum);
+                let spec = res.data.spec;
+                this.oversold.cpuPercent = Number(spec.cpu);
+                this.oversold.memoryPercent = Number(spec.memory);
+                this.oversold.storagePercent = Number(spec.storage);
+                this.oversold.bandwidthPercent = Number(spec.bandwidth);
+                this.oversold.bandwidth = Number(spec.bandwidthNum);
             }).catch(()=>{
                 this.oversold.exist = false;
             });
@@ -487,31 +491,31 @@ export default{
         async submitOversold(){
             let exist = this.oversold.exist;
             
-            let o = {
-                cpu: String(this.oversold.cpuPercent),
-                memory: String(this.oversold.memoryPercent),
-                storage: String(this.oversold.storagePercent),
-                bandwidth: String(this.oversold.bandwidthPercent),
-                bandwidthNum: String(this.oversold.bandwidth),
+            let spec = {
+                cpu: Number(this.oversold.cpuPercent),
+                memory: Number(this.oversold.memoryPercent),
+                storage: Number(this.oversold.storagePercent),
+                bandwidth: Number(this.oversold.bandwidthPercent),
+                bandwidthNum: Number(this.oversold.bandwidth),
             }
 
             if(exist){
-                k8sproxy.patch("/api/v1/namespaces/kube-system/configmaps/k3k.overselling.config",{data:o},{
+                k8sproxy.patch("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/k3k.overselling.config",{spec},{
                     loading: true,
-                    headers: {'Content-Type': 'application/strategic-merge-patch+json'},
+                    headers: {'Content-Type': 'application/merge-patch+json'},
                 }).then(()=>{
                     this.$message.success('操作成功');
                 })
             }else{
-                k8sproxy.post("/api/v1/namespaces/kube-system/configmaps", {
-                    apiVersion: 'v1',
-                    kind: 'ConfigMap',
+                k8sproxy.post("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs", {
+                    apiVersion: 'w7panel.w7.com/v1alpha1',
+                    kind: 'OverSellingConfig',
                     metadata: {
                         name: 'k3k.overselling.config',
                         labels: {},
                         annotations: {},
                     },
-                    data: o
+                    spec,
                 },{loading:true}).then(res=>{
                     this.$message.success('操作成功');
                 });

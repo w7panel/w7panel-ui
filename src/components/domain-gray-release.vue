@@ -189,7 +189,7 @@ export default {
         },
         getAllAgent(){
 
-            k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then(res=>{
                 let allGroup = [];
                 let allAppList = {};
                 let list = res?.data?.items || [];

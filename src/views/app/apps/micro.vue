@@ -74,7 +74,7 @@ export default {
             bus.$emit("routeChange", v.replace(/^#/,''));
         },
         getGroup(){
-            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {loading:true}).then(async res=>{
+            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {loading:true}).then(async res=>{
                 let data = res?.data;
                 this.title = data?.metadata?.annotations?.title || data?.metadata?.name;
                 this.isHelm = data?.spec?.isHelm;
@@ -106,7 +106,7 @@ export default {
             })
         },
         getFront(identifie,data){
-            k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ identifie +'&limit=500').then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ identifie +'&limit=500').then(res=>{
 
                 let item  = res?.data?.items?.[0];
                 if(!item){

@@ -118,7 +118,7 @@ export default {
             }
         },
         getZpk(){
-            // k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps?labelSelector=w7.cc/identifie='+this.$route.params.name).then(res=>{
+            // k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps?labelSelector=w7.cc/identifie='+this.$route.params.name).then(res=>{
             //     let webUrl = res?.data?.items?.[0]?.spec?.config?.props?.webUrl;
             //     if(!webUrl){return}
             //     this.webUrl = webUrl;

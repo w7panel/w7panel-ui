@@ -186,6 +186,7 @@ export default{
                     icon: '',
                     styleIndex: 0,
                     file: null,
+                    data: null,
                 }
             }else{
                 this.form = {
@@ -203,31 +204,34 @@ export default{
                     styleIndex: Number(row.style),
                     index: row.index || 1,
                     file: null,
+                    data: row.data,
                 }
             }
         },
         getList(){
-            k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps?labelSelector=type=contactus").then(res=>{
+            k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/contactconfigs").then(res=>{
                 let list = res?.data?.items || [];
                 this.list = list.map(i=>{
+                    let spec = i.spec || {};
                     return {
-                        type: i.data.type,
-                        name: i.data.name,
-                        showName: i.data.showName == 'true',
+                        type: spec.type,
+                        name: spec.name,
+                        showName: !!spec.showName,
                         configmapName: i.metadata.name,
-                        text: i.data.text,
-                        link: i.data.link,
-                        customIcon: Boolean(i.binaryData.icon),
-                        icon: i.binaryData.icon? i.data.iconHeader + i.binaryData.icon : i.data.selicon,
-                        qrcode: i.data.qrcodeHeader + i.binaryData.qrcode,
-                        style: i.data.style,
-                        index: Number(i.data.index) || 1,
+                        text: spec.text,
+                        link: spec.link,
+                        customIcon: Boolean(spec.icon),
+                        icon: spec.icon || spec.selicon,
+                        qrcode: spec.qrcode,
+                        style: spec.style,
+                        index: Number(spec.index) || 1,
+                        data: i,
                     }
                 })
             })
         },
         del(row){
-            k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+row.configmapName).then(res=>{
+            k8sproxy.delete("/apis/w7panel.w7.com/v1alpha1/contactconfigs/"+row.configmapName).then(res=>{
                 this.$message.success('操作成功');
                 this.getList();
             })
@@ -248,31 +252,23 @@ export default{
             this.$refs.form.validate(err=>{
                 if (err) { this.$refs.form.scrollToField(Object.keys(err)[0]); return; }
 
-                // 创建configmap
                 let data = {
-                    apiVersion: 'v1',
-                    kind: 'ConfigMap',
+                    apiVersion: 'w7panel.w7.com/v1alpha1',
+                    kind: 'ContactConfig',
                     metadata: {
                         name: this.form.configmapName || 'contact-us-' + this.createName(),
-                        labels: {
-                            type: 'contactus',
-                        },
                     },
-                    data: {
+                    spec: {
                         link: this.form.link,
                         text: this.form.text,
                         type: this.form.type,
                         selicon: this.form.selicon,
                         name: this.form.name,
-                        showName: this.form.showName? 'true' : 'false',
+                        showName: !!this.form.showName,
                         style: String(this.form.styleIndex),
-                        index: String(this.form.index || 1),
-                        qrcodeHeader: this.form.qrcode?.match?.(/^.*base64,/)?.[0] || '',
-                        iconHeader: this.form.icon?.match?.(/^.*base64,/)?.[0] || '',
-                    },
-                    binaryData: {
-                        qrcode: this.form.type=='qrcode'? (this.form.qrcode?.replace?.(/^.*base64,/,'') || '') : '',
-                        icon: this.form.icon?.replace?.(/^.*base64,/,'') || '',
+                        index: Number(this.form.index || 1),
+                        qrcode: this.form.type=='qrcode'? (this.form.qrcode || '') : '',
+                        icon: this.form.icon || '',
                     },
                 }
                 const callback = ()=>{
@@ -281,9 +277,10 @@ export default{
                     this.getList();
                 }
                 if(this.form.configmapName){
-                    k8sproxy.put("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+this.form.configmapName,data).then(callback)
+                    data.metadata.resourceVersion = this.form?.data?.metadata?.resourceVersion || '';
+                    k8sproxy.put("/apis/w7panel.w7.com/v1alpha1/contactconfigs/"+this.form.configmapName,data).then(callback)
                 }else{
-                    k8sproxy.post("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps",data).then(callback)
+                    k8sproxy.post("/apis/w7panel.w7.com/v1alpha1/contactconfigs",data).then(callback)
                 }
             })
         },
@@ -299,15 +296,15 @@ export default{
         updateIndex(row){
             // 使用 patch 请求直接更新 index 字段
             k8sproxy.patch(
-                "/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+row.configmapName,
+                "/apis/w7panel.w7.com/v1alpha1/contactconfigs/"+row.configmapName,
                 {
-                    data: {
-                        index: String(row.index || 1)
+                    spec: {
+                        index: Number(row.index || 1)
                     }
                 },
                 {
                     headers: {
-                        'Content-Type': 'application/strategic-merge-patch+json'
+                        'Content-Type': 'application/merge-patch+json'
                     }
                 }
             ).then(()=>{

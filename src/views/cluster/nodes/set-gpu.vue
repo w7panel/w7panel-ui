@@ -174,7 +174,7 @@ export default {
     },
     methods: {
         async testInstall(){
-            return k8sproxy.get('/apis/appgroup.w7.cc/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/vgpu-hami',{noAlert:true}).then(res=>{
+            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/vgpu-hami',{noAlert:true}).then(res=>{
                 this.isInstall = true;
             }).catch(()=>{})
         },
@@ -189,7 +189,7 @@ export default {
                 gpuOperatorMode = r.gpuOperatorMode || '0';
             });
             
-            k8sproxy.get('/apis/gpuclass.k8s.io/v1alpha1/namespaces/'+this.namespaceActive+'/gpuclasses?limit=500').then(async res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/gpuclasses?limit=500').then(async res=>{
                 let items = res.data?.items || [];
                 // this.data.typeList = items.map(i=>({
                 //     label: i.metadata?.annotations?.title || i.metadata.name,
@@ -293,7 +293,7 @@ export default {
         // addGpu(){
         //     if(this.data.list.length){return}
         //     let data = {
-        //         apiVersion: 'gpuclass.k8s.io/v1alpha1',
+        //         apiVersion: 'w7panel.w7.com/v1alpha1',
         //         kind: 'GpuClass',
         //         metadata: {
         //             name: 'nvidia-gpu',
@@ -308,7 +308,7 @@ export default {
         //             zpkUrl: 'https://zpk.w7.cc/zpk/respo/info/nvidia_gpuoperator'
         //         }
         //     };
-        //     k8sproxy.post('//apis/gpuclass.k8s.io/v1alpha1/namespaces/default/gpuclasses',data,{loading:true}).then(res=>{
+        //     k8sproxy.post('//apis/w7panel.w7.com/v1alpha1/namespaces/default/gpuclasses',data,{loading:true}).then(res=>{
         //         this.init();
         //     })
         // },

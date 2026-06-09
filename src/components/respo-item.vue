@@ -119,7 +119,7 @@ export default {
             
             let token = '';
             
-            // await k8sproxy.get('/apis/microapp.w7.cc/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps/'+this.$route.params.name,{noAlert:true,loading:true}).then(res=>{
+            // await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps/'+this.$route.params.name,{noAlert:true,loading:true}).then(res=>{
             //     token = res.data?.spec?.config?.props?.OAUTH_TOKEN;
             // })
             
