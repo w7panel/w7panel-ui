@@ -220,6 +220,7 @@ export default {
         registerWujieEvent('buildContainerImage', this.openBuildContainerImage);
         registerWujieEvent('getOidcCode', this.getOidcCode);
         registerWujieEvent('changeLogin', this.changeLogin);
+        registerWujieEvent('getRole', this.getRole)
 
 // 测试
 // setTimeout(()=>{
@@ -246,6 +247,9 @@ export default {
         buildImageStatus,
     },
     methods: {
+        getRole(callback){
+            callback(['founder','normal','super'])
+        },
         async changeLogin({token,refreshToken} = {}){
             if(!token){ return; }
 
