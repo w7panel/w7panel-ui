@@ -248,7 +248,16 @@ export default {
     },
     methods: {
         getRole(callback){
-            callback(['founder','normal','super'])
+            callback([{
+                name: 'founder',
+                title: '创始人',
+            },{
+                name: 'normal',
+                title: '普通用户',
+            },{
+                name: 'super',
+                title: '管理员',
+            }])
         },
         async changeLogin({token,refreshToken} = {}){
             if(!token){ return; }
