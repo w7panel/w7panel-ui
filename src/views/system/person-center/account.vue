@@ -36,19 +36,6 @@
                 <template v-if="isRegister">
                     <descriptions-item label="昵称">{{ cloudUserInfo.nickname || '-' }}</descriptions-item>
                     <descriptions-item label="云端UID">{{ cloudUserInfo.user_id || '-' }}</descriptions-item>
-                    <descriptions-item label="授权类型">{{ cloudInfo.licenseTypeText }}</descriptions-item>
-                    <descriptions-item label="到期时间">{{ cloudInfo.licenseEndTime }}</descriptions-item>
-                    <descriptions-item label="注册地址">{{ cloudInfo.offlineUrl }}</descriptions-item>
-                    <descriptions-item label="云端扩展">
-                        <div class="df ai-c">
-                            <a href="https://c.w7.com/api/deploy/thirdparty_cd/redirect" target="_blank" class="c-blue cursor">
-                                云端集群管理<icon-launch class="ml-4" />
-                            </a>
-                            <a href="javascript:;" class="c-blue cursor ml-20" @click="$router.push('/app/cloudstore')">
-                                云端应用商店<icon-launch class="ml-4" />
-                            </a>
-                        </div>
-                    </descriptions-item>
                 </template>
             </a-descriptions>
         </div>
