@@ -183,9 +183,40 @@
                         <whitelist-component ref="whitelist" :data="form.whitelist"></whitelist-component>
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
-                        <a-form-item label="API规则">
-                            <a-textarea v-model="form.apiText" :auto-size="{minRows: 8, maxRows: 16}" placeholder='{"*":["*"],"/panel-api/v1/helm/*":["get","list"]}' />
-                            <template #extra>JSON对象，key为/panel-api/v1路径或通配符，value为空数组表示显式拒绝。</template>
+                        <a-form-item label="全部API">
+                            <a-switch v-model="form.apiAll" :disabled="form.name==founderName"></a-switch>
+                        </a-form-item>
+                        <a-form-item label="API列表" v-if="!form.apiAll">
+                            <div class="api-permission-panel">
+                                <div class="api-permission-toolbar">
+                                    <a-input-search v-model="form.apiSearch" placeholder="搜索 URL / Method" allow-clear />
+                                    <a-space>
+                                        <a-button size="small" @click="selectAllApiRoutes">全选</a-button>
+                                        <a-button size="small" @click="clearApiRoutes">清空</a-button>
+                                    </a-space>
+                                </div>
+                                <div class="api-permission-table">
+                                    <table class="com-table">
+                                        <tbody>
+                                            <tr>
+                                                <td style="width:54px;">选择</td>
+                                                <td style="width:90px;">Method</td>
+                                                <td>URL</td>
+                                            </tr>
+                                            <tr v-for="route in filteredApiRoutes" :key="apiRouteKey(route)">
+                                                <td>
+                                                    <a-checkbox
+                                                        :model-value="form.apiSelectedKeys.includes(apiRouteKey(route))"
+                                                        @change="checked => toggleApiRoute(route, checked)"
+                                                    />
+                                                </td>
+                                                <td>{{ route.method }}</td>
+                                                <td class="api-path">{{ route.path }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </a-form-item>
                     </a-tab-pane>
                 </a-tabs>
@@ -200,6 +231,7 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
+import { panelApi } from '@/utils/api';
 import axios from 'axios';
 import menuSelect from '@/views/system/permission/menu-select.vue';
 import { useNamespaceStore } from '@/store';
@@ -249,7 +281,10 @@ export default {
                 fileeditor: false,
                 clustermode: 'virtual',
                 permission: [],
-                apiText: '{}',
+                apiAll: false,
+                apiSearch: '',
+                apiSelectedKeys: [],
+                apiExtraRules: {},
                 parentPermission: '',
             },
             rules: {
@@ -267,12 +302,24 @@ export default {
             virtualTreeData: [],
 
             founderName: 'k3k.permission.founder',
+            apiRoutes: [],
         }
     },
     created(){
         this.debug = getUserInfo()?.['w7.cc/debug']=='true';
         this.namespaceActive = useNamespaceStore().namespace;
+        this.getApiRoutes();
         this.getList();
+    },
+    computed: {
+        filteredApiRoutes(){
+            let keyword = String(this.form.apiSearch || '').trim().toLowerCase();
+            if(!keyword){return this.apiRoutes;}
+            return this.apiRoutes.filter(route => {
+                return String(route.method || '').toLowerCase().includes(keyword)
+                    || String(route.path || '').toLowerCase().includes(keyword);
+            });
+        },
     },
     components: {
         menuSelect,
@@ -329,6 +376,16 @@ export default {
                 this.list = list;
             })
         },
+        getApiRoutes(){
+            panelApi.get('/auth/permissions/routes', {noAlert:true}).then(res=>{
+                let list = res?.data?.data || res?.data || [];
+                this.apiRoutes = Array.isArray(list) ? list : [];
+                this.form = {
+                    ...this.form,
+                    apiSelectedKeys: this.normalizeApiSelectedKeys(this.form.apiSelectedKeys),
+                };
+            });
+        },
         // add(){
         //     this.form = {
         //         show: true,
@@ -380,7 +437,7 @@ export default {
                 webshell: row.webshell,
                 fileeditor: row.fileeditor,
                 whitelist: row.whitelist,
-                apiText: JSON.stringify(row.api || {}, null, 2),
+                ...this.apiToForm(row.api || {}),
                 parentPermission: row.parentPermission || row.originData?.spec?.parentPermission || '',
             }
         },
@@ -398,13 +455,7 @@ export default {
                 }
 
                 let whitelist = this.$refs.whitelist.getList() || [];
-                let api = {};
-                try{
-                    api = JSON.parse(this.form.apiText || '{}');
-                }catch(e){
-                    this.$message.error('API规则必须是合法JSON对象');
-                    return;
-                }
+                let api = this.formToApi();
 
                 if(!this.form.name || this.form.isAdd){
                     let data = null;
@@ -487,10 +538,97 @@ export default {
             }
             return p;
         },
+        apiRouteKey(route){
+            return `${route.method} ${route.path}`;
+        },
+        normalizeApiSelectedKeys(keys){
+            let valid = new Set(this.apiRoutes.map(route => this.apiRouteKey(route)));
+            return (keys || []).filter(key => valid.has(key));
+        },
+        apiToForm(api){
+            let rules = api || {};
+            let apiAll = Array.isArray(rules['*']) && rules['*'].includes('*');
+            let selected = [];
+            let routeKeys = new Set();
+            this.apiRoutes.forEach(route => {
+                let key = this.apiRouteKey(route);
+                routeKeys.add(key);
+                let verbs = rules[route.path] || [];
+                if(apiAll || verbs.includes('*') || verbs.includes(route.verb)){
+                    selected.push(key);
+                }
+            });
+            let extraRules = {};
+            Object.keys(rules).forEach(path => {
+                if(path === '*'){return}
+                let matched = this.apiRoutes.some(route => route.path === path);
+                if(!matched){
+                    extraRules[path] = rules[path];
+                }
+            });
+            return {
+                apiAll: apiAll,
+                apiSearch: '',
+                apiSelectedKeys: selected,
+                apiExtraRules: extraRules,
+            };
+        },
+        formToApi(){
+            if(this.form.apiAll){
+                return {'*': ['*']};
+            }
+            let api = {...(this.form.apiExtraRules || {})};
+            let selected = new Set(this.form.apiSelectedKeys || []);
+            this.apiRoutes.forEach(route => {
+                if(!selected.has(this.apiRouteKey(route))){return}
+                if(!api[route.path]){
+                    api[route.path] = [];
+                }
+                if(!api[route.path].includes(route.verb)){
+                    api[route.path].push(route.verb);
+                }
+            });
+            return api;
+        },
+        toggleApiRoute(route, checked){
+            let key = this.apiRouteKey(route);
+            let selected = new Set(this.form.apiSelectedKeys || []);
+            if(checked){
+                selected.add(key);
+            }else{
+                selected.delete(key);
+            }
+            this.form.apiSelectedKeys = Array.from(selected);
+        },
+        selectAllApiRoutes(){
+            this.form.apiSelectedKeys = this.apiRoutes.map(route => this.apiRouteKey(route));
+        },
+        clearApiRoutes(){
+            this.form.apiSelectedKeys = [];
+        },
     }
 }
 </script>
 
 <style>
-
+.api-permission-panel {
+    width: 100%;
+}
+.api-permission-toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.api-permission-toolbar :deep(.arco-input-wrapper) {
+    max-width: 360px;
+}
+.api-permission-table {
+    max-height: 420px;
+    overflow: auto;
+}
+.api-path {
+    word-break: break-all;
+}
 </style>
