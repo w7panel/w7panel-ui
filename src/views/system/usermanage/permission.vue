@@ -321,26 +321,27 @@ export default {
         apiRouteGroups(){
             let groupMap = {};
             this.apiRoutes.forEach(route => {
+                let description = this.apiRouteDescription(route);
                 if(!groupMap[route.path]){
                     groupMap[route.path] = {
                         path: route.path,
-                        title: route.title || '',
+                        title: description,
                         routes: [],
                     };
                 }
-                if(!groupMap[route.path].title && route.title){
-                    groupMap[route.path].title = route.title;
+                if(!groupMap[route.path].title && description){
+                    groupMap[route.path].title = description;
                 }
                 groupMap[route.path].routes.push(route);
             });
             return Object.values(groupMap).map(group => {
                 group.routes.sort((a, b) => this.methodOrder(a.method) - this.methodOrder(b.method));
-                let titles = Array.from(new Set(group.routes.map(route => route.title).filter(Boolean)));
+                let titles = Array.from(new Set(group.routes.map(route => this.apiRouteDescription(route)).filter(Boolean)));
                 group.title = titles.length <= 1
                     ? (titles[0] || '')
                     : group.routes
-                        .filter(route => route.title)
-                        .map(route => `${route.method} ${route.title}`)
+                        .filter(route => this.apiRouteDescription(route))
+                        .map(route => `${route.method} ${this.apiRouteDescription(route)}`)
                         .join('；');
                 return group;
             });
@@ -574,6 +575,9 @@ export default {
         },
         apiRouteKey(route){
             return `${route.method} ${route.path}`;
+        },
+        apiRouteDescription(route){
+            return route?.description || route?.title || route?.Description || route?.Title || '';
         },
         methodOrder(method){
             return {
