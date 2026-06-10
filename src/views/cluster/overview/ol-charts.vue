@@ -29,6 +29,7 @@ import { useDarkStore } from '@/store'
 import { getUserInfo } from '@/utils/auth';
 import dayjs from 'dayjs'
 import { getMetricsService, DEFAULT_METRICS_SERVICE } from '@/utils/metrics-service';
+import { markRaw } from 'vue'
 
 export default {
     props: ['list','node','activeType','noMonitor','pickerValue','step','virtualDiskFilterCache','metricsServices'],
@@ -157,7 +158,6 @@ export default {
         }
     },
     methods: {
-        resize(){},
         async ensureMetricsService(){
             this.currentMetricsService = this.metricsServices || await getMetricsService();
         },
@@ -561,18 +561,15 @@ export default {
                 if(!option.series.length){ return; }
                 let dom = document.getElementById(chartType.replaceAll('-','')+'Chart')
                 if(dom){
-                    let sameDom = this.chart && this.chart.getDom && this.chart.getDom() === dom;
-                    if(!sameDom){
-                        this.chart?.dispose?.();
-                        dom.removeAttribute("_echarts_instance_");
-                        this.chart = echarts.init(dom);
-                        window.removeEventListener("resize",  this.resize);
-                        this.resize = ()=>{
-                            this.chart?.resize();
-                        }
-                        window.addEventListener("resize",  this.resize);
-                    }
+                    
+                    this.chart?.dispose?.();
+                    this.chart = markRaw(echarts.init(dom));
                     this.chart?.setOption(option,true);
+                    window.removeEventListener("resize",  this.resize);
+                    this.resize = ()=>{
+                        this.chart?.resize();
+                    }
+                    window.addEventListener("resize",  this.resize);
                 }
             }
         },

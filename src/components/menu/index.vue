@@ -6,6 +6,7 @@
   import { useAppStore } from '@/store';
   import { openWindow, regexUrl } from '@/utils';
   import useMenuTree from './use-menu-tree';
+  import { getK8sinfo } from '@/utils/auth';
 
   export default defineComponent({
     emit: ['collapse'],
@@ -166,12 +167,16 @@
         return travel(menuTree.value as RouteRecordRaw[], [], true);
       };
 
+      const ckmname = getK8sinfo()['w7.cc/cvm-name'];
       return () => (
         <div class="menu-panel">
           {showMicroBack.value ? (
             <div class="menu-micro-back" onClick={goBackFromMicro}>
-              <icon-left />
-              <span>返回</span>
+              <icon-arrow-left class="c-blue" />
+              <div class="ml-10">
+                <div class="b fs-16" style="line-height:18px;">云主机列表</div>
+                <div class="mt-8 fs-12 c-66">{ckmname}</div>
+              </div>
             </div>
           ) : null}
           <a-menu
@@ -203,11 +208,7 @@
   }
   .menu-micro-back {
     display: flex;
-    flex: 0 0 44px;
-    align-items: center;
-    gap: 8px;
-    height: 44px;
-    padding: 0 16px;
+    padding: 10px 16px;
     color: var(--color-text-1);
     cursor: pointer;
     border-bottom: 1px solid var(--color-border-2);

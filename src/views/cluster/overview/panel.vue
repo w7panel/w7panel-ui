@@ -434,6 +434,7 @@ import axios from "axios";
 import {useNamespaceStore,useLoadingStore} from "@/store";
 import olCharts from "./ol-charts.vue";
 import * as echarts from 'echarts'
+import { markRaw } from 'vue'
 import { useDarkStore } from '@/store'
 import dayjs from 'dayjs'
 import { getToken } from '@/utils/auth';
@@ -1533,7 +1534,7 @@ export default {
             let dom = document.getElementById(c.dom);
             if (!dom) return;
             dom?.removeAttribute("_echarts_instance_");
-            let chart = echarts.init(dom);
+            let chart = markRaw(echarts.init(dom));
             if (this.chartInstances[c.dom]) {
                 this.chartInstances[c.dom].dispose();
             }
