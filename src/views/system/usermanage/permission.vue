@@ -189,7 +189,7 @@
                         <a-form-item label="API列表" v-if="!form.apiAll">
                             <div class="api-permission-panel">
                                 <div class="api-permission-toolbar">
-                                    <a-input-search v-model="form.apiSearch" placeholder="搜索 URL / Method" allow-clear />
+                                    <a-input-search v-model="form.apiSearch" placeholder="搜索 URL / 说明 / Method" allow-clear />
                                     <a-space>
                                         <a-button size="small" @click="selectAllApiRoutes">全选</a-button>
                                         <a-button size="small" @click="clearApiRoutes">清空</a-button>
@@ -199,19 +199,25 @@
                                     <table class="com-table">
                                         <tbody>
                                             <tr>
-                                                <td style="width:54px;">选择</td>
-                                                <td style="width:90px;">Method</td>
+                                                <td style="width:220px;">说明</td>
                                                 <td>URL</td>
+                                                <td style="width:220px;">Method</td>
                                             </tr>
-                                            <tr v-for="route in filteredApiRoutes" :key="apiRouteKey(route)">
+                                            <tr v-for="group in filteredApiRouteGroups" :key="group.path">
+                                                <td>{{ group.title }}</td>
+                                                <td class="api-path">{{ group.path }}</td>
                                                 <td>
-                                                    <a-checkbox
-                                                        :model-value="form.apiSelectedKeys.includes(apiRouteKey(route))"
-                                                        @change="checked => toggleApiRoute(route, checked)"
-                                                    />
+                                                    <a-space wrap>
+                                                        <a-checkbox
+                                                            v-for="route in group.routes"
+                                                            :key="apiRouteKey(route)"
+                                                            :model-value="form.apiSelectedKeys.includes(apiRouteKey(route))"
+                                                            @change="checked => toggleApiRoute(route, checked)"
+                                                        >
+                                                            {{ route.method }}
+                                                        </a-checkbox>
+                                                    </a-space>
                                                 </td>
-                                                <td>{{ route.method }}</td>
-                                                <td class="api-path">{{ route.path }}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -312,12 +318,40 @@ export default {
         this.getList();
     },
     computed: {
-        filteredApiRoutes(){
+        apiRouteGroups(){
+            let groupMap = {};
+            this.apiRoutes.forEach(route => {
+                if(!groupMap[route.path]){
+                    groupMap[route.path] = {
+                        path: route.path,
+                        title: route.title || '',
+                        routes: [],
+                    };
+                }
+                if(!groupMap[route.path].title && route.title){
+                    groupMap[route.path].title = route.title;
+                }
+                groupMap[route.path].routes.push(route);
+            });
+            return Object.values(groupMap).map(group => {
+                group.routes.sort((a, b) => this.methodOrder(a.method) - this.methodOrder(b.method));
+                let titles = Array.from(new Set(group.routes.map(route => route.title).filter(Boolean)));
+                group.title = titles.length <= 1
+                    ? (titles[0] || '')
+                    : group.routes
+                        .filter(route => route.title)
+                        .map(route => `${route.method} ${route.title}`)
+                        .join('；');
+                return group;
+            });
+        },
+        filteredApiRouteGroups(){
             let keyword = String(this.form.apiSearch || '').trim().toLowerCase();
-            if(!keyword){return this.apiRoutes;}
-            return this.apiRoutes.filter(route => {
-                return String(route.method || '').toLowerCase().includes(keyword)
-                    || String(route.path || '').toLowerCase().includes(keyword);
+            if(!keyword){return this.apiRouteGroups;}
+            return this.apiRouteGroups.filter(group => {
+                return String(group.path || '').toLowerCase().includes(keyword)
+                    || String(group.title || '').toLowerCase().includes(keyword)
+                    || group.routes.some(route => String(route.method || '').toLowerCase().includes(keyword));
             });
         },
     },
@@ -540,6 +574,16 @@ export default {
         },
         apiRouteKey(route){
             return `${route.method} ${route.path}`;
+        },
+        methodOrder(method){
+            return {
+                GET: 1,
+                POST: 2,
+                PUT: 3,
+                PATCH: 4,
+                DELETE: 5,
+                HEAD: 6,
+            }[String(method || '').toUpperCase()] || 99;
         },
         normalizeApiSelectedKeys(keys){
             let valid = new Set(this.apiRoutes.map(route => this.apiRouteKey(route)));
