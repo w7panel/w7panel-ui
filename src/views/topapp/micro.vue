@@ -47,7 +47,6 @@ const ROLE_NAME = {
     founder: '创始人',
     found: '创始人',
     super: '管理员',
-    tech: '技术人员',
     normal: '普通用户',
 }
 

@@ -57,7 +57,7 @@ export default {
                 
                 const {data:k3kInfo} = await useK3kinfo();
 
-                if(k3kInfo?.['w7.cc/role']=='normal'||k3kInfo?.['w7.cc/role']=='tech'){
+                if(k3kInfo?.['w7.cc/role']=='normal'){
                     this.$router.push('/appgroup/w7panel-ckm-root/micro')
                     return;
                 }

@@ -218,7 +218,7 @@ export default{
                 this.$router.push('/login?policyName='+(o?.policyName||'')+'&couponCode='+(o?.couponCode || ''))
             }else{
                 let role = getK8sinfo()['w7.cc/role'];
-                if(role=='normal'||role=='tech'){
+                if(role=='normal'){
                     this.$router.push('/appgroup/w7panel-ckm-root/micro')
                 }else{
                     this.$router.push('/cluster/panel');

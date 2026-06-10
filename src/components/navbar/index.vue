@@ -19,7 +19,7 @@
                     mode="horizontal"
                     :selected-keys="selkeys"
                 >
-                    <template v-if="userRole !== 'normal' && userRole !== 'tech'">
+                    <template v-if="hasClusterConsole">
                         <a-menu-item key="cloudserver" @click="handleCloudserverClick">集群控制台</a-menu-item>
                     </template>
                     <a-menu-item
@@ -33,15 +33,16 @@
             </div>
             <div class="df ai-c">
                 <div
-                    v-if="permissions && (permissions.includes('system-manage') || permissions.includes('system')) && route.name !== 'order-base-index' && route.name !== 'init-cluster-index'"
+                    v-if="permissions && (hasUsermanage || hasSystem) && route.name !== 'order-base-index' && route.name !== 'init-cluster-index'"
                 >
                     <a-radio-group
-                        v-model="appStore.menuFilter"
+                        :model-value="String(appStore.menuFilter)"
                         type="button"
+                        @update:model-value="(value) => { appStore.menuFilter = String(value); }"
                         @change="handleMenuGroupChange"
                     >
-                        <a-radio v-if="permissions.includes('system-manage')" value="usermanage">多租户管理</a-radio>
-                        <a-radio v-if="permissions.includes('system')" value="system">系统管理</a-radio>
+                        <a-radio v-if="hasUsermanage" value="usermanage">多租户管理</a-radio>
+                        <a-radio v-if="hasSystem" value="system">系统管理</a-radio>
                     </a-radio-group>
                 </div>
             </div>
@@ -162,6 +163,7 @@ import useUser from '@/hooks/user';
 import { useDarkStore } from '@/store';
 import { getK8sinfo, getWebshell, getUserInfo, getPermission } from '@/utils/auth';
 import { useRoute, useRouter } from 'vue-router';
+import { hasPermission } from '@/utils/permission-match';
 
 const appStore = useAppStore();
 const route = useRoute();
@@ -172,6 +174,10 @@ const userInfo = ref(getUserInfo());
 const isRegister = ref(false);
 const logoimg = ref(window.origin + '/assets/logo.png');
 const permissions = ref(getPermission());
+
+const hasClusterConsole = computed(() => hasPermission(permissions.value || [], 'cluster', 'cluster'));
+const hasUsermanage = computed(() => hasPermission(permissions.value || [], 'usermanage', 'system-manage'));
+const hasSystem = computed(() => hasPermission(permissions.value || [], 'system', 'system'));
 
 const currentMenuGroup = computed(() => {
     const matchedGroup = [...route.matched]

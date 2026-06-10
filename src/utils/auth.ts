@@ -1,3 +1,5 @@
+import { expandPermissionValues } from './permission-match';
+
 const PRE = 'iframe-';
 
 const TOKEN_KEY = 'w7panel-token';
@@ -43,7 +45,7 @@ const getPermission = () => {
     try{
         permission = JSON.parse(localStorage.getItem((isSubapp? PRE : '' ) + PERMISSION));
     }catch{}
-    return permission?.length? permission : null;
+    return permission?.length? expandPermissionValues(permission) : null;
 };
 const getUserInfo = () => {
     let userInfo = {};
@@ -75,7 +77,7 @@ const getIframeRefreshToken = () => {
 //     localStorage.setItem(EXPIRE, String(v));
 // };
 const setPermission = (v: string[]) => {
-    localStorage.setItem((isSubapp? PRE : '' ) + PERMISSION, JSON.stringify(v));
+    localStorage.setItem((isSubapp? PRE : '' ) + PERMISSION, JSON.stringify(expandPermissionValues(v)));
 };
 const setUserInfo = (v: string[]) => {
     localStorage.setItem((isSubapp? PRE : '' ) + USERINFO, JSON.stringify(v));

@@ -271,14 +271,14 @@ export default{
             })
         },
         initRegister(){
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps?labelSelector=type=permission',{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/permissions',{
                 noAlert: true
             }).then(res=>{
                 let list = res?.data?.items || [];
-                list = list.filter(i=>i.metadata?.labels?.typemode=='custom').map(i=>{
+                list = list.filter(i=>i.spec?.type === 'builtin' || i.metadata?.labels?.typemode === 'in').map(i=>{
                     return {
                         name: i.metadata?.name,
-                        title: i.metadata?.annotations?.title || i.metadata?.name,
+                        title: i.spec?.title || i.metadata?.annotations?.title || i.metadata?.name,
                     }
                 })
                 this.permissionPackageList = list;

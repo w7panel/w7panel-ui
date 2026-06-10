@@ -57,6 +57,7 @@ import { k8sproxy } from '@/utils/api';
 import axios from "axios";
 import { useNamespaceStore,useUserStore } from '@/store';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
+import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 
 const sharedPass = [
     'cluster-nodes',
@@ -133,7 +134,7 @@ export default {
             this.pmsForm.debug = this.debug || false;
             this.pmsForm.fileeditor = this.fileeditor || false;
             this.pmsForm.webshell = this.webshell || false;
-            this.pmsForm.list = this.list || [];
+            this.pmsForm.list = toTreeKeys(this.list || []);
             this.pmsForm.type = 'virtual'; //this.type || 'shared';
             this.pmsForm.permissionPackage = this.permissionPackage || '';
             this.hasDebug = this.debug===true || this.debug===false;
@@ -150,9 +151,12 @@ export default {
             whitelist = JSON.stringify(whitelist);
             
             let find = this.permissionPackageList.find(i=>i.name==this.pmsForm.permissionPackage);
-            let role = find?.role || '';
+            let parent = find?.parentPermission
+                ? this.permissionPackageList.find(i=>i.name==find.parentPermission)
+                : null;
+            let role = find?.role || parent?.role || '';
             this.$emit('submit',{
-                list: this.pmsForm.list,
+                list: toPermissionPaths(this.pmsForm.list),
                 permissionPackage: this.pmsForm.permissionPackage,
                 role: role,
                 debug: this.pmsForm.debug,
@@ -169,26 +173,24 @@ export default {
             this.$emit('close', v);
         },
         taocan(){
-            k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps?labelSelector=type=permission",{noAlert:true}).then(res=>{
+            k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
                 list = list.map(i=>{
-                    let permission = i?.data?.menu || '[]';
-                    permission = JSON.parse(permission);
-                    
-                    let whitelist = i.metadata?.annotations?.['w7.cc/domain-white-list'] || '[]';
-                    whitelist = JSON.parse(whitelist);
+                    let permission = toTreeKeys(i?.spec?.menu || []);
+                    let whitelist = i?.spec?.domainWhiteList || [];
 
                     return {
-                        title: i.metadata?.annotations?.title || i.metadata.name,
+                        title: i.spec?.title || i.metadata?.annotations?.title || i.metadata.name,
                         name: i.metadata.name,
                         created: window.formatDate(i.metadata.creationTimestamp),
                         permission: permission,
-                        clustermode: i.metadata?.labels?.clustermode,
-                        debug: i.data?.debug == 'true',
-                        webshell: i.data?.webshell == 'true',
-                        fileeditor: i.data?.fileeditor == 'true',
+                        clustermode: 'virtual',
+                        debug: i.spec?.features?.debug === true,
+                        webshell: i.spec?.features?.webshell === true,
+                        fileeditor: i.spec?.features?.fileeditor === true,
                         whitelist: whitelist,
-                        role: i?.metadata?.labels?.['w7.cc/role'] || '',
+                        role: i?.spec?.role || '',
+                        parentPermission: i?.spec?.parentPermission || '',
                     }
                 });
                 this.permissionPackageList = list;

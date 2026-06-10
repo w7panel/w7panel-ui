@@ -182,6 +182,12 @@
                     <a-tab-pane key="3" title="域名白名单">
                         <whitelist-component ref="whitelist" :data="form.whitelist"></whitelist-component>
                     </a-tab-pane>
+                    <a-tab-pane key="4" title="API权限">
+                        <a-form-item label="API规则">
+                            <a-textarea v-model="form.apiText" :auto-size="{minRows: 8, maxRows: 16}" placeholder='{"*":["*"],"/panel-api/v1/helm/*":["get","list"]}' />
+                            <template #extra>JSON对象，key为/panel-api/v1路径或通配符，value为空数组表示显式拒绝。</template>
+                        </a-form-item>
+                    </a-tab-pane>
                 </a-tabs>
 
             </a-form>
@@ -200,20 +206,32 @@ import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import whitelistComponent from '../whitelist/whitelist-component.vue';
+import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 
 const dataTemplate = {
-    "kind": "ConfigMap",
-    "apiVersion": "v1",
+    "kind": "Permission",
+    "apiVersion": "w7panel.w7.com/v1alpha1",
     "metadata": {
         "name": "k3k.permission",
-        "namespace": "default",
         "labels": {
-            "type": "permission",
+            "typemode": "custom",
         },
         "annotations": {},
     },
-    "data": {
-        "menu": "[]"
+    "spec": {
+        "title": "",
+        "type": "custom",
+        "role": "normal",
+        "parentPermission": "",
+        "menu": [],
+        "api": {},
+        "features": {
+            "debug": false,
+            "webshell": false,
+            "fileeditor": false,
+        },
+        "domainWhiteList": [],
+        "rbacRules": [],
     }
 }
 
@@ -231,6 +249,8 @@ export default {
                 fileeditor: false,
                 clustermode: 'virtual',
                 permission: [],
+                apiText: '{}',
+                parentPermission: '',
             },
             rules: {
                 title: [{ required: true, message: '请输入名称', trigger: 'blur' }],
@@ -282,33 +302,28 @@ export default {
             return menuDataCopy;
         },
         getList(){
-            k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps?labelSelector=type=permission",{noAlert:true}).then(res=>{
+            k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
                 list = list.map(i=>{
-                    let permission = i?.data?.menu || '[]';
-                    permission = JSON.parse(permission);
-                    let whitelist = [];
-                    try{
-                        let wl = i.metadata?.annotations?.['w7.cc/domain-white-list'];
-                        whitelist = wl? JSON.parse(wl) : whitelist;
-                    }catch{}
+                    let permission = toTreeKeys(i?.spec?.menu || []);
+                    let whitelist = i?.spec?.domainWhiteList || [];
                     return {
                         originData: i,
-                        title: i.metadata?.annotations?.title || i.metadata.name,
+                        title: i.spec?.title || i.metadata?.annotations?.title || i.metadata.name,
                         name: i.metadata.name,
                         created: window.formatDate(i.metadata.creationTimestamp),
                         permission: permission,
                         
-                        debug: i.data?.debug == 'true',
-                        webshell: i.data?.webshell == 'true',
-                        fileeditor: i.data?.fileeditor == 'true',
+                        debug: i.spec?.features?.debug === true,
+                        webshell: i.spec?.features?.webshell === true,
+                        fileeditor: i.spec?.features?.fileeditor === true,
                         clustermode: 'virtual',
                         clustermodeTxt: '独享',
-                        // clustermode: i?.metadata?.labels?.clustermode,
-                        // clustermodeTxt: {shared:'共享',virtual:'独享',global:'全局'}?.[i.metadata?.labels?.clustermode],
                         whitelist: whitelist,
+                        api: i.spec?.api || {},
+                        parentPermission: i.spec?.parentPermission || '',
 
-                        type: i.metadata?.labels?.typemode,
+                        type: i.spec?.type == 'builtin' ? 'in' : (i.metadata?.labels?.typemode || 'custom'),
                     }
                 });
                 this.list = list;
@@ -332,9 +347,14 @@ export default {
             originData.metadata.name = originData.metadata.name + '.' + this.createName();
             originData.metadata.labels = originData.metadata.labels || {};
             originData.metadata.labels.typemode = 'custom';
-            originData.metadata.labels['w7.cc/role'] = row.originData?.metadata?.name?.match?.(/^k3k\.permission\.(\w+)/)?.[1] || '';
+            originData.spec = originData.spec || {};
+            originData.spec.type = 'custom';
+            originData.spec.role = row.originData?.spec?.role || row.originData?.metadata?.name?.match?.(/^k3k\.permission\.(\w+)/)?.[1] || '';
+            originData.spec.parentPermission = row.originData?.spec?.type === 'builtin'
+                ? row.originData.metadata.name
+                : (row.originData?.spec?.parentPermission || '');
             
-            let originTitle = originData.metadata?.annotations?.title || '';
+            let originTitle = originData.spec?.title || originData.metadata?.annotations?.title || '';
 
             this.form.originData = originData;
             this.edit({
@@ -351,6 +371,7 @@ export default {
                 isAdd: row.isAdd,
                 originTitle: row.originTitle || '',
                 show: true,
+                originData: row.originData,
                 title: row.title,
                 name: row.name,
                 clustermode: row.clustermode,
@@ -359,10 +380,12 @@ export default {
                 webshell: row.webshell,
                 fileeditor: row.fileeditor,
                 whitelist: row.whitelist,
+                apiText: JSON.stringify(row.api || {}, null, 2),
+                parentPermission: row.parentPermission || row.originData?.spec?.parentPermission || '',
             }
         },
         del(row){
-            k8sproxy.delete("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/" + row.name).then(res=>{
+            k8sproxy.delete("/apis/w7panel.w7.com/v1alpha1/permissions/" + row.name).then(res=>{
                 this.$message.success('操作成功');
                 this.getList();
             });
@@ -375,7 +398,13 @@ export default {
                 }
 
                 let whitelist = this.$refs.whitelist.getList() || [];
-                whitelist = JSON.stringify(whitelist);
+                let api = {};
+                try{
+                    api = JSON.parse(this.form.apiText || '{}');
+                }catch(e){
+                    this.$message.error('API规则必须是合法JSON对象');
+                    return;
+                }
 
                 if(!this.form.name || this.form.isAdd){
                     let data = null;
@@ -385,57 +414,45 @@ export default {
                         data = JSON.parse(JSON.stringify(dataTemplate));
                     }
                     if(this.form.isAdd){
-                        data.metadata.annotations.title = this.form.originTitle + this.form.title;
+                        data.spec.title = this.form.originTitle + this.form.title;
                     }else{
                         data.metadata.name = 'k3k.permission.' + this.createName();
-                        data.metadata.annotations.title = this.form.title;
+                        data.spec.title = this.form.title;
                     }
-                    data.metadata.namespace = this.namespaceActive;
-                    data.metadata.annotations['w7.cc/domain-white-list'] = whitelist;
-                    data.data.menu = JSON.stringify(this.form.permission);
-                    data.data.debug = String(this.form.debug);
-                    data.data.webshell = String(this.form.webshell);
-                    data.data.fileeditor = String(this.form.fileeditor);
-                    data.metadata.labels.clustermode = this.form.clustermode;
+                    delete data.metadata.namespace;
+                    data.spec.domainWhiteList = whitelist;
+                    data.spec.parentPermission = data.spec.type === 'custom'
+                        ? (this.form.parentPermission || data.spec.parentPermission || '')
+                        : '';
+                    data.spec.menu = toPermissionPaths(this.form.permission);
+                    data.spec.api = api;
+                    data.spec.features = {
+                        debug: this.form.debug,
+                        webshell: this.form.webshell,
+                        fileeditor: this.form.fileeditor,
+                    };
                     
-                    k8sproxy.post("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps",data).then(res=>{
+                    k8sproxy.post("/apis/w7panel.w7.com/v1alpha1/permissions",data).then(res=>{
                         this.$message.success('操作成功');
                         this.form.show = false;
                         this.getList();
                     });
                 }else{
-                    
-                    k8sproxy.patch("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/"+this.form.name,[{
-                        op: 'replace',
-                        path: '/metadata/annotations/title',
-                        value: this.form.title,
-                    },{
-                        op: 'replace',
-                        path: '/metadata/annotations/w7.cc~1domain-white-list',
-                        value: whitelist,
-                    },{
-                        op: 'replace',
-                        path: '/data/menu',
-                        value: JSON.stringify(this.form.permission),
-                    },{
-                        op: 'replace',
-                        path: '/metadata/labels/clustermode',
-                        value: this.form.clustermode,
-                    },{
-                        op: 'replace',
-                        path: '/data/debug',
-                        value: String(this.form.debug),
-                    },{
-                        op: 'replace',
-                        path: '/data/webshell',
-                        value: String(this.form.webshell),
-                    },{
-                        op: 'replace',
-                        path: '/data/fileeditor',
-                        value: String(this.form.fileeditor),
-                    }],{
-                        headers: {'Content-Type': 'application/json-patch+json'},
-                    }).then(res=>{
+                    let data = JSON.parse(JSON.stringify(this.form.originData || {}));
+                    data.spec = data.spec || {};
+                    data.spec.title = this.form.title;
+                    data.spec.domainWhiteList = whitelist;
+                    data.spec.parentPermission = data.spec.type === 'custom'
+                        ? (this.form.parentPermission || data.spec.parentPermission || '')
+                        : '';
+                    data.spec.menu = toPermissionPaths(this.form.permission);
+                    data.spec.api = api;
+                    data.spec.features = {
+                        debug: this.form.debug,
+                        webshell: this.form.webshell,
+                        fileeditor: this.form.fileeditor,
+                    };
+                    k8sproxy.put("/apis/w7panel.w7.com/v1alpha1/permissions/"+this.form.name, data).then(res=>{
                         this.$message.success('操作成功');
                         this.form.show = false;
                         this.getList();
@@ -444,14 +461,15 @@ export default {
             });
         },
         openYaml(name){
-            k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/" + name, {loading:true}).then(res=>{
+            k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions/" + name, {loading:true}).then(res=>{
                 if(!res?.data){return}
                 this.yamlData = {
                     show: true,
                     data: res?.data,
-                    title: res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
+                    title: res?.data?.spec?.title || res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
                     submit: (data)=>{
-                        return k8sproxy.put("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/" + data?.metadata?.name, data).then(res=>{
+                        delete data.metadata.namespace;
+                        return k8sproxy.put("/apis/w7panel.w7.com/v1alpha1/permissions/" + data?.metadata?.name, data).then(res=>{
                             this.$message.success("修改成功");
                             this.yamlData = {...this.yamlData, show:false,};
                             this.getList();

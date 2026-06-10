@@ -769,13 +769,11 @@ export default {
             })
         },
         getPermissionPackages(){
-            k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps?labelSelector=type=permission").then(res=>{
+            k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions").then(res=>{
                 let list = res?.data?.items;
                 list = list.map(i=>{
-                    let permission = i?.data?.menu || '[]';
-                    permission = JSON.parse(permission);
                     return {
-                        title: i.metadata?.annotations?.title || i.metadata.name,
+                        title: i.spec?.title || i.metadata?.annotations?.title || i.metadata.name,
                         name: i.metadata.name,
                     }
                 })

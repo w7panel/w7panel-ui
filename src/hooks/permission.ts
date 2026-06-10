@@ -1,19 +1,19 @@
 import { RouteLocationNormalized, RouteRecordRaw } from 'vue-router';
 // import { useUserStore } from '@/store';
 import { getPermission } from '@/utils/auth';
+import { hasPermission, normalizePermissionPath } from '@/utils/permission-match';
 
 export default function usePermission() {
 //   const userStore = useUserStore();
   const permission = getPermission() || [];
   return {
-    accessRouter(route: RouteLocationNormalized | RouteRecordRaw) {
+    accessRouter(route: RouteLocationNormalized | RouteRecordRaw, routePath?: string) {
+      const metaKey = route.meta?.key as string;
+      const path = normalizePermissionPath(routePath || (route as RouteLocationNormalized).fullPath || route.path);
       return (
         !route.meta?.requiresAuth
-        // || !route.meta?.roles ||
-        // route.meta?.roles?.includes('*') ||
-        // route.meta?.roles?.includes(userStore.role)
         || !route.meta?.key
-        || permission?.includes(route.meta?.key as string)
+        || hasPermission(permission, path, metaKey)
       );
     },
     findFirstPermissionRoute(_routers: any, role = 'admin') {

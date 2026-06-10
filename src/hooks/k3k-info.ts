@@ -38,7 +38,7 @@ export default async function useK3kinfo(){
             setUserInfo(uData);
             arr = JSON.parse(uData?.['w7.cc/menu'] || '[]')
             if (uData?.['w7.cc/debug'] != 'true') {
-                arr = arr.filter(i => i != 'cluster-resource');
+                arr = arr.filter(i => i != 'cluster-resource' && i != 'cluster/resource');
             }
             // 测试
             // arr.push('dns')
@@ -66,7 +66,7 @@ export default async function useK3kinfo(){
             }
 
             if (license_type == 'free') {
-                arr = arr.filter(i => i != 'system-user' && i != 'system-usergroup')
+                arr = arr.filter(i => i != 'system-user' && i != 'system-usergroup' && i != 'usermanage/users')
             }
             setPermission(arr);
             cacheManager.set(PERMISSION_CACHE_KEY, Date.now(), {

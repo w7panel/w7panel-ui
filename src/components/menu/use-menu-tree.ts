@@ -20,12 +20,19 @@ export default function useMenuTree() {
     copyRouter.sort((a: RouteRecordNormalized, b: RouteRecordNormalized) => {
       return (a.meta.order || 0) - (b.meta.order || 0);
     });
-    function travel(_routes: RouteRecordRaw[], layer: number) {
+    function joinRoutePath(parentPath: string, path: string) {
+      if (!parentPath) return path;
+      if (path.startsWith('/')) return path;
+      return `${parentPath.replace(/\/$/, '')}/${path}`;
+    }
+
+    function travel(_routes: RouteRecordRaw[], layer: number, parentPath = '') {
       if (!_routes) return null;
 
       const collector: any = _routes.map((element) => {
+        const currentPath = joinRoutePath(parentPath, element.path);
         // no access
-        if (!permission.accessRouter(element)) {
+        if (!permission.accessRouter(element, currentPath)) {
           return null;
         }
 
@@ -41,7 +48,7 @@ export default function useMenuTree() {
         );
 
         // Associated child node
-        const subItem = travel(element.children, layer + 1);
+        const subItem = travel(element.children, layer + 1, currentPath);
 
         if (subItem.length) {
           element.children = subItem;

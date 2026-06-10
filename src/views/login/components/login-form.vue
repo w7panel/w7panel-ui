@@ -260,7 +260,7 @@ const handleSubmit = async (am?:any) => {
         const {data:k3kInfo} = await useK3kinfo();
         console.log('k3kinfo',k3kInfo)
         console.log('loginData',loginData)
-        if(k3kInfo?.['w7.cc/role']=='normal'||k3kInfo?.['w7.cc/role']=='tech'){
+        if(k3kInfo?.['w7.cc/role']=='normal'){
             router.push('/appgroup/w7panel-ckm-root/micro')
         }else{
             if(!loginData.isK3kUser){
