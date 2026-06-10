@@ -309,6 +309,7 @@ export default {
 
             founderName: 'k3k.permission.founder',
             apiRoutes: [],
+            apiRoutesPromise: null,
         }
     },
     created(){
@@ -412,14 +413,21 @@ export default {
             })
         },
         getApiRoutes(){
-            panelApi.get('/auth/permissions/routes', {noAlert:true}).then(res=>{
+            if(this.apiRoutesPromise){
+                return this.apiRoutesPromise;
+            }
+            this.apiRoutesPromise = panelApi.get('/auth/permissions/routes', {noAlert:true}).then(res=>{
                 let list = res?.data?.data || res?.data || [];
-                this.apiRoutes = Array.isArray(list) ? list : [];
+                this.apiRoutes = Array.isArray(list) ? list.map(route => this.normalizeApiRoute(route)) : [];
                 this.form = {
                     ...this.form,
                     apiSelectedKeys: this.normalizeApiSelectedKeys(this.form.apiSelectedKeys),
                 };
+                return this.apiRoutes;
+            }).finally(()=>{
+                this.apiRoutesPromise = null;
             });
+            return this.apiRoutesPromise;
         },
         // add(){
         //     this.form = {
@@ -457,7 +465,8 @@ export default {
                 originTitle: originTitle? '['+originTitle+'] ' : '',
             });
         },
-        edit(row){
+        async edit(row){
+            await this.getApiRoutes();
             this.form = {
                 ...this.form,
                 isAdd: row.isAdd,
@@ -576,8 +585,29 @@ export default {
         apiRouteKey(route){
             return `${route.method} ${route.path}`;
         },
+        normalizeApiRoute(route){
+            let method = route?.method || route?.Method || '';
+            let path = route?.path || route?.Path || '';
+            return {
+                ...route,
+                method: method,
+                path: path,
+                verb: route?.verb || route?.Verb || this.apiRouteVerb(method),
+                description: this.apiRouteDescription(route),
+            };
+        },
         apiRouteDescription(route){
             return route?.description || route?.title || route?.Description || route?.Title || '';
+        },
+        apiRouteVerb(method){
+            return {
+                GET: 'get',
+                HEAD: 'get',
+                POST: 'create',
+                PUT: 'update',
+                PATCH: 'patch',
+                DELETE: 'delete',
+            }[String(method || '').toUpperCase()] || '';
         },
         methodOrder(method){
             return {
