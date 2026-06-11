@@ -19,7 +19,7 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
-import { clearIframeToken, getIframeToken, getToken, getK8sinfo, setIframeRefreshToken, setIframeToken } from '@/utils/auth';
+import { clearIframeToken, getToken, getK8sinfo, setIframeRefreshToken, setIframeToken } from '@/utils/auth';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
 import { normalizeWujieSyncRoute } from '@/utils/wujie-route';
@@ -126,6 +126,7 @@ export default{
             refreshToken && setIframeRefreshToken(refreshToken);
             this.rememberCurrentMicroRoute();
             this.subaccountReturnPage = this.lastMicroRoute || this.page || this.menuActive || '';
+            this.syncSubaccountQuery(true);
             this.startSubaccountPanel();
         },
         rememberCurrentMicroRoute(){
@@ -139,23 +140,14 @@ export default{
             this.lastMicroRoute = route;
         },
         restoreSubaccountPanel(){
-            if(!getIframeToken()){
+            if(this.$route.query.subaccount !== '1'){
                 return false;
             }
             this.startSubaccountPanel(true);
             return true;
         },
         getSubaccountPanelPath(){
-            const value = this.$route.query['w7panel-subaccount-panel'];
-            const path = Array.isArray(value) ? value[0] : value;
-            if(!path){ return '/cluster/panel'; }
-
-            try{
-                const value = decodeURIComponent(path);
-                return value.startsWith('/') ? value : `/${value}`;
-            }catch{
-                return path.startsWith('/') ? path : `/${path}`;
-            }
+            return '/cluster/panel';
         },
         getSubaccountPanelUrl(restore = false){
             if(restore){
@@ -224,30 +216,22 @@ export default{
             const route = this.subaccountReturnPage || this.lastMicroRoute || '';
             this.resetMicro();
             this.subaccountReturnPage = route;
-            this.syncReturnDoQuery(route);
+            this.syncSubaccountQuery(false, route);
             if(this.appgroup){
                 this.getFront(this.appgroup);
             }
         },
-        syncReturnDoQuery(route){
-            const query = {
-                ...this.$route.query,
-                do: route || '',
-            };
-            delete query.appmicro;
-            delete query['w7panel-subaccount-panel'];
-            this.$router.replace({
-                path: this.$route.path,
-                query,
-                hash: this.$route.hash,
-            }).catch(()=>{});
-        },
-        clearSyncRouteQuery(){
+        syncSubaccountQuery(show, route = ''){
             const query = {
                 ...this.$route.query,
             };
             delete query.appmicro;
-            delete query['w7panel-subaccount-panel'];
+            if(show){
+                query.subaccount = '1';
+            }else{
+                delete query.subaccount;
+                query.do = route || '';
+            }
             this.$router.replace({
                 path: this.$route.path,
                 query,
@@ -365,6 +349,10 @@ export default{
                     frontend: this.info.frontendUrl,
                 },
                 props: props,
+            }).then(()=>{
+                console.log('app success')
+            }).catch(()=>{
+                console.log('app error')
             }).finally(()=>{
                 this.microLoading = false;
             })

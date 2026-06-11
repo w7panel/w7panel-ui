@@ -53,10 +53,8 @@ export default {
   '反向代理': 'Reverse Proxy',
   '域名管理': 'Domain Management',
   '插件管理': 'Plugin Management',
-  '集群数据库': 'Cluster Database',
   '操作记录': 'Operation Records',
   '参数设置': 'Settings',
-  'AI应用管理': 'AI App Management',
   'helm': 'Helm',
   // Storage Management
   '存储管理': 'Storage Management',
