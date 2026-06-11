@@ -232,7 +232,11 @@ export default {
 // },3000)
 
     },
+    mounted(){
+        window.addEventListener('message', this.iframeMessage)
+    },
     beforeUnmount() {
+        window.removeEventListener('message', this.iframeMessage)
         clearAllWujieEvents();
     },
     components: {
@@ -247,6 +251,13 @@ export default {
         buildImageStatus,
     },
     methods: {
+        iframeMessage(e){
+            if(e?.data?.type=='zpk-store:open-install'){
+                let path = e.data.payload?.path + '?order_sn=' + e.data.payload?.orderSn;
+                path = encodeURIComponent(path);
+                this.toStoreInstall(path)
+            }
+        },
         getRole(callback){
             callback([{
                 name: 'founder',

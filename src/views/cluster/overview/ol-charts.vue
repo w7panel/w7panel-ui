@@ -215,7 +215,8 @@ export default {
 
             let jobArg = (this.currentMetricsService==DEFAULT_METRICS_SERVICE)?'w7panel-metrics-node-exporter' : 'w7panel-metrics-k8s-offline-metrics-node-exporter';
             const metricQuery = {
-                ...(userMode=='cluster'?{
+                // ...(userMode=='cluster'?{
+                ...(this.userInfo['w7.cc/is-cvm-req']=='true'?{
                     'cpu': 'rate(pod_cpu_usage_seconds_total{pod="' + Name + '"})',
                     'memory': 'pod_memory_working_set_bytes{pod="' + Name + '"}',
                 }:{
