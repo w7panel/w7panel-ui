@@ -288,7 +288,8 @@ export default {
             }
             let userMode = this.userInfo?.['w7.cc/user-mode'];
             
-            if((userMode!='cluster'&&(chartType=='cpu'||chartType=='memory'))||chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
+            // userMode!='cluster' this.userInfo['w7.cc/is-cvm-req']!=='true'
+            if((this.userInfo['w7.cc/is-cvm-req']!=='true'&&(chartType=='cpu'||chartType=='memory'))||chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
                 let data = null;
                 try{
                     let res = await this.getChart('', chartType);

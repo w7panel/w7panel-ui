@@ -1,14 +1,17 @@
 <template>
-    <div style="height:100%;">
+    <div class="micro-container">
         <iframe v-if="info.load_mode === 'iframe'" :src="info.iframeSrc" style="display:block;width:100%;height:100%;border:0;"></iframe>
         <template v-else >
-            <div v-show="downOk" id="appmicro" style="height:100%;transform:translate(0,0);"></div>
+            <div id="appmicro" style="height:100%;transform:translate(0,0);"></div>
 
             <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:100%;">
                 <div style="height:100%;" class="bg-white"></div>
             </a-spin>
+            <a-spin v-if="microLoading" class="micro-loading" :loading="microLoading" :size="32">
+                <div style="height:100%;"></div>
+            </a-spin>
 
-            <wujie-modals @changeLogin="$emit('changeLogin', $event)" />
+            <wujie-modals @changeLogin="changeLogin" />
         </template>
     </div>
 </template>
@@ -16,13 +19,14 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
-import { getToken, getK8sinfo } from '@/utils/auth';
+import { clearIframeToken, getIframeToken, getToken, getK8sinfo, setIframeRefreshToken, setIframeToken } from '@/utils/auth';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
 import { normalizeWujieSyncRoute } from '@/utils/wujie-route';
 
 export default{
     props: ['menuActive','appgroup'],
+    emits: ['getBindings', 'getinfo', 'subaccount-change'],
     data(){
         return {
             namespaceActive: '',
@@ -30,12 +34,21 @@ export default{
             extra: {},
             page: '',
             downOk: true,
+            microLoading: false,
+            isSubaccountPanel: false,
+            subaccountReturnPage: '',
+            lastMicroRoute: '',
+            ignoreAppmicroOnce: false,
+            themeObserver: null,
         }
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
     },
     mounted(){
+        if(this.restoreSubaccountPanel()){
+            return;
+        }
         if(this.appgroup){
             this.getFront(this.appgroup);
         }
@@ -51,12 +64,21 @@ export default{
             })
         },
         menuActive(v){
+            if(this.isSubaccountPanel){ return; }
             if(!v || this.page==v){return}
             this.page = v;
+            this.rememberMicroRoute(v);
             this.routeChange(v);
+        },
+        '$route.query.appmicro'(){
+            if(!this.isSubaccountPanel){
+                this.rememberCurrentMicroRoute();
+            }
         },
     },
     beforeUnmount(){
+        this.$emit('subaccount-change', false);
+        this.themeObserver?.disconnect?.();
         this.destroyMicro();
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
@@ -76,16 +98,161 @@ export default{
             }else{
                 bus.$emit("routeChange", (v || '').replace(/^#/,''));
             }
+            if(!this.isSubaccountPanel){
+                this.rememberMicroRoute(v);
+            }
         },
         resetMicro(){
             try{
                 this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
             }catch{}
+            this.themeObserver?.disconnect?.();
             this.destroyMicro();
             this.info = {};
             this.extra = {};
             this.page = '';
             this.downOk = true;
+            this.microLoading = false;
+            this.isSubaccountPanel = false;
+            this.$emit('subaccount-change', false);
+        },
+        changeLogin(data = {}){
+            const token = data.token || '';
+            const refreshToken = data.refreshToken || '';
+            if(!token){ return; }
+
+            clearIframeToken();
+            setIframeToken(token);
+            refreshToken && setIframeRefreshToken(refreshToken);
+            this.rememberCurrentMicroRoute();
+            this.subaccountReturnPage = this.lastMicroRoute || this.page || this.menuActive || '';
+            this.startSubaccountPanel();
+        },
+        rememberCurrentMicroRoute(){
+            this.rememberMicroRoute(normalizeWujieSyncRoute(this.$route.query?.appmicro, {
+                frontend: this.info.frontendUrl,
+            }));
+        },
+        rememberMicroRoute(route){
+            if(!route){ return; }
+            if(route.startsWith(this.getSubaccountPanelPath())){ return; }
+            this.lastMicroRoute = route;
+        },
+        restoreSubaccountPanel(){
+            if(!getIframeToken()){
+                return false;
+            }
+            this.startSubaccountPanel(true);
+            return true;
+        },
+        getSubaccountPanelPath(){
+            const value = this.$route.query['w7panel-subaccount-panel'];
+            const path = Array.isArray(value) ? value[0] : value;
+            if(!path){ return '/cluster/panel'; }
+
+            try{
+                const value = decodeURIComponent(path);
+                return value.startsWith('/') ? value : `/${value}`;
+            }catch{
+                return path.startsWith('/') ? path : `/${path}`;
+            }
+        },
+        getSubaccountPanelUrl(restore = false){
+            if(restore){
+                const route = normalizeWujieSyncRoute(this.$route.query?.appmicro);
+                if(route){
+                    return route;
+                }
+            }
+            return this.getSubaccountPanelPath();
+        },
+        getTheme(){
+            return document.body.getAttribute('arco-theme') || 'light';
+        },
+        syncThemeToPanel() {
+            bus.$emit('changeTheme', this.getTheme() === 'dark');
+        },
+        initThemeObserver() {
+            this.themeObserver?.disconnect?.();
+            this.themeObserver = new MutationObserver(() => {
+                if(this.isSubaccountPanel){
+                    this.syncThemeToPanel();
+                }
+            });
+            this.themeObserver.observe(document.body, {
+                attributes: true,
+                attributeFilter: ['arco-theme'],
+            });
+        },
+        startSubaccountPanel(restore = false){
+            this.destroyMicro();
+            this.isSubaccountPanel = true;
+            this.$emit('subaccount-change', true);
+            this.downOk = true;
+            this.microLoading = true;
+            this.info = {
+                ...this.info,
+                load_mode: '',
+            };
+
+            this.$nextTick(() => {
+                const props = {
+                    subaccountPanel: true,
+                    theme: this.getTheme(),
+                    closeSubaccountPanel: this.closeSubaccountPanel,
+                };
+                startApp({
+                    name: "appmicro",
+                    url: this.getSubaccountPanelUrl(restore),
+                    exec: true,
+                    el: '#appmicro',
+                    sync: true,
+                    props,
+                }).then(()=>{
+                    console.log('startapp success')
+                }).catch(()=>{
+                    console.log('startapp failed')
+                }).finally(()=>{
+                    this.microLoading = false;
+                    this.$nextTick(() => this.syncThemeToPanel());
+                });
+                this.initThemeObserver();
+            });
+        },
+        closeSubaccountPanel(){
+            clearIframeToken();
+            const route = this.subaccountReturnPage || this.lastMicroRoute || '';
+            this.resetMicro();
+            this.subaccountReturnPage = route;
+            this.syncReturnDoQuery(route);
+            if(this.appgroup){
+                this.getFront(this.appgroup);
+            }
+        },
+        syncReturnDoQuery(route){
+            const query = {
+                ...this.$route.query,
+                do: route || '',
+            };
+            delete query.appmicro;
+            delete query['w7panel-subaccount-panel'];
+            this.$router.replace({
+                path: this.$route.path,
+                query,
+                hash: this.$route.hash,
+            }).catch(()=>{});
+        },
+        clearSyncRouteQuery(){
+            const query = {
+                ...this.$route.query,
+            };
+            delete query.appmicro;
+            delete query['w7panel-subaccount-panel'];
+            this.$router.replace({
+                path: this.$route.path,
+                query,
+                hash: this.$route.hash,
+            }).catch(()=>{});
         },
         getFront(appgroup){
 
@@ -125,12 +292,15 @@ export default{
                 }
                 this.$emit('getBindings',item?.spec?.bindings||[])
                 this.$emit('getinfo',{...this.info})
+                this.rememberCurrentMicroRoute();
                 this.$nextTick(()=>{
-                    
-                    const appmicro = normalizeWujieSyncRoute(this.$route.query?.appmicro, {
+                    const appmicro = this.ignoreAppmicroOnce ? '' : normalizeWujieSyncRoute(this.$route.query?.appmicro, {
                         frontend: this.info.frontendUrl,
                     });
-                    this.page = appmicro || this.menuActive || '';
+                    this.ignoreAppmicroOnce = false;
+                    this.page = appmicro || this.subaccountReturnPage || this.menuActive || '';
+                    this.rememberMicroRoute(this.page);
+                    this.subaccountReturnPage = '';
 
                     this.wujieInit();
                 })
@@ -179,6 +349,7 @@ export default{
                 ...this.info,
             }
             console.log(props)
+            this.microLoading = true;
             startApp({
                 name: "appmicro",
                 url: this.info.frontendUrl + this.page,
@@ -194,6 +365,8 @@ export default{
                     frontend: this.info.frontendUrl,
                 },
                 props: props,
+            }).finally(()=>{
+                this.microLoading = false;
             })
             setTimeout(()=>{
                 requestAnimationFrame(() => {
@@ -212,4 +385,17 @@ export default{
 <style scoped>
 </style>
 <style>
+.micro-container{
+    position:relative;
+    height:100%;
+}
+.micro-loading{
+    position:absolute;
+    inset:0;
+    z-index:10;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--color-bg-1);
+}
 </style>

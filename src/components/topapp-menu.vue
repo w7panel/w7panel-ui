@@ -190,16 +190,19 @@ const handelMicroMenu = (v)=>{
 }
 
 const defaultSelectMenu = ()=>{
+    const activeDo = Array.isArray(route.query?.do) ? route.query.do[0] : route.query?.do;
     const appmicro = normalizeWujieSyncRoute(route.query?.appmicro, {
         frontend: props?.info?.frontendUrl,
     });
-    let active = appmicro || props?.roles?.[0]?.menus?.[0]?.do || '';
+    let active = activeDo || appmicro || props?.roles?.[0]?.menus?.[0]?.do || '';
     selectMenu.value = [active];
 }
 
 watch(()=>props.info,defaultSelectMenu)
 watch(()=>props.roles,defaultSelectMenu)
 watch(()=>route.params.group,defaultSelectMenu)
+watch(()=>route.query.do,defaultSelectMenu)
+watch(()=>route.query.appmicro,defaultSelectMenu)
 
 
 const elementsToSvg = (elementsArray, options = {})=>{
