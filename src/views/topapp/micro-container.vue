@@ -217,7 +217,7 @@ export default{
 // 测试
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.page || ''),
 // url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.page || ''),
-url: 'http://localhost:8002' + (this.page || ''),
+// url: 'http://localhost:8002' + (this.page || ''),
 // url: 'https://idc.w7.com' + this.info.frontendUrl + (this.page || ''),
                 exec: true,
                 el: '#appmicro',
