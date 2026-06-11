@@ -25,7 +25,7 @@ import { normalizeWujieSyncRoute } from '@/utils/wujie-route';
 
 export default{
     props: ['menuActive','appgroup'],
-    emits: ['getBindings', 'getinfo'],
+    emits: ['getBindings', 'getinfo', 'changeAppMenu'],
     data(){
         return {
             namespaceActive: '',
@@ -40,6 +40,8 @@ export default{
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
+
+        bus.$on('changeAppMenu', this.changeAppMenu);
     },
     mounted(){
         if(this.appgroup){
@@ -67,12 +69,18 @@ export default{
         },
     },
     beforeUnmount(){
+
+        bus.$off('changeAppMenu', this.changeAppMenu);
+
         this.destroyMicro();
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
     },
     methods: {
+        changeAppMenu(show){
+            this.$emit('changeAppMenu', show);
+        },
         buildIframeSrc(path, route){
             const token = getToken();
             const base = (path || '') + (route || '');
@@ -209,7 +217,7 @@ export default{
 // 测试
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.page || ''),
 // url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.page || ''),
-// url: 'http://localhost:8080' + (this.page || ''),
+url: 'http://localhost:8002' + (this.page || ''),
 // url: 'https://idc.w7.com' + this.info.frontendUrl + (this.page || ''),
                 exec: true,
                 el: '#appmicro',

@@ -12,7 +12,7 @@
         <a-layout class="layout-content" :style="paddingStyle">
             <a-layout-content>
                 <div
-                    class="padding-20"
+                    :class="{ 'padding-20': !hideAppMenu }"
                     style="height:calc(100vh - 62px);box-sizing:border-box;"
                 >
                     <micro-container
@@ -21,6 +21,7 @@
                         :menuActive="menuActive"
                         @getinfo="v=>info=v"
                         @getBindings="v=>bindings=v"
+                        @changeAppMenu="changeAppMenu"
                     ></micro-container>
                 </div>
             </a-layout-content>
@@ -83,6 +84,9 @@ export default{
         },
     },
     methods: {
+        changeAppMenu(v){
+            this.hideAppMenu = v === false;
+        },
         routeChange(v){
             this.$refs?.microcontainer?.routeChange?.(v);
         },
