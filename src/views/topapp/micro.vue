@@ -1,7 +1,7 @@
 <template>
     <a-layout class="topapp-micro-page">
         <TopappMenu
-            v-if="!hideAppMenu && !isSubaccountPage"
+            v-if="!hideAppMenu"
             :roles="roles"
             :info="info"
             @routeChange="routeChange"
@@ -12,7 +12,7 @@
         <a-layout class="layout-content" :style="paddingStyle">
             <a-layout-content>
                 <div
-                    :class="{ 'padding-20': !isSubaccountPage }"
+                    class="padding-20"
                     style="height:calc(100vh - 62px);box-sizing:border-box;"
                 >
                     <micro-container
@@ -21,7 +21,6 @@
                         :menuActive="menuActive"
                         @getinfo="v=>info=v"
                         @getBindings="v=>bindings=v"
-                        @subaccount-change="setSubaccountPage"
                     ></micro-container>
                 </div>
             </a-layout-content>
@@ -55,7 +54,6 @@ export default{
             bindings: [],
             groupName: '',
             hideAppMenu: false,
-            isSubaccountPage: false,
         }
     },
     created(){
@@ -85,9 +83,6 @@ export default{
         },
     },
     methods: {
-        setSubaccountPage(v){
-            this.isSubaccountPage = !!v;
-        },
         routeChange(v){
             this.$refs?.microcontainer?.routeChange?.(v);
         },
