@@ -303,7 +303,7 @@ export default {
         },
         toZpkstore(){
             // this.$router.push('/appgroup/'+this.zpk.groupName+'/micro?showMenu=false&do='+encodeURIComponent('#/zpk-store-list'))
-            this.$router.push('/zpk-store')
+            this.$router.push('/app/store/zpk')
         },
         toUpgrade(item){
             let domain = item?.defaultDomain || item?.domain_apps?.[0] || '';

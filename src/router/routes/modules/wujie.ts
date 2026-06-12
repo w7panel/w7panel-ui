@@ -27,29 +27,6 @@ const DASHBOARD: any = [
       },
     ],
   },
-  {
-    path: '/zpk-store',
-    name: 'zpk-store',
-    component: HEADER_LAYOUT,
-    redirect: '/zpk-store/list',
-    meta: {
-      locale: '制品商店',
-      hideInMenu: true,
-      requiresAuth: true,
-      menuGroup: 'cloudserver',
-    },
-    children: [{
-      path: 'list',
-      name: 'zpk-store-list',
-      component: () => import('@/views/topapp/iframe-page.vue'),
-      meta: {
-        locale: '制品商店',
-        hideInMenu: true,
-        requiresAuth: true,
-      },
-    }]
-
-  }
 ];
 
 export default DASHBOARD;

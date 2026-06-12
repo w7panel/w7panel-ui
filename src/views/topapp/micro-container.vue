@@ -136,9 +136,9 @@ export default{
                 this.info = {
                     ...this.info,
                     appgroup: appgroup,
-                    frontendUrl: item?.spec?.frontendUrl,
-                    // 测试
-                    // frontendUrl: item?.spec?.frontendUrl.replace(/\/[^/]+$/, '/'),
+                    // frontendUrl: item?.spec?.frontendUrl,
+                    // 测试短路径
+                    frontendUrl: item?.spec?.frontendUrl.replace(/\/index\.html$/, '/'),
                     backendUrl: item?.spec?.backendUrl,
                     username: item?.spec?.config?.props?.username,
                     password: item?.spec?.config?.props?.password,
