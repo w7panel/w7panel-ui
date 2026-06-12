@@ -131,7 +131,7 @@ import formDrawer from '@/views/app/pages/form-drawer.vue';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
-import { normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -334,9 +334,7 @@ export default {
                 // alive: true,
                 sync: true,
                 props: props,
-                prefix: {
-                    frontend: this.info.frontendUrl,
-                },
+                prefix: getWujieRoutePrefix(this.info.frontendUrl),
                 loadError: (url, error)=>{
                     console.log(`appdetail loadError`, url, error);
                 },
@@ -418,9 +416,7 @@ export default {
 
                 this.getMenu(item?.spec?.bindings||[]);
                 if(this.isMicroPage){
-                    const appDetailMicro = normalizeWujieSyncRoute(this.$route.query?.[APP_DETAIL_MICRO_QUERY], {
-                        frontend: this.info.frontendUrl,
-                    });
+                    const appDetailMicro = normalizeWujieSyncRoute(this.$route.query?.[APP_DETAIL_MICRO_QUERY], getWujieRoutePrefix(this.info.frontendUrl));
                     this.menuActive = appDetailMicro || this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
                     this.selectMenu = [appDetailMicro];
                     if(!this.selectMenu[0] && this.menuActive){

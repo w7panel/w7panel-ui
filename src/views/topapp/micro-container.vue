@@ -21,7 +21,7 @@ import { useNamespaceStore } from '@/store';
 import { getToken, getK8sinfo } from '@/utils/auth';
 import { bus, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
-import { normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -108,9 +108,7 @@ export default{
             this.microLoading = false;
         },
         rememberCurrentMicroRoute(){
-            this.rememberMicroRoute(normalizeWujieSyncRoute(this.$route.query?.appmicro, {
-                frontend: this.info.frontendUrl,
-            }));
+            this.rememberMicroRoute(normalizeWujieSyncRoute(this.$route.query?.appmicro, getWujieRoutePrefix(this.info.frontendUrl)));
         },
         rememberMicroRoute(route){
             if(!route){ return; }
@@ -139,6 +137,8 @@ export default{
                     ...this.info,
                     appgroup: appgroup,
                     frontendUrl: item?.spec?.frontendUrl,
+                    // 测试
+                    // frontendUrl: item?.spec?.frontendUrl.replace(/\/[^/]+$/, '/'),
                     backendUrl: item?.spec?.backendUrl,
                     username: item?.spec?.config?.props?.username,
                     password: item?.spec?.config?.props?.password,
@@ -156,9 +156,7 @@ export default{
                 this.$emit('getinfo',{...this.info})
                 this.rememberCurrentMicroRoute();
                 this.$nextTick(()=>{
-                    const appmicro = this.ignoreAppmicroOnce ? '' : normalizeWujieSyncRoute(this.$route.query?.appmicro, {
-                        frontend: this.info.frontendUrl,
-                    });
+                    const appmicro = this.ignoreAppmicroOnce ? '' : normalizeWujieSyncRoute(this.$route.query?.appmicro, getWujieRoutePrefix(this.info.frontendUrl));
                     this.ignoreAppmicroOnce = false;
                     this.page = appmicro || this.menuActive || '';
                     this.rememberMicroRoute(this.page);
@@ -222,10 +220,7 @@ export default{
                 exec: true,
                 el: '#appmicro',
                 sync: true,
-                prefix: {
-                    index: this.info.frontendUrl,
-                    other: this.info.frontendUrl.replace(/\/[^/]+$/,'/')
-                },
+                prefix: getWujieRoutePrefix(this.info.frontendUrl),
                 props: props,
             }).then(()=>{
                 console.log('app success')

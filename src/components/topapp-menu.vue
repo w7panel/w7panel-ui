@@ -109,7 +109,7 @@ import { useAppStore } from '@/store';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import useResponsive from '@/hooks/responsive';
 import { useRoute } from 'vue-router'
-import { normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 
 const props = defineProps([
     'roles',
@@ -191,9 +191,7 @@ const handelMicroMenu = (v)=>{
 
 const defaultSelectMenu = ()=>{
     const activeDo = Array.isArray(route.query?.do) ? route.query.do[0] : route.query?.do;
-    const appmicro = normalizeWujieSyncRoute(route.query?.appmicro, {
-        frontend: props?.info?.frontendUrl,
-    });
+    const appmicro = normalizeWujieSyncRoute(route.query?.appmicro, getWujieRoutePrefix(props?.info?.frontendUrl));
     let active = activeDo || appmicro || props?.roles?.[0]?.menus?.[0]?.do || '';
     selectMenu.value = [active];
 }
