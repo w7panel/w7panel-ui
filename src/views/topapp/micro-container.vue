@@ -223,7 +223,8 @@ export default{
                 el: '#appmicro',
                 sync: true,
                 prefix: {
-                    frontend: this.info.frontendUrl,
+                    index: this.info.frontendUrl,
+                    other: this.info.frontendUrl.replace(/\/[^/]+$/,'/')
                 },
                 props: props,
             }).then(()=>{
