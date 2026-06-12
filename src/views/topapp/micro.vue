@@ -59,9 +59,7 @@ export default{
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
-        this.groupName = this.group || this.$route.params.group;
-        this.menuActive = this.do || this.$route.query.do;
-        this.hideAppMenu = this.isHideMenu();
+        this.initPage();
     },
     components: {
         TopappMenu,
@@ -71,21 +69,34 @@ export default{
     },
     watch:{
         do(v){
-            v && (this.menuActive = v);
+            this.menuActive = v || this.$route.query.do || '';
         },
         bindings(v){
             this.getMenu(v)
         },
         group(v, oldV){
-            this.groupName = this.group || this.$route.params.group;
+            this.initPage();
         },
         '$route.params.group'(v, oldV){
-            this.groupName = this.group || this.$route.params.group;
+            this.initPage();
+        },
+        '$route.query.showMenu'(){
+            this.hideAppMenu = this.isHideMenu();
         },
     },
     methods: {
+        initPage(){
+            this.roles = [];
+            this.identifie = '';
+            this.identifieList = [];
+            this.info = {};
+            this.bindings = [];
+            this.menuActive = this.do || this.$route.query.do || '';
+            this.hideAppMenu = this.isHideMenu();
+            this.groupName = this.group || this.$route.params.group;
+        },
         changeAppMenu(v){
-            this.hideAppMenu = v === false;
+            this.hideAppMenu = (v === false)? true : this.isHideMenu();
         },
         routeChange(v){
             this.$refs?.microcontainer?.routeChange?.(v);

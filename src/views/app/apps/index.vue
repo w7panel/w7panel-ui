@@ -17,7 +17,7 @@
             <a-button type="outline" class="mr-20" @click="k8syaml.show=true;">K8sYaml创建</a-button>
             <!-- <a-button type="outline" class="mr-20" @click="codepack.show=true;">代码包创建</a-button> -->
             <a-button type="outline" class="mr-20" @click="helm.show=true;">Helm创建</a-button>
-            <a-button v-if="zpk.show" type="outline" class="mr-20" @click="toZpkstore" >制品商店</a-button>
+            <a-button v-if="zpk.show" type="outline" class="mr-20" href="https://zm.idc.w7.com/#/zpk-store-list" target="_blank">制品商店</a-button>
         </div>
         <div class="bg-white padding-20 mt-20">
             <a-table :data="data" class="filetable applisttable" :bordered="false" :pagination="false">
@@ -302,7 +302,7 @@ export default {
             })
         },
         toZpkstore(){
-            this.$router.push('/appgroup/'+this.zpk.groupName+'/micro?showMenu=false&do='+encodeURIComponent('#/zpk-store-list'))
+            // this.$router.push('/appgroup/'+this.zpk.groupName+'/micro?showMenu=false&do='+encodeURIComponent('#/zpk-store-list'))
         },
         toUpgrade(item){
             let domain = item?.defaultDomain || item?.domain_apps?.[0] || '';

@@ -272,7 +272,9 @@ export default {
                 this.info.iframeRoute = v || '';
                 this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
             }else{
-                bus.$emit("routeChange", (v || '').replace(/^#/,''));
+                bus.$emit("routeChange", (v || '').replace(/^#/,''), {
+                    fromSubPanel: window.__POWERED_BY_WUJIE__
+                });
             }
         },
         async wujieInit(){
@@ -321,9 +323,10 @@ export default {
                 ...this.info,
             }
             console.log(props)
+            const appUrl = this.info.frontendUrl + (this.menuActive || '');
             startApp({
                 name: APP_DETAIL_MICRO_NAME,
-                url: this.info.frontendUrl + (this.menuActive || ''),
+                url: appUrl,
 // 测试
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.menuActive || ''),
 // url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.menuActive || ''),
@@ -334,6 +337,13 @@ export default {
                 prefix: {
                     frontend: this.info.frontendUrl,
                 },
+                loadError: (url, error)=>{
+                    console.log(`appdetail loadError`, url, error);
+                },
+            }).then(()=>{
+                console.log(`appdetail start success`, appUrl);
+            }).catch((error)=>{
+                console.log(`appdetail start error`, appUrl, error);
             })
             // startApp({name: APP_DETAIL_MICRO_NAME});
             
