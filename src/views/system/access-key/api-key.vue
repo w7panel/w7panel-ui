@@ -18,7 +18,7 @@
                 <template #title>使用提示：</template>
                 <ul style="padding-inline-start: 18px; margin: 0;">
                     <li>API 密钥用于换取面板 API 调用 token，请通过 <code>POST /panel-api/v1/auth/api-token</code> 提交 appid 和 appsecret 获取 token。</li>
-                    <li>临时 token 固定 10 分钟有效；永久 token 会复用同一个服务账号 token。调用面板 API 时使用请求头 <code>Authorization: Bearer token</code>。</li>
+                    <li>临时 token 可配置有效分钟数；永久 token 会复用同一个服务账号 token。调用面板 API 时使用请求头 <code>Authorization: Bearer token</code>。</li>
                     <li>最近访问时间指最近一次使用密钥调用 API 接口的时间。此时间仅供判断密钥近期是否活跃，以此决定是否要禁用或删除密钥。</li>
                 </ul>
             </a-alert>
@@ -39,6 +39,9 @@
                     </a-table-column>
                     <a-table-column title="token类型" :width="120">
                         <template #cell="{ record }">{{ tokenTypeLabel(record.tokenType) }}</template>
+                    </a-table-column>
+                    <a-table-column title="有效期" :width="120">
+                        <template #cell="{ record }">{{ tokenExpireLabel(record) }}</template>
                     </a-table-column>
                     <a-table-column title="状态" :width="100">
                         <template #cell="{ record }">
@@ -85,6 +88,9 @@
                         <a-radio value="permanent">永久 token</a-radio>
                     </a-radio-group>
                 </a-form-item>
+                <a-form-item v-if="form.data.tokenType === 'temporary'" label="有效分钟数" field="temporaryTokenMinutes" :rules="[{ required: true, message: '请输入有效分钟数' }]">
+                    <a-input-number v-model="form.data.temporaryTokenMinutes" :min="1" :max="1440" :precision="0" placeholder="请输入有效分钟数" />
+                </a-form-item>
             </a-form>
         </a-drawer>
 
@@ -116,13 +122,17 @@ function randomSecret() {
 }
 
 function buildSpec(data) {
-    return {
+    const spec = {
         enabled: data.enabled !== false,
         clientName: data.clientName,
         clientId: data.clientId,
         clientSecret: data.clientSecret,
         tokenType: data.tokenType || 'temporary',
     };
+    if (spec.tokenType === 'temporary') {
+        spec.temporaryTokenMinutes = Number(data.temporaryTokenMinutes) || 10;
+    }
+    return spec;
 }
 
 export default {
@@ -172,10 +182,17 @@ export default {
                 clientId: randomId(),
                 clientSecret: randomSecret(),
                 tokenType: 'temporary',
+                temporaryTokenMinutes: 10,
             };
         },
         tokenTypeLabel(tokenType) {
             return tokenType === 'permanent' ? '永久 token' : '临时 token';
+        },
+        tokenExpireLabel(record) {
+            if ((record.tokenType || 'temporary') !== 'temporary') {
+                return '-';
+            }
+            return `${record.temporaryTokenMinutes || 10} 分钟`;
         },
         openCreate() {
             this.form.data = this.getDefaultFormData();
@@ -189,6 +206,7 @@ export default {
                 clientId: record.clientId || '',
                 clientSecret: record.clientSecret || '',
                 tokenType: record.tokenType || 'temporary',
+                temporaryTokenMinutes: record.temporaryTokenMinutes || 10,
                 enabled: record.enabled !== false,
             };
             this.form.isEdit = true;
