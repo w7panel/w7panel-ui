@@ -17,7 +17,8 @@
             <a-alert type="info" class="mb-20">
                 <template #title>使用提示：</template>
                 <ul style="padding-inline-start: 18px; margin: 0;">
-                    <li>API密钥是构建面板 API 请求的重要凭证。用于您<a class="cursor c-blue" target="_blank" href="https://github.com/w7panel/w7panel/blob/dev-v1/docs/hawk/calling.md">调用API</a>时生成签名，查看<a class="cursor c-blue" target="_blank" href="https://github.com/w7panel/w7panel/blob/dev-v1/docs/hawk/signature.md">生成签名算法</a></li>
+                    <li>API 密钥用于换取面板 API 调用 token，请通过 <code>POST /panel-api/v1/auth/api-token</code> 提交 appid 和 appsecret 获取 token。</li>
+                    <li>临时 token 固定 10 分钟有效；永久 token 会复用同一个服务账号 token。调用面板 API 时使用请求头 <code>Authorization: Bearer token</code>。</li>
                     <li>最近访问时间指最近一次使用密钥调用 API 接口的时间。此时间仅供判断密钥近期是否活跃，以此决定是否要禁用或删除密钥。</li>
                 </ul>
             </a-alert>
@@ -26,15 +27,18 @@
                     <a-table-column title="clientName">
                         <template #cell="{ record }">{{ record.clientName }}</template>
                     </a-table-column>
-                    <a-table-column title="clientId">
+                    <a-table-column title="appid">
                         <template #cell="{ record }">{{ record.clientId }}</template>
                     </a-table-column>
-                    <a-table-column title="clientSecret" width="360">
+                    <a-table-column title="appsecret" width="360">
                         <template #cell="{ record }">
                             <span v-if="record._showSecret">{{ record.clientSecret }}</span>
                             <span v-else>{{ record.clientSecret ? '••••••••' : '-' }}</span>
                             <icon-eye v-if="record.clientSecret" class="ml-6 cursor c-99" @click="record._showSecret = !record._showSecret" />
                         </template>
+                    </a-table-column>
+                    <a-table-column title="token类型" :width="120">
+                        <template #cell="{ record }">{{ tokenTypeLabel(record.tokenType) }}</template>
                     </a-table-column>
                     <a-table-column title="状态" :width="100">
                         <template #cell="{ record }">
@@ -68,12 +72,18 @@
                 <a-form-item label="clientName" field="clientName" :rules="[{ required: true, message: '请输入 clientName' }]">
                     <a-input v-model="form.data.clientName" placeholder="请输入 clientName" />
                 </a-form-item>
-                <a-form-item label="clientId" field="clientId" :rules="[{ required: true, message: '请输入 clientId' }]">
-                    <a-input v-model="form.data.clientId" :disabled="form.isEdit" placeholder="请输入 clientId" />
+                <a-form-item label="appid" field="clientId" :rules="[{ required: true, message: '请输入 appid' }]">
+                    <a-input v-model="form.data.clientId" :disabled="form.isEdit" placeholder="请输入 appid" />
                 </a-form-item>
-                <a-form-item label="clientSecret" field="clientSecret" :rules="[{ required: true, message: '请输入 clientSecret' }]">
-                    <a-input v-model="form.data.clientSecret" readonly placeholder="请输入 clientSecret" style="flex:1;" />
+                <a-form-item label="appsecret" field="clientSecret" :rules="[{ required: true, message: '请输入 appsecret' }]">
+                    <a-input v-model="form.data.clientSecret" readonly placeholder="请输入 appsecret" style="flex:1;" />
                     <a-button type="primary" @click="form.data.clientSecret = generateSecret()">{{ form.isEdit ? '重新生成' : '生成' }}</a-button>
+                </a-form-item>
+                <a-form-item label="token类型" field="tokenType" :rules="[{ required: true, message: '请选择 token 类型' }]">
+                    <a-radio-group v-model="form.data.tokenType" :disabled="form.isEdit" type="button">
+                        <a-radio value="temporary">临时 token</a-radio>
+                        <a-radio value="permanent">永久 token</a-radio>
+                    </a-radio-group>
                 </a-form-item>
             </a-form>
         </a-drawer>
@@ -107,9 +117,11 @@ function randomSecret() {
 
 function buildSpec(data) {
     return {
+        enabled: data.enabled !== false,
         clientName: data.clientName,
         clientId: data.clientId,
         clientSecret: data.clientSecret,
+        tokenType: data.tokenType || 'temporary',
     };
 }
 
@@ -155,10 +167,15 @@ export default {
         },
         getDefaultFormData() {
             return {
+                enabled: true,
                 clientName: '',
                 clientId: randomId(),
                 clientSecret: randomSecret(),
+                tokenType: 'temporary',
             };
+        },
+        tokenTypeLabel(tokenType) {
+            return tokenType === 'permanent' ? '永久 token' : '临时 token';
         },
         openCreate() {
             this.form.data = this.getDefaultFormData();
@@ -171,6 +188,8 @@ export default {
                 clientName: record.clientName || '',
                 clientId: record.clientId || '',
                 clientSecret: record.clientSecret || '',
+                tokenType: record.tokenType || 'temporary',
+                enabled: record.enabled !== false,
             };
             this.form.isEdit = true;
             this.form.editName = record._name;
@@ -185,7 +204,12 @@ export default {
                 const request = this.form.isEdit
                     ? k8sproxy.get(`${apiBase}/${this.form.editName}`).then(res => {
                         const crd = res.data;
-                        crd.spec = spec;
+                        crd.spec = {
+                            ...(crd.spec || {}),
+                            ...spec,
+                            clientId: crd.spec?.clientId || spec.clientId,
+                            tokenType: crd.spec?.tokenType || spec.tokenType,
+                        };
                         return k8sproxy.put(`${apiBase}/${this.form.editName}`, crd);
                     })
                     : k8sproxy.post(apiBase, {
