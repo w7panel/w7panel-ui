@@ -1,8 +1,9 @@
 export function getWujieRoutePrefix(frontendUrl: unknown) {
   const index = String(frontendUrl || '');
   return {
-    index: index + 'index.html',
-    other: index, //.replace(/\/[^/]+$/, '/'),
+    // index: index + 'index.html',
+    index: index,
+    other: index,
   };
 }
 
