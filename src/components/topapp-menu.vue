@@ -114,6 +114,7 @@ import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-rout
 const props = defineProps([
     'roles',
     'info',
+    'menuActive',
     // 'identifie',
     // 'identifieList'
 ])
@@ -192,12 +193,13 @@ const handelMicroMenu = (v)=>{
 const defaultSelectMenu = ()=>{
     const activeDo = Array.isArray(route.query?.do) ? route.query.do[0] : route.query?.do;
     const appmicro = normalizeWujieSyncRoute(route.query?.appmicro, getWujieRoutePrefix(props?.info?.frontendUrl));
-    let active = activeDo || appmicro || props?.roles?.[0]?.menus?.[0]?.do || '';
+    let active = props?.menuActive || activeDo || appmicro || props?.roles?.[0]?.menus?.[0]?.do || '';
     selectMenu.value = [active];
 }
 
 watch(()=>props.info,defaultSelectMenu)
 watch(()=>props.roles,defaultSelectMenu)
+watch(()=>props.menuActive,defaultSelectMenu)
 watch(()=>route.params.group,defaultSelectMenu)
 watch(()=>route.query.do,defaultSelectMenu)
 watch(()=>route.query.appmicro,defaultSelectMenu)
