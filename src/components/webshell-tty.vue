@@ -22,7 +22,7 @@ import {FitAddon} from '@xterm/addon-fit';
 import { AdventureTime } from 'xterm-theme';
 
 export default {
-    props: ['token','command','show','type'],
+    props: ['token','command','show','type','keepAliveOnHide'],
     data(){
         return {
             socketUrl: '/panel-api/v1/tty',
@@ -58,10 +58,15 @@ export default {
     watch: {
         show(v){
             if(v === false){
+                if (this.keepAliveOnHide) return;
                 this.closeSocketGracefully();
+            } else if (v === true && this.socket) {
+                this.refreshTerminalSize();
             } else if (v === true && !this.socket) {
                 this.$nextTick(()=>{
-                    this.initTerm();
+                    if (!this.term) {
+                        this.initTerm();
+                    }
                     this.initSocket();
                 })
             }
@@ -191,6 +196,10 @@ export default {
 
         },
         initTerm(){
+            if (this.term) {
+                this.refreshTerminalSize();
+                return;
+            }
             const term = new Terminal({
                 theme: AdventureTime,
             });
@@ -202,10 +211,9 @@ export default {
             const fitAddon = new FitAddon()
             this.xtermfit = fitAddon;
             term.loadAddon(fitAddon);
-            fitAddon.fit();
             this.resizeHandler = () => {
                 if(this.show===false){return}
-                fitAddon.fit();
+                this.refreshTerminalSize();
             };
             window.addEventListener('resize', this.resizeHandler);
             
@@ -214,7 +222,23 @@ export default {
             });
             term.focus();
             this.term = term;
+            this.refreshTerminalSize();
             
+        },
+        refreshTerminalSize(){
+            this.$nextTick(() => {
+                window.requestAnimationFrame(() => {
+                    if (!this.term || !this.xtermfit || this.show === false) return;
+                    const el = this.$refs["terminal"];
+                    if (!el || !el.offsetWidth || !el.offsetHeight) return;
+                    try {
+                        this.xtermfit.fit();
+                        this.term.focus();
+                    } catch (e) {
+                        console.error(e);
+                    }
+                });
+            });
         },
         colrows(rows,cols){
             const buffer = new ArrayBuffer(4); // 2 bytes per number, total 4 bytes  
@@ -224,7 +248,7 @@ export default {
             this.sendData(buffer);
         },
         sendData(message){
-            if(!this.socket || this.socketClose){return}
+            if(!this.socket || this.socketClose || this.socket.readyState !== WebSocket.OPEN){return}
             this.socket.send(message);
         },
         messageSocket() {

@@ -16,6 +16,7 @@
                     :ref="(el) => setShellRef(item.key, el)"
                     :token="token"
                     :show="item.key===activeIndex"
+                    :keep-alive-on-hide="true"
                     :type="$route.name=='fp-webshell'?'/bin/bash':''"
                 ></webshell-tty>
             </a-tab-pane>
