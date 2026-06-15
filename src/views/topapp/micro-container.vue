@@ -73,6 +73,9 @@ export default{
         bus.$off('changeAppMenu', this.changeAppMenu);
 
         this.destroyMicro();
+        this.clearSyncedAppmicroUrl();
+        setTimeout(this.clearSyncedAppmicroUrl, 0);
+        setTimeout(this.clearSyncedAppmicroUrl, 100);
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
@@ -238,6 +241,31 @@ export default{
         destroyMicro(){
             try{
                 destroyApp('appmicro');
+            }catch{}
+        },
+        clearSyncedAppmicroUrl(){
+            try{
+                const url = new URL(window.location.href);
+                let changed = false;
+
+                if(url.searchParams.has('appmicro')){
+                    url.searchParams.delete('appmicro');
+                    changed = true;
+                }
+
+                if(url.hash && /([?&])appmicro=/.test(url.hash)){
+                    const [hashPath, hashQuery = ''] = url.hash.split('?');
+                    const params = new URLSearchParams(hashQuery);
+                    if(params.has('appmicro')){
+                        params.delete('appmicro');
+                        url.hash = params.toString() ? `${hashPath}?${params.toString()}` : hashPath;
+                        changed = true;
+                    }
+                }
+
+                if(changed){
+                    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+                }
             }catch{}
         },
     }
