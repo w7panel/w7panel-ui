@@ -311,7 +311,7 @@ export default {
                 width: 80,
             },
             
-            loading: true,
+            loading: false,
             namespaceActive: "",
 
             nativeList: [],
@@ -368,6 +368,7 @@ export default {
 
             statusController: null,
             watchController: null,
+            watchLabel: '',
             expandedKeys: [],  // 展开的行
         }
     },
@@ -448,18 +449,31 @@ export default {
         },
 
         getList(){
-            if(!Object.keys(this.data)?.length){return}
+            if(!Object.keys(this.data || {})?.length){
+                this.loading = false;
+                return;
+            }
+            let selector = this.data?.spec?.selector?.matchLabels || {};
+            let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
+            if(this.watchController && this.watchLabel === label){
+                return;
+            }
+
             this.list = [];
             this.nativeList = [];
             this.expandedKeys = [];  // 重置展开状态
-            let selector = this.data?.spec?.selector?.matchLabels || {};
-            let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
             
             // 停止之前的 watch
             this.stopWatch();
             
             const controller = new AbortController();
             this.watchController = controller;
+            this.watchLabel = label;
+            const closeLoading = () => {
+                if(this.watchController === controller){
+                    this.loading = false;
+                }
+            };
             const { signal } = controller;
             const queryString = new URLSearchParams({ labelSelector: label, watch: 'true', }).toString();
             fetch("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?" + queryString, {
@@ -477,6 +491,7 @@ export default {
                     console.error('响应体不是流式数据');
                     throw new Error('Response body is not a readable stream');
                 }
+                closeLoading();
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder('utf-8');
@@ -532,6 +547,11 @@ export default {
             }).catch((error)=>{
                 if (error.name === 'AbortError' || error.code === 20) { return; }
                 console.log('cache',error)
+                if(this.watchController === controller){
+                    this.watchController = null;
+                    this.watchLabel = '';
+                }
+                closeLoading();
             });
 
             // metrics 在展开时获取，首次加载不获取
