@@ -86,6 +86,11 @@ export default{
         microMenuActive(){
             return this.isAppDirectPage ? this.currentMicroMenuActive : this.menuActive;
         },
+        paddingStyle(){
+            return {
+                minHeight: (window).__POWERED_BY_WUJIE__ || (window).__MICRO_APP_ENVIRONMENT__ ? 'calc(100vh - 62px)' : '100vh',
+            };
+        },
     },
     watch:{
         do(v){

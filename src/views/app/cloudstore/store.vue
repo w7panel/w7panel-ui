@@ -120,7 +120,7 @@
         </a-modal>
 
         <a-modal :visible="buypackage.show" title="购买模块" width="960px" @ok="buypackageSubmit" @cancel="buypackage.show = false">
-            <a-form auto-label-width>
+            <a-form :model="buypackage" auto-label-width>
                 <a-form-item label="应用名称">
                     <div class="df ai-c">
                         <img :src="buypackage.logo" alt="" style="width:36px; height:36px; border-radius:4px;" />

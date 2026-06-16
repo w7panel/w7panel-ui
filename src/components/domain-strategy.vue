@@ -43,7 +43,7 @@
             </a-tabs>
             
             <div v-if="rewrite.show" >
-                <a-form auto-label-width class="padding-20">
+                <a-form :model="rewrite" auto-label-width class="padding-20">
                     <a-form-item label="开启状态">
                         <a-switch v-model="rewrite.enable" />
                     </a-form-item>
@@ -61,7 +61,7 @@
             </div>
 
             <div v-if="header.show" >
-                <a-form auto-label-width class="padding-20">
+                <a-form :model="header" auto-label-width class="padding-20">
                     <a-form-item label="开启状态">
                         <a-switch v-model="header.enable" />
                     </a-form-item>
@@ -111,7 +111,7 @@
             </div>
             
             <div v-if="cross.show" >
-                <a-form auto-label-width class="padding-20">
+                <a-form :model="cross" auto-label-width class="padding-20">
                     <a-form-item label="开启状态">
                         <a-switch v-model="cross.enable" />
                     </a-form-item>
@@ -154,7 +154,7 @@
             </div>
 
             <div v-if="retry.show" >
-                <a-form auto-label-width class="padding-20">
+                <a-form :model="retry" auto-label-width class="padding-20">
                     <a-form-item label="开启状态">
                         <a-switch v-model="retry.enable" />
                     </a-form-item>
@@ -187,7 +187,7 @@
                     <template #extra>
                         <div class="c-99 fs-14 lh-14">通过重定向可以将原始客户端请求更改为目标请求</div>
                     </template>
-                    <a-form auto-label-width class="">
+                    <a-form :model="redirect" auto-label-width class="">
                         <a-form-item label="开启状态" >
                             <a-switch v-model="redirect.enable" />
                         </a-form-item>
@@ -211,7 +211,7 @@
                     <template #extra>
                         <div class="c-99 fs-14 lh-14">指定路由上的IP白名单，支持IP地址或CIDR地址块</div>
                     </template>
-                    <a-form auto-label-width class="">
+                    <a-form :model="iplist" auto-label-width class="">
                         <a-form-item label="开启状态" >
                             <a-switch v-model="iplist.enable" />
                         </a-form-item>
@@ -229,7 +229,7 @@
                     <template #extra>
                         <div class="c-99 fs-14 lh-14">支持针对路由级别的单机限流策略，在设定的时间周期内，限制每个网关副本匹配在某个路由上的请求数量不大于阈值。</div>
                     </template>
-                    <a-form auto-label-width class="">
+                    <a-form :model="routelimit" auto-label-width class="">
                         <a-form-item label="开启状态" >
                             <a-switch v-model="routelimit.enable" />
                         </a-form-item>
@@ -261,7 +261,7 @@
                     <template #extra>
                         <div class="c-99 fs-14 lh-14">当定义的服务通信不可达时，请求会自动转发到设置的容灾服务。</div>
                     </template>
-                    <a-form auto-label-width class="">
+                    <a-form :model="errorPage" auto-label-width class="">
                         <a-form-item label="开启状态" >
                             <a-switch v-model="errorPage.enable" />
                         </a-form-item>

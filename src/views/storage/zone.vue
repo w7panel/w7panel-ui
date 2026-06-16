@@ -58,7 +58,7 @@
                             </template>
                         </a-table-column>
 
-                        <a-table-column v-if="usermode!=='cluster' && hasLonghornSystem" title="副本数" width="100">
+                        <a-table-column v-if="usermode!=='cluster' && hasLonghornSystem" title="副本数" :width="100">
                             <template #cell="{ record }">{{record.numberOfReplicas}}</template>
                         </a-table-column>
                         <a-table-column v-if="usermode!=='cluster' && hasLonghornSystem" title="已使用/分配" align="center">
@@ -118,7 +118,7 @@
                         <a-table-column title="创建时间">
                             <template #cell="{ record }">{{record.create || '-'}}</template>
                         </a-table-column>
-                        <a-table-column title="操作" fixed='right' width="240">
+                        <a-table-column title="操作" fixed='right' :width="240">
                             <template #cell="{ record }">
                                 <span v-if="hasLonghornSystem && !record.isExpanding" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
                                 <span v-if="record.isExpanding" class="c-blue cursor mr-20" @click="cancelExpand(record)">取消扩容</span>

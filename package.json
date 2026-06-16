@@ -61,7 +61,6 @@
     "sortablejs": "^1.15.6",
     "vue": "^3.2.40",
     "vue-echarts": "^6.2.3",
-    "vue-i18n": "^9.2.2",
     "vue-router": "4.0.14",
     "wujie": "^1.0.23",
     "xterm-theme": "^1.1.0"

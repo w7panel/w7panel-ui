@@ -1,6 +1,5 @@
 <script lang="tsx">
   import { defineComponent, ref, h, compile, computed, watch } from 'vue';
-  import { useI18n } from 'vue-i18n';
   import { useRoute, useRouter, RouteRecordRaw } from 'vue-router';
   import type { RouteMeta } from 'vue-router';
   import { useAppStore } from '@/store';
@@ -11,7 +10,6 @@
   export default defineComponent({
     emit: ['collapse'],
     setup() {
-      const { t } = useI18n();
       const appStore = useAppStore();
       const router = useRouter();
       const route = useRoute();
@@ -90,6 +88,7 @@
       const renderSubMenu = () => {
         const menuFilter = appStore.menuFilter || 'cloudserver';
         const flattenMenuGroups = ['system', 'usermanage', 'person'];
+        const getMenuTitle = (element: RouteRecordRaw) => String(element?.meta?.locale || element?.name || '');
 
         const shouldShowRoute = (element: RouteRecordRaw, isRoot = false) => {
           if (element?.meta?.hideInMenu) {
@@ -132,7 +131,7 @@
                     key={element?.name}
                     v-slots={{
                       icon,
-                      title: () => h(compile(t(element?.meta?.locale || element?.name))),
+                      title: () => h(compile(getMenuTitle(element))),
                     }}
                   >
                     <span>{travel(element?.children as RouteRecordRaw[])}</span>
@@ -148,7 +147,7 @@
                     v-slots={{ icon }}
                     onClick={() => goto(element)}
                   >
-                    <span>{t(element?.meta?.locale || element?.name)}</span>
+                    <span>{getMenuTitle(element)}</span>
                     {element?.meta?.linkIcon ? (
                       <icon-launch style="margin-left:6px;font-size:14px;" />
                     ) : (

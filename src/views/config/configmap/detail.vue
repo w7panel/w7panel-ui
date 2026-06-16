@@ -7,7 +7,7 @@
                 <a-button type="primary" @click="openForm($route.params.id)"><template #icon><icon-edit /></template>修改</a-button>
             </div>
             <div class="mt-20 padding-20 bg-white">
-                <a-form auto-label-width class="ml-20">
+                <a-form :model="form" auto-label-width class="ml-20">
                     <a-form-item label="名称">{{form.title}}</a-form-item>
                     <a-form-item v-if="form.type=='file'" label="内容">
                         <div class="df mt-10" style="width:100%; position:relative;">

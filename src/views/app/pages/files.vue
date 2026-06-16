@@ -405,7 +405,7 @@
 
         <a-modal v-model:visible="upload.show" width="500px" @cancel="upload.show=false;" :footer="false" :popup-container="false?'#allmodalbox':'body'">
             <template #title>上传文件</template>
-            <a-form v-model="upload" class="" label-width="100px">
+            <a-form :model="upload" class="" label-width="100px">
                 <a-form-item label="文件目录：">
                     <a-input readonly v-model="upload.dir" />
                 </a-form-item>
@@ -428,7 +428,7 @@
 
         <a-drawer :visible="authority.show" width="900px" @ok="changeAuthority" @cancel="authority.show=false;" :popup-container="false?'#allmodalbox':'body'">
             <template #title>修改权限</template>
-            <a-form layout="vertical">
+            <a-form :model="authority" layout="vertical">
                 <div class="df padding-10">
                     <div class="fc">
                         <a-card title="所有者">
@@ -517,7 +517,7 @@
         
         <a-modal v-model:visible="uncompress.show" width="600px" @cancel="uncompress.show=false;" :footer="false" :popup-container="false?'#allmodalbox':'body'">
             <template #title>解压</template>
-            <a-form v-if="uncompress.show" label-width="100px">
+            <a-form v-if="uncompress.show" :model="uncompress" label-width="100px">
                 <a-form-item label="文件名">
                     <a-input readonly :default-value="decodeURIComponent(showPath+uncompress.row.name)"></a-input>
                 </a-form-item>

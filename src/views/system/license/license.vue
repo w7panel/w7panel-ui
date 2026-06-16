@@ -4,7 +4,7 @@
         <div class="bg-white padding-20 fc">
             
             <div class="df jc-b">
-                <a-form layout="inline">
+                <a-form :model="search" layout="inline">
                     <a-form-item label="订单号">
                         <a-input v-model="search.sn" placeholder="请输入订单号" />
                     </a-form-item>

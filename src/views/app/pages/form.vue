@@ -4,7 +4,7 @@
         <div class="bg-white padding-20">
             <div class="bg-padding">
                 <div class="bg-white bg-padding df jc-b">
-                    <a-form label-suffix="" auto-label-width label-width="130px" label-position="left" class="form-33-label">
+                    <a-form :model="form" label-suffix="" auto-label-width label-width="130px" label-position="left" class="form-33-label">
                         <a-form-item label="应用标识">
                             <a-input type="text" v-model="form.name" @change="yamlData=formTodata()" :disabled="!!$route.params.id" size="large" style="width:500px;" />
                         </a-form-item>

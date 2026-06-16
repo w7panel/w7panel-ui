@@ -96,7 +96,7 @@
                                         <span class="c-blue cursor ml-20" @click="domainShow(item)">添加子目录</span>
                                     </div>
                                     <div v-if="item.children&&item.children.length">
-                                        <a-popover position="bottom" content-style="padding:6px 10px 10px;">
+                                        <a-popover position="bottom" :content-style="{ padding: '6px 10px 10px' }">
                                             <span class="c-blue cursor fs-12 mt-4">等{{item.children.length+1}}个域名</span>
                                             <template #content>
                                                 <div class="df df-c">
@@ -492,7 +492,7 @@
         </a-drawer>
         <!-- 卡片添加域名 -->
         <a-modal v-model:visible="formcard.show" :title="formcard.title" @ok="formCardSubmit" @cancel="formcard.show=false;" width="600px" :popup-container="false?'#allmodalbox':'body'">
-            <a-form auto-label-width>
+            <a-form :model="formcard" auto-label-width>
                 <a-form-item label="域名">
                     <div class="df df-c" style="flex:1;">
                         <a-input v-model="formcard.domain" :disabled="whiteList.length && (formcard.whiteDomain==-1||whiteList[formcard.whiteDomain].prefixRandom)" placeholder="请输入" :spellcheck="false">

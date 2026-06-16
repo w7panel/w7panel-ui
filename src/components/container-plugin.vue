@@ -1,5 +1,5 @@
 <template>
-    <a-form auto-label-width>
+    <a-form :model="data" auto-label-width>
         <div class="title">基本信息</div>
         <a-form-item label="应用类型">
             <div class="df ai-c">

@@ -29,7 +29,7 @@
                     <a-table-column title="clientId">
                         <template #cell="{ record }">{{ record.clientId }}</template>
                     </a-table-column>
-                    <a-table-column title="clientSecret" width="360">
+                    <a-table-column title="clientSecret" :width="360">
                         <template #cell="{ record }">
                             <span v-if="record._showSecret">{{ record.clientSecret }}</span>
                             <span v-else>{{ record.clientSecret ? '••••••••' : '-' }}</span>

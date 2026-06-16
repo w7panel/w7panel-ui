@@ -1,6 +1,6 @@
 <template>
     <div class="padding-20">
-        <a-form label-suffix="" auto-label-width class="ml-20" label-align="left">
+        <a-form :model="form" label-suffix="" auto-label-width class="ml-20" label-align="left">
 
             <div class="form-title">基本信息</div>
             <a-form-item label="应用图标">
@@ -317,7 +317,7 @@
             </div>
         </a-drawer>
         <a-drawer :width="800" :visible="replicasForm.dialog" title="实例副本数" @ok="submitReplicas" @cancel="replicasForm.dialog=false;">
-            <a-form auto-label-width>
+            <a-form :model="replicasForm" auto-label-width>
                 <a-form-item label="当前实例数量">{{replicasForm.replicasNow}}</a-form-item>
                 <a-form-item label="实例数量">
                     <div style="width:100%;">

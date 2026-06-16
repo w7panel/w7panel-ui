@@ -264,7 +264,17 @@ export default{
                 }
 
                 if(changed){
-                    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+                    const nextUrl = url.pathname + url.search + url.hash;
+                    const currentState = window.history.state || {};
+                    window.history.replaceState({
+                        ...currentState,
+                        back: currentState.back ?? null,
+                        current: currentState.current ?? nextUrl,
+                        forward: currentState.forward ?? null,
+                        replaced: currentState.replaced ?? true,
+                        position: currentState.position ?? Math.max(window.history.length - 1, 0),
+                        scroll: currentState.scroll ?? null,
+                    }, '', nextUrl);
                 }
             }catch{}
         },

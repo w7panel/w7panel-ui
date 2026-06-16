@@ -28,7 +28,7 @@
                                 <div v-if="record.deployStatus=='deploying'||record.deployStatus=='failed'">
 
                                     <span v-if="record.domain_apps.length==1" class="c-99">{{record.domain_apps[0]}}</span>
-                                    <a-popover v-else position="bottom" content-style="padding:6px 10px 10px;">
+                                    <a-popover v-else position="bottom" :content-style="{ padding: '6px 10px 10px' }">
                                         <div class="df df-c lh-1 cursor" style="display:inline-flex;">
                                             <span class="c-99">{{record.domain_apps[0]}}</span>
                                             <span class="c-99 fs-12 mt-4">等{{record.domain_apps.length}}个域名</span>
@@ -42,7 +42,7 @@
                                 </div>
                                 <div v-else>
                                     <a v-if="record.domain_apps.length==1" class="cursor c-blue" target="_blank" :href="record.domain_apps[0]">{{record.domain_apps[0]}}</a>
-                                    <a-popover v-else position="bottom" content-style="padding:6px 10px 10px;">
+                                    <a-popover v-else position="bottom" :content-style="{ padding: '6px 10px 10px' }">
                                         <div class="df df-c lh-1 cursor" style="display:inline-flex;">
                                             <a class="cursor c-blue" target="_blank" :href="record.domain_apps[0]">{{record.domain_apps[0]}}</a>
                                             <span class="c-blue fs-12 mt-4">等{{record.domain_apps.length}}个域名</span>
@@ -68,7 +68,7 @@
                                 <icon-common v-show="!record.icon || record.iconLoadError" class="icon" />
                                 <!-- title -->
                                 <span v-if="record.childrenApp.length<=1" class="cursor lh-1 c-orange" @click="$router.push('/app/store-install?completeName='+record.groupName)">{{record.title || record.name}}</span>
-                                <a-popover v-else position="bottom" content-style="padding:6px 10px 10px;">
+                                <a-popover v-else position="bottom" :content-style="{ padding: '6px 10px 10px' }">
                                     <div class="df df-c lh-1 cursor c-orange" style="display:inline-flex;" @click="$router.push('/app/store-install?completeName='+record.groupName)">
                                         <span>{{record.title || record.name}}</span>
                                         <span class="fs-12 mt-4">等{{record.childrenApp.length}}个应用</span>
@@ -99,7 +99,7 @@
                                         </template>
                                     </a-popover>
                                 </span>
-                                <a-popover v-else position="bottom" content-style="padding:6px 10px 10px;">
+                                <a-popover v-else position="bottom" :content-style="{ padding: '6px 10px 10px' }">
                                     <div class="df df-c lh-1 cursor" :class="{'c-blue':!record.deletionTimestamp,'c-99':record.deletionTimestamp}" style="display:inline-flex;" @click="toDetail(record)">
                                         <span>
                                             <span>{{record.title || record.name}}</span>
@@ -126,7 +126,7 @@
                                 <span v-if="record.deletionTimestamp" class="c-99 ml-10">删除中...</span>
                             </div>
                             <div v-if="record.upgrade && record.upgrade.canUpgrade" class="df df-inline ai-c">
-                                <a-popover position="bottom" trigger="click" content-style="padding:6px 10px 16px;">
+                                <a-popover position="bottom" trigger="click" :content-style="{ padding: '6px 10px 16px' }">
                                     <div class="cursor ml-10" style="color:rgb(var(--red-7));">
                                         <icon-exclamation-circle-fill />
                                         <span class="ml-2">新版本</span>
@@ -153,7 +153,7 @@
                             {{record.createTime}}
                         </template>
                     </a-table-column>
-                    <a-table-column title="操作" width="300">
+                    <a-table-column title="操作" :width="300">
                         <template #cell="{ record }">
                             <div v-if="record.deployStatus=='deploying'||record.deployStatus=='failed'">
                                 <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel' && !record.denyDelete" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">

@@ -7,7 +7,7 @@
             <div v-if="$route.query.status=='wait'" style="margin-bottom:20px;">
                 <a-alert type="warning">当前资源为待回收状态，请通知用户及时续费。<span v-if="$route.query.time">回收时间：{{ $route.query.time }}</span></a-alert>
             </div>
-            <a-form auto-label-width style="width:100%;">
+            <a-form :model="info" auto-label-width style="width:100%;">
                 <a-form-item label="CPU" style="margin-bottom:0;">
                     <a-progress :percent="info.cpuPercent" :status="info.cpuPercent>=1?'danger':'normal'" :stroke-width="14" :style="{width:'160px'}" :show-text="false" />
                     <div class="fs-14 ml-20">{{info.usedCpu }}核/{{ info.cpu }}核</div>

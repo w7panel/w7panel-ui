@@ -6,7 +6,7 @@
             <!-- <a-button type="outline" class="ml-20" @click="openRegister">注册设置</a-button> -->
         </div>
         <div class="bg-white mt-20">
-            <a-form layout="inline" class="padding-20" style="padding-bottom:12px;">
+            <a-form :model="search" layout="inline" class="padding-20" style="padding-bottom:12px;">
                 <a-form-item label="用户名">
                     <a-input v-model="search.username" placeholder="请输入用户名"></a-input>
                 </a-form-item>
@@ -63,7 +63,7 @@
                                         <span v-if="record.sourceStatus==2" class="c-red mr-4">{{ record.sourceStatusTxt }}</span>
                                         <span v-if="record.sourceStatus==3" class="c-orange mr-4">{{ record.sourceStatusTxt }}</span>
                                         <span v-if="record.sourceStatus==4" class="c-red mr-4">{{ record.sourceStatusTxt }}</span>
-                                        <a-popover v-if="record.sourceStatus==5" position="bl" @popup-visible-change="v=>v?getErrorReason(record,rowIndex):null" content-style="padding:6px 10px 10px;min-width:100px;min-height:40px;">
+                                        <a-popover v-if="record.sourceStatus==5" position="bl" @popup-visible-change="v=>v?getErrorReason(record,rowIndex):null" :content-style="{ padding: '6px 10px 10px', minWidth: '100px', minHeight: '40px' }">
                                             <span class="c-red cursor mr-4">{{ record.sourceStatusTxt }}</span>
                                             <template #content>
                                                 <a-spin :loading="record.podStatus && record.podStatus.loading" style="width:100%;height:100%;">

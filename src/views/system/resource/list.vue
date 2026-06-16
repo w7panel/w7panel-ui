@@ -2,7 +2,7 @@
     <div class="df df-c padding-20" style="height:100%;overflow:auto;">
         <route-breadcrumb v-if="$route.name!='fp-usermanage-resource'" />
         <div class="bg-white df jc-b">
-            <a-form layout="inline" class="padding-20" style="padding-bottom:12px;">
+            <a-form :model="search" layout="inline" class="padding-20" style="padding-bottom:12px;">
                 <a-form-item label="用户名">
                     <a-input v-model="search.name" placeholder="请输入名称" style="min-width:150px;" />
                 </a-form-item>
@@ -43,7 +43,7 @@
                                 <div>
                                     <span :class="{'ready':'c-blue','new':'c-99','wait':'c-red','recycle':'c-99','creating':'c-orange'}[record.phase]">[{{record.phaseTxt}}]</span>
                                     
-                                    <a-popover v-if="record.clusterPhase=='Failed'" position="bl" @popup-visible-change="v=>v?getErrorReason(record,rowIndex):null" content-style="overflow:auto;padding:6px 10px 10px;max-width:800px;min-width:100px;min-height:40px;">
+                                    <a-popover v-if="record.clusterPhase=='Failed'" position="bl" @popup-visible-change="v=>v?getErrorReason(record,rowIndex):null" :content-style="{ overflow: 'auto', padding: '6px 10px 10px', maxWidth: '800px', minWidth: '100px', minHeight: '40px' }">
                                         <span class="c-red cursor ml-6">{{ record.clusterPhaseTxt }}</span>
                                         <template #content>
                                             <a-spin :loading="record.podStatus && record.podStatus.loading" style="width:100%;height:100%;">

@@ -2,7 +2,7 @@
     <a-drawer :width="700" :visible="visible" @cancel="closeDrawer()" @ok="submit">
         <template #title>权限管理</template>
         <div>
-            <a-form auto-label-width>
+            <a-form :model="pmsForm" auto-label-width>
                 
                 <a-form-item label="权限套餐">
                     <a-select v-model="pmsForm.permissionPackage" @change="pmsFormChangePermissionPackage" placeholder="请选择">

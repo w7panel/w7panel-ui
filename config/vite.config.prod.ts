@@ -22,7 +22,7 @@ export default mergeConfig(
           manualChunks: {
             arco: ['@arco-design/web-vue'],
             chart: ['echarts', 'vue-echarts'],
-            vue: ['vue', 'vue-router', 'pinia', '@vueuse/core', 'vue-i18n'],
+            vue: ['vue', 'vue-router', 'pinia', '@vueuse/core'],
           },
           // 添加内容哈希到文件名，强制浏览器加载新文件
           entryFileNames: 'assets/index.[hash].js',

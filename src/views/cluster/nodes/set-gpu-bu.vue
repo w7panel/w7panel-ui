@@ -77,7 +77,7 @@
             </template>
         </a-drawer>
         <!-- <a-modal v-model:visible="insGpuOprt.show" title="GPU Operator" width="700px" @ok="checkItem" @cancel="insGpuOprt.show=false;">
-            <a-form v-model="insGpuOprt" auto-label-width >
+            <a-form :model="insGpuOprt" auto-label-width >
                 <a-form-item label="部署驱动">
                     <a-switch v-model="insGpuOprt.driverEnabled"></a-switch>
                     <template #help>配置是否在节点上部署NVIDIA驱动，默认开启，如果您在使用GPU Operator部署前，已经在节点上部署了NVIDIA驱动程序，请关闭。</template>

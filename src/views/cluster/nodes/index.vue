@@ -48,7 +48,11 @@
                                 <div>
                                     <div>
                                         <span class="va-middle">{{record.internalIP}}</span>
-                                        <a-icon :size="18" class="va-middle ml-4 c-blue cursor" @click="onekeyCopy(record.internalIP)" ><DocumentCopy/></a-icon>
+                                        <a-tooltip content="复制">
+                                            <span class="opt-icon" @click="onekeyCopy(record.internalIP)">
+                                                <icon-copy />
+                                            </span>
+                                        </a-tooltip>
                                     </div>
                                     <div v-if="record.publicIp">
                                         <div v-if="editPublicIp.show && editPublicIp.name==record.name">
@@ -57,7 +61,7 @@
                                         </div>
                                         <div v-else class="df ai-c">
                                             <span class="va-middle">{{record.publicIp}}（公网）</span>
-                                            <!-- <a-icon :size="18" class="va-middle ml-4 c-blue cursor" @click="onekeyCopy(record.publicIp)" ><DocumentCopy/></a-icon> -->
+                                            <!-- <span class="opt-icon" @click="onekeyCopy(record.publicIp)"><icon-copy /></span> -->
                                             
                                             <a-tooltip content="复制">
                                                 <span class="opt-icon" style="margin-left:0;" @click="onekeyCopy(record.publicIp)">
@@ -185,7 +189,7 @@
         
         <a-drawer :width="800" :visible="setlabel.show" @ok="submitSetlabel" @cancel="setlabel.show=false;" :popup-container="false?'#allmodalbox':'body'">
             <template #title>编辑标签</template>
-            <a-form v-model="setlabel" auto-label-width class="mt-20">
+            <a-form :model="setlabel" auto-label-width class="mt-20">
                 <a-form-item>
                     <div class="fc df df-c">
                         <div>

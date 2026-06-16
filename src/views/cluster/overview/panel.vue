@@ -78,7 +78,7 @@
                         <!-- <a-button size="small" type="primary" @click="submitExpand">扩容</a-button> -->
                     </div>
                 </div>
-                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || userInfo['w7.cc/is-cvm-req']=='true'" class="mt-20" label-align="left" auto-label-width>
+                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || userInfo['w7.cc/is-cvm-req']=='true'" :model="quotsInfo" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="CPU" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.cpu}}</span>
                     </a-form-item>
@@ -99,7 +99,7 @@
                         <span class="c-00-6">{{quotsInfo.expiretime}}</span>
                         <a v-if="!inMicro&&((userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'))" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>                    </a-form-item>
                 </a-form>
-                <a-form v-else class="mt-20" label-align="left" auto-label-width>
+                <a-form v-else :model="info" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="集群版本" style="margin-bottom:0;">
                         <span class="c-00-6">{{info.gitVersion}}</span>
                     </a-form-item>

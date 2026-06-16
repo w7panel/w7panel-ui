@@ -9,7 +9,7 @@
                 blockNode
                 :data="data"
                 :field-names="{key:'id',title:'label'}"
-                :action-on-node-click="expand"
+                action-on-node-click="expand"
                 @select="select"
                 style="border:1px solid var(--color-neutral-3);padding:10px;"
             ></a-tree>

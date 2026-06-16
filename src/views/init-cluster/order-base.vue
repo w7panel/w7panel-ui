@@ -212,7 +212,7 @@
                         </tbody></table>
                     </div>
 
-                    <a-form auto-label-width class="mt-20" style="padding:10px;">
+                    <a-form :model="info" auto-label-width class="mt-20" style="padding:10px;">
     
                         <a-form-item v-if="!isExpand" label="时长" style="margin-bottom:20px;">
                             <div class="df ai-c" style="flex:1;">

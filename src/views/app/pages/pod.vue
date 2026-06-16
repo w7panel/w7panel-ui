@@ -25,7 +25,7 @@
                     <a-table-column title="实例名称">
                         <template #cell="{ record }">
                             <div class="df ai-c">
-                                <a-popover position="bl" content-style="padding:6px 10px 10px;">
+                                <a-popover position="bl" :content-style="{ padding: '6px 10px 10px' }">
                                     <span class="c-blue cursor one-hide" style="max-width:300px;">{{record.name}}</span>
                                     <template #content>
                                         <span>{{record.name}}</span>
@@ -35,7 +35,7 @@
                                     <i class="opt-icon ml-10" @click="onekeyCopy(record.name)"><icon-copy /></i>
                                 </a-tooltip>
                             </div>
-                            <!-- <a-popover position="bl" content-style="padding:6px 10px 10px;">
+                            <!-- <a-popover position="bl" :content-style="{ padding: '6px 10px 10px' }">
                                 <template #content>
                                     <div class="c-33">
                                         <div class="df"><span class="b popover-label df-s0">容器id：</span>{{record.containerStatuses && record.containerStatuses.length && record.containerStatuses[0].containerID}}</div>
@@ -149,7 +149,7 @@
                                 <td>{{ ctn.name }}</td>
                                 <td>
                                     <div class="df ai-c">
-                                        <a-popover v-if="ctn.containerID!='-'" position="bl" content-style="padding:6px 10px 10px;">
+                                        <a-popover v-if="ctn.containerID!='-'" position="bl" :content-style="{ padding: '6px 10px 10px' }">
                                             <span class="cursor one-hide" style="max-width:200px;">{{ ctn.containerID }}</span>
                                             <template #content>
                                                 <span>{{ ctn.containerID }}</span>
@@ -163,7 +163,7 @@
                                 </td>
                                 <td>
                                     <div class="df ai-c">
-                                        <a-popover position="bl" content-style="padding:6px 10px 10px;">
+                                        <a-popover position="bl" :content-style="{ padding: '6px 10px 10px' }">
                                             <span class="cursor one-hide" style="max-width:200px;">{{ ctn.image }}</span>
                                             <template #content>
                                                 <span>{{ ctn.image }}</span>

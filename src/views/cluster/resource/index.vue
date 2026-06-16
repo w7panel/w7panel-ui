@@ -10,7 +10,7 @@
                     blockNode
                     :data="data"
                     :field-names="{key:'id',title:'label'}"
-                    :action-on-node-click="expand"
+                    action-on-node-click="expand"
                     @select="select"
                 ></a-tree>
             </div>

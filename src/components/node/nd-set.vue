@@ -1,7 +1,7 @@
 <template>
     <div>
         <div>
-            <a-form layout="vertical">
+            <a-form :model="{}" layout="vertical">
                 <!-- <a-form-item label="系统管理组件节点选择器">
                     <a-input v-model="sm" placeholder="请输入"></a-input>
                 </a-form-item>

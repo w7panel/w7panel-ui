@@ -8,7 +8,7 @@
             :width="1200"
             @cancel="close()"
         >
-            <a-form style="padding:20px 0;" auto-label-width>
+            <a-form :model="form" style="padding:20px 0;" auto-label-width>
                 <a-form-item label="流量切分模式">
                     <a-select v-model="form.type" placeholder="请选择" style="width:200px;">
                         <a-option label="Header" value="header"></a-option>

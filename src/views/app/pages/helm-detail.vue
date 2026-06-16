@@ -1,7 +1,7 @@
 <template>
     <div class="padding-20">
         
-        <a-form label-suffix="" auto-label-width class="padding-20 ">
+        <a-form :model="info" label-suffix="" auto-label-width class="padding-20 ">
             <a-form-item label="名称" style="margin-bottom:0;">{{info.name}}</a-form-item>
             <a-form-item label="版本" style="margin-bottom:0;">{{info.version}}</a-form-item>
             <a-form-item label="描述" style="margin-bottom:0;">{{info.description}}</a-form-item>
