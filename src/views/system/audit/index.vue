@@ -140,6 +140,11 @@
 
 <script>
 import { panelApi } from '@/utils/api';
+import {
+    getLoadedApiRouteDescriptions,
+    loadApiRouteDescriptions,
+    resolveApiRouteDescription,
+} from '@/utils/api-route-description';
 
 const defaultFilter = () => ({
     username: '',
@@ -170,6 +175,7 @@ export default {
                 show: false,
                 data: {},
             },
+            apiRouteDescriptions: getLoadedApiRouteDescriptions(),
         };
     },
     computed: {
@@ -184,6 +190,7 @@ export default {
                 _time: '时间',
                 audit_type: '类型',
                 username: '用户名',
+                operation_description: '操作记录',
                 route_description: '操作记录',
                 login_method: '登录方式',
                 success: '成功',
@@ -198,7 +205,7 @@ export default {
                 user_agent: 'User-Agent',
                 message: '消息',
             };
-            return Object.keys(this.detail.data || {}).filter((key) => !['tenant', 'user_mode'].includes(key)).map((key) => {
+            return Object.keys(this.detail.data || {}).filter((key) => !['tenant', 'user_mode', 'route_description', 'message'].includes(key)).map((key) => {
                 let value = this.detail.data[key];
                 if (key === 'time' || key === '_time') { value = this.formatTime(value); }
                 if (key === 'success') { value = this.normalizeSuccess(value) ? '成功' : '失败'; }
@@ -214,10 +221,16 @@ export default {
         },
     },
     created() {
+        this.loadRouteDescriptions();
         this.getStatus();
         this.getList();
     },
     methods: {
+        loadRouteDescriptions() {
+            loadApiRouteDescriptions().then((descriptions) => {
+                this.apiRouteDescriptions = descriptions;
+            });
+        },
         normalizeData(res) {
             return res?.data?.data || res?.data || {};
         },
@@ -302,10 +315,21 @@ export default {
         openDetail(record) {
             this.detail = {
                 show: true,
-                data: record,
+                data: {
+                    operation_description: this.operationDescription(record),
+                    ...record,
+                },
             };
         },
         operationDescription(record) {
+            const hasStructuredRoute = record?.method && (record?.route || record?.path);
+            if (hasStructuredRoute) {
+                return resolveApiRouteDescription(this.apiRouteDescriptions, {
+                    method: record.method,
+                    route: record.route,
+                    path: record.path,
+                });
+            }
             return record?.route_description || record?.message || '-';
         },
         normalizeSuccess(value) {
