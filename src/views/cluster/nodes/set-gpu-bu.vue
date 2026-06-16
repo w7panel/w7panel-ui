@@ -10,7 +10,7 @@
                         <template #help>启用GPU功能需要预先在集群上安装GPU及对应驱动插件。</template>
                     </a-form-item>
                     <a-form-item label="启用类型">
-                        <a-space direction="vertical" fill size="0" style="flex:1;">
+                        <a-space direction="vertical" fill :size="0" style="flex:1;">
                             <a-button @click="addGpu" :disabled="data.list.length>=data.typeList.length">
                                 <template #icon><a-icon-plus /></template>
                                 <span>添加GPU驱动</span>

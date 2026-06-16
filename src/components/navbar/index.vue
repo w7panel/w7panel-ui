@@ -267,17 +267,19 @@ const submitPwd = () => {
 };
 
 const namespaceList = useNamespaceStore().namespaceList;
-const topApps = ref<{ title: string; name: string; roles: string[] }[]>([]);
-const alreadyGetMenu = ref(false);
+const topApps = computed(() => appStore.topApps);
 
 const userRole = getK8sinfo()['w7.cc/role'];
 const hasPwd = ref(getK8sinfo()['w7.cc/has-password']);
 
 const getMenutop = () => {
+    if (appStore.topAppsLoaded || appStore.topAppsLoading) {
+        return;
+    }
+    appStore.setTopAppsLoading(true);
     panelApi.get('/microapp/top').then((res) => {
         const items = res.data?.items || [];
-        alreadyGetMenu.value = true;
-        topApps.value = items.map((i: any) => {
+        appStore.setTopApps(items.map((i: any) => {
             const roles: string[] = [];
             try {
                 let rl = i?.spec?.bindings || [];
@@ -292,7 +294,9 @@ const getMenutop = () => {
                 name: i.metadata.name,
                 roles,
             };
-        });
+        }));
+    }).finally(() => {
+        appStore.setTopAppsLoading(false);
     });
 };
 
@@ -312,7 +316,7 @@ if (route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {
 }
 
 watch(() => route.name, () => {
-    if (!alreadyGetMenu.value && route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {
+    if (!appStore.topAppsLoaded && route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {
         getMenutop();
     }
     if (route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {

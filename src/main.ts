@@ -1,3 +1,4 @@
+import '@/utils/preserve-history-state';
 import { createApp } from 'vue';
 import ArcoVue from '@arco-design/web-vue';
 import ArcoVueIcon from '@arco-design/web-vue/es/icon';
@@ -21,6 +22,7 @@ import githubTheme from '@kangc/v-md-editor/lib/theme/github.js';
 import '@kangc/v-md-editor/lib/theme/style/github.css';
 import createEmojiPlugin from '@kangc/v-md-editor/lib/plugins/emoji/index';
 import '@kangc/v-md-editor/lib/plugins/emoji/emoji.css';
+import { bus } from 'wujie';
 // GoCaptcha
 import "go-captcha-vue/dist/style.css"
 import GoCaptcha from "go-captcha-vue"
@@ -28,6 +30,12 @@ import GoCaptcha from "go-captcha-vue"
 VMdPreview.use(githubTheme, {
     Hljs: hljs,
 }).use(createEmojiPlugin());
+
+const windowWithWujieNoop = window as any;
+if(!windowWithWujieNoop.__W7_WUJIE_ROUTECHANGE_NOOP__){
+    windowWithWujieNoop.__W7_WUJIE_ROUTECHANGE_NOOP__ = () => {};
+    bus.$on('routeChange', windowWithWujieNoop.__W7_WUJIE_ROUTECHANGE_NOOP__);
+}
 
 const app = createApp(App);
 

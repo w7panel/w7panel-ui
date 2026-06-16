@@ -66,10 +66,12 @@
             @ok="submitProtocol"
             @cancel="protocolDrawer.show=false"
             class="protocol-drawer"
+            unmount-on-close
             :popup-container="false?'#allmodalbox':'body'"
         >
             <template #title>{{ protocolDrawer.title }}</template>
             <rich-editor
+                v-if="protocolDrawer.show"
                 v-model="protocolDrawer.form.content"
                 placeholder="请输入协议内容"
                 class="protocol-rich-editor"

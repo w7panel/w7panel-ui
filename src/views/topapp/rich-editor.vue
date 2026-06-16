@@ -79,6 +79,7 @@ export default {
 .rich-editor{
     width:100%;
     height:100%;
+    min-height:340px;
     display:flex;
     flex-direction:column;
     border:1px solid var(--color-border-2);
@@ -91,7 +92,7 @@ export default {
 }
 .rich-editor__body{
     flex:1;
-    min-height:0;
+    min-height:300px;
     overflow-y:hidden;
 }
 </style>

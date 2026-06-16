@@ -269,7 +269,7 @@ export default{
                     window.history.replaceState({
                         ...currentState,
                         back: currentState.back ?? null,
-                        current: currentState.current ?? nextUrl,
+                        current: nextUrl,
                         forward: currentState.forward ?? null,
                         replaced: currentState.replaced ?? true,
                         position: currentState.position ?? Math.max(window.history.length - 1, 0),
