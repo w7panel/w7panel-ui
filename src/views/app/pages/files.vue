@@ -16,7 +16,7 @@
                         <a-button-group class="btn-groups" size="small" type="outline" status="normal">
                             <a-button @click="openUpload">上传文件</a-button>
 
-                            <a-dropdown @select="handleSelect">
+                            <a-dropdown>
                                 <a-button type="outline">
                                     <span>新建</span>
                                     <icon-down class="ml-4"/>
@@ -41,7 +41,7 @@
                                 <span class="ml-4">复制</span>
                             </a-button>
                             <a-button v-if="selectedKeys.length>0" :disabled="selectedKeys.length!=1 || !canOperateNode(selectedRecord)" @click="shearAct({name:selectedKeys[0]})">
-                                <icon-cut />
+                                <icon-scissor />
                                 <span class="ml-4">剪切</span>
                             </a-button>
                             <a-button v-if="copy||shear" @click="toPaste">
@@ -319,7 +319,7 @@
                                 
                                 <a-tooltip content="自动换行">
                                     <span class="toolbar-toggle" :class="{'active': file.wordWrap}" @click="toggleWordWrap">
-                                        <icon-indent :style="file.wordWrap ? 'color: #165dff' : ''" />
+                                        <icon-align-left :style="file.wordWrap ? 'color: #165dff' : ''" />
                                         <span>换行</span>
                                     </span>
                                 </a-tooltip>
@@ -592,7 +592,6 @@ export default {
             rowSelection: {
                 type: 'checkbox',
                 showCheckedAll: true,
-                title: '全选',
                 width: 80,
             },
             selectedKeys: [],

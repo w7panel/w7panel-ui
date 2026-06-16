@@ -30,7 +30,6 @@
                 <a-pagination
                     v-model:current="page"
                     @change="getData"
-                    default-page-size="10"
                     :page-size="limit"
                     :total="total"
                 />

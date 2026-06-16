@@ -585,7 +585,11 @@ export default{
             namespaceActive: 'default',
             activeIndex: '',
             userInfo: {},
-            subItemStyle: "flex:0;width:120px;min-width:120px;",
+            subItemStyle: {
+                flex: '0',
+                width: '120px',
+                minWidth: '120px',
+            },
             showExtra: false,
             fieldData: [],
             fieldList: [
@@ -814,22 +818,22 @@ export default{
             
             let cpu = String(containers?.resources?.limits?.cpu || '');
             let cpuDw = /m$/.test(cpu)? 'm' : '';
-            cpu = Number(cpu.replace('m',''));
+            cpu = cpu.replace('m','');
             
             let memory = String(containers?.resources?.limits?.memory || '');
             
             let memoryDw = 'Mi';
             if(/Mi$/.test(memory)){
                 memoryDw = 'Mi';
-                memory = Number(memory.replace('Mi',''));
+                memory = memory.replace('Mi','');
             }else if(/Gi$/.test(memory)){
-                memory = Number(memory.replace('Gi',''));
+                memory = memory.replace('Gi','');
                 memoryDw = 'Gi';
             }else if(/Ti$/.test(memory)){
-                memory = Number(memory.replace('Ti','')) * 1024;
+                memory = String(Number(memory.replace('Ti','')) * 1024);
                 memoryDw = 'Gi';
             }else{
-                memory = Number(memory);
+                memory = String(memory || '');
             }
             
             let spec = this?.data?.spec?.template?.spec;
@@ -844,15 +848,14 @@ export default{
                     return num;
                 }
                 form.gpuEnabled = true;
-                form.gpuNumber = containers?.resources?.requests?.['nvidia.com/gpu'] || 0;
-                form.gpuVm = containers?.resources?.requests?.['nvidia.com/gpumem'] || 0;
-                form.gpuVm = convertStringToNumber(form.gpuVm);
-                form.gpuCompute = containers?.resources?.requests?.['nvidia.com/gpucores'] || 0;
+                form.gpuNumber = String(containers?.resources?.requests?.['nvidia.com/gpu'] || 0);
+                form.gpuVm = String(convertStringToNumber(containers?.resources?.requests?.['nvidia.com/gpumem'] || 0));
+                form.gpuCompute = String(containers?.resources?.requests?.['nvidia.com/gpucores'] || 0);
             }else{
                 form.gpuEnabled = false;
-                form.gpuNumber = 0;
-                form.gpuVm = 0;
-                form.gpuCompute = 0;
+                form.gpuNumber = '0';
+                form.gpuVm = '0';
+                form.gpuCompute = '0';
             }
 
             let ctn = containers;
@@ -891,8 +894,8 @@ export default{
             form.capabilities_drop = form.capabilities_drop?.length? form.capabilities_drop : [''];
 
             // 启动用户
-            form.runAsUser = ctn?.securityContext?.runAsUser || '';
-            form.runAsGroup = ctn?.securityContext?.runAsGroup || '';
+            form.runAsUser = String(ctn?.securityContext?.runAsUser || '');
+            form.runAsGroup = String(ctn?.securityContext?.runAsGroup || '');
             form.runAsNonRoot = ctn?.securityContext?.runAsNonRoot || false;
             // form.allowPrivilegeEscalation = ctn?.securityContext?.allowPrivilegeEscalation || false;
             // 端口
@@ -903,9 +906,9 @@ export default{
             } catch(e){}
             ports = ports.map(i=>({
                 name: i.name,
-                containerPort: i.containerPort,
+                containerPort: String(i.containerPort || ''),
                 protocol: i.protocol, // || 'TCP'
-                hostPort: hostPorts[i.containerPort] || i.hostPort || 0,
+                hostPort: String(hostPorts[i.containerPort] || i.hostPort || 0),
             }))
             // env
             let env = ctn?.env || [];

@@ -1,5 +1,5 @@
 <template>
-    <div v-load="loading" class="padding-20">
+    <a-spin :loading="loading" class="padding-20" style="display:block;">
         
         <div class="df jc-b">
             <!-- <a-button type="primary" :disabled="!selectedKeys.length" @click="charts.show=true;">监控</a-button> -->
@@ -237,7 +237,7 @@
             </div>
         </a-modal> -->
         <!-- @ok="openWebshell" -->
-        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancle="ws.dialog = false;" top="10vh" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancel="ws.dialog = false;" top="10vh" :popup-container="false?'#allmodalbox':'body'">
             <template #title>webshell</template>
             <div style="margin-top:-10px;">
                 <a-form :model="ws">
@@ -280,7 +280,7 @@
         </a-drawer> -->
 
         <podLog :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></podLog>
-    </div>
+    </a-spin>
 </template>
 
 <script>
@@ -354,7 +354,6 @@ export default {
             rowSelection: {
                 type: 'checkbox',
                 showCheckedAll: true,
-                title: '全选',
                 width: 80,
             },
 

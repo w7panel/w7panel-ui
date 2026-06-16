@@ -12,7 +12,7 @@
                         <div class="df fs-16 b c-00-9 mt-4">
                             <span class="one-hide" style="vertical-align:middle;">{{ data.name }}</span>
                             <a-tooltip effect="dark" content="复制信息" placement="bottom">
-                                <a-icon @click="copyInfo" :size="20" class="ml-20 c-99 cursor" style="vertical-align:middle;"><Share /></a-icon>
+                                <a-icon @click="copyInfo" :size="20" class="ml-20 c-99 cursor" style="vertical-align:middle;"><icon-share-alt /></a-icon>
                             </a-tooltip>
                         </div>
                         <div class="ml-20 df-s0">
