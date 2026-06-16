@@ -229,7 +229,7 @@
                     <a-form-item v-if="!domainForm.name" label="">
                         <a-radio-group v-model="domainForm.originType" @change="chengeFormOriginType">
                             <a-radio v-if="!domainForm.name&&inRvproxy" :value="1">外部服务</a-radio>
-                            <a-radio :value="2">应用</a-radio>
+                            <a-radio :value="2" :disabled="!hasAppOptions">应用</a-radio>
                             <a-radio :value="3">应用直达</a-radio>
                         </a-radio-group>
                     </a-form-item>
@@ -762,6 +762,12 @@ export default {
     computed:{
         appDefaultDomain(){
             return this.groupData?.metadata?.annotations?.['w7.cc/default-domain'];
+        },
+        hasAppOptions(){
+            if(this.inRvproxy){
+                return Object.values(this.allAppList || {}).some(list=>list?.length);
+            }
+            return !!this.appList?.length;
         },
     },
     methods: {
@@ -1885,6 +1891,10 @@ export default {
         // 修改添加域名
         domainFormShow(item){
             this.domainForm.appgroup = '';
+            let originType = item.originType || (this.inRvproxy? 1 : 2);
+            if(originType == 2 && !this.hasAppOptions){
+                originType = this.inRvproxy? 1 : 3;
+            }
             this.domainForm = {
                 ...this.domainForm,
                 is_default: !this.inRvproxy && this.appDefaultDomain==item.fullDomain,
@@ -1892,7 +1902,7 @@ export default {
                 show: true,
                 app: this.inRvproxy? '' : this.$route.params.id,
 
-                originType: item.originType || (this.inRvproxy? 1 : 2),
+                originType: originType,
                 appPorts: this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id] || []),
                 ingressclass: item.ingressclass || this.ingressclassList?.[0] || '',
                 domain: item.domain || '',
@@ -1944,6 +1954,11 @@ export default {
         },
         submitDomainForm(eve){
             return new Promise((resolve,reject)=>{
+                if(this.domainForm.originType == 2 && !this.hasAppOptions){
+                    this.$message.warning('暂无应用可选');
+                    reject();
+                    return;
+                }
                 if(this.$refs.domainForm){
                     this.$refs.domainForm.validate((err) => {
                         if (err) { reject(); return; }
