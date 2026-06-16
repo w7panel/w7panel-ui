@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1200" :visible="visible" @cancel="closeDrawer()" unmountOnClose :mask-closable="false" :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="1200" :visible="visible" @cancel="closeDrawer()" unmountOnClose :mask-closable="false" :popup-container="$popupContainer">
         <template #title>{{tabs&&tabs.length?'编辑应用':'创建应用'}}</template>
         <a-tabs
             :active-key="activeIndex"

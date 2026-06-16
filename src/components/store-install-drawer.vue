@@ -1,6 +1,6 @@
 <template>
     <div>
-        <a-drawer :width="1000" :visible="visible" @cancel="closeDrawer()" @open="init()" unmountOnClose :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="1000" :visible="visible" @cancel="closeDrawer()" @open="init()" unmountOnClose :footer="false" :popup-container="$popupContainer">
             <template #title>安装应用</template>
             <store-install v-if="zpkUrl" :is_component="true" @needInstall="needInstall" :path_identifie="zpkUrl" @installed="installed" @installedStatusSuccess="installedStatusSuccess" @close="closeDrawer" />
         </a-drawer>

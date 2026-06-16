@@ -51,7 +51,7 @@
             </a-space>
         </a-form>
     </div>
-    <a-modal :visible="drawer.show" width="auto" class="slidecapt-modal" hide-title :footer="false" :popup-container="false?'#allmodalbox':'body'">
+    <a-modal :visible="drawer.show" width="auto" class="slidecapt-modal" hide-title :footer="false" :popup-container="$popupContainer">
         <slide-capt ref="slidecapt" @confirm="drawer.ok" @close="drawer.show=false;" />
     </a-modal>
 

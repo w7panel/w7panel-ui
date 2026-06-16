@@ -67,7 +67,7 @@
             @cancel="protocolDrawer.show=false"
             class="protocol-drawer"
             unmount-on-close
-            :popup-container="false?'#allmodalbox':'body'"
+            :popup-container="$popupContainer"
         >
             <template #title>{{ protocolDrawer.title }}</template>
             <rich-editor
@@ -83,7 +83,7 @@
             :visible="icpDrawer.show"
             @ok="submitIcp"
             @cancel="icpDrawer.show=false"
-            :popup-container="false?'#allmodalbox':'body'"
+            :popup-container="$popupContainer"
         >
             <template #title>备案设置</template>
             <a-form :model="icpDrawer.form" auto-label-width>

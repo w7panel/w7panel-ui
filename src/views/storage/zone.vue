@@ -140,7 +140,7 @@
             </div>
         </div>
 
-        <a-modal :visible="expand.show" title="扩容" @ok="expandSubmit" @cancel="expand.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal :visible="expand.show" title="扩容" @ok="expandSubmit" @cancel="expand.show=false;" :popup-container="$popupContainer">
             <a-form :model="expand" ref="expand" auto-label-width>
                 <a-form-item label="大小" field="size" :rules="[{required:true,message:'请输入大小'}]">
                     <a-input v-model="expand.size" type="number" placeholder="请输入大小">

@@ -187,7 +187,7 @@
             </a-layout-content>
         </a-layout>
         
-        <a-drawer :width="800" :visible="setlabel.show" @ok="submitSetlabel" @cancel="setlabel.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="800" :visible="setlabel.show" @ok="submitSetlabel" @cancel="setlabel.show=false;" :popup-container="$popupContainer">
             <template #title>编辑标签</template>
             <a-form :model="setlabel" auto-label-width class="mt-20">
                 <a-form-item>
@@ -217,7 +217,7 @@
             </a-form>
         </a-drawer>
 
-        <a-modal v-model:visible="fuu.show" title="重分应用" width="900px" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal v-model:visible="fuu.show" title="重分应用" width="900px" :popup-container="$popupContainer">
             <template #title>重分应用</template>
             <div class="df df-c pods">
                 <div v-for="(item,index) in fuu.list" :key="index" class="item df ai-c jc-b">
@@ -232,7 +232,7 @@
             </template>
         </a-modal>
 
-        <a-drawer :visible="form.show" width="800px" @ok="submitForm" @cancel="form.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :visible="form.show" width="800px" @ok="submitForm" @cancel="form.show=false;" :popup-container="$popupContainer">
             <template #title>注册节点</template>
             <a-form ref="form" :model="form" auto-label-width>
                 <a-form-item label="主服务器地址"  field="k3s_url" :rules="[{required:true,message:'请输入主服务器地址'}]">
@@ -278,7 +278,7 @@
             <a-textarea v-model="commandModal.command" placeholder="请输入命令" allow-clear style="height:100px;" :spellcheck="false" />
         </a-modal> -->
 
-        <a-drawer :visible="clusterInfo.show" width="800px" @ok="submitClusterInfo" @cancel="clusterInfo.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :visible="clusterInfo.show" width="800px" @ok="submitClusterInfo" @cancel="clusterInfo.show=false;" :popup-container="$popupContainer">
             <template #title>集群信息</template>
             <a-form :model="clusterInfo" auto-label-width>
                 <a-form-item label="开启公网">
@@ -314,7 +314,7 @@
                 </a-form-item>
             </a-form>
         </a-modal> -->
-        <a-drawer :visible="checkClusterInfo.show" width="800px" @cancel="checkClusterInfo.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :visible="checkClusterInfo.show" width="800px" @cancel="checkClusterInfo.show=false;" :popup-container="$popupContainer">
             <template #title>集群信息</template>
             <div style="height:100%;">
                 <a-select v-model="checkClusterInfo.ip" placeholder="请选择" @change="getKubeconfig">

@@ -29,7 +29,7 @@
                 </template>
             </a-table>
         </div>
-        <a-drawer :width="800" :visible="form.show" @ok="submit" @cancel="form.show=false;" @open="editorInit" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="800" :visible="form.show" @ok="submit" @cancel="form.show=false;" @open="editorInit" :popup-container="$popupContainer">
             <template #title>{{form.name?'修改插件':'添加插件'}}</template>
             <a-form ref="form" :model="form" :rules="rules" validate-trigger="blur" auto-label-width >
                 <a-form-item label="名称" field="title">
@@ -49,7 +49,7 @@
                 </a-form-item>
             </a-form>
         </a-drawer>
-        <a-drawer :width="800" :visible="newForm.show" @ok="newSubmit" @cancel="newForm.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="800" :visible="newForm.show" @ok="newSubmit" @cancel="newForm.show=false;" :popup-container="$popupContainer">
             <template #title>添加插件</template>
             <a-form ref="newform" :model="newForm" :rules="rules" validate-trigger="blur" auto-label-width >
                 <a-form-item label="名称" field="title">

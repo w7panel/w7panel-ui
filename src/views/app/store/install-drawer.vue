@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1000" :visible="visible" @cancel="closeDrawer()" @open="init()" unmountOnClose :footer="false" :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="1000" :visible="visible" @cancel="closeDrawer()" @open="init()" unmountOnClose :footer="false" :popup-container="$popupContainer">
         <template #title>安装应用</template>
         <store-install v-if="module_identifie" :is_component="true" @needInstall="needInstall" :path_identifie="'https://zpk.w7.cc/zpk/respo/info/'+module_identifie" @installed="installed" @close="closeDrawer(true)" />
     </a-drawer>

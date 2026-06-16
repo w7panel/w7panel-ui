@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="900" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="900" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="$popupContainer">
         <template #title>Helm创建</template>
         <div class="mt-10">
             <a-form ref="form" :model="form" :rules="rules" validate-trigger="blur" auto-label-width class="app-formclass">

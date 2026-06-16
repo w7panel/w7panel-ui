@@ -353,7 +353,7 @@
         </div>
 
         <!-- 添加修改域名 -->
-        <a-drawer :width="700" :visible="domainForm.show" @ok="submitDomainForm" @cancel="domainForm.show=false;" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="700" :visible="domainForm.show" @ok="submitDomainForm" @cancel="domainForm.show=false;" unmountOnClose :popup-container="$popupContainer">
             <template #title>{{domainForm.title}}</template>
             <a-form :model="domainForm" ref="domainForm" :rules="rules" validate-trigger="blur" auto-label-width class="padding-20" >
                 <!-- <a-form-item v-if="!domainForm.name" label="应用" field="app">
@@ -387,7 +387,7 @@
             </a-form>
         </a-drawer>
 
-        <a-drawer :width="700" :visible="config.dialog" @ok="setConfigtype3" @cancel="config.dialog=false;config.edit=false;" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="700" :visible="config.dialog" @ok="setConfigtype3" @cancel="config.dialog=false;config.edit=false;" unmountOnClose :popup-container="$popupContainer">
             <template #title>数据库</template>
             <a-form :model="config.form" ref="configdb" :rules="dbrules" auto-label-width >
                 <a-form-item label="数据库类型">

@@ -197,7 +197,7 @@
         
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
 
-        <!-- <a-modal v-model:visible="log.showPod" title="查看日志" width="1000px" :fullscreen="log.fullscreen" :closable="false" class="log-model" :show-close="false" @open="openDialog" :popup-container="false?'#allmodalbox':'body'">
+        <!-- <a-modal v-model:visible="log.showPod" title="查看日志" width="1000px" :fullscreen="log.fullscreen" :closable="false" class="log-model" :show-close="false" @open="openDialog" :popup-container="$popupContainer">
             <template #title>
                 <div class="df ai-c jc-c fc log-model-title">
                     <span class="fs-18">查看日志</span>
@@ -237,7 +237,7 @@
             </div>
         </a-modal> -->
         <!-- @ok="openWebshell" -->
-        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancel="ws.dialog = false;" top="10vh" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancel="ws.dialog = false;" top="10vh" :popup-container="$popupContainer">
             <template #title>webshell</template>
             <div style="margin-top:-10px;">
                 <a-form :model="ws">
@@ -264,7 +264,7 @@
             </template>
         </a-modal>
 
-        <a-modal title="webshell" v-model:visible="wsd.show" width="1000px" :mask-closable="false" top="10vh" :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal title="webshell" v-model:visible="wsd.show" width="1000px" :mask-closable="false" top="10vh" :footer="false" :popup-container="$popupContainer">
             <template #title>webshell</template>
             <web-shell
                 v-if="wsd.show"
@@ -275,7 +275,7 @@
             ></web-shell>
         </a-modal>
 
-        <!-- <a-drawer :width="740" title="监控" :visible="charts.show" @cancel="charts.show=false;" :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <!-- <a-drawer :width="740" title="监控" :visible="charts.show" @cancel="charts.show=false;" :footer="false" :popup-container="$popupContainer">
             <pods-charts v-if="charts.show" :list="selectedKeys"></pods-charts>
         </a-drawer> -->
 

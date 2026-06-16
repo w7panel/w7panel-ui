@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="800" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="800" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="$popupContainer">
         <template #title>{{id?'修改镜像仓库':'添加镜像仓库'}}</template>
         <div class="mt-10 bg-white pb-24 df jc-b">
             <a-form ref="form" :model="form" :rules="rules" auto-label-width class="form-33-label" validate-trigger="blur">

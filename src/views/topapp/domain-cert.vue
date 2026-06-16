@@ -1,6 +1,6 @@
 <template>
     <!-- 证书 -->
-    <a-drawer :width="800" :visible="tlsForm.show" @ok="submitTls" @cancel="tlsForm.show=false;" :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="800" :visible="tlsForm.show" @ok="submitTls" @cancel="tlsForm.show=false;" :popup-container="$popupContainer">
         <template #title>证书</template>
         <a-form :model="tlsForm" ref="tlsForm" auto-label-width class="padding-20" >
             <a-form-item label="域名">

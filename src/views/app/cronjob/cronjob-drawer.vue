@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="$popupContainer">
         <template #title>{{id?'修改定时任务':'添加任务'}}</template>
         <div class="bg-white bg-padding df jc-b">
             <a-form ref="form" :model="form" label-suffix="" label-width="130px" class="form-33-label mt-20 fc" auto-label-width>

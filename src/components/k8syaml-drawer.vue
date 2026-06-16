@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" class="dcform-drawer" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" class="dcform-drawer" unmountOnClose :popup-container="$popupContainer">
         <template #title>K8sYaml创建</template>
         <div id="yamleditordom" class="df df-c" style="height:100%; height:max(400px, 100%)">
             <yaml-input domid="yamlinput" class="fc" @submit="v=>txt=v"></yaml-input>

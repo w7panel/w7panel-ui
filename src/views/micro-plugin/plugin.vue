@@ -30,7 +30,7 @@
                 </tr>
             </tbody></table>
         </div>
-        <a-drawer :width="800" :visible="form.show" @ok="submit" @cancel="form.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="800" :visible="form.show" @ok="submit" @cancel="form.show=false;" :popup-container="$popupContainer">
             <template #title>新增</template>
             <a-form :model="form" class="mt-20" label-width="80px" auto-label-width>
                 <a-form-item label="名称">

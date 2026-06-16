@@ -174,7 +174,7 @@
             </a-table>
         </div>
         
-        <a-modal v-model:visible="versionupgrade.show" @ok="versionupgrade.show=false" hide-cancel :popup-container="false?'#allmodalbox':'body'">
+        <a-modal v-model:visible="versionupgrade.show" @ok="versionupgrade.show=false" hide-cancel :popup-container="$popupContainer">
             <template #title>版本说明</template>
             <div>
                 <div class="df ai-c jc-b">

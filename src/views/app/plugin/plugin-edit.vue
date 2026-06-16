@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1000" :visible="visible" @ok="formSubmit" @cancel="closeDrawer" @open="editorInit" :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="1000" :visible="visible" @ok="formSubmit" @cancel="closeDrawer" @open="editorInit" :popup-container="$popupContainer">
         <template #title>{{form.name?'修改插件':'添加插件'}}</template>
         <a-form ref="form" class="pluginform" :model="form" :rules="rules" layout="vertical" validate-trigger="blur" auto-label-width>
             <div class="fs-16 b">基础信息</div>

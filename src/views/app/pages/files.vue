@@ -141,7 +141,7 @@
             
         </div>
         
-        <a-modal :visible="file.dialog" width="1400px" top="3vh" @cancel="handleModalCancel" :mask-closable="false" :popup-container="false?'#allmodalbox':'body'" modal-class="editor-modal" body-class="editor-modal-body" :footer="false">
+        <a-modal :visible="file.dialog" width="1400px" top="3vh" @cancel="handleModalCancel" :mask-closable="false" :popup-container="$popupContainer" modal-class="editor-modal" body-class="editor-modal-body" :footer="false">
             <template #title>
                 <div class="editor-header">
                     <span class="editor-title-text">文本编辑器</span>
@@ -403,7 +403,7 @@
             </div>
         </a-modal>
 
-        <a-modal v-model:visible="upload.show" width="500px" @cancel="upload.show=false;" :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal v-model:visible="upload.show" width="500px" @cancel="upload.show=false;" :footer="false" :popup-container="$popupContainer">
             <template #title>上传文件</template>
             <a-form :model="upload" class="" label-width="100px">
                 <a-form-item label="文件目录：">
@@ -426,7 +426,7 @@
             </a-form>
         </a-modal>
 
-        <a-drawer :visible="authority.show" width="900px" @ok="changeAuthority" @cancel="authority.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :visible="authority.show" width="900px" @ok="changeAuthority" @cancel="authority.show=false;" :popup-container="$popupContainer">
             <template #title>修改权限</template>
             <a-form :model="authority" layout="vertical">
                 <div class="df padding-10">
@@ -495,7 +495,7 @@
             </a-form>
         </a-drawer>
         
-        <a-modal v-model:visible="compress.show" width="600px" @cancel="compress.show=false;" :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal v-model:visible="compress.show" width="600px" @cancel="compress.show=false;" :footer="false" :popup-container="$popupContainer">
             <template #title>压缩</template>
             <a-form :model="compress" label-width="100px">
                 <a-form-item label="压缩类型">
@@ -515,7 +515,7 @@
             </a-form>
         </a-modal>
         
-        <a-modal v-model:visible="uncompress.show" width="600px" @cancel="uncompress.show=false;" :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal v-model:visible="uncompress.show" width="600px" @cancel="uncompress.show=false;" :footer="false" :popup-container="$popupContainer">
             <template #title>解压</template>
             <a-form v-if="uncompress.show" :model="uncompress" label-width="100px">
                 <a-form-item label="文件名">
@@ -533,7 +533,7 @@
             </a-form>
         </a-modal>
         
-        <a-modal v-model:visible="createFilePrompt.show" width="" @ok="createFilePrompt.ok" @cancel="createFilePrompt.show=false;"  :popup-container="false?'#allmodalbox':'body'">
+        <a-modal v-model:visible="createFilePrompt.show" width="" @ok="createFilePrompt.ok" @cancel="createFilePrompt.show=false;"  :popup-container="$popupContainer">
             <template #title>{{createFilePrompt.type=='file'?'新建文件':'新建文件夹'}}</template>
             <div>
                 <div>{{createFilePrompt.type=='file'?'请输入文件名称':'请输入文件夹名称'}}</div>

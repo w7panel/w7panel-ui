@@ -150,7 +150,7 @@
                 </template>
             </a-table>
         </div>
-        <a-drawer :width="600" :title="form.isEdit?'修改用户':'添加用户'" :visible="form.show" @ok="submit" @cancel="form.show=false;" @open="$refs.form.clearValidate()" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="600" :title="form.isEdit?'修改用户':'添加用户'" :visible="form.show" @ok="submit" @cancel="form.show=false;" @open="$refs.form.clearValidate()" :popup-container="$popupContainer">
             <a-form ref="form" :rules="rules" :model="form" auto-label-width class="padding-20">
                 <a-form-item label="用户名" field="username">
                     <a-input v-model="form.username" :disabled="form.isEdit" :spellcheck="false" placeholder="请输入"></a-input>
@@ -211,7 +211,7 @@
 
         </a-modal> -->
 
-        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancel="ws.dialog = false;" top="10vh" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancel="ws.dialog = false;" top="10vh" :popup-container="$popupContainer">
             <template #title>webshell</template>
             <div style="margin-top:-10px;">
                 <a-form :model="ws">

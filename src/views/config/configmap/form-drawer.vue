@@ -1,6 +1,6 @@
 <template>
 
-    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" @open="init()" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" @open="init()" unmountOnClose :popup-container="$popupContainer">
         <template #title>{{id?'修改配置文件':'添加配置文件'}}</template>
         <div class="mt-10 bg-white df jc-b">
             <a-form ref="form" :rules="rules" :model="form" validate-trigger="blur" auto-label-width class="padding-10">

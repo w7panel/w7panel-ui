@@ -221,7 +221,7 @@
             </div>
         </div>
         <!-- 添加修改域名 -->
-        <a-drawer :width="700" :visible="domainForm.show" @ok="submitDomainForm" @cancel="domainForm.show=false;" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="700" :visible="domainForm.show" @ok="submitDomainForm" @cancel="domainForm.show=false;" unmountOnClose :popup-container="$popupContainer">
             <template #title>{{domainForm.title}}</template>
             
             <a-spin :loading="domainForm.loading" style="width:100%;">
@@ -303,7 +303,7 @@
             </a-spin>
         </a-drawer>
         <!-- 添加修改子目录 -->
-        <a-drawer :width="700" :visible="domain.show" @ok="submitForm" @cancel="domain.show=false;" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="700" :visible="domain.show" @ok="submitForm" @cancel="domain.show=false;" unmountOnClose :popup-container="$popupContainer">
             <template #title>{{domain.title}}</template>
             <a-form ref="dialog" :model="domain" :rules="rules" validate-trigger="blur" class="padding-20" auto-label-width>
                 
@@ -491,7 +491,7 @@
             </a-form>
         </a-drawer>
         <!-- 卡片添加域名 -->
-        <a-modal v-model:visible="formcard.show" :title="formcard.title" @ok="formCardSubmit" @cancel="formcard.show=false;" width="600px" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal v-model:visible="formcard.show" :title="formcard.title" @ok="formCardSubmit" @cancel="formcard.show=false;" width="600px" :popup-container="$popupContainer">
             <a-form :model="formcard" auto-label-width>
                 <a-form-item label="域名">
                     <div class="df df-c" style="flex:1;">
@@ -522,7 +522,7 @@
         <!-- 策略 -->
         <domain-strategy ref="domainstrategy" :show="strategy.show" :data="strategy.data" :multiple="strategy.multiple" :hideRewrite="true" @submit="strategy.submit" @refresh="getList()" @cancel="strategy.show=false;"></domain-strategy>
         <!-- 证书 -->
-        <a-drawer :width="800" :visible="tlsForm.show" @ok="submitTls" @cancel="tlsForm.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="800" :visible="tlsForm.show" @ok="submitTls" @cancel="tlsForm.show=false;" :popup-container="$popupContainer">
             <template #title>证书</template>
             <a-form :model="tlsForm" ref="tlsForm" auto-label-width class="padding-20" >
                 <a-form-item label="域名">

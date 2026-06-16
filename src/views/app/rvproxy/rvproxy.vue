@@ -68,7 +68,7 @@
                 </tr>
             </tbody></table>
         </div>
-        <a-drawer :width="1000" :visible="form.show" @ok="validate" @cancel="form.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="1000" :visible="form.show" @ok="validate" @cancel="form.show=false;" :popup-container="$popupContainer">
             <template #title>反向代理</template>
             <a-tabs type="card-gutter" v-model:active-key="form.edit_index" :editable="true" @add="formAddItem" @delete="toDeleteItem" show-add-button auto-switch>
                 <a-tab-pane v-for="(item, index) of form.form" :key="index" :title="item.beforename+item.aftername" :closable="index!==0">

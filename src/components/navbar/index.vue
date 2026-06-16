@@ -106,7 +106,7 @@
             title="新建命名空间"
             @ok="createNamespace"
             @cancel="nsVisible = false"
-            :popup-container="false ? '#allmodalbox' : 'body'"
+            :popup-container="$popupContainer"
         >
             <div class="df df-c ai-c jc-c">
                 <a-input type="text" v-model="nsValue" placeholder="请输入命名空间名称" />

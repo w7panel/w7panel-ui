@@ -39,15 +39,27 @@ if(!windowWithWujieNoop.__W7_WUJIE_ROUTECHANGE_NOOP__){
 
 const app = createApp(App);
 
+const getPopupContainer = () =>
+    ((window as any).__POWERED_BY_WUJIE__ || (window as any).__MICRO_APP_ENVIRONMENT__) ? '#w7panel' : 'body';
+
 app.use(ArcoVue, {});
 app.use(ArcoVueIcon);
 app.use(VMdPreview);
+
+Object.values((app as any)._context?.components || {}).forEach((component: any) => {
+    const popupContainerProp = component?.props?.popupContainer;
+    if(popupContainerProp && typeof popupContainerProp === 'object'){
+        popupContainerProp.default = getPopupContainer;
+    }
+});
 
 app.use(router);
 app.use(store);
 // app.use(mavonEditor);
 app.use(globalComponents);
 app.use(GoCaptcha);
+
+app.config.globalProperties.$popupContainer = getPopupContainer();
 
 app.mount('#w7panel');
 

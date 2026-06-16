@@ -224,7 +224,7 @@
                 </div>
             </div>
         </div>
-        <a-modal width="700px" v-model:visible="envedit.show" @ok="submitEnvEdit" @cancel="envedit.show=false;" :popup-container="false?'#allmodalbox':'body'">      
+        <a-modal width="700px" v-model:visible="envedit.show" @ok="submitEnvEdit" @cancel="envedit.show=false;" :popup-container="$popupContainer">      
             <template #title>环境变量</template>
             <span class="c-66">格式：键=值 #中文说明 : 描述</span>
             <a-textarea

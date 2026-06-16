@@ -55,7 +55,7 @@
                 </div>
             </div>
         </div>
-        <a-drawer :width="740" title="监控" :visible="drawer.show" @cancel="drawer.show=false;" :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="740" title="监控" :visible="drawer.show" @cancel="drawer.show=false;" :footer="false" :popup-container="$popupContainer">
             <cluster-charts v-if="drawer.show" :list="list"></cluster-charts>
         </a-drawer>
     </div>
