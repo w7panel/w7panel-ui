@@ -245,6 +245,11 @@ import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import whitelistComponent from '../whitelist/whitelist-component.vue';
 import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
+import {
+    getLoadedApiRouteDescriptions,
+    loadApiRouteDescriptions,
+    resolveApiRouteDescription,
+} from '@/utils/api-route-description';
 
 const dataTemplate = {
     "kind": "Permission",
@@ -310,6 +315,7 @@ export default {
             founderName: 'k3k.permission.founder',
             apiRoutes: [],
             apiRoutesPromise: null,
+            apiRouteDescriptions: getLoadedApiRouteDescriptions(),
         }
     },
     created(){
@@ -416,7 +422,11 @@ export default {
             if(this.apiRoutesPromise){
                 return this.apiRoutesPromise;
             }
-            this.apiRoutesPromise = panelApi.get('/auth/permissions/routes', {noAlert:true}).then(res=>{
+            this.apiRoutesPromise = Promise.all([
+                panelApi.get('/auth/permissions/routes', {noAlert:true}),
+                loadApiRouteDescriptions(),
+            ]).then(([res, descriptions])=>{
+                this.apiRouteDescriptions = descriptions;
                 let list = res?.data?.data || res?.data || [];
                 this.apiRoutes = Array.isArray(list) ? list.map(route => this.normalizeApiRoute(route)) : [];
                 this.form = {
@@ -588,16 +598,23 @@ export default {
         normalizeApiRoute(route){
             let method = route?.method || route?.Method || '';
             let path = route?.path || route?.Path || '';
-            return {
+            let normalized = {
                 ...route,
                 method: method,
                 path: path,
                 verb: route?.verb || route?.Verb || this.apiRouteVerb(method),
-                description: this.apiRouteDescription(route),
+            };
+            return {
+                ...normalized,
+                description: this.apiRouteDescription(normalized),
             };
         },
         apiRouteDescription(route){
-            return route?.description || route?.title || route?.Description || route?.Title || '';
+            return resolveApiRouteDescription(this.apiRouteDescriptions, {
+                method: route?.method || route?.Method,
+                route: route?.path || route?.Path,
+                fallback: route?.description || route?.title || route?.Description || route?.Title || '',
+            });
         },
         apiRouteVerb(method){
             return {
