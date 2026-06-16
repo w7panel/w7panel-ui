@@ -8,7 +8,7 @@
                 </div> -->
             </div>
             <div class="mt-10">
-                <a-form label-width="130px" label-align="left" auto-label-width>
+                <a-form :model="info" label-width="130px" label-align="left" auto-label-width>
                     <!-- <a-form-item label="主机名称" style="margin-bottom:0;">
                         <span class="c-00-6">{{info.labels && info.labels['kubernetes.io/hostname']}}</span>
                     </a-form-item>
@@ -55,7 +55,7 @@
                 </div>
             </div>
         </div>
-        <a-drawer :width="740" title="监控" :visible="drawer.show" @cancel="drawer.show=false;" :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="740" title="监控" :visible="drawer.show" @cancel="drawer.show=false;" :footer="false" :popup-container="$popupContainer">
             <cluster-charts v-if="drawer.show" :list="list"></cluster-charts>
         </a-drawer>
     </div>

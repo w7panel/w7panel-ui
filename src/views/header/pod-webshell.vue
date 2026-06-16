@@ -21,6 +21,7 @@
                 <web-shell
                     :ref="(el) => setShellRef(item.key, el)"
                     :show="item.key===activeIndex"
+                    :keep-alive-on-hide="true"
                     :type="data.type"
                     :api_token="token"
                     :ip="data.ip"

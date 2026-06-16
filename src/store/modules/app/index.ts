@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import type { RouteRecordNormalized } from 'vue-router';
 import defaultSettings from '@/config/settings.json';
-import { AppState } from './types';
+import type { AppState, TopAppMenuItem } from './types';
 
 const MENU_FILTER_KEY = 'w7panel-menu-filter';
 
@@ -9,6 +9,9 @@ const useAppStore = defineStore('app', {
   state: (): AppState => ({
     ...defaultSettings,
     menuFilter: localStorage.getItem(MENU_FILTER_KEY) || 'cloudserver',
+    topApps: [],
+    topAppsLoaded: false,
+    topAppsLoading: false,
   }),
 
   getters: {
@@ -32,6 +35,13 @@ const useAppStore = defineStore('app', {
     changeMenuFilter(value){
         this.menuFilter = value;
         localStorage.setItem(MENU_FILTER_KEY, value);
+    },
+    setTopApps(value: TopAppMenuItem[]) {
+      this.topApps = value;
+      this.topAppsLoaded = true;
+    },
+    setTopAppsLoading(value: boolean) {
+      this.topAppsLoading = value;
     },
     // Change theme color
     toggleTheme(dark: boolean) {

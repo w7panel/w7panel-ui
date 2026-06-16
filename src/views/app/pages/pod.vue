@@ -1,5 +1,5 @@
 <template>
-    <div v-load="loading" class="padding-20">
+    <a-spin :loading="loading" class="padding-20" style="display:block;">
         
         <div class="df jc-b">
             <!-- <a-button type="primary" :disabled="!selectedKeys.length" @click="charts.show=true;">监控</a-button> -->
@@ -25,7 +25,7 @@
                     <a-table-column title="实例名称">
                         <template #cell="{ record }">
                             <div class="df ai-c">
-                                <a-popover position="bl" content-style="padding:6px 10px 10px;">
+                                <a-popover position="bl" :content-style="{ padding: '6px 10px 10px' }">
                                     <span class="c-blue cursor one-hide" style="max-width:300px;">{{record.name}}</span>
                                     <template #content>
                                         <span>{{record.name}}</span>
@@ -35,7 +35,7 @@
                                     <i class="opt-icon ml-10" @click="onekeyCopy(record.name)"><icon-copy /></i>
                                 </a-tooltip>
                             </div>
-                            <!-- <a-popover position="bl" content-style="padding:6px 10px 10px;">
+                            <!-- <a-popover position="bl" :content-style="{ padding: '6px 10px 10px' }">
                                 <template #content>
                                     <div class="c-33">
                                         <div class="df"><span class="b popover-label df-s0">容器id：</span>{{record.containerStatuses && record.containerStatuses.length && record.containerStatuses[0].containerID}}</div>
@@ -149,7 +149,7 @@
                                 <td>{{ ctn.name }}</td>
                                 <td>
                                     <div class="df ai-c">
-                                        <a-popover v-if="ctn.containerID!='-'" position="bl" content-style="padding:6px 10px 10px;">
+                                        <a-popover v-if="ctn.containerID!='-'" position="bl" :content-style="{ padding: '6px 10px 10px' }">
                                             <span class="cursor one-hide" style="max-width:200px;">{{ ctn.containerID }}</span>
                                             <template #content>
                                                 <span>{{ ctn.containerID }}</span>
@@ -163,7 +163,7 @@
                                 </td>
                                 <td>
                                     <div class="df ai-c">
-                                        <a-popover position="bl" content-style="padding:6px 10px 10px;">
+                                        <a-popover position="bl" :content-style="{ padding: '6px 10px 10px' }">
                                             <span class="cursor one-hide" style="max-width:200px;">{{ ctn.image }}</span>
                                             <template #content>
                                                 <span>{{ ctn.image }}</span>
@@ -197,7 +197,7 @@
         
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
 
-        <!-- <a-modal v-model:visible="log.showPod" title="查看日志" width="1000px" :fullscreen="log.fullscreen" :closable="false" class="log-model" :show-close="false" @open="openDialog" :popup-container="false?'#allmodalbox':'body'">
+        <!-- <a-modal v-model:visible="log.showPod" title="查看日志" width="1000px" :fullscreen="log.fullscreen" :closable="false" class="log-model" :show-close="false" @open="openDialog" :popup-container="$popupContainer">
             <template #title>
                 <div class="df ai-c jc-c fc log-model-title">
                     <span class="fs-18">查看日志</span>
@@ -237,7 +237,7 @@
             </div>
         </a-modal> -->
         <!-- @ok="openWebshell" -->
-        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancle="ws.dialog = false;" top="10vh" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancel="ws.dialog = false;" top="10vh" :popup-container="$popupContainer">
             <template #title>webshell</template>
             <div style="margin-top:-10px;">
                 <a-form :model="ws">
@@ -264,7 +264,7 @@
             </template>
         </a-modal>
 
-        <a-modal title="webshell" v-model:visible="wsd.show" width="1000px" :mask-closable="false" top="10vh" :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal title="webshell" v-model:visible="wsd.show" width="1000px" :mask-closable="false" top="10vh" :footer="false" :popup-container="$popupContainer">
             <template #title>webshell</template>
             <web-shell
                 v-if="wsd.show"
@@ -275,12 +275,12 @@
             ></web-shell>
         </a-modal>
 
-        <!-- <a-drawer :width="740" title="监控" :visible="charts.show" @cancel="charts.show=false;" :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <!-- <a-drawer :width="740" title="监控" :visible="charts.show" @cancel="charts.show=false;" :footer="false" :popup-container="$popupContainer">
             <pods-charts v-if="charts.show" :list="selectedKeys"></pods-charts>
         </a-drawer> -->
 
         <podLog :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></podLog>
-    </div>
+    </a-spin>
 </template>
 
 <script>
@@ -311,7 +311,7 @@ export default {
                 width: 80,
             },
             
-            loading: true,
+            loading: false,
             namespaceActive: "",
 
             nativeList: [],
@@ -354,7 +354,6 @@ export default {
             rowSelection: {
                 type: 'checkbox',
                 showCheckedAll: true,
-                title: '全选',
                 width: 80,
             },
 
@@ -369,6 +368,7 @@ export default {
 
             statusController: null,
             watchController: null,
+            watchLabel: '',
             expandedKeys: [],  // 展开的行
         }
     },
@@ -449,18 +449,31 @@ export default {
         },
 
         getList(){
-            if(!Object.keys(this.data)?.length){return}
+            if(!Object.keys(this.data || {})?.length){
+                this.loading = false;
+                return;
+            }
+            let selector = this.data?.spec?.selector?.matchLabels || {};
+            let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
+            if(this.watchController && this.watchLabel === label){
+                return;
+            }
+
             this.list = [];
             this.nativeList = [];
             this.expandedKeys = [];  // 重置展开状态
-            let selector = this.data?.spec?.selector?.matchLabels || {};
-            let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
             
             // 停止之前的 watch
             this.stopWatch();
             
             const controller = new AbortController();
             this.watchController = controller;
+            this.watchLabel = label;
+            const closeLoading = () => {
+                if(this.watchController === controller){
+                    this.loading = false;
+                }
+            };
             const { signal } = controller;
             const queryString = new URLSearchParams({ labelSelector: label, watch: 'true', }).toString();
             fetch("/k8s-proxy/api/v1/namespaces/" + this.namespaceActive + "/pods?" + queryString, {
@@ -478,6 +491,7 @@ export default {
                     console.error('响应体不是流式数据');
                     throw new Error('Response body is not a readable stream');
                 }
+                closeLoading();
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder('utf-8');
@@ -533,6 +547,11 @@ export default {
             }).catch((error)=>{
                 if (error.name === 'AbortError' || error.code === 20) { return; }
                 console.log('cache',error)
+                if(this.watchController === controller){
+                    this.watchController = null;
+                    this.watchLabel = '';
+                }
+                closeLoading();
             });
 
             // metrics 在展开时获取，首次加载不获取

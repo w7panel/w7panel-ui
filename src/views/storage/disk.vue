@@ -170,7 +170,7 @@
             </div>
         </div>
 
-        <a-drawer :visible="form.show" :width="900" @ok="submit" @cancel="form.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :visible="form.show" :width="900" @ok="submit" @cancel="form.show=false;" :popup-container="$popupContainer">
             <template #title>{{form.key?'编辑':'新增'}}</template>
             <a-form :model="form" ref="form" :rules="rules" auto-label-width class="padding-20">
                 <a-form-item label="名称" field="name" >
@@ -194,7 +194,7 @@
             </a-form>
         </a-drawer>
 
-        <a-modal v-model:visible="bindForm.show" @ok="bindNodeSubmit" @cancel="bindForm.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal v-model:visible="bindForm.show" @ok="bindNodeSubmit" @cancel="bindForm.show=false;" :popup-container="$popupContainer">
             <template #title>选择Node</template>
             <a-form :model="bindForm" auto-label-width class="padding-20">
                 <a-form-item label="" field="node">
@@ -203,7 +203,7 @@
             </a-form>
         </a-modal>
         
-        <a-modal v-model:visible="delReplica.show" title="清理副本" width="900px" :mask-closable="false" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal v-model:visible="delReplica.show" title="清理副本" width="900px" :mask-closable="false" :popup-container="$popupContainer">
             <template #title>清理副本</template>
             <div class="df df-c pods">
                 <div v-for="(item,index) in delReplica.list" :key="index" class="item df ai-c jc-b">

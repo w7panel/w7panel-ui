@@ -8,9 +8,7 @@
 
 <script lang="ts" setup>
     import { computed } from 'vue';
-    import enUS from '@arco-design/web-vue/es/locale/lang/en-us';
     import zhCN from '@arco-design/web-vue/es/locale/lang/zh-cn';
-    import useLocale from '@/hooks/locale'
     import { useNamespaceStore, useLoadingStore, useDarkStore, useAppStore } from '@/store';
     import { useDark } from '@vueuse/core';
 
@@ -51,14 +49,7 @@
         });
     }
     
-    const { currentLocale } = useLocale();
-    const locale = computed(() => {
-        switch (currentLocale.value) {
-            case 'zh-CN': return zhCN;
-            case 'en-US': return enUS;
-            default: return enUS;
-        }
-    });
+    const locale = zhCN;
 </script>
 <style>
 .arco-spin.page-spin{display:block!important;}

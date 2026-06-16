@@ -78,7 +78,7 @@
                         <!-- <a-button size="small" type="primary" @click="submitExpand">扩容</a-button> -->
                     </div>
                 </div>
-                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || userInfo['w7.cc/is-cvm-req']=='true'" class="mt-20" label-align="left" auto-label-width>
+                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || userInfo['w7.cc/is-cvm-req']=='true'" :model="quotsInfo" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="CPU" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.cpu}}</span>
                     </a-form-item>
@@ -99,7 +99,7 @@
                         <span class="c-00-6">{{quotsInfo.expiretime}}</span>
                         <a v-if="!inMicro&&((userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'))" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>                    </a-form-item>
                 </a-form>
-                <a-form v-else class="mt-20" label-align="left" auto-label-width>
+                <a-form v-else :model="info" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="集群版本" style="margin-bottom:0;">
                         <span class="c-00-6">{{info.gitVersion}}</span>
                     </a-form-item>
@@ -353,7 +353,7 @@
         </div>
 
         <!-- 添加修改域名 -->
-        <a-drawer :width="700" :visible="domainForm.show" @ok="submitDomainForm" @cancel="domainForm.show=false;" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="700" :visible="domainForm.show" @ok="submitDomainForm" @cancel="domainForm.show=false;" unmountOnClose :popup-container="$popupContainer">
             <template #title>{{domainForm.title}}</template>
             <a-form :model="domainForm" ref="domainForm" :rules="rules" validate-trigger="blur" auto-label-width class="padding-20" >
                 <!-- <a-form-item v-if="!domainForm.name" label="应用" field="app">
@@ -387,7 +387,7 @@
             </a-form>
         </a-drawer>
 
-        <a-drawer :width="700" :visible="config.dialog" @ok="setConfigtype3" @cancel="config.dialog=false;config.edit=false;" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="700" :visible="config.dialog" @ok="setConfigtype3" @cancel="config.dialog=false;config.edit=false;" unmountOnClose :popup-container="$popupContainer">
             <template #title>数据库</template>
             <a-form :model="config.form" ref="configdb" :rules="dbrules" auto-label-width >
                 <a-form-item label="数据库类型">
@@ -434,6 +434,7 @@ import axios from "axios";
 import {useNamespaceStore,useLoadingStore} from "@/store";
 import olCharts from "./ol-charts.vue";
 import * as echarts from 'echarts'
+import { markRaw } from 'vue'
 import { useDarkStore } from '@/store'
 import dayjs from 'dayjs'
 import { getToken } from '@/utils/auth';
@@ -1533,7 +1534,7 @@ export default {
             let dom = document.getElementById(c.dom);
             if (!dom) return;
             dom?.removeAttribute("_echarts_instance_");
-            let chart = echarts.init(dom);
+            let chart = markRaw(echarts.init(dom));
             if (this.chartInstances[c.dom]) {
                 this.chartInstances[c.dom].dispose();
             }

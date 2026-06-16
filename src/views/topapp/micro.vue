@@ -1,36 +1,36 @@
 <template>
-    <a-layout class="topapp-micro-page" :class="{ 'is-subaccount-panel': subaccountPanel.show }">
+    <a-layout class="topapp-micro-page">
         <TopappMenu
-            v-if="!hideAppMenu && !subaccountPanel.show"
+            v-if="!hideAppMenu"
             :roles="roles"
             :info="info"
+            :menuActive="menuActive"
             @routeChange="routeChange"
         />
         <!-- :identifie="identifie" -->
         <!-- :identifieList="identifieList"
         @changeIdentifie="changeIdentifie" -->
-        <a-layout class="layout-content" :style="paddingStyle">
+        <a-layout class="layout-content" >
             <a-layout-content>
                 <div
-                    v-if="subaccountPanel.show"
-                    class="subaccount-panel-wrap"
+                    :class="{ 'padding-20': !hideAppMenu }"
+                    style="height:calc(100vh - 62px);box-sizing:border-box;"
                 >
-                    <subaccount-panel
-                        :token="subaccountPanel.token"
-                        :refresh-token="subaccountPanel.refreshToken"
-                        :path="subaccountPanel.path"
-                        @close="closeSubaccountPanel"
-                    />
-                </div>
-                <div v-else class="padding-20" style="height:calc(100vh - 62px);box-sizing:border-box;">
                     <micro-container
+                        v-show="!isAppDirectPage"
                         ref="microcontainer"
                         :appgroup="groupName"
-                        :menuActive="menuActive"
+                        :menuActive="microMenuActive"
                         @getinfo="v=>info=v"
                         @getBindings="v=>bindings=v"
-                        @changeLogin="changeLogin"
+                        @changeAppMenu="changeAppMenu"
                     ></micro-container>
+                    <app-direct
+                        v-if="isAppDirectPage"
+                        :roles="roles"
+                        :info="info"
+                        @open="routeChange"
+                    />
                 </div>
             </a-layout-content>
         </a-layout>
@@ -39,9 +39,12 @@
 <script>
 import TopappMenu from '@/components/topapp-menu.vue';
 import { useNamespaceStore } from '@/store';
-import { clearIframeToken, getIframeRefreshToken, getIframeToken, getK8sinfo, getRefreshToken, getToken } from '@/utils/auth';
+import { getK8sinfo } from '@/utils/auth';
+import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 import microContainer from './micro-container.vue'
-import subaccountPanel from '@/components/subaccount-panel.vue';
+import appDirect from './app-direct.vue'
+
+const APP_DIRECT_DO = '__topapp_app_direct__';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -63,128 +66,106 @@ export default{
             bindings: [],
             groupName: '',
             hideAppMenu: false,
-
-            subaccountPanel: {
-                show: false,
-                token: '',
-                refreshToken: '',
-                path: '/cluster/panel',
-            },
+            currentMicroMenuActive: '',
         }
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
-        this.groupName = this.group || this.$route.params.group;
-        this.menuActive = this.do || this.$route.query.do;
-        this.hideAppMenu = this.isHideMenu();
-        this.restoreSubaccountPanel();
-    },
-    beforeRouteLeave(to, from, next) {
-        if (this.subaccountPanel.show) {
-            this.resetSubaccountPanel(false);
-        }
-        next();
+        this.initPage();
     },
     components: {
         TopappMenu,
         microContainer,
-        subaccountPanel,
+        appDirect,
     },
     computed: {
+        isAppDirectPage(){
+            return this.menuActive === APP_DIRECT_DO;
+        },
+        microMenuActive(){
+            return this.isAppDirectPage ? this.currentMicroMenuActive : this.menuActive;
+        },
     },
     watch:{
         do(v){
-            v && (this.menuActive = v);
+            this.menuActive = v || this.$route.query.do || '';
+            if(!this.isAppDirectPage){
+                this.currentMicroMenuActive = this.menuActive;
+            }
         },
         bindings(v){
             this.getMenu(v)
         },
         group(v, oldV){
-            this.groupName = this.group || this.$route.params.group;
-            if(oldV && v !== oldV){
-                this.resetSubaccountPanel(true);
-            }
+            this.initPage();
         },
         '$route.params.group'(v, oldV){
-            this.groupName = this.group || this.$route.params.group;
-            if(oldV && v !== oldV){
-                this.resetSubaccountPanel(true);
-            }
+            this.initPage();
+        },
+        '$route.query.showMenu'(){
+            this.hideAppMenu = this.isHideMenu();
+        },
+        '$route.query.do'(){
+            this.syncQueryDoMenu();
+        },
+        '$route.query.appmicro'(){
+            this.syncAppmicroMenu();
         },
     },
     methods: {
-        changeLogin(data = {}){
-            this.subaccountPanel = {
-                show: true,
-                token: data.token || '',
-                refreshToken: data.refreshToken || '',
-                path: this.getSubaccountPanelPath(),
-            };
-            this.syncSubaccountPanelQuery(true);
+        initPage(){
+            this.roles = [];
+            this.identifie = '';
+            this.identifieList = [];
+            this.info = {};
+            this.bindings = [];
+            this.menuActive = this.do || this.$route.query.do || '';
+            this.currentMicroMenuActive = this.menuActive === APP_DIRECT_DO ? '' : this.menuActive;
+            this.hideAppMenu = this.isHideMenu();
+            this.groupName = this.group || this.$route.params.group;
         },
-        closeSubaccountPanel(){
-            this.resetSubaccountPanel(true);
+        changeAppMenu(v){
+            this.hideAppMenu = (v === false)? true : this.isHideMenu();
         },
-        resetSubaccountPanel(syncQuery = true){
-            clearIframeToken();
-            this.subaccountPanel = {
-                show: false,
-                token: '',
-                refreshToken: '',
-                path: '/cluster/panel',
-            };
-            if(syncQuery){
-                this.syncSubaccountPanelQuery(false);
-            }
+        getAppmicroMenu(){
+            return normalizeWujieSyncRoute(this.$route.query?.appmicro, getWujieRoutePrefix(this.info.frontendUrl));
         },
-        restoreSubaccountPanel(){
-            if(this.$route.query.subaccountPanel !== '1'){ return; }
-
-            const token = getIframeToken() || getToken() || '';
-            if(!token){
-                this.syncSubaccountPanelQuery(false);
+        getRouteDo(){
+            const routeDo = this.$route.query?.do;
+            return Array.isArray(routeDo) ? routeDo[0] : routeDo;
+        },
+        syncQueryDoMenu(){
+            const routeDo = this.getRouteDo();
+            if(routeDo){
+                this.menuActive = routeDo;
+                if(!this.isAppDirectPage){
+                    this.currentMicroMenuActive = routeDo;
+                }
                 return;
             }
-
-            this.subaccountPanel = {
-                show: true,
-                token,
-                refreshToken: getIframeRefreshToken() || getRefreshToken() || '',
-                path: this.getSubaccountPanelPath(),
-            };
+            this.syncAppmicroMenu();
         },
-        getSubaccountPanelPath(){
-            const value = this.$route.query['w7panel-subaccount-panel'];
-            const path = Array.isArray(value) ? value[0] : value;
-            if(!path){ return '/cluster/panel'; }
-
-            try{
-                return decodeURIComponent(path);
-            }catch{
-                return path;
-            }
-        },
-        syncSubaccountPanelQuery(show){
-            const isOpen = this.$route.query.subaccountPanel === '1';
-            if(show === isOpen){ return; }
-
-            const query = {
-                ...this.$route.query,
-            };
-            if(show){
-                query.subaccountPanel = '1';
-            }else{
-                delete query.subaccountPanel;
-            }
-
-            this.$router.replace({
-                path: this.$route.path,
-                query,
-                hash: this.$route.hash,
-            }).catch(()=>{});
+        syncAppmicroMenu(){
+            if(this.isAppDirectPage){ return; }
+            const appmicro = this.getAppmicroMenu();
+            if(!appmicro){ return; }
+            this.menuActive = appmicro;
+            this.currentMicroMenuActive = appmicro;
         },
         routeChange(v){
-            this.$refs?.microcontainer?.routeChange?.(v);
+            const oldMicroMenuActive = this.currentMicroMenuActive;
+            const wasAppDirectPage = this.isAppDirectPage;
+            this.menuActive = v || '';
+            if(this.menuActive === APP_DIRECT_DO){
+                return;
+            }
+            this.currentMicroMenuActive = this.menuActive;
+            if(wasAppDirectPage && oldMicroMenuActive === this.menuActive){
+                this.$refs?.microcontainer?.routeChange?.(v);
+                this.$nextTick(()=>{
+                    window.dispatchEvent(new Event('resize'));
+                });
+            }
         },
         getMenu(bindings){
 
@@ -206,6 +187,7 @@ export default{
                 })
             }catch{}
             
+            roles = this.injectAppDirectMenu(roles);
             roles.sort((a, b) => (b.name === 'founder') - (a.name === 'founder'));
             
             if(userRole=='founder'){
@@ -217,9 +199,28 @@ export default{
             if(this.do || this.$route.query.do){
                 this.menuActive = this.do || this.$route.query.do;
             }else{
-                this.menuActive = this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
+                this.menuActive = this.getAppmicroMenu() || this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
+            }
+            if(!this.isAppDirectPage){
+                this.currentMicroMenuActive = this.menuActive;
             }
 
+        },
+        injectAppDirectMenu(roles){
+            const founder = roles.find(i=>i.name === 'founder');
+            if(!founder || founder.menus?.some(i=>i.do === APP_DIRECT_DO)){
+                return roles;
+            }
+            founder.menus = [
+                ...(founder.menus || []),
+                {
+                    title: '应用直达',
+                    do: APP_DIRECT_DO,
+                    displayorder: -1,
+                    isLocalPage: true,
+                },
+            ];
+            return roles;
         },
         isHideMenu(){
             const showMenu = this.showMenu ?? this.$route.query.showMenu;
@@ -246,15 +247,8 @@ export default{
 </style>
 <style>
 .micro-iframe-modal .arco-modal-body{padding:0;}
-.subaccount-panel-wrap{
-    height:calc(100vh - 60px);
-    background:var(--color-fill-2);
-}
 .topapp-micro-page{
     height:100%;
     overflow:auto;
-}
-.topapp-micro-page.is-subaccount-panel{
-    overflow:hidden;
 }
 </style>

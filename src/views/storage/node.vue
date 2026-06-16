@@ -107,7 +107,7 @@
                 </template>
             </a-table>
         </div>
-        <a-drawer :visible="drawer.visible" :width="900" @ok="submit" @cancel="drawer.visible=false" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :visible="drawer.visible" :width="900" @ok="submit" @cancel="drawer.visible=false" :popup-container="$popupContainer">
             <template #title>编辑Node</template>
             <a-form :model="drawer" ref="drawer" auto-label-width class="padding-20">
                 <a-row :gutter="16">

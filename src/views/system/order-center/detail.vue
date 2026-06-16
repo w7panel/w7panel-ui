@@ -2,7 +2,7 @@
     <div class="df df-c padding-20" style="height:100%;">
         <Breadcrumb :routes="topbc" />
         <div class="bg-white padding-20 fc">
-            <a-form auto-label-width>
+            <a-form :model="Order" auto-label-width>
                 <a-form-item label="下单时间" class="mb-0">{{Order.created_at}}</a-form-item>
                 <a-form-item v-if="Order.paid_at" label="付款时间" class="mb-0">{{Order.paid_at}}</a-form-item>
                 <a-form-item v-if="Order.pay_type && payText[Order.pay_type]" label="支付方式" class="mb-0">{{payText[Order.pay_type]}}</a-form-item>

@@ -36,7 +36,7 @@
                     v-if="permissions && (hasUsermanage || hasSystem) && route.name !== 'order-base-index' && route.name !== 'init-cluster-index'"
                 >
                     <a-radio-group
-                        :model-value="String(appStore.menuFilter)"
+                        v-model="menuFilterValue"
                         type="button"
                         @update:model-value="(value) => { appStore.menuFilter = String(value); }"
                         @change="handleMenuGroupChange"
@@ -49,7 +49,7 @@
         </div>
         <ul class="right-side">
             <li>
-                <a-tooltip :content="theme === 'light' ? $t('settings.navbar.theme.toDark') : $t('settings.navbar.theme.toLight')">
+                <a-tooltip :content="theme === 'light' ? '切换为深色模式' : '切换为浅色模式'">
                     <a-button class="nav-btn" type="outline" :shape="'circle'" @click="handleToggleTheme">
                         <template #icon>
                             <icon-moon-fill v-if="theme === 'dark'" />
@@ -59,7 +59,7 @@
                 </a-tooltip>
             </li>
             <li>
-                <a-tooltip :content="isFullscreen ? $t('settings.navbar.screen.toExit') : $t('settings.navbar.screen.toFull')">
+                <a-tooltip :content="isFullscreen ? '退出全屏' : '进入全屏'">
                     <a-button class="nav-btn" type="outline" :shape="'circle'" @click="toggleFullScreen">
                         <template #icon>
                             <icon-fullscreen-exit v-if="isFullscreen" />
@@ -107,7 +107,7 @@
             title="新建命名空间"
             @ok="createNamespace"
             @cancel="nsVisible = false"
-            :popup-container="false ? '#allmodalbox' : 'body'"
+            :popup-container="$popupContainer"
         >
             <div class="df df-c ai-c jc-c">
                 <a-input type="text" v-model="nsValue" placeholder="请输入命名空间名称" />
@@ -199,6 +199,13 @@ const selkeys = computed(() => {
     return [];
 });
 
+const menuFilterValue = computed({
+    get: () => String(appStore.menuFilter || 'cloudserver'),
+    set: (value: string | number | boolean) => {
+        handleMenuGroupChange(value);
+    },
+});
+
 const handleCloudserverClick = () => {
     appStore.changeMenuFilter('cloudserver');
     if (route.name !== 'cluster-panel') {
@@ -266,17 +273,19 @@ const submitPwd = () => {
 };
 
 const namespaceList = useNamespaceStore().namespaceList;
-const topApps = ref<{ title: string; name: string; roles: string[] }[]>([]);
-const alreadyGetMenu = ref(false);
+const topApps = computed(() => appStore.topApps);
 
 const userRole = getK8sinfo()['w7.cc/role'];
 const hasPwd = ref(getK8sinfo()['w7.cc/has-password']);
 
 const getMenutop = () => {
+    if (appStore.topAppsLoaded || appStore.topAppsLoading) {
+        return;
+    }
+    appStore.setTopAppsLoading(true);
     panelApi.get('/microapp/top').then((res) => {
         const items = res.data?.items || [];
-        alreadyGetMenu.value = true;
-        topApps.value = items.map((i: any) => {
+        appStore.setTopApps(items.map((i: any) => {
             const roles: string[] = [];
             try {
                 let rl = i?.spec?.bindings || [];
@@ -291,7 +300,9 @@ const getMenutop = () => {
                 name: i.metadata.name,
                 roles,
             };
-        });
+        }));
+    }).finally(() => {
+        appStore.setTopAppsLoading(false);
     });
 };
 
@@ -311,7 +322,7 @@ if (route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {
 }
 
 watch(() => route.name, () => {
-    if (!alreadyGetMenu.value && route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {
+    if (!appStore.topAppsLoaded && route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {
         getMenutop();
     }
     if (route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {
@@ -370,9 +381,9 @@ const handleLogout = () => {
     logout();
 };
 
-const ttInject = inject('toggleDrawerMenu') as (() => void) | undefined;
+const ttInject = inject('toggleDrawerMenu', () => {}) as () => void;
 const toggleDrawerMenu = () => {
-    ttInject?.();
+    ttInject();
     const toggleEvent = new CustomEvent('toggle-drawer');
     window.dispatchEvent(toggleEvent);
 };

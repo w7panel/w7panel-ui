@@ -11,11 +11,11 @@
             </a-tabs>
             <div v-if="tab=='1'">
                 <a-form ref="register" :model="register" auto-label-width class="padding-20">
-                    <a-form-item label="默认权限">
+                    <!-- <a-form-item label="默认权限">
                         <a-select v-model="register.defaultPermissionName" placeholder="请选择">
                             <a-option v-for="item in permissionPackageList" :key="item.name" :label="item.title" :value="item.name"></a-option>
                         </a-select>
-                    </a-form-item>
+                    </a-form-item> -->
                     <a-form-item label="开启注册">
                         <a-switch v-model="register.allowConsoleRegister"></a-switch>
                     </a-form-item>
@@ -271,6 +271,7 @@ export default{
             })
         },
         initRegister(){
+            
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/permissions',{
                 noAlert: true
             }).then(res=>{
@@ -283,13 +284,28 @@ export default{
                 })
                 this.permissionPackageList = list;
             });
+            
+            // k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps?labelSelector=type=permission',{
+            //     noAlert: true
+            // }).then(res=>{
+            //     let list = res?.data?.items || [];
+            //     list = list.filter(i=>i.metadata?.labels?.typemode=='custom').map(i=>{
+            //         return {
+            //             name: i.metadata?.name,
+            //             title: i.metadata?.annotations?.title || i.metadata?.name,
+            //         }
+            //     })
+            //     this.permissionPackageList = list;
+            // });
+            
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{noAlert:true}).then(res=>{
                 this.register = {
                     ...this.register,
                     allowConsoleRegister: res?.data?.spec?.data?.allowConsoleRegister === 'true',
                     // showInShop: res?.data?.spec?.data?.showInShop === 'true',
-                    defaultPermissionName: res?.data?.spec?.data?.defaultPermissionName,
                     indexpage: res?.data?.spec?.data?.indexpage || 'login',
+                    defaultPermissionName: 'k3k.permission.normal',
+                    // defaultPermissionName: res?.data?.spec?.data?.defaultPermissionName,
                 }
             }).catch((err)=>{
                 if(err?.response?.status != 404){
@@ -316,7 +332,7 @@ export default{
                         ...this.register,
                         allowConsoleRegister: false,
                         // showInShop: false,
-                        defaultPermissionName: '',
+                        defaultPermissionName: 'k3k.permission.normal',
                         indexpage: 'login',
                     }
                 });

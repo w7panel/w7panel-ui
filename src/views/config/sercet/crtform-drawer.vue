@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="$popupContainer">
         <template #title>{{id?'修改证书':'创建证书'}}</template>
         <div class="mt-20 bg-white df jc-b">
             <a-form ref="form" :model="form" :rules="rules" validate-trigger="blur" auto-label-width>

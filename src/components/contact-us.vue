@@ -8,7 +8,7 @@
                 </div>
                 <div v-if="item.showName" class="name">{{ item.name }}</div>
             </a>
-            <a-popover v-else position="lb" trigger="hover" content-style="max-width:600px;">
+            <a-popover v-else position="lb" trigger="hover" :content-style="{ maxWidth: '600px' }">
                 <div class="icon mt-8 df df-c ai-c cursor" :class="`style${item.style}`">
                     <div class="logo df ai-c jc-c">
                         <img v-if="item.customIcon" :src="item.icon" alt="" style="width:100%;height:100%;" />

@@ -70,7 +70,7 @@
                 </a-descriptions>
             </div>
         </div>
-        <a-modal width="600px" :visible="inputLicense.show" @ok="submitInputLicense" @cancel="inputLicense.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal width="600px" :visible="inputLicense.show" @ok="submitInputLicense" @cancel="inputLicense.show=false;" :popup-container="$popupContainer">
             <template #title>导入授权码</template>
             <a-textarea
                 v-model="inputLicense.license"

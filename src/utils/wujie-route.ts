@@ -1,3 +1,12 @@
+export function getWujieRoutePrefix(frontendUrl: unknown) {
+  const index = String(frontendUrl || '');
+  return {
+    // index: index + 'index.html',
+    index: index,
+    other: index,
+  };
+}
+
 export function normalizeWujieSyncRoute(value: unknown, prefix: Record<string, string> = {}) {
   const rawValue = Array.isArray(value) ? value[0] : value;
   if (!rawValue) {

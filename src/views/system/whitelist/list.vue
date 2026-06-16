@@ -33,7 +33,7 @@
                 </template>
             </a-table>
         </div>
-        <a-drawer :width="800" title="添加" :visible="form.show" @ok="submit" @cancel="form.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="800" title="添加" :visible="form.show" @ok="submit" @cancel="form.show=false;" :popup-container="$popupContainer">
             <a-form ref="form" :rules="rules" :model="form" auto-label-width class="padding-20">
                 <a-form-item label="前缀" field="prefix">
                     <span>{{form.prefix}}</span>

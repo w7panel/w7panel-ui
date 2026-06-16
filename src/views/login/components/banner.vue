@@ -15,28 +15,25 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed } from 'vue';
-  import { useI18n } from 'vue-i18n';
   import bannerImage from '@/assets/images/login-banner.png';
 
-  const { t } = useI18n();
-  const carouselItem = computed(() => [
+  const carouselItem = [
     {
-      slogan: t('login.banner.slogan1'),
-      subSlogan: t('login.banner.subSlogan1'),
+      slogan: '开箱即用的云原生管理平台',
+      subSlogan: '让应用、集群和资源管理更简单',
       image: bannerImage,
     },
     {
-      slogan: t('login.banner.slogan2'),
-      subSlogan: t('login.banner.subSlogan2'),
+      slogan: '统一管理应用生命周期',
+      subSlogan: '部署、监控、运维集中完成',
       image: bannerImage,
     },
     {
-      slogan: t('login.banner.slogan3'),
-      subSlogan: t('login.banner.subSlogan3'),
+      slogan: '安全稳定的服务控制台',
+      subSlogan: '面向团队的权限和资源治理',
       image: bannerImage,
     },
-  ]);
+  ];
 </script>
 
 <style lang="less" scoped>

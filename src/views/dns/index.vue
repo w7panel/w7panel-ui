@@ -1,8 +1,13 @@
 <template>
     <div class="padding-20 dns-page">
         <route-breadcrumb />
+        <div class="mb-20" v-if="dnsInfo.fileFallthroughSupported === false">
+            <a-alert type="warning">
+                {{ dnsInfo.fileFallthroughMessage || unsupportedMessage }}
+            </a-alert>
+        </div>
         <div class="toolbar">
-            <a-button type="primary" @click="openZoneForm">
+            <a-button type="primary" :disabled="dnsInfo.fileFallthroughSupported === false" @click="openZoneForm">
                 <template #icon><icon-plus /></template>
                 新增域名
             </a-button>
@@ -66,6 +71,11 @@ export default {
     data() {
         return {
             zones: [],
+            unsupportedMessage: '当前 CoreDNS 的版本低于 v1.12.2，暂不支持该功能，请及时升级版本。',
+            dnsInfo: {
+                fileFallthroughSupported: true,
+                fileFallthroughMessage: '',
+            },
             zoneForm: {
                 show: false,
                 domain: '',
@@ -75,6 +85,7 @@ export default {
     computed: {
     },
     created() {
+        this.getDnsInfo();
         this.getZones();
     },
     methods: {
@@ -83,7 +94,19 @@ export default {
             return window.formatDate ? window.formatDate(value) : value;
         },
         openZoneForm() {
+            if (this.dnsInfo.fileFallthroughSupported === false) {
+                this.$message.warning(this.dnsInfo.fileFallthroughMessage || this.unsupportedMessage);
+                return;
+            }
             this.zoneForm = { show: true, domain: '' };
+        },
+        getDnsInfo() {
+            panelApi.get('/dns/info', { noAlert: true }).then((res) => {
+                this.dnsInfo = {
+                    ...this.dnsInfo,
+                    ...(res?.data || {}),
+                };
+            });
         },
         getZones() {
             panelApi.get('/dns/zones', { loading: true }).then((res) => {

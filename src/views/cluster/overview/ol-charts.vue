@@ -29,6 +29,7 @@ import { useDarkStore } from '@/store'
 import { getUserInfo } from '@/utils/auth';
 import dayjs from 'dayjs'
 import { getMetricsService, DEFAULT_METRICS_SERVICE } from '@/utils/metrics-service';
+import { markRaw } from 'vue'
 
 export default {
     props: ['list','node','activeType','noMonitor','pickerValue','step','virtualDiskFilterCache','metricsServices'],
@@ -59,6 +60,51 @@ export default {
                 y: [],
             },
             HostCoreUtilization: {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            load: {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'disk-read': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'disk-write': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'network-in': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'network-out': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'disk-read-bytes': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'disk-written-bytes': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'network-receive-bytes': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'network-transmit-bytes': {
                 loading: false,
                 x: [],
                 y: [],
@@ -112,9 +158,18 @@ export default {
         }
     },
     methods: {
-        resize(){},
         async ensureMetricsService(){
             this.currentMetricsService = this.metricsServices || await getMetricsService();
+        },
+        getChartState(chartType){
+            if(!this[chartType]){
+                this[chartType] = {
+                    loading: false,
+                    x: {},
+                    y: [],
+                };
+            }
+            return this[chartType];
         },
         async init(){
             // if(!this.list?.length && !this.node){return}
@@ -159,31 +214,37 @@ export default {
                 : 'default/w7panel-metrics-k8s-offline-metrics-node-resource';
 
             let jobArg = (this.currentMetricsService==DEFAULT_METRICS_SERVICE)?'w7panel-metrics-node-exporter' : 'w7panel-metrics-k8s-offline-metrics-node-exporter';
+            const metricQuery = {
+                // ...(userMode=='cluster'?{
+                ...(this.userInfo['w7.cc/is-cvm-req']=='true'?{
+                    'cpu': 'rate(pod_cpu_usage_seconds_total{pod="' + Name + '"})',
+                    'memory': 'pod_memory_working_set_bytes{pod="' + Name + '"}',
+                }:{
+                    'cpu': 'rate(node_cpu_usage_seconds_total{job="' + nodeResourceJob + '"})',
+                    'memory': '(node_memory_working_set_bytes{job="' + nodeResourceJob + '"})',
+                }),
+
+                'HostGPUMemoryUsage': '(HostGPUMemoryUsage)',
+                'HostCoreUtilization': '(HostCoreUtilization)',
+                'load': 'avg(node_load1{"instance"="'+Name+'"}[1m0s])',
+
+                'disk-read': 'irate(node_disk_reads_completed_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
+                'disk-write': 'irate(node_disk_writes_completed_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
+                'network-in': 'irate(node_network_receive_packets_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
+                'network-out': 'irate(node_network_transmit_packets_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
+                'disk-read-bytes': 'irate(node_disk_read_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[15s])',
+                'disk-written-bytes': 'irate(node_disk_written_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[15s])',
+
+                'network-receive-bytes': 'irate(node_network_receive_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"}[1m0s])*8',
+                'network-transmit-bytes': 'irate(node_network_transmit_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"}[1m0s])*8',
+            }[MetricName];
+
+            if(!metricQuery){
+                return Promise.resolve({data:{result:[]}});
+            }
             
             return axios.get(path,{params:{
-                query: {
-                    ...(userMode=='cluster'?{
-                        'cpu': 'rate(pod_cpu_usage_seconds_total{pod="' + Name + '"})',
-                        'memory': 'pod_memory_working_set_bytes{pod="' + Name + '"}',
-                    }:{
-                        'cpu': 'rate(node_cpu_usage_seconds_total{job="' + nodeResourceJob + '"})',
-                        'memory': '(node_memory_working_set_bytes{job="' + nodeResourceJob + '"})',
-                    }),
-
-                    'HostGPUMemoryUsage': '(HostGPUMemoryUsage)',
-                    'HostCoreUtilization': '(HostCoreUtilization)',
-                    'load': 'avg(node_load1{"instance"="'+Name+'"}[1m0s])',
-
-                    'disk-read': 'irate(node_disk_reads_completed_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
-                    'disk-write': 'irate(node_disk_writes_completed_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
-                    'network-in': 'irate(node_network_receive_packets_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
-                    'network-out': 'irate(node_network_transmit_packets_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[1m0s])',
-                    'disk-read-bytes': 'irate(node_disk_read_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[15s])',
-                    'disk-written-bytes': 'irate(node_disk_written_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"'+filter+'}[15s])',
-
-                    'network-receive-bytes': 'irate(node_network_receive_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"}[1m0s])*8',
-                    'network-transmit-bytes': 'irate(node_network_transmit_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"}[1m0s])*8',
-                }[MetricName],
+                query: metricQuery,
                 start: startTime,
                 end: endTime,
                 step: step,
@@ -211,7 +272,7 @@ export default {
 
         async chartInit(chartType){
             await this.ensureMetricsService();
-            let c = this[chartType] || {};
+            let c = this.getChartState(chartType);
             if(c.loading){return}
             c.loading = true;
             // let chart = null;
@@ -227,7 +288,8 @@ export default {
             }
             let userMode = this.userInfo?.['w7.cc/user-mode'];
             
-            if((userMode!='cluster'&&(chartType=='cpu'||chartType=='memory'))||chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
+            // userMode!='cluster' this.userInfo['w7.cc/is-cvm-req']!=='true'
+            if((this.userInfo['w7.cc/is-cvm-req']!=='true'&&(chartType=='cpu'||chartType=='memory'))||chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
                 let data = null;
                 try{
                     let res = await this.getChart('', chartType);
@@ -323,7 +385,7 @@ export default {
                     c.y.push({
                         name: node,
                         type: 'line',
-                        data: data?.result?.[0].values?.map(item=>Number(item[1]).toFixed(2)),
+                        data: data?.result?.[0]?.values?.map(item=>Number(item[1]).toFixed(2)) || [],
                         smooth: true,
                     })
                 }
@@ -429,7 +491,7 @@ export default {
             this.renderChart(chartType);
         },
         renderChart(chartType){
-            let c = this[chartType] || {};
+            let c = this.getChartState(chartType);
             let dw = '';
             switch(chartType){
                 case 'cpu': dw = '核'; break;
@@ -475,6 +537,7 @@ export default {
             if(chartType=='cpu'){
                 let max = 1;
                 c.y.forEach(item=>{
+                    if(!item?.data?.length){ return; }
                     let maxItem = Math.max(...item.data);
                     if(maxItem > max){ max = maxItem;}
                 })
@@ -496,21 +559,19 @@ export default {
 
             if(c.x?.data?.length){
                 option.xAxis = c.x;
-                option.series = c.y;
+                option.series = (c.y || []).filter(item=>item?.type && Array.isArray(item.data));
+                if(!option.series.length){ return; }
                 let dom = document.getElementById(chartType.replaceAll('-','')+'Chart')
                 if(dom){
-                    let sameDom = this.chart && this.chart.getDom && this.chart.getDom() === dom;
-                    if(!sameDom){
-                        this.chart?.dispose?.();
-                        dom.removeAttribute("_echarts_instance_");
-                        this.chart = echarts.init(dom);
-                        window.removeEventListener("resize",  this.resize);
-                        this.resize = ()=>{
-                            this.chart?.resize();
-                        }
-                        window.addEventListener("resize",  this.resize);
-                    }
+                    
+                    this.chart?.dispose?.();
+                    this.chart = markRaw(echarts.init(dom));
                     this.chart?.setOption(option,true);
+                    window.removeEventListener("resize",  this.resize);
+                    this.resize = ()=>{
+                        this.chart?.resize();
+                    }
+                    window.addEventListener("resize",  this.resize);
                 }
             }
         },

@@ -22,7 +22,7 @@
                 </a-form-item>
                 <a-form-item label="启用类型">
                     <template #help>GPU安装完成后，可使用绑定节点功能开启GPU支持，请选择与GPU类型对应的节点服务器。</template>
-                    <a-space direction="vertical" fill size="0" style="flex:1;">
+                    <a-space direction="vertical" fill :size="0" style="flex:1;">
                         <!-- <a-button @click="addGpu" :disabled="data.list.length>=1">
                             <template #icon><a-icon-plus /></template>
                             <span>添加GPU驱动</span>

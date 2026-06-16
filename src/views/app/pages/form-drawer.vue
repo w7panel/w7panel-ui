@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" :header="false" :mask-closable="false" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" :header="false" :mask-closable="false" unmountOnClose :popup-container="$popupContainer">
         <!-- <template #title>{{id?'修改应用':'添加应用'}}</template> -->
         <div >
             <app-form

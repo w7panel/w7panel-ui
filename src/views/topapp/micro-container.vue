@@ -1,28 +1,31 @@
 <template>
-    <div style="height:100%;">
+    <div class="micro-container">
         <iframe v-if="info.load_mode === 'iframe'" :src="info.iframeSrc" style="display:block;width:100%;height:100%;border:0;"></iframe>
         <template v-else >
-            <div v-show="downOk" id="appmicro" style="height:100%;transform:translate(0,0);"></div>
+            <div id="appmicro" style="height:100%;transform:translate(0,0);"></div>
 
             <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:100%;">
                 <div style="height:100%;" class="bg-white"></div>
             </a-spin>
+            <a-spin v-if="microLoading" class="micro-loading" :loading="microLoading" :size="32">
+                <div style="height:100%;"></div>
+            </a-spin>
 
-            <wujie-modals @changeLogin="$emit('changeLogin', $event)" />
+            <wujie-modals />
         </template>
     </div>
 </template>
 <script>
 import { panelApi } from '@/utils/api';
-import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import { getToken, getK8sinfo } from '@/utils/auth';
-import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
+import { bus, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
-import { normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 
 export default{
     props: ['menuActive','appgroup'],
+    emits: ['getBindings', 'getinfo', 'changeAppMenu'],
     data(){
         return {
             namespaceActive: '',
@@ -30,10 +33,15 @@ export default{
             extra: {},
             page: '',
             downOk: true,
+            microLoading: false,
+            lastMicroRoute: '',
+            ignoreAppmicroOnce: false,
         }
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
+
+        bus.$on('changeAppMenu', this.changeAppMenu);
     },
     mounted(){
         if(this.appgroup){
@@ -53,16 +61,29 @@ export default{
         menuActive(v){
             if(!v || this.page==v){return}
             this.page = v;
+            this.rememberMicroRoute(v);
             this.routeChange(v);
+        },
+        '$route.query.appmicro'(){
+            this.rememberCurrentMicroRoute();
         },
     },
     beforeUnmount(){
+
+        bus.$off('changeAppMenu', this.changeAppMenu);
+
         this.destroyMicro();
+        this.clearSyncedAppmicroUrl();
+        setTimeout(this.clearSyncedAppmicroUrl, 0);
+        setTimeout(this.clearSyncedAppmicroUrl, 100);
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
     },
     methods: {
+        changeAppMenu(show){
+            this.$emit('changeAppMenu', show);
+        },
         buildIframeSrc(path, route){
             const token = getToken();
             const base = (path || '') + (route || '');
@@ -76,6 +97,7 @@ export default{
             }else{
                 bus.$emit("routeChange", (v || '').replace(/^#/,''));
             }
+            this.rememberMicroRoute(v);
         },
         resetMicro(){
             try{
@@ -86,6 +108,14 @@ export default{
             this.extra = {};
             this.page = '';
             this.downOk = true;
+            this.microLoading = false;
+        },
+        rememberCurrentMicroRoute(){
+            this.rememberMicroRoute(normalizeWujieSyncRoute(this.$route.query?.appmicro, getWujieRoutePrefix(this.info.frontendUrl)));
+        },
+        rememberMicroRoute(route){
+            if(!route){ return; }
+            this.lastMicroRoute = route;
         },
         getFront(appgroup){
 
@@ -109,7 +139,9 @@ export default{
                 this.info = {
                     ...this.info,
                     appgroup: appgroup,
-                    frontendUrl: item?.spec?.frontendUrl,
+                    // frontendUrl: item?.spec?.frontendUrl,
+                    // 测试短路径
+                    frontendUrl: item?.spec?.frontendUrl.replace(/\/index\.html$/, '/'),
                     backendUrl: item?.spec?.backendUrl,
                     username: item?.spec?.config?.props?.username,
                     password: item?.spec?.config?.props?.password,
@@ -125,12 +157,12 @@ export default{
                 }
                 this.$emit('getBindings',item?.spec?.bindings||[])
                 this.$emit('getinfo',{...this.info})
+                this.rememberCurrentMicroRoute();
                 this.$nextTick(()=>{
-                    
-                    const appmicro = normalizeWujieSyncRoute(this.$route.query?.appmicro, {
-                        frontend: this.info.frontendUrl,
-                    });
+                    const appmicro = this.ignoreAppmicroOnce ? '' : normalizeWujieSyncRoute(this.$route.query?.appmicro, getWujieRoutePrefix(this.info.frontendUrl));
+                    this.ignoreAppmicroOnce = false;
                     this.page = appmicro || this.menuActive || '';
+                    this.rememberMicroRoute(this.page);
 
                     this.wujieInit();
                 })
@@ -179,21 +211,26 @@ export default{
                 ...this.info,
             }
             console.log(props)
+            this.microLoading = true;
             startApp({
                 name: "appmicro",
                 url: this.info.frontendUrl + this.page,
 // 测试
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.page || ''),
 // url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.page || ''),
-// url: 'http://localhost:8080' + (this.page || ''),
+// url: 'http://localhost:8002' + (this.page || ''),
 // url: 'https://idc.w7.com' + this.info.frontendUrl + (this.page || ''),
                 exec: true,
                 el: '#appmicro',
                 sync: true,
-                prefix: {
-                    frontend: this.info.frontendUrl,
-                },
+                prefix: getWujieRoutePrefix(this.info.frontendUrl),
                 props: props,
+            }).then(()=>{
+                console.log('app success')
+            }).catch(()=>{
+                console.log('app error')
+            }).finally(()=>{
+                this.microLoading = false;
             })
             setTimeout(()=>{
                 requestAnimationFrame(() => {
@@ -206,10 +243,58 @@ export default{
                 destroyApp('appmicro');
             }catch{}
         },
+        clearSyncedAppmicroUrl(){
+            try{
+                const url = new URL(window.location.href);
+                let changed = false;
+
+                if(url.searchParams.has('appmicro')){
+                    url.searchParams.delete('appmicro');
+                    changed = true;
+                }
+
+                if(url.hash && /([?&])appmicro=/.test(url.hash)){
+                    const [hashPath, hashQuery = ''] = url.hash.split('?');
+                    const params = new URLSearchParams(hashQuery);
+                    if(params.has('appmicro')){
+                        params.delete('appmicro');
+                        url.hash = params.toString() ? `${hashPath}?${params.toString()}` : hashPath;
+                        changed = true;
+                    }
+                }
+
+                if(changed){
+                    const nextUrl = url.pathname + url.search + url.hash;
+                    const currentState = window.history.state || {};
+                    window.history.replaceState({
+                        ...currentState,
+                        back: currentState.back ?? null,
+                        current: nextUrl,
+                        forward: currentState.forward ?? null,
+                        replaced: currentState.replaced ?? true,
+                        position: currentState.position ?? Math.max(window.history.length - 1, 0),
+                        scroll: currentState.scroll ?? null,
+                    }, '', nextUrl);
+                }
+            }catch{}
+        },
     }
 }
 </script>
 <style scoped>
 </style>
 <style>
+.micro-container{
+    position:relative;
+    height:100%;
+}
+.micro-loading{
+    position:absolute;
+    inset:0;
+    z-index:10;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--color-bg-1);
+}
 </style>

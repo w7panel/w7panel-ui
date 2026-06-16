@@ -3,19 +3,18 @@
         <template #title>修改子目录</template>
         
         <a-form ref="dialog" :model="domain" validate-trigger="blur" class="padding-20" auto-label-width>
-            <template>
-                <a-form-item  label="应用" field="app">
-                    <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v];}" placeholder="请选择应用" style="width:500px;">
-                        <a-option v-for="i in appList" :key="i.name" :label="i.title" :value="i.name"></a-option>
-                    </a-select>
-                </a-form-item>
-                
-                <a-form-item label="选择端口" field="port">
-                    <a-select v-model="domain.port" placeholder="请选择端口" style="width:500px;">
-                        <a-option v-for="i in domain.appPorts" :key="i" :label="i" :value="i"></a-option>
-                    </a-select>
-                </a-form-item>
-            </template>
+            
+            <a-form-item  label="应用" field="app">
+                <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v];}" placeholder="请选择应用" style="width:500px;">
+                    <a-option v-for="i in appList" :key="i.name" :label="i.title" :value="i.name"></a-option>
+                </a-select>
+            </a-form-item>
+            
+            <a-form-item label="选择端口" field="port">
+                <a-select v-model="domain.port" placeholder="请选择端口" style="width:500px;">
+                    <a-option v-for="i in domain.appPorts" :key="i" :label="i" :value="i"></a-option>
+                </a-select>
+            </a-form-item>
 
             <a-form-item label="子目录">
                 <div style="flex:1;">

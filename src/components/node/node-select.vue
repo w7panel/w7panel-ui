@@ -6,7 +6,7 @@
         </div>
         <a-table :data="nodes" class="cptable mt-10" :scroll="{x:'100%',y:'320px'}" row-key="id" :row-selection="rowSelection" v-model:selectedKeys="node_selector" :pagination="false">
             <template #columns>
-                <a-table-column title="节点标签" fixed='left' width="500" :filterable="filterable">
+                <a-table-column title="节点标签" fixed='left' :width="500" :filterable="filterable">
                     <template #cell="{ record }">
                         <span>{{record.key}}</span>
                         <span v-if="!node_exists"> = {{record.value}}</span>

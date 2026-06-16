@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :visible="visible" :width="800" @ok="submit" @cancel="closeDrawer()" :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :visible="visible" :width="800" @ok="submit" @cancel="closeDrawer()" :popup-container="$popupContainer">
         <template #title>新建</template>
         <a-form :model="form" ref="zoneform" class="padding-20" auto-label-width>
             <a-form-item label="" style="margin-bottom:10px;">

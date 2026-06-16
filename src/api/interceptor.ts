@@ -64,6 +64,32 @@ axios.get = function (url: string, config?: CustomAxiosRequestConfig) {
 
 const pendingRequests = new Map();
 
+const removeAppmicroFromHash = (hash: string) => {
+    if(!hash || !hash.includes('?')){
+        return hash;
+    }
+
+    const [hashPath, hashQuery = ''] = hash.split('?');
+    const params = new URLSearchParams(hashQuery);
+    if(!params.has('appmicro')){
+        return hash;
+    }
+
+    params.delete('appmicro');
+    return params.toString() ? `${hashPath}?${params.toString()}` : hashPath;
+};
+
+const getCleanLoginRedirect = (fullPath: string) => {
+    try{
+        const url = new URL(fullPath, window.location.origin);
+        url.searchParams.delete('appmicro');
+        url.hash = removeAppmicroFromHash(url.hash);
+        return url.pathname + url.search + url.hash;
+    }catch{
+        return fullPath;
+    }
+};
+
 axios.interceptors.request.use(
     (config: CustomAxiosRequestConfig) => {
         let token = getToken();
@@ -151,7 +177,7 @@ axios.interceptors.response.use(
                         router?.push({ name: 'login'});
                         return;
                     }
-                    router?.push({ name: 'login', query: {redirect: router?.currentRoute.value.fullPath}});
+                    router?.push({ name: 'login', query: {redirect: getCleanLoginRedirect(router?.currentRoute.value.fullPath)}});
                     return {}
                 })
                 if(t.token){return}
@@ -161,7 +187,7 @@ axios.interceptors.response.use(
                 router?.push({ name: 'login'});
                 return;
             }
-            router?.push({ name: 'login', query: {redirect: router?.currentRoute.value.fullPath}});
+            router?.push({ name: 'login', query: {redirect: getCleanLoginRedirect(router?.currentRoute.value.fullPath)}});
             // window.location.reload();
             return;
         }

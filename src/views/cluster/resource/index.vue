@@ -10,7 +10,7 @@
                     blockNode
                     :data="data"
                     :field-names="{key:'id',title:'label'}"
-                    :action-on-node-click="expand"
+                    action-on-node-click="expand"
                     @select="select"
                 ></a-tree>
             </div>
@@ -90,7 +90,7 @@
 
         <podLog :show="logs.show" :data="{name: logs.name, containerList: logs.containerList}" :namespace="logs.namespace" @close="logs.show=false;"></podLog>
 
-        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancle="ws.dialog = false;" top="10vh" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancle="ws.dialog = false;" top="10vh" :popup-container="$popupContainer">
             <template #title>webshell</template>
             <div style="margin-top:-10px;">
                 <a-form :model="ws">

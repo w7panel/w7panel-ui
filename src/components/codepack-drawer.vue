@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="1000" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="$popupContainer">
         <template #title>代码包创建</template>
         <a-form ref="codepack" :model="form" validate-trigger="blur" auto-label-width class="app-formclass mt-10">
             <a-form-item label="选择环境">

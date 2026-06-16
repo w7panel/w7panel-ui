@@ -1,6 +1,6 @@
 <template>
     <div>
-        <a-drawer :width="800" :visible="showDrower" @cancel="cancel" unmountOnClose :footer="false" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="800" :visible="showDrower" @cancel="cancel" unmountOnClose :footer="false" :popup-container="$popupContainer">
             <template #title>{{title}}</template>
             <yaml-editor v-if="showDrower" :yaml="yaml" :disabled="disabled" :nofooter="nofooter" @cancel="cancel" @submit="submit"></yaml-editor>
         </a-drawer>

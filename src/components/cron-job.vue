@@ -39,10 +39,10 @@ export default {
             plan: {
                 cycle: 'everymon',
                 week: 1,
-                day: 1,
-                hour: 0,
-                min: 0,
-                second: 0,
+                day: '1',
+                hour: '0',
+                min: '0',
+                second: '0',
             },
         }
     },
@@ -63,10 +63,10 @@ export default {
             this.plan = {
                 cycle: this.plan.cycle || 'everymon',
                 week: this.plan.week,
-                day: this.plan.day || 1,
-                hour: this.plan.hour || 0,
-                min: this.plan.min || 0,
-                second: this.plan.second || 0,
+                day: String(this.plan.day || '1'),
+                hour: String(this.plan.hour || '0'),
+                min: String(this.plan.min || '0'),
+                second: String(this.plan.second || '0'),
             }
             let p = this.plan;
             let cron = "";
@@ -91,31 +91,31 @@ export default {
             if(m = cron.match(/^(\d+) (\d+) (\d+) \* \?/)){
                 let time = this.getTime(m[2], m[1], 0);
                 txt = `每月${m[3]}日 ${time} 执行`;
-                obj = {cycle:'everymon', week:1, day:Number(m[3]), hour:Number(m[2]), min:Number(m[1]), second:0, };
+                obj = {cycle:'everymon', week:1, day:m[3], hour:m[2], min:m[1], second:'0', };
             }else if(m = cron.match(/^(\d+) (\d+) \? \* (\d)/)){
                 let w = '日一二三四五六';
                 let time = this.getTime(m[2], m[1], 0);
                 txt = `每周${w[m[3]]} ${time} 执行`;
-                obj = {cycle:'everyweek', week:Number(m[3]), day:1, hour:Number(m[2]), min:Number(m[1]), second:0, };
+                obj = {cycle:'everyweek', week:Number(m[3]), day:'1', hour:m[2], min:m[1], second:'0', };
             }else if(m = cron.match(/^(\d+) (\d+) \* \* \*/)){
                 let time = this.getTime(m[2], m[1], 0);
                 txt = `每天 ${time} 执行`;
-                obj = {cycle:'everyday', week:1, day:1, hour:Number(m[2]), min:Number(m[1]), second:0, };
+                obj = {cycle:'everyday', week:1, day:'1', hour:m[2], min:m[1], second:'0', };
             }else if(m = cron.match(/^(\d+) \* \* \* \*/)){
                 let time = this.getTime(null, m[1], 0);
                 txt = `每小时 ${time} 执行`;
-                obj = {cycle:'everyhour', week:1, day:1, hour:0, min:Number(m[1]), second:0, };
+                obj = {cycle:'everyhour', week:1, day:'1', hour:'0', min:m[1], second:'0', };
             }else if(m = cron.match(/^(\d+) (\d+) [\d\*]+\/(\d+) \* \?/)){
                 let time = this.getTime(m[2], m[1], m[0]);
                 txt = `每隔${m[3]}天，${time} 执行`;
-                obj = {cycle:'eoday', week:1, day:Number(m[3]), hour:Number(m[2]), min:Number(m[1]), second:0, };
+                obj = {cycle:'eoday', week:1, day:m[3], hour:m[2], min:m[1], second:'0', };
             }else if(m = cron.match(/^(\d+) [\d\*]+\/(\d+) \* \* \*/)){
                 let time = this.getTime(null, m[1], 0);
                 txt = `每隔${m[2]}小时，${time} 执行`;
-                obj = {cycle:'eohour', week:1, day:1, hour:Number(m[2]), min:Number(m[1]), second:0, };
+                obj = {cycle:'eohour', week:1, day:'1', hour:m[2], min:m[1], second:'0', };
             }else if(m = cron.match(/^[\d\*]+\/(\d+) \* \* \* \*/)){
                 txt = `每隔${m[1]}分钟执行`;
-                obj = {cycle:'eomin', week:1, day:1, hour:0, min:Number(m[1]), second:0, };
+                obj = {cycle:'eomin', week:1, day:'1', hour:'0', min:m[1], second:'0', };
             }
             return getObj ? obj : txt;
         },

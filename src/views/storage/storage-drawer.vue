@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="800" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="800" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :popup-container="$popupContainer">
         <template #title>{{id?'修改存储':'创建存储'}}</template>
         <div class="mt-10 bg-white df jc-b">
             <a-form ref="form" :model="form" :rules="rules" validate-trigger="blur" auto-label-width class="ml-20">

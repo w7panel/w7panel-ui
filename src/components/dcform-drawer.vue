@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1000" :visible="visible" @cancel="closeDrawer()" class="dcform-drawer" unmountOnClose :footer="false" :popup-container="false?'#allmodalbox':'body'">
+    <a-drawer :width="1000" :visible="visible" @cancel="closeDrawer()" class="dcform-drawer" unmountOnClose :footer="false" :popup-container="$popupContainer">
         <template #title>DockerCompose创建</template>
         <div style="height:100%;">
             <!-- step 1 -->

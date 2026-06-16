@@ -6,17 +6,16 @@
         <span style="padding:0 10px;color:#ccc;">/</span>
         <span class="colorfont">您的专属服务器管家</span>
     </div>
-    <!-- <div class="login-form-sub-title">{{ $t('login.form.title') }}</div> -->
     <div class="formbox">
         <a-form v-if="!canInitUser.init" ref="loginForm" :model="userInfo" class="login-form" layout="vertical" @submit="submit">
             <div class="login-form-error-msg">{{ errorMessage }}</div>
-            <a-form-item field="username" :rules="[{ required: true, message: $t('login.form.userName.errMsg') }]" :validate-trigger="['change', 'blur']" hide-label>
-                <a-input v-model="userInfo.username" :placeholder="$t('login.form.userName.placeholder')">
+            <a-form-item field="username" :rules="[{ required: true, message: '请输入用户名' }]" :validate-trigger="['change', 'blur']" hide-label>
+                <a-input v-model="userInfo.username" placeholder="用户名">
                     <template #prefix><icon-user /></template>
                 </a-input>
             </a-form-item>
-            <a-form-item field="password" :rules="[{ required: true, message: $t('login.form.password.errMsg') }]" :validate-trigger="['change', 'blur']" hide-label style="margin-top:20px;">
-                <a-input-password v-model="userInfo.password" :placeholder="$t('login.form.password.placeholder')" allow-clear>
+            <a-form-item field="password" :rules="[{ required: true, message: '请输入密码' }]" :validate-trigger="['change', 'blur']" hide-label style="margin-top:20px;">
+                <a-input-password v-model="userInfo.password" placeholder="密码" allow-clear>
                     <template #prefix><icon-lock /></template>
                 </a-input-password>
             </a-form-item>
@@ -27,7 +26,6 @@
                     <div v-if="canInitUser.allowConsoleRegister" class="cursor c-blue" @click="consoleLogin">控制台登录</div>
                 </div>
                 <a-button type="primary" :disabled="$route.query.consolelogin=='1'" html-type="submit" long :loading="loading">登录</a-button>
-                <!-- <a-button type="text" long class="login-form-register-btn">{{ $t('login.form.register') }}</a-button> -->
             </a-space>
         </a-form>
         <a-form v-else ref="initForm" :model="canInitUser" class="login-form" layout="vertical" @submit="toInit">
@@ -53,7 +51,7 @@
             </a-space>
         </a-form>
     </div>
-    <a-modal :visible="drawer.show" width="auto" class="slidecapt-modal" hide-title :footer="false" :popup-container="false?'#allmodalbox':'body'">
+    <a-modal :visible="drawer.show" width="auto" class="slidecapt-modal" hide-title :footer="false" :popup-container="$popupContainer">
         <slide-capt ref="slidecapt" @confirm="drawer.ok" @close="drawer.show=false;" />
     </a-modal>
 
@@ -66,7 +64,6 @@ import { k8sproxy } from '@/utils/api';
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
-import { useI18n } from 'vue-i18n';
 import { useStorage } from '@vueuse/core';
 import { useUserStore,useNamespaceStore } from '@/store';
 import useLoading from '@/hooks/loading';
@@ -76,7 +73,6 @@ import { getK8sinfo, getToken } from '@/utils/auth';
 import useK3kinfo from '@/hooks/k3k-info';
 
 const router = useRouter();
-const { t } = useI18n();
 const errorMessage = ref(null);
 const slidecapt = ref(null);
 const { loading, setLoading } = useLoading();
@@ -208,7 +204,7 @@ const beforeTest = async ()=>{
         const { redirect } = router.currentRoute.value.query;
         router.push(redirect? redirect : {name:'cluster-panel'} as any);
         Message.success({
-            content: t('login.form.login.success'),
+            content: '登录成功',
         });
     }).catch(()=>{
         router.push('/init-cluster')

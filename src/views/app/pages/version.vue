@@ -81,7 +81,7 @@
             </div>
         </div>
 
-        <a-modal v-model:visible="compare.show" width="450px" @ok="openDiff(compare.revision)" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal v-model:visible="compare.show" width="450px" @ok="openDiff(compare.revision)" :popup-container="$popupContainer">
             <template #title>选择对比版本</template>
             <div class="df ai-c jc-c">
                 <a-select v-model="compare.revision" placeholder="请选择版本" style="width:300px;">

@@ -96,7 +96,7 @@
                                         <span class="c-blue cursor ml-20" @click="domainShow(item)">添加子目录</span>
                                     </div>
                                     <div v-if="item.children&&item.children.length">
-                                        <a-popover position="bottom" content-style="padding:6px 10px 10px;">
+                                        <a-popover position="bottom" :content-style="{ padding: '6px 10px 10px' }">
                                             <span class="c-blue cursor fs-12 mt-4">等{{item.children.length+1}}个域名</span>
                                             <template #content>
                                                 <div class="df df-c">
@@ -221,7 +221,7 @@
             </div>
         </div>
         <!-- 添加修改域名 -->
-        <a-drawer :width="700" :visible="domainForm.show" @ok="submitDomainForm" @cancel="domainForm.show=false;" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="700" :visible="domainForm.show" @ok="submitDomainForm" @cancel="domainForm.show=false;" unmountOnClose :popup-container="$popupContainer">
             <template #title>{{domainForm.title}}</template>
             
             <a-spin :loading="domainForm.loading" style="width:100%;">
@@ -229,7 +229,7 @@
                     <a-form-item v-if="!domainForm.name" label="">
                         <a-radio-group v-model="domainForm.originType" @change="chengeFormOriginType">
                             <a-radio v-if="!domainForm.name&&inRvproxy" :value="1">外部服务</a-radio>
-                            <a-radio :value="2">应用</a-radio>
+                            <a-radio :value="2" :disabled="!hasAppOptions">应用</a-radio>
                             <a-radio :value="3">应用直达</a-radio>
                         </a-radio-group>
                     </a-form-item>
@@ -303,7 +303,7 @@
             </a-spin>
         </a-drawer>
         <!-- 添加修改子目录 -->
-        <a-drawer :width="700" :visible="domain.show" @ok="submitForm" @cancel="domain.show=false;" unmountOnClose :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="700" :visible="domain.show" @ok="submitForm" @cancel="domain.show=false;" unmountOnClose :popup-container="$popupContainer">
             <template #title>{{domain.title}}</template>
             <a-form ref="dialog" :model="domain" :rules="rules" validate-trigger="blur" class="padding-20" auto-label-width>
                 
@@ -491,8 +491,8 @@
             </a-form>
         </a-drawer>
         <!-- 卡片添加域名 -->
-        <a-modal v-model:visible="formcard.show" :title="formcard.title" @ok="formCardSubmit" @cancel="formcard.show=false;" width="600px" :popup-container="false?'#allmodalbox':'body'">
-            <a-form auto-label-width>
+        <a-modal v-model:visible="formcard.show" :title="formcard.title" @ok="formCardSubmit" @cancel="formcard.show=false;" width="600px" :popup-container="$popupContainer">
+            <a-form :model="formcard" auto-label-width>
                 <a-form-item label="域名">
                     <div class="df df-c" style="flex:1;">
                         <a-input v-model="formcard.domain" :disabled="whiteList.length && (formcard.whiteDomain==-1||whiteList[formcard.whiteDomain].prefixRandom)" placeholder="请输入" :spellcheck="false">
@@ -522,7 +522,7 @@
         <!-- 策略 -->
         <domain-strategy ref="domainstrategy" :show="strategy.show" :data="strategy.data" :multiple="strategy.multiple" :hideRewrite="true" @submit="strategy.submit" @refresh="getList()" @cancel="strategy.show=false;"></domain-strategy>
         <!-- 证书 -->
-        <a-drawer :width="800" :visible="tlsForm.show" @ok="submitTls" @cancel="tlsForm.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-drawer :width="800" :visible="tlsForm.show" @ok="submitTls" @cancel="tlsForm.show=false;" :popup-container="$popupContainer">
             <template #title>证书</template>
             <a-form :model="tlsForm" ref="tlsForm" auto-label-width class="padding-20" >
                 <a-form-item label="域名">
@@ -762,6 +762,12 @@ export default {
     computed:{
         appDefaultDomain(){
             return this.groupData?.metadata?.annotations?.['w7.cc/default-domain'];
+        },
+        hasAppOptions(){
+            if(this.inRvproxy){
+                return Object.values(this.allAppList || {}).some(list=>list?.length);
+            }
+            return !!this.appList?.length;
         },
     },
     methods: {
@@ -1885,6 +1891,10 @@ export default {
         // 修改添加域名
         domainFormShow(item){
             this.domainForm.appgroup = '';
+            let originType = item.originType || (this.inRvproxy? 1 : 2);
+            if(originType == 2 && !this.hasAppOptions){
+                originType = this.inRvproxy? 1 : 3;
+            }
             this.domainForm = {
                 ...this.domainForm,
                 is_default: !this.inRvproxy && this.appDefaultDomain==item.fullDomain,
@@ -1892,7 +1902,7 @@ export default {
                 show: true,
                 app: this.inRvproxy? '' : this.$route.params.id,
 
-                originType: item.originType || (this.inRvproxy? 1 : 2),
+                originType: originType,
                 appPorts: this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id] || []),
                 ingressclass: item.ingressclass || this.ingressclassList?.[0] || '',
                 domain: item.domain || '',
@@ -1944,6 +1954,11 @@ export default {
         },
         submitDomainForm(eve){
             return new Promise((resolve,reject)=>{
+                if(this.domainForm.originType == 2 && !this.hasAppOptions){
+                    this.$message.warning('暂无应用可选');
+                    reject();
+                    return;
+                }
                 if(this.$refs.domainForm){
                     this.$refs.domainForm.validate((err) => {
                         if (err) { reject(); return; }

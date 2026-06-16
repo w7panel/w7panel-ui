@@ -19,7 +19,7 @@
             </a-layout-sider>
             <a-layout-content class="ml-6 df df-c">
                 <div class="bg-white padding-20" style="min-height:100%;">
-                    <a-form v-if="cardActive=='detail'" auto-label-width>
+                    <a-form v-if="cardActive=='detail'" :model="info" auto-label-width>
                         <a-form-item label="名称" class="mb-0">{{info.title}}</a-form-item>
                         <a-form-item label="描述" class="mb-0">{{info.description}}</a-form-item>
                         <a-form-item label="命名空间" class="mb-0">{{info.namespace}}</a-form-item>

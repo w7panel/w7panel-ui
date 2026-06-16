@@ -10,7 +10,7 @@
                         <template #help>启用GPU功能需要预先在集群上安装GPU及对应驱动插件。</template>
                     </a-form-item>
                     <a-form-item label="启用类型">
-                        <a-space direction="vertical" fill size="0" style="flex:1;">
+                        <a-space direction="vertical" fill :size="0" style="flex:1;">
                             <a-button @click="addGpu" :disabled="data.list.length>=data.typeList.length">
                                 <template #icon><a-icon-plus /></template>
                                 <span>添加GPU驱动</span>
@@ -77,7 +77,7 @@
             </template>
         </a-drawer>
         <!-- <a-modal v-model:visible="insGpuOprt.show" title="GPU Operator" width="700px" @ok="checkItem" @cancel="insGpuOprt.show=false;">
-            <a-form v-model="insGpuOprt" auto-label-width >
+            <a-form :model="insGpuOprt" auto-label-width >
                 <a-form-item label="部署驱动">
                     <a-switch v-model="insGpuOprt.driverEnabled"></a-switch>
                     <template #help>配置是否在节点上部署NVIDIA驱动，默认开启，如果您在使用GPU Operator部署前，已经在节点上部署了NVIDIA驱动程序，请关闭。</template>

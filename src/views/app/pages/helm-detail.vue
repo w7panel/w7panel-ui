@@ -1,7 +1,7 @@
 <template>
     <div class="padding-20">
         
-        <a-form label-suffix="" auto-label-width class="padding-20 ">
+        <a-form :model="info" label-suffix="" auto-label-width class="padding-20 ">
             <a-form-item label="名称" style="margin-bottom:0;">{{info.name}}</a-form-item>
             <a-form-item label="版本" style="margin-bottom:0;">{{info.version}}</a-form-item>
             <a-form-item label="描述" style="margin-bottom:0;">{{info.description}}</a-form-item>
@@ -178,46 +178,49 @@ export default {
             })
         },
         async getSearchData(){
+            const normalizeApiResources = (items = [], defaultGroupName = '') => {
+                let o = {};
+                items.forEach(i => {
+                    const groupName = i?.metadata?.name || defaultGroupName;
+                    const versionList = Array.isArray(i?.versions) ? i.versions : [];
+                    if(!groupName || !versionList.length){return}
+
+                    let versions = {};
+                    versionList.forEach(v => {
+                        const resourceList = Array.isArray(v?.resources) ? v.resources : [];
+                        let kinds = {};
+                        resourceList.forEach(k => {
+                            const kind = k?.responseKind?.kind;
+                            if(!kind || !k?.resource){return}
+                            kinds[kind] = {
+                                resource: k.resource,
+                                scope: k.scope,
+                            }
+                        })
+                        versions[v.version] = kinds;
+                    })
+                    o[groupName] = versions;
+                })
+                return o;
+            };
+
             await k8sproxy.get('/apis',{
                 headers:{"Accept": "application/json;g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
                 loading: true,
             }).then(res=>{
-                let items = res?.data?.items || [];
-                let o = {};
-                for(let i of items){
-                    let versions = {};
-                    for(let v of i.versions){
-                        let kinds = {};
-                        if(!v?.resources){continue}
-                        for(let k of v.resources){
-                            kinds[k.responseKind.kind] = {
-                                resource: k.resource,
-                                scope: k.scope,
-                            }
-                        }
-                        versions[v.version] = kinds;
-                    }
-                    o[i.metadata.name] = versions;
-                }
-                this.apis = o;
+                this.apis = normalizeApiResources(res?.data?.items);
             })
             await k8sproxy.get('/api',{
                 headers:{"Accept": "g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
             }).then(res=>{
                 let items = res?.data?.items || [];
-                let o = {};
-                let versions = {};
-                for(let v of items?.[0]?.versions){
-                    let kinds = {};
-                    for(let k of v.resources){
-                        kinds[k.responseKind.kind] = {
-                            resource: k.resource,
-                            scope: k.scope,
-                        }
-                    }
-                    versions[v.version] = kinds;
+                let o = normalizeApiResources(items, 'core');
+                if(!o.core && Array.isArray(res?.data?.versions)){
+                    o.core = {};
+                    res.data.versions.forEach(version => {
+                        o.core[version] = {};
+                    })
                 }
-                o['core'] = versions;
                 this.apis = Object.assign(this.apis,o);
             })
         },
@@ -313,9 +316,13 @@ export default {
             if(api.length==1){
                 api = ['core',row.api];
             }
-            console.log(row,this.apis)
-            let kind = this.apis[api[0]][api[1]][row.kind].resource;
-            let namespace = this.apis[api[0]][api[1]][row.kind].scope == 'Namespaced'? 'namespaces/'+this.namespaceActive+'/' : '';
+            let apiInfo = this.apis?.[api[0]]?.[api[1]]?.[row.kind];
+            if(!apiInfo?.resource){
+                this.$message.warning('未找到资源API信息');
+                return;
+            }
+            let kind = apiInfo.resource;
+            let namespace = apiInfo.scope == 'Namespaced'? 'namespaces/'+this.namespaceActive+'/' : '';
 
             let url = `${row.api=='v1'?'/k8s-proxy/api/':'/k8s-proxy/apis/'}${row.api}/${namespace}${kind}/${row.name}`;
             axios.get(url,{loading:true}).then(res=>{

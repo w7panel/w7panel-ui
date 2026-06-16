@@ -1,6 +1,6 @@
 <template>
     <div class="padding-20">
-        <a-form label-suffix="" auto-label-width class="ml-20" label-align="left">
+        <a-form :model="form" label-suffix="" auto-label-width class="ml-20" label-align="left">
 
             <div class="form-title">基本信息</div>
             <a-form-item label="应用图标">
@@ -317,7 +317,7 @@
             </div>
         </a-drawer>
         <a-drawer :width="800" :visible="replicasForm.dialog" title="实例副本数" @ok="submitReplicas" @cancel="replicasForm.dialog=false;">
-            <a-form auto-label-width>
+            <a-form :model="replicasForm" auto-label-width>
                 <a-form-item label="当前实例数量">{{replicasForm.replicasNow}}</a-form-item>
                 <a-form-item label="实例数量">
                     <div style="width:100%;">
@@ -438,6 +438,8 @@ export default {
             form: {
                 update: {},
             },
+            collapse: [],
+            submitLoading: false,
             ctnForms: [],
             
             imagePolicy: {
@@ -454,8 +456,8 @@ export default {
                 replicas: 1,
                 isAuto: false,
                 list: [],
-                min: 1,
-                max: 10,
+                min: '1',
+                max: '10',
                 passed: true,
 
             },
@@ -540,10 +542,10 @@ export default {
                     '2': '快速更新',
                 },
                 type: source?.type == quickUpdate? '2' : '1',
-                minReadySeconds: spec.minReadySeconds || 0,
-                maxSurge: source?.rollingUpdate?.maxSurge || '',
-                maxUnavailable: source?.rollingUpdate?.maxUnavailable || '',
-                partition: source?.rollingUpdate?.partition || '',
+                minReadySeconds: String(spec.minReadySeconds || 0),
+                maxSurge: source?.rollingUpdate?.maxSurge !== undefined ? String(source?.rollingUpdate?.maxSurge) : '',
+                maxUnavailable: source?.rollingUpdate?.maxUnavailable !== undefined ? String(source?.rollingUpdate?.maxUnavailable) : '',
+                partition: source?.rollingUpdate?.partition !== undefined ? String(source?.rollingUpdate?.partition) : '',
             }
 
             if(source?.type!=quickUpdate && this.data.kind!='StatefulSet'){
@@ -649,8 +651,8 @@ export default {
                     replicasNow: this.form.replicas,
                     replicas: this.form.replicas,
                     isAuto: true,
-                    min: res?.data?.spec?.minReplicas || 1,
-                    max: res?.data?.spec?.maxReplicas || 10,
+                    min: String(res?.data?.spec?.minReplicas || 1),
+                    max: String(res?.data?.spec?.maxReplicas || 10),
                     list: res?.data?.spec?.metrics?.map(i=>{
                         let value = i?.resource?.target?.type=='Utilization'? i?.resource?.target?.averageUtilization : i?.resource?.target?.averageValue;
                         if(i?.resource?.target?.type=='AverageValue'){
@@ -667,7 +669,7 @@ export default {
                         return {
                             name: i?.resource?.name,
                             type: i?.resource?.target?.type,
-                            value: value,
+                            value: value !== undefined && value !== null ? String(value) : '',
                         }
                     }) || [],
                 }
@@ -676,8 +678,8 @@ export default {
                     ...this.replicasForm,
                     already: false,
                     dialog: true,
-                    min: 1,
-                    max: 10,
+                    min: '1',
+                    max: '10',
                     replicasNow: this.form.replicas,
                     replicas: this.form.replicas,
                     isAuto: false,
@@ -690,6 +692,8 @@ export default {
                 this.$message.error('检测失败，剩余配额不足')
                 return;
             }
+            if(this.submitLoading){ return; }
+            this.submitLoading = true;
             if(!this.replicasForm.isAuto){
                 k8sproxy.patch("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ this.$route.params.kind +"/"+this.$route.params.id,{spec:{replicas: this.replicasForm.replicas}},{
                     headers: {'Content-Type': 'application/strategic-merge-patch+json'}
@@ -698,7 +702,7 @@ export default {
                     this.replicasForm.dialog = false;
                     this.$message.success("修改成功");
                     this.$emit('refresh');
-                }).finally(()=>{})
+                }).finally(()=>{ this.submitLoading = false; })
             }else{
                 let metrics = this.replicasForm.list.filter(i=>i.value).map((i)=>{
                     let dw = i.type=='Utilization'? '' : (i.name=="cpu"?'m':'Mi');
@@ -736,7 +740,7 @@ export default {
                         this.replicasForm.dialog = false;
                         this.$message.success("修改成功");
                         this.$emit('refresh');
-                    }).finally(()=>{})
+                    }).finally(()=>{ this.submitLoading = false; })
                 }else{
                     k8sproxy.patch('/apis/autoscaling/v2/namespaces/'+this.namespaceActive+'/horizontalpodautoscalers/'+this.$route.params.id, data, {
                         headers: {'Content-Type': 'application/strategic-merge-patch+json'}
@@ -744,7 +748,7 @@ export default {
                         this.replicasForm.dialog = false;
                         this.$message.success("修改成功");
                         this.$emit('refresh');
-                    }).finally(()=>{})
+                    }).finally(()=>{ this.submitLoading = false; })
                 }
                     
             }

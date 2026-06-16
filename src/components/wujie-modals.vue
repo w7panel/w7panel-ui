@@ -116,7 +116,7 @@
 <script>
 import { k8sproxy, panelApi } from '@/utils/api';
 import { useNamespaceStore, useLoadingStore } from '@/store';
-import { getRefreshToken, getToken, setPermission, setRefreshToken, setToken, clearIframeToken, setIframeToken, setIframeRefreshToken } from '@/utils/auth';
+import { getRefreshToken, getToken } from '@/utils/auth';
 import axios from 'axios';
 import { compressFiles } from '@/api/cluster';
 import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
@@ -130,7 +130,6 @@ import domainMicroEdit from '@/components/domain-micro-edit.vue';
 import domainStrategy from '@/components/domain-strategy.vue';
 import containerPlugin from '@/components/container-plugin.vue';
 import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';
-import useK3kinfo from '@/hooks/k3k-info';
 
 export default {
     name: 'WujieModals',
@@ -219,7 +218,6 @@ export default {
         registerWujieEvent('containerPlugin', this.openContainerPlugin);
         registerWujieEvent('buildContainerImage', this.openBuildContainerImage);
         registerWujieEvent('getOidcCode', this.getOidcCode);
-        registerWujieEvent('changeLogin', this.changeLogin);
         registerWujieEvent('getRole', this.getRole)
 
 // 测试
@@ -232,7 +230,11 @@ export default {
 // },3000)
 
     },
+    mounted(){
+        window.addEventListener('message', this.iframeMessage)
+    },
     beforeUnmount() {
+        window.removeEventListener('message', this.iframeMessage)
         clearAllWujieEvents();
     },
     components: {
@@ -247,6 +249,13 @@ export default {
         buildImageStatus,
     },
     methods: {
+        iframeMessage(e){
+            if(e?.data?.type=='zpk-store:open-install'){
+                let path = e.data.payload?.path + '?order_sn=' + e.data.payload?.orderSn;
+                path = encodeURIComponent(path);
+                this.toStoreInstall(path)
+            }
+        },
         getRole(callback){
             callback([{
                 name: 'founder',
@@ -258,20 +267,6 @@ export default {
                 name: 'super',
                 title: '管理员',
             }])
-        },
-        async changeLogin({token,refreshToken} = {}){
-            if(!token){ return; }
-
-            clearIframeToken();
-            setIframeToken(token)
-            refreshToken && setIframeRefreshToken(refreshToken)
-            this.$emit('changeLogin', { token, refreshToken })
-
-            // setRefreshToken(refreshToken)
-            // setToken(token);
-            // setPermission([]);
-            // await useK3kinfo();
-            // this.$router.push('/fp/login-by-token');
         },
         async getOidcCode(data,callback){
             panelApi.post('/oidc/js-code',{

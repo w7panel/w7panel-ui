@@ -35,15 +35,6 @@
                             </a-menu>
                         </div>
                     </div>
-                    <a-menu v-if="menus.length" style="width:100%;" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
-                        <template v-for="(menu,index) in menus" :key="menu.do">
-                            <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">{{menu.title}}{{}}</a-menu-item>
-                            <a-sub-menu v-else :key="index">
-                                <template #title>{{menu.title}}</template>
-                                <a-menu-item v-for="submenu in menu.children" :key="submenu.do">{{submenu.title}}</a-menu-item>
-                            </a-sub-menu>
-                        </template>
-                    </a-menu>
                     
                     <div v-if="$route.name!='group-micro2'">
                         <a-divider v-if="menus.length || roles.length" style="margin:10px;width:auto;min-width:auto;" />
@@ -67,16 +58,11 @@
                 </div>
             </a-layout-sider>
             
-            <a-layout-content v-if="(isMicroPage && isGpustackPage)" class="ml-6 df df-c">
-                <div class="bg-white routerviewbox fc ml-6" >
-                    <gpu-stack ref="gpustack" :app="gpustackApp"></gpu-stack>
-                </div>
-            </a-layout-content>
-            <a-layout-content v-else-if="isMicroPage" class="ml-6 df df-c">
+            <a-layout-content v-if="isMicroPage" class="ml-6 df df-c">
                 <div class="bg-white routerviewbox fc ml-6" >
                     <iframe v-if="info.load_mode === 'iframe'" :src="info.iframeSrc" style="display:block;width:100%;height:100%;border:0;"></iframe>
                     <template v-else> 
-                        <div v-show="downOk" id="appmicro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
+                        <div v-show="downOk" id="app-detail-micro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
                         <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:calc(100vh - 146px);">
                             <div style="height:100%;" class="bg-white"></div>
                         </a-spin>
@@ -124,7 +110,7 @@
         <form-drawer :show="form.show" :id="form.name" @submitOk="getData" :groupname="$route.params.group" :afterName="form.suffix" @close="closeForm"></form-drawer>
         <!-- <addapp-drawer ref="addappdrawer" :show="form.show&&!form.id" :tabs="form.tabs" :activeName="form.id" @close="closeForm" /> -->
         
-        <a-modal width="400px" v-model:visible="checkDelete.show" @ok="checkDelete.ok" @cancel="checkDelete.show=false;" :popup-container="false?'#allmodalbox':'body'">
+        <a-modal width="400px" v-model:visible="checkDelete.show" @ok="checkDelete.ok" @cancel="checkDelete.show=false;" :popup-container="$popupContainer">
             <template #title>删除应用</template>
             <div>
                 <div class="df ai-c jc-c">
@@ -143,10 +129,9 @@ import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore,useLoadingStore } from '@/store';
 import formDrawer from '@/views/app/pages/form-drawer.vue';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
-import gpuStack from '@/views/app/gpustack/index.vue';
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
-import { normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -154,6 +139,10 @@ const ROLE_NAME = {
     super: '管理员',
     normal: '普通用户',
 }
+
+const APP_DETAIL_MICRO_NAME = 'app-detail-micro';
+const APP_DETAIL_MICRO_EL = '#app-detail-micro';
+const APP_DETAIL_MICRO_QUERY = APP_DETAIL_MICRO_NAME;
 
 export default {
     data(){
@@ -163,7 +152,6 @@ export default {
                 {name: "app", label: "应用管理"},
                 {name: "app-detail", label: this.groupTitle || this.$route.params.group},
             ],
-            isGpustackPage: false,
             isHelmPage: false,
             isHelmApp: false,
             form: {
@@ -201,8 +189,6 @@ export default {
             selectMenu: [],
             info: {},
             extra: {},
-            gpustackApp: null,
-
             permission: [],
             fileeditor: '',
 
@@ -213,8 +199,8 @@ export default {
     watch: {
         'selectMenu'(v){
             let title = '';
-            if(this.isGpustackPage){
-                this.menus.map(i=>{
+            this.roles.map(r=>{
+                r.menus.map(i=>{
                     if(i.do==v[0]){title = i.title}
                     if(i.children){
                         i.children.map(c=>{
@@ -222,18 +208,7 @@ export default {
                         })
                     }
                 })
-            }else{
-                this.roles.map(r=>{
-                    r.menus.map(i=>{
-                        if(i.do==v[0]){title = i.title}
-                        if(i.children){
-                            i.children.map(c=>{
-                                if(c.do==v[0]){title = c.title}
-                            })
-                        }
-                    })
-                })
-            }
+            })
             this.topbc = [
                 {name:'root'},
                 {name: "app", label: "应用管理"},
@@ -265,11 +240,9 @@ export default {
     },
     computed:{
         isMicroPage(){ return this.$route.name == 'group-micro' || this.$route.name == 'group-micro2'; },
-        // isAiappPage(){ return this.$route.name == 'gpustack'; },
     },
     components: {
         formDrawer,
-        gpuStack,
         wujieModals,
     },
     beforeUnmount(){
@@ -277,8 +250,10 @@ export default {
             clearInterval(this.watchInterval);
         }
         try{
-            destroyApp('appmicro');
-        }catch{}
+            destroyApp(APP_DETAIL_MICRO_NAME);
+        }catch{
+            console.log('Failed to destroy detail app')
+        }
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
@@ -296,7 +271,9 @@ export default {
                 this.info.iframeRoute = v || '';
                 this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
             }else{
-                bus.$emit("routeChange", (v || '').replace(/^#/,''));
+                bus.$emit("routeChange", (v || '').replace(/^#/,''), {
+                    fromSubPanel: window.__POWERED_BY_WUJIE__
+                });
             }
         },
         async wujieInit(){
@@ -316,7 +293,7 @@ export default {
             }
             
             try{
-                destroyApp('appmicro');
+                destroyApp(APP_DETAIL_MICRO_NAME);
             }catch(e){console.log('destroy err')}
 
             let is_register = false;
@@ -345,21 +322,27 @@ export default {
                 ...this.info,
             }
             console.log(props)
+            const appUrl = this.info.frontendUrl + (this.menuActive || '');
             startApp({
-                name: "appmicro",
-                url: this.info.frontendUrl + (this.menuActive || ''),
+                name: APP_DETAIL_MICRO_NAME,
+                url: appUrl,
 // 测试
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.menuActive || ''),
 // url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.menuActive || ''),
-                el: '#appmicro',
+                el: APP_DETAIL_MICRO_EL,
                 // alive: true,
                 sync: true,
                 props: props,
-                prefix: {
-                    frontend: this.info.frontendUrl,
+                prefix: getWujieRoutePrefix(this.info.frontendUrl),
+                loadError: (url, error)=>{
+                    console.log(`appdetail loadError`, url, error);
                 },
+            }).then(()=>{
+                console.log(`appdetail start success`, appUrl);
+            }).catch((error)=>{
+                console.log(`appdetail start error`, appUrl, error);
             })
-            // startApp({name:'appmicro'});
+            // startApp({name: APP_DETAIL_MICRO_NAME});
             
 // 测试
 // setTimeout(()=>{
@@ -381,16 +364,10 @@ export default {
         handelMicroMenu(v){
             this.menuActive = v;
             this.selectMenu = [this.menuActive];
-            if(this.isGpustackPage){
-                if(this.isMicroPage){
-                    this.$refs.gpustack.changeKey(v);
-                }else{
-                    this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?gpustackbox='+encodeURIComponent(this.info.frontendUrl + this.menuActive))
-                }
-            }else if(this.isMicroPage){
+            if(this.isMicroPage){
                 this.routeChange(v);
             }else{
-                this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?appmicro='+encodeURIComponent(this.info.frontendUrl + this.menuActive)).then(res=>{
+                this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?'+APP_DETAIL_MICRO_QUERY+'='+encodeURIComponent(this.info.frontendUrl + this.menuActive)).then(res=>{
                     this.$nextTick(()=>{
                         this.wujieInit();
                     })
@@ -438,11 +415,9 @@ export default {
 
                 this.getMenu(item?.spec?.bindings||[]);
                 if(this.isMicroPage){
-                    const appmicro = normalizeWujieSyncRoute(this.$route.query?.appmicro, {
-                        frontend: this.info.frontendUrl,
-                    });
-                    this.menuActive = appmicro || this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
-                    this.selectMenu = [appmicro];
+                    const appDetailMicro = normalizeWujieSyncRoute(this.$route.query?.[APP_DETAIL_MICRO_QUERY], getWujieRoutePrefix(this.info.frontendUrl));
+                    this.menuActive = appDetailMicro || this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
+                    this.selectMenu = [appDetailMicro];
                     if(!this.selectMenu[0] && this.menuActive){
                         this.selectMenu = [this.menuActive];
                     }
@@ -775,31 +750,9 @@ export default {
                 list,
             }
         },
-        getGpustack(){
-            this.isGpustackPage = true;
-            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie=gpustack-backend&limit=500').then(res=>{
-                if(!res?.data?.items?.[0]){
-                    this.$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/gpustack_backend');
-                    return;
-                }
-                let item  = res?.data?.items?.[0];
-                this.title = item.metadata.annotations.title || item.metadata.name;
-                this.gpustackApp = item;
-                
-            });
-        },
         async getData(){
-            if(this.$route.name=='gpustack'){
-                // this.getGpustack();
-                this.$router.push('/app/appgroup/gpustack-backend/micro2');
-                return;
-            }
             useLoadingStore().loading = true;
-            // ai应用管理
-            if(this.$route.params.group=='gpustack-backend'){
-                await this.getGpustack();
-            }
-            
+
             this.isHelmPage = /^group\-helm(\-|$)/.test(this.$route.name);
             if(this.isHelmPage){
                 this.appname = 'helm-'+this.$route.params.group;
@@ -807,7 +760,6 @@ export default {
                 this.appname = this.$route.params.kind + this.$route.params.id;
             }
             await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
-                noAlert: this.$route.params.group=='gpustack-backend',
             }).then(async res=>{
                 this.groupTitle = res?.data?.metadata?.annotations?.title || this.groupTitle;
                 let {helmTab,list} = this.arrangeList(res?.data);
@@ -818,25 +770,6 @@ export default {
                         let ft = JSON.parse(res?.data?.metadata?.annotations?.['w7.cc/front-type'])
                         if(ft.includes("thirdparty_cd")){this.hasThirdpartyCd = true;}
                     }catch{}
-                }
-
-                // ai应用管理
-                if(this.identifie == 'gpustack-backend' && this.isMicroPage){
-                    useLoadingStore().loading = false;
-                    
-                    let menus = [];
-                    try{
-                        menus = JSON.parse(res?.data?.metadata?.annotations?.['w7.cc/bindings'])?.[0]?.menu;
-                    }catch{}
-                    menus.sort((a,b)=>b.displayorder-a.displayorder);
-
-                    let gpustackbox = this.$route.query?.gpustackbox;
-                    gpustackbox = gpustackbox? decodeURIComponent(gpustackbox) : '';
-                    gpustackbox = gpustackbox?.match(/^.*(#.*)$/)?.[1] || '';
-                    this.menuActive = gpustackbox || menus?.find(i=>i.is_default==1)?.do || this.menus?.[0]?.do || '';
-                    this.menus = this.transformMenu(menus)
-                    this.selectMenu = [this.menuActive];
-                    return Promise.reject();
                 }
 
                 if(this.isMicroPage && this.hasThirdpartyCd){

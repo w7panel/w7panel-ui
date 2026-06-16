@@ -1,16 +1,15 @@
 <script lang="tsx">
   import { defineComponent, ref, h, compile, computed, watch } from 'vue';
-  import { useI18n } from 'vue-i18n';
   import { useRoute, useRouter, RouteRecordRaw } from 'vue-router';
   import type { RouteMeta } from 'vue-router';
   import { useAppStore } from '@/store';
   import { openWindow, regexUrl } from '@/utils';
   import useMenuTree from './use-menu-tree';
+  import { getK8sinfo } from '@/utils/auth';
 
   export default defineComponent({
     emit: ['collapse'],
     setup() {
-      const { t } = useI18n();
       const appStore = useAppStore();
       const router = useRouter();
       const route = useRoute();
@@ -89,6 +88,7 @@
       const renderSubMenu = () => {
         const menuFilter = appStore.menuFilter || 'cloudserver';
         const flattenMenuGroups = ['system', 'usermanage', 'person'];
+        const getMenuTitle = (element: RouteRecordRaw) => String(element?.meta?.locale || element?.name || '');
 
         const shouldShowRoute = (element: RouteRecordRaw, isRoot = false) => {
           if (element?.meta?.hideInMenu) {
@@ -131,7 +131,7 @@
                     key={element?.name}
                     v-slots={{
                       icon,
-                      title: () => h(compile(t(element?.meta?.locale || element?.name))),
+                      title: () => h(compile(getMenuTitle(element))),
                     }}
                   >
                     <span>{travel(element?.children as RouteRecordRaw[])}</span>
@@ -147,7 +147,7 @@
                     v-slots={{ icon }}
                     onClick={() => goto(element)}
                   >
-                    <span>{t(element?.meta?.locale || element?.name)}</span>
+                    <span>{getMenuTitle(element)}</span>
                     {element?.meta?.linkIcon ? (
                       <icon-launch style="margin-left:6px;font-size:14px;" />
                     ) : (
@@ -166,12 +166,16 @@
         return travel(menuTree.value as RouteRecordRaw[], [], true);
       };
 
+      const ckmname = getK8sinfo()['w7.cc/cvm-name'];
       return () => (
         <div class="menu-panel">
           {showMicroBack.value ? (
             <div class="menu-micro-back" onClick={goBackFromMicro}>
-              <icon-left />
-              <span>返回</span>
+              <icon-arrow-left class="c-blue" />
+              <div class="ml-10">
+                <div class="b fs-16" style="line-height:18px;">云主机列表</div>
+                <div class="mt-8 fs-12 c-66">{ckmname}</div>
+              </div>
             </div>
           ) : null}
           <a-menu
@@ -203,11 +207,7 @@
   }
   .menu-micro-back {
     display: flex;
-    flex: 0 0 44px;
-    align-items: center;
-    gap: 8px;
-    height: 44px;
-    padding: 0 16px;
+    padding: 10px 16px;
     color: var(--color-text-1);
     cursor: pointer;
     border-bottom: 1px solid var(--color-border-2);

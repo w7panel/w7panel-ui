@@ -5,7 +5,7 @@
         </div>
         <a-table :data="list" :pagination="false" :bordered="false">
             <template #columns>
-                <a-table-column title="编号" width="100">
+                <a-table-column title="编号" :width="100">
                     <template #cell="{ record,rowIndex }">
                         <a-input-number
                             v-model="record.index"
