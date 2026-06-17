@@ -221,16 +221,16 @@ export default{
                     name: this.domain.app,
                     port: this.domain.port,
                     // 高级匹配
-                    moreMatch: {
+                    moreMatch: this.domain.openOther ? {
                         method: this.domain.matchMethod,
                         header: this.domain.matchHeader,
                         query: this.domain.matchQuery,
-                    },
+                    } : null,
                     // 重写
-                    rewrite: {
+                    rewrite: this.domain.rewrite ? {
                         path: this.domain.rewrite_path,
                         host: this.domain.rewrite_host,
-                    }
+                    } : null
                 },
             })
         },
