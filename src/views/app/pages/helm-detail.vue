@@ -322,7 +322,7 @@ export default {
                 return;
             }
             let kind = apiInfo.resource;
-            let namespace = apiInfo.scope == 'Namespaced'? 'namespaces/'+this.namespaceActive+'/' : '';
+            let namespace = apiInfo.scope == 'Namespaced'? 'namespaces/'+(row?.namespace || this.namespaceActive)+'/' : '';
 
             let url = `${row.api=='v1'?'/k8s-proxy/api/':'/k8s-proxy/apis/'}${row.api}/${namespace}${kind}/${row.name}`;
             axios.get(url,{loading:true}).then(res=>{

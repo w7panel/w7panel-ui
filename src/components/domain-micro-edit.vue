@@ -5,7 +5,7 @@
         <a-form ref="dialog" :model="domain" validate-trigger="blur" class="padding-20" auto-label-width>
             
             <a-form-item  label="应用" field="app">
-                <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v];}" placeholder="请选择应用" style="width:500px;">
+                <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v] || [];}" placeholder="请选择应用" style="width:500px;">
                     <a-option v-for="i in appList" :key="i.name" :label="i.title" :value="i.name"></a-option>
                 </a-select>
             </a-form-item>
@@ -165,6 +165,7 @@ export default{
             domain: {
                 app: '',
                 port: '',
+                appPorts: [],
                 path_type: '',
                 path: '',
 
@@ -194,6 +195,7 @@ export default{
 
             this.domain.app = data?.backend?.name || '';
             this.domain.port = data?.backend?.port || '';
+            this.domain.appPorts = this.appPorts[this.domain.app] || [];
             this.domain.path_type = data?.backend?.match || 'Prefix';
             this.domain.path = data?.path?.replace?.(/^\//,'') || '';
             
