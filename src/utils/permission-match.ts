@@ -1,43 +1,51 @@
-const KEY_TO_ROUTE: Record<string, string> = {
-  cluster: 'cluster',
-  'cluster-panel': 'cluster/panel',
-  'cluster-nodes': 'cluster/nodes',
-  'cluster-nodes-image-list': 'cluster/nodes-image-list',
-  dns: 'cluster/dns',
-  'cluster-resource': 'cluster/resource',
-  app: 'app',
-  'app-apps': 'app/apps',
-  'app-cronjob': 'app/cronjob',
-  'app-rvproxy': 'app/rvproxy',
-  'app-dblist': 'app/database',
-  'app-gpustack': 'app/gpustack',
-  storage: 'storage',
-  'storage-node': 'storage/disk',
-  'storage-zone': 'storage/zone',
-  zpk: 'zpk',
-  sitemanage: 'sitemanage',
-  system: 'system',
-  'system-cloud': 'system/cloud',
-  'system-license': 'system/license',
-  'system-audit': 'system/audit',
-  'system-manage': 'usermanage',
-  'system-user': 'usermanage/users',
-  'system-permission': 'usermanage/permission',
-  'system-white-domain': 'usermanage/usermanage-whitedomain',
-  'system-system': 'usermanage/usermanage-system',
+import treeData from '@/config/treedata.json';
+
+type MenuNode = {
+  key?: string;
+  route?: string;
+  children?: MenuNode[];
 };
 
-const ROUTE_TO_KEY = Object.entries(KEY_TO_ROUTE).reduce((acc, [key, route]) => {
-  acc[route] = key;
-  return acc;
-}, {} as Record<string, string>);
+const LEGACY_ROUTE_OVERRIDES: Record<string, string> = {
+  'cluster-nodes-gpu': 'cluster/nodes/gpu',
+  'cluster-nodes-memory': 'cluster/nodes/memory',
+  'system-whitelist': 'usermanage/usermanage-whitedomain',
+  'system-usergroup': 'usermanage/usergroup',
+  'system-quota': 'usermanage/quota',
+  'system-order-center': 'person/order-center',
+  'system-cost-center': 'person/cost-center',
+};
+
+const KEY_TO_ROUTE: Record<string, string> = {};
+const ROUTE_TO_KEY: Record<string, string> = {};
+
+function addMapping(key?: string, route?: string) {
+  const normalizedKey = normalizePermissionPath(key);
+  const normalizedRoute = normalizePermissionPath(route);
+  if (!normalizedKey || !normalizedRoute) return;
+  KEY_TO_ROUTE[normalizedKey] = normalizedRoute;
+  if (!ROUTE_TO_KEY[normalizedRoute]) {
+    ROUTE_TO_KEY[normalizedRoute] = normalizedKey;
+  }
+}
+
+function collectMenuRoutes(nodes: MenuNode[] = []) {
+  nodes.forEach((node) => {
+    addMapping(node.key, node.route);
+    if (node.children?.length) collectMenuRoutes(node.children);
+  });
+}
+
+collectMenuRoutes(treeData as MenuNode[]);
+Object.entries(LEGACY_ROUTE_OVERRIDES).forEach(([key, route]) => addMapping(key, route));
 
 export function normalizePermissionPath(path?: string) {
   return String(path || '').replace(/^\/+/, '').replace(/\/+$/, '');
 }
 
 export function keyToPermissionPath(key: string) {
-  return KEY_TO_ROUTE[key] || key;
+  const normalized = normalizePermissionPath(key);
+  return KEY_TO_ROUTE[normalized] || normalized;
 }
 
 export function permissionPathToKey(path: string) {
@@ -80,11 +88,6 @@ export function expandPermissionValues(values: string[] = []) {
       if (currentRoute === wildcardBase || currentRoute.startsWith(`${wildcardBase}/`)) {
         expanded.add(key);
         expanded.add(currentRoute);
-        knownEntries.forEach(([actionKey]) => {
-          if (actionKey.startsWith(`${key}-`)) {
-            expanded.add(actionKey);
-          }
-        });
       }
     });
   });
@@ -96,11 +99,15 @@ export function hasPermission(values: string[] = [], path?: string, legacyKey?: 
   const permissions = expandPermissionValues(values);
   if (!permissions?.length) return false;
   if (permissions.includes('*')) return true;
-  const normalized = normalizePermissionPath(path || keyToPermissionPath(legacyKey || ''));
-  const candidates = new Set([normalized]);
-  if (legacyKey) {
-    candidates.add(legacyKey);
-    candidates.add(keyToPermissionPath(legacyKey));
+  const normalizedPath = normalizePermissionPath(path);
+  const normalizedLegacyKey = normalizePermissionPath(legacyKey);
+  const candidates = new Set([
+    normalizedPath,
+    keyToPermissionPath(normalizedPath),
+  ]);
+  if (normalizedLegacyKey) {
+    candidates.add(normalizedLegacyKey);
+    candidates.add(keyToPermissionPath(normalizedLegacyKey));
   }
   return permissions.some((permission) => {
     const current = normalizePermissionPath(permission);

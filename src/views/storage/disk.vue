@@ -1,7 +1,7 @@
 <template>
     <div class="padding-20">
         <route-breadcrumb />
-        <div  v-if="permission.includes('storage-node-add')&&userMode!='cluster'" class="df ai-c mb-20">
+        <div  v-if="permission.includes('storage/disk/add')&&userMode!='cluster'" class="df ai-c mb-20">
             <a-button type="primary" @click="openForm()">                
                 <template #icon><icon-plus /></template>
                 <span>新建</span>
@@ -79,8 +79,8 @@
                                 <template #cell="{ record }">
                                     <template v-if="!record.isExtra">
                                         <span v-if="userMode!='cluster'" class="c-blue cursor" @click="bindNode(record)">绑定节点</span>
-                                        <span v-if="permission.includes('storage-node-edit')" class="c-blue cursor ml-10" @click="openForm(record)">编辑</span>
-                                        <span v-if="!record.node&&permission.includes('storage-node-delete')" class="c-blue cursor ml-10" @click="deleteRow(record)">删除</span>
+                                        <span v-if="permission.includes('storage/disk/edit')" class="c-blue cursor ml-10" @click="openForm(record)">编辑</span>
+                                        <span v-if="!record.node&&permission.includes('storage/disk/delete')" class="c-blue cursor ml-10" @click="deleteRow(record)">删除</span>
                                     </template>
                                     <!-- <a-popconfirm v-if="!record.node" :content="'确认要删除吗'" @ok="delRow(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                         <span class="c-blue cursor ml-10">删除</span>
@@ -143,7 +143,7 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <span v-if="!item.allowScheduling&&permission.includes('storage-node-delete')" class="c-blue cursor ml-10" @click="deleteRow(item)">删除</span>                                        <span @click="editDisk(item.node,item.name,{allowScheduling:!item.allowScheduling,evictionRequested:false})" class="c-blue cursor ml-10">{{item.allowScheduling?'禁用':'取消禁用'}}</span>
+                                        <span v-if="!item.allowScheduling&&permission.includes('storage/disk/delete')" class="c-blue cursor ml-10" @click="deleteRow(item)">删除</span>                                        <span @click="editDisk(item.node,item.name,{allowScheduling:!item.allowScheduling,evictionRequested:false})" class="c-blue cursor ml-10">{{item.allowScheduling?'禁用':'取消禁用'}}</span>
                                         <span @click="editDisk(item.node,item.name,{allowScheduling:false,evictionRequested:!item.evictionRequested})" class="c-blue cursor ml-10">{{!item.evictionRequested?'驱逐':'取消驱逐'}}</span>
                                     </td>
                                 </tr>

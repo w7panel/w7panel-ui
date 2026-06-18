@@ -5,10 +5,10 @@
             <a-layout-sider :width="160">
                 <div class="df df-c menu-absolute-div" style="position:absolute;inset:0;overflow:auto;">
                     <a-menu style="width:100%;" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
-                        <a-menu-item v-if="permission.includes('system-user')" key="users">用户管理</a-menu-item>
-                        <a-menu-item v-if="permission.includes('system-permission')" key="usermanage-permission">权限套餐</a-menu-item>
-                        <a-menu-item v-if="permission.includes('system-white-domain')" key="usermanage-whitedomain">备案域名</a-menu-item>
-                        <a-menu-item v-if="permission.includes('system-system')" key="usermanage-system">系统设置</a-menu-item>
+                        <a-menu-item v-if="permission.includes('usermanage/users')" key="users">用户管理</a-menu-item>
+                        <a-menu-item v-if="permission.includes('usermanage/permission')" key="usermanage-permission">权限套餐</a-menu-item>
+                        <a-menu-item v-if="permission.includes('usermanage/usermanage-whitedomain')" key="usermanage-whitedomain">备案域名</a-menu-item>
+                        <a-menu-item v-if="permission.includes('usermanage/usermanage-system')" key="usermanage-system">系统设置</a-menu-item>
                     </a-menu>
                 </div>
             </a-layout-sider>

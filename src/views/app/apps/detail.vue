@@ -73,11 +73,11 @@
                 <a-tabs
                     :active-key="appname"
                     type="card"
-                    :editable="permission.includes('app-apps-delete')"
+                    :editable="permission.includes('app/apps/delete')"
                     @tab-click="tabClick"
                     @add="createApp"
                     @delete="delApp"
-                    :show-add-button="$route.params.group!=='w7panel'&&permission.includes('app-apps-add')"
+                    :show-add-button="$route.params.group!=='w7panel'&&permission.includes('app/apps/add')"
                     hide-content
                     class="appdetail-tabs df-s0"
                 >

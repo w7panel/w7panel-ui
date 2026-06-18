@@ -2,7 +2,7 @@
     <div class="padding-20">
         <!-- <route-breadcrumb :data="{id:title}" /> -->
         <div class="mt-10">
-            <a-button v-if="permission.includes('app-apps-edit')" type="primary" @click="$emit('editApp')"><template #icon><icon-edit /></template>修改</a-button>
+            <a-button v-if="permission.includes('app/apps/edit')" type="primary" @click="$emit('editApp')"><template #icon><icon-edit /></template>修改</a-button>
             <!-- <a-button type="primary ml-20" @click="reload" ><template #icon><icon-refresh /></template>重启</a-button> -->
              <a-button v-if="debug" @click="showYAML=true;" class="ml-20" type="outline">YAML详情</a-button>
              <a-button @click="showSet=true;" class="ml-20" type="outline">安装配置</a-button>

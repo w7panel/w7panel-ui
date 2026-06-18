@@ -2,9 +2,9 @@
     <div class="com-container df df-c">
         <route-breadcrumb />
         <div>
-            <a-button v-if="permission.includes('cluster-nodes-add')" type="primary" @click="openForm()"><template #icon><icon-plus /></template>注册节点</a-button>
-            <a-button v-if="permission.includes('cluster-nodes-registries')&&usermode!='cluster'" type="outline" class="ml-10" @click="openImgorigin">修改镜像源</a-button>
-            <!-- <a-button v-if="permission.includes('cluster-nodes-gpu')" type="outline" class="ml-10" @click="clscf.dialog=true;">GPU管理</a-button> -->
+            <a-button v-if="permission.includes('cluster/nodes/add')" type="primary" @click="openForm()"><template #icon><icon-plus /></template>注册节点</a-button>
+            <a-button v-if="permission.includes('cluster/nodes/registries')&&usermode!='cluster'" type="outline" class="ml-10" @click="openImgorigin">修改镜像源</a-button>
+            <!-- <a-button v-if="permission.includes('cluster/nodes/gpu')" type="outline" class="ml-10" @click="clscf.dialog=true;">GPU管理</a-button> -->
             <!-- <a-button type="outline" class="ml-10" @click="nodebindshow=true;">专用存储管理</a-button> -->
             <a-button type="outline" class="ml-10" @click="openClusterInfo">集群信息</a-button>
         </div>

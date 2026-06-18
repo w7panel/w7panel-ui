@@ -26,7 +26,7 @@
                         <a-tooltip v-if="!record.isgroup" content="立即执行">
                             <i class="opt-icon" @click="copyJob(record)"><icon-play-circle /></i>
                         </a-tooltip>
-                        <a-tooltip v-if="!record.isgroup&&permission.includes('app-cronjob-edit')" content="编辑">
+                        <a-tooltip v-if="!record.isgroup&&permission.includes('app/cronjob/edit')" content="编辑">
                             <i class="opt-icon" @click="toEdit(record,'job')"><icon-edit /></i>
                         </a-tooltip>
                     </template>

@@ -1,135 +1,176 @@
 [{
     "title": "集群管理",
     "key": "cluster",
+    "route": "cluster",
     "children": [{
         "title": "概览",
-        "key": "cluster-panel"
+        "key": "cluster-panel",
+        "route": "cluster/panel"
     },{
         "title": "节点管理",
         "key": "cluster-nodes",
+        "route": "cluster/nodes",
         "children": [{
             "title": "注册节点",
-            "key": "cluster-nodes-add"
+            "key": "cluster-nodes-add",
+            "route": "cluster/nodes/add"
         },{
             "title": "修改镜像源",
-            "key": "cluster-nodes-registries"
+            "key": "cluster-nodes-registries",
+            "route": "cluster/nodes/registries"
         }]
     },{
         "title": "私有DNS解析",
-        "key": "dns"
+        "key": "dns",
+        "route": "cluster/dns"
     },{
         "title": "资源对象浏览器",
-        "key": "cluster-resource"
+        "key": "cluster-resource",
+        "route": "cluster/resource"
     }]
 },{
     "title": "应用管理",
     "key": "app",
+    "route": "app",
     "children": [{
         "title": "应用列表",
         "key": "app-apps",
+        "route": "app/apps",
         "children": [{
             "title": "新建",
-            "key": "app-apps-add"
+            "key": "app-apps-add",
+            "route": "app/apps/add"
         },{
             "title": "编辑",
-            "key": "app-apps-edit"
+            "key": "app-apps-edit",
+            "route": "app/apps/edit"
         },{
             "title": "删除",
-            "key": "app-apps-delete"
+            "key": "app-apps-delete",
+            "route": "app/apps/delete"
         }]
     },{
         "title": "计划任务",
         "key": "app-cronjob",
+        "route": "app/cronjob",
         "children": [{
             "title": "新建",
-            "key": "app-cronjob-add"
+            "key": "app-cronjob-add",
+            "route": "app/cronjob/add"
         },{
             "title": "编辑",
-            "key": "app-cronjob-edit"
+            "key": "app-cronjob-edit",
+            "route": "app/cronjob/edit"
         },{
             "title": "删除",
-            "key": "app-cronjob-delete"
+            "key": "app-cronjob-delete",
+            "route": "app/cronjob/delete"
         }]
     },{
         "title": "反向代理",
         "key": "app-rvproxy",
+        "route": "app/rvproxy",
         "children": [{
             "title": "新建",
-            "key": "app-rvproxy-add"
+            "key": "app-rvproxy-add",
+            "route": "app/rvproxy/add"
         },{
             "title": "编辑",
-            "key": "app-rvproxy-edit"
+            "key": "app-rvproxy-edit",
+            "route": "app/rvproxy/edit"
         },{
             "title": "删除",
-            "key": "app-rvproxy-delete"
+            "key": "app-rvproxy-delete",
+            "route": "app/rvproxy/delete"
         }]
     },{
         "title": "集群数据库",
         "key": "app-dblist",
+        "route": "app/database",
         "children": [{
             "title": "新建",
-            "key": "app-dblist-add"
+            "key": "app-dblist-add",
+            "route": "app/database/add"
         },{
             "title": "删除",
-            "key": "app-dblist-delete"
+            "key": "app-dblist-delete",
+            "route": "app/database/delete"
         }]
     },{
         "title": "AI应用管理",
-        "key": "app-gpustack"
+        "key": "app-gpustack",
+        "route": "app/gpustack"
     }]
 },{
     "title": "存储管理",
     "key": "storage",
+    "route": "storage",
     "children": [{
         "title": "存储设备",
         "key": "storage-node",
+        "route": "storage/disk",
         "children": [{
             "title": "新建",
-            "key": "storage-node-add"
+            "key": "storage-node-add",
+            "route": "storage/disk/add"
         },{
             "title": "编辑",
-            "key": "storage-node-edit"
+            "key": "storage-node-edit",
+            "route": "storage/disk/edit"
         },{
             "title": "删除",
-            "key": "storage-node-delete"
+            "key": "storage-node-delete",
+            "route": "storage/disk/delete"
         }]
     },{
         "title": "存储分区",
-        "key": "storage-zone"
+        "key": "storage-zone",
+        "route": "storage/zone"
     }]
 },{
     "title": "制品开发",
-    "key": "zpk"
+    "key": "zpk",
+    "route": "zpk"
 },{
     "title": "站点管理",
-    "key": "sitemanage"
+    "key": "sitemanage",
+    "route": "sitemanage"
 },{
     "title": "系统管理",
     "key": "system",
+    "route": "system",
     "children": [{
         "title": "云端注册",
-        "key": "system-cloud"
+        "key": "system-cloud",
+        "route": "system/cloud"
     },{
         "title": "授权管理",
-        "key": "system-license"
+        "key": "system-license",
+        "route": "system/license"
     },{
         "title": "审计日志",
-        "key": "system-audit"
+        "key": "system-audit",
+        "route": "system/audit"
     }]
 },{
     "title": "多租户管理",
     "key": "system-manage",
+    "route": "usermanage",
     "children": [{
         "title": "用户管理",
-        "key": "system-user"
+        "key": "system-user",
+        "route": "usermanage/users"
     },{
         "title": "权限套餐",
-        "key": "system-permission"
+        "key": "system-permission",
+        "route": "usermanage/permission"
     },{
         "title": "备案域名",
-        "key": "system-white-domain"
+        "key": "system-white-domain",
+        "route": "usermanage/usermanage-whitedomain"
     },{
         "title": "系统设置",
-        "key": "system-system"
+        "key": "system-system",
+        "route": "usermanage/usermanage-system"
     }]
 }]
