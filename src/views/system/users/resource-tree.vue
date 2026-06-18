@@ -181,7 +181,9 @@ export default{
         
         select(s,d){
             if(d?.node?.children?.length){
-                this.$refs.tree.expandNode(s[0],this.expandedKeys.includes(s[0])?false:true);
+                this.$nextTick(()=>{
+                    this.selectedKeys = this.resourceItem ? [this.resourceItem.id] : [];
+                })
             }else{
                 this.selectedKeys = s;
                 this.resourceItem = d.node;
