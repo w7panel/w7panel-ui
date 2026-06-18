@@ -7,7 +7,6 @@ const KEY_TO_ROUTE: Record<string, string> = {
   'cluster-resource': 'cluster/resource',
   app: 'app',
   'app-apps': 'app/apps',
-  'app-config-center': 'app/config-center',
   'app-cronjob': 'app/cronjob',
   'app-rvproxy': 'app/rvproxy',
   'app-dblist': 'app/database',
