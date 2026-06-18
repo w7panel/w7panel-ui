@@ -1,7 +1,7 @@
 <template>
     <div class="micro-container">
-        <iframe v-if="info.load_mode === 'iframe'" :src="info.iframeSrc" style="display:block;width:100%;height:100%;border:0;"></iframe>
-        <template v-else >
+        <!-- <iframe v-if="info.load_mode === 'iframe'" :src="info.iframeSrc" style="display:block;width:100%;height:100%;border:0;"></iframe> -->
+        <!-- <template> -->
             <div id="appmicro" style="height:100%;transform:translate(0,0);"></div>
 
             <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:100%;">
@@ -12,7 +12,7 @@
             </a-spin>
 
             <wujie-modals />
-        </template>
+        <!-- </template> -->
     </div>
 </template>
 <script>
@@ -91,12 +91,14 @@ export default{
             return base + (base.includes('?') ? '&' : '?') + 'api-token=' + token;
         },
         routeChange(v){
-            if(this.info.load_mode === 'iframe'){
-                this.info.iframeRoute = v || '';
-                this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
-            }else{
-                bus.$emit("routeChange", (v || '').replace(/^#/,''));
-            }
+            // if(this.info.load_mode === 'iframe'){
+            //     // this.info.iframeRoute = v || '';
+            //     // this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
+            //     this.destroyMicro();
+            //     this.wujieInit();
+            // }else{
+            // }
+            bus.$emit("routeChange", (v || '').replace(/^#/,''));
             this.rememberMicroRoute(v);
         },
         resetMicro(){
@@ -183,7 +185,7 @@ export default{
                 this.info.iframePath = this.info.url;
                 this.info.iframeRoute = this.page || '';
                 this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
-                return;
+                // return;
             }
 
             if(!this.downOk){
@@ -196,6 +198,7 @@ export default{
                 // }, 5000)
                 // return;
             }
+            const isIframeMode = this.info.load_mode == 'iframe';
             await panelApi.get("/auth/console/info").then(res=>{
                 let data = res.data;
                 is_register = data?.is_register;
@@ -212,16 +215,15 @@ export default{
             }
             console.log(props)
             this.microLoading = true;
+            const url = isIframeMode? (this.info.iframeSrc) : (this.info.frontendUrl + this.page)
             startApp({
                 name: "appmicro",
-                url: this.info.frontendUrl + this.page,
+                url: url,
 // 测试
-// url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.page || ''),
-// url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.page || ''),
-// url: 'http://localhost:8002' + (this.page || ''),
-// url: 'https://idc.w7.com' + this.info.frontendUrl + (this.page || ''),
+// url: 'http://218.23.2.48:9090' + url,
                 exec: true,
                 el: '#appmicro',
+                degrade: isIframeMode,
                 sync: true,
                 prefix: getWujieRoutePrefix(this.info.frontendUrl),
                 props: props,

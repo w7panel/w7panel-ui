@@ -118,6 +118,17 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 },
             },
             {
+                path: 'product-market',
+                name: 'app-product-market',
+                component: () => import('@/views/app/product-market/index.vue'),
+                meta: {
+                    locale: '制品市场',
+                    hideInMenu: true,
+                    requiresAuth: true,
+                    roles: ['*'],
+                },
+            },
+            {
                 path: 'cloudstore',
                 name: 'app-cloudstore',
                 component: () => import('@/views/app/cloudstore/store.vue'),

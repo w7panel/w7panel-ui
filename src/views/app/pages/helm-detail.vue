@@ -36,12 +36,12 @@
                                         <icon-code />
                                     </span>
                                 </a-tooltip>
-                                <a-tooltip v-if="record.matchLabels" content="域名管理">
+                                <a-tooltip v-if="record.matchLabels && record.namespace=='default'" content="域名管理">
                                     <span class="opt-icon" @click="toDomain(record)">
                                         <icon-link />
                                     </span>
                                 </a-tooltip>
-                                <a-tooltip v-if="record.matchLabels" content="文件管理">
+                                <a-tooltip v-if="record.matchLabels && record.namespace=='default'" content="文件管理">
                                     <span class="opt-icon" @click="toFile(record)">
                                         <icon-folder />
                                     </span>
