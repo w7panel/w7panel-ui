@@ -214,12 +214,12 @@ export default{
             }
             founder.menus = [
                 ...(founder.menus || []),
-                {
-                    title: '应用直达',
-                    do: APP_DIRECT_DO,
-                    displayorder: -1,
-                    isLocalPage: true,
-                },
+                // {
+                //     title: '应用直达',
+                //     do: APP_DIRECT_DO,
+                //     displayorder: -1,
+                //     isLocalPage: true,
+                // },
             ];
             return roles;
         },
