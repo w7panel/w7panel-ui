@@ -1,5 +1,5 @@
 import { useRouter } from 'vue-router';
-import { Message } from '@arco-design/web-vue';
+import Message from '@arco-design/web-vue/es/message';
 import { clearToken } from '@/utils/auth';
 
 export default function useUser() {

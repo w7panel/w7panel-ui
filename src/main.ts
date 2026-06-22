@@ -1,7 +1,8 @@
 import '@/utils/preserve-history-state';
 import { createApp } from 'vue';
-import ArcoVue from '@arco-design/web-vue';
-import ArcoVueIcon from '@arco-design/web-vue/es/icon';
+import Message from '@arco-design/web-vue/es/message';
+import Modal from '@arco-design/web-vue/es/modal';
+import Notification from '@arco-design/web-vue/es/notification';
 import globalComponents from '@/components';
 import router from './router';
 import store from './store';
@@ -27,22 +28,27 @@ const app = createApp(App);
 const getPopupContainer = () =>
     ((window as any).__POWERED_BY_WUJIE__ || (window as any).__MICRO_APP_ENVIRONMENT__) ? '#w7panel' : 'body';
 
-app.use(ArcoVue, {});
-app.use(ArcoVueIcon);
-
-Object.values((app as any)._context?.components || {}).forEach((component: any) => {
-    const popupContainerProp = component?.props?.popupContainer;
-    if(popupContainerProp && typeof popupContainerProp === 'object'){
-        popupContainerProp.default = getPopupContainer;
-    }
-});
-
 app.use(router);
 app.use(store);
+app.use(Message);
+app.use(Modal);
+app.use(Notification);
 // app.use(mavonEditor);
 app.use(globalComponents);
 
 app.config.globalProperties.$popupContainer = getPopupContainer();
+app.config.globalProperties.$confirm = (content: string, title = '提示', options: any = {}) => (
+    new Promise<void>((resolve, reject) => {
+        Modal.confirm({
+            title,
+            content,
+            okText: options.confirmButtonText || options.okText || '确定',
+            cancelText: options.cancelButtonText || options.cancelText || '取消',
+            onOk: () => resolve(),
+            onCancel: () => reject(),
+        });
+    })
+);
 
 app.mount('#w7panel');
 

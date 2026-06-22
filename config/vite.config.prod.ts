@@ -1,7 +1,6 @@
 import { mergeConfig } from 'vite';
 import baseConfig from './vite.config.base';
 import configVisualizerPlugin from './plugin/visualizer';
-import configArcoResolverPlugin from './plugin/arcoResolver';
 import configImageminPlugin from './plugin/imagemin';
 
 export default mergeConfig(
@@ -10,7 +9,6 @@ export default mergeConfig(
     mode: 'production',
     plugins: [
       configVisualizerPlugin(),
-      configArcoResolverPlugin(),
       configImageminPlugin(),
     ],
     build: {
@@ -18,8 +16,6 @@ export default mergeConfig(
       rollupOptions: {
         output: {
           manualChunks: {
-            arco: ['@arco-design/web-vue'],
-            chart: ['echarts', 'vue-echarts'],
             vue: ['vue', 'vue-router', 'pinia', '@vueuse/core'],
           },
           // 添加内容哈希到文件名，强制浏览器加载新文件

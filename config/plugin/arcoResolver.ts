@@ -14,7 +14,7 @@ export default function configArcoResolverPlugin() {
     dirs: [], // Avoid parsing src/components.  避免解析到src/components
     deep: false,
     dts: false,
-    resolvers: [ArcoResolver()],
+    resolvers: [ArcoResolver({ resolveIcons: true })],
   });
   return arcoResolverPlugin;
 }

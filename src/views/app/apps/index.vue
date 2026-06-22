@@ -87,7 +87,7 @@
                                 <img v-if="record.icon && !record.iconLoadError" :src="record.icon" alt="" class="icon" @error="record.iconLoadError = true" />
                                 <icon-common v-show="!record.icon || record.iconLoadError" class="icon" />
                                 <!-- title -->
-                                <span v-if="record.childrenApp.length<=1" class="cursor lh-1" :class="{'c-blue':!record.deletionTimestamp,'c-99':record.deletionTimestamp}" @click="toDetail(record)">
+                                <span v-if="record.childrenApp.length<=1" class="cursor lh-1" :class="{'c-blue':!record.deletionTimestamp,'c-99':record.deletionTimestamp}" @mouseenter="prefetchDetail(record)" @focus="prefetchDetail(record)" @pointerdown="prefetchDetail(record)" @click="toDetail(record)">
                                     <span>{{record.title || record.name}}</span>
                                      <!-- :popup-visible="editTitle.appgroup==record.groupName" -->
                                     <a-popover title="修改名称" trigger="click" @popup-visible-change="v=>v?editTitle={title:record.title||record.name,appgroup:record.groupName}:null">
@@ -100,7 +100,7 @@
                                     </a-popover>
                                 </span>
                                 <a-popover v-else position="bottom" :content-style="{ padding: '6px 10px 10px' }">
-                                    <div class="df df-c lh-1 cursor" :class="{'c-blue':!record.deletionTimestamp,'c-99':record.deletionTimestamp}" style="display:inline-flex;" @click="toDetail(record)">
+                                    <div class="df df-c lh-1 cursor" :class="{'c-blue':!record.deletionTimestamp,'c-99':record.deletionTimestamp}" style="display:inline-flex;" @mouseenter="prefetchDetail(record)" @focus="prefetchDetail(record)" @pointerdown="prefetchDetail(record)" @click="toDetail(record)">
                                         <span>
                                             <span>{{record.title || record.name}}</span>
                                                                  
@@ -117,7 +117,7 @@
                                     </div>
                                     <template #content>
                                         <div class="df df-c">
-                                            <span v-for="c in record.childrenApp" :key="c.name" class="cursor" :class="{'c-blue':!record.deletionTimestamp,'c-99':record.deletionTimestamp}" @click="toDetail(record)">{{c.title}}</span>
+                                            <span v-for="c in record.childrenApp" :key="c.name" class="cursor" :class="{'c-blue':!record.deletionTimestamp,'c-99':record.deletionTimestamp}" @mouseenter="prefetchDetail(record)" @focus="prefetchDetail(record)" @pointerdown="prefetchDetail(record)" @click="toDetail(record)">{{c.title}}</span>
                                         </div>
                                     </template>
                                 </a-popover>
@@ -255,6 +255,9 @@ export default {
                 title: '',
                 appgroup: '',
             },
+            prefetchedDetailTypes: new Set(),
+            prefetchDetailTimer: null,
+            defaultDetailPrefetchTimer: null,
         }
     },
     created(){
@@ -266,6 +269,9 @@ export default {
         this.getList();
         this.getClusterInfo();
         this.getZpk();
+        this.defaultDetailPrefetchTimer = setTimeout(() => {
+            this.prefetchDetailType('app');
+        }, 300);
     },
     components: {
         formDrawer,
@@ -277,8 +283,69 @@ export default {
     },
     unmounted(){
         this.leavePage = true;
+        if(this.prefetchDetailTimer){
+            clearTimeout(this.prefetchDetailTimer);
+        }
+        if(this.defaultDetailPrefetchTimer){
+            clearTimeout(this.defaultDetailPrefetchTimer);
+        }
     },
     methods: {
+        getDetailType(item){
+            if(item?.frontType?.includes('thirdparty_cd')){
+                return 'micro';
+            }
+            if(item?.isHelm){
+                return 'helm';
+            }
+            return 'app';
+        },
+        prefetchDetailType(type){
+            if(this.prefetchedDetailTypes.has(type)){return}
+
+            this.prefetchedDetailTypes.add(type);
+            const loaders = [import('@/views/app/apps/detail.vue')];
+            if(type === 'helm'){
+                loaders.push(import('@/views/app/pages/helm-detail.vue'));
+            }else if(type === 'app'){
+                loaders.push(import('@/views/app/pages/detail.vue'));
+            }
+
+            Promise.all(loaders).catch(() => {
+                this.prefetchedDetailTypes.delete(type);
+            });
+        },
+        prefetchDetail(item){
+            if(!item || item.deletionTimestamp){return}
+            const type = this.getDetailType(item);
+            this.prefetchDetailType(type);
+        },
+        scheduleDetailPrefetch(){
+            if(this.prefetchDetailTimer){
+                clearTimeout(this.prefetchDetailTimer);
+            }
+
+            this.prefetchDetailTimer = setTimeout(() => {
+                this.prefetchDetailTimer = null;
+                const requestIdle = window.requestIdleCallback;
+                const run = () => {
+                    const candidates = [];
+                    ['app', 'helm', 'micro'].forEach(type => {
+                        const item = this.data.find(row => !row.deletionTimestamp && this.getDetailType(row) === type);
+                        if(item){
+                            candidates.push(item);
+                        }
+                    });
+                    candidates.forEach(item => this.prefetchDetail(item));
+                };
+
+                if(typeof requestIdle === 'function'){
+                    requestIdle(run, { timeout: 1500 });
+                }else{
+                    run();
+                }
+            }, 600);
+        },
         submitEditTitle(){
             k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.editTitle.appgroup,[{
                 op: 'replace',
@@ -486,6 +553,7 @@ export default {
         },
         async getList(){
             await this.refreshList();
+            this.scheduleDetailPrefetch();
             this.getDomains();
 
             let {data} = await panelApi.get('/auth/console/info?code=test');

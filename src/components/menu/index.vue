@@ -1,5 +1,17 @@
 <script lang="tsx">
-  import { defineComponent, ref, h, resolveComponent, computed, watch, onBeforeUnmount } from 'vue';
+  import { defineComponent, ref, h, computed, watch, onBeforeUnmount } from 'vue';
+  import Menu from '@arco-design/web-vue/es/menu';
+  import { MenuItem, SubMenu } from '@arco-design/web-vue/es/menu';
+  import {
+    IconApps,
+    IconArchive,
+    IconArrowLeft,
+    IconCloud,
+    IconCommon,
+    IconLaunch,
+    IconStorage,
+    IconTool,
+  } from '@arco-design/web-vue/es/icon';
   import { useRoute, useRouter, RouteRecordRaw } from 'vue-router';
   import type { RouteMeta } from 'vue-router';
   import { useAppStore } from '@/store';
@@ -14,6 +26,14 @@
       const router = useRouter();
       const route = useRoute();
       const { menuTree } = useMenuTree();
+      const menuIcons: Record<string, any> = {
+        'icon-apps': IconApps,
+        'icon-archive': IconArchive,
+        'icon-cloud': IconCloud,
+        'icon-common': IconCommon,
+        'icon-storage': IconStorage,
+        'icon-tool': IconTool,
+      };
       const iconSlots = new Map<string, () => any>();
       const prefetchedRoutes = new Set<string>();
       let idlePrefetchTimer: number | null = null;
@@ -118,7 +138,8 @@
       const getMenuTitle = (element: RouteRecordRaw) => String(element?.meta?.locale || element?.name || '');
       const getIconSlot = (iconName: string) => {
         if (!iconSlots.has(iconName)) {
-          iconSlots.set(iconName, () => h(resolveComponent(iconName)));
+          const IconComponent = menuIcons[iconName];
+          iconSlots.set(iconName, IconComponent ? () => h(IconComponent) : () => null);
         }
         return iconSlots.get(iconName);
       };
@@ -239,7 +260,7 @@
 
               const node =
                 element?.children && element?.children.length !== 0 ? (
-                  <a-sub-menu
+                  <SubMenu
                     key={element?.name}
                     onMouseenter={() => prefetchRoute(getFirstPrefetchableRoute(element))}
                     v-slots={{
@@ -249,13 +270,13 @@
                   >
                     <span>{travel(element?.children as RouteRecordRaw[])}</span>
                     {element?.meta?.linkIcon ? (
-                      <icon-launch style="margin-left:6px;font-size:14px;" />
+                      <IconLaunch style="margin-left:6px;font-size:14px;" />
                     ) : (
                       ''
                     )}
-                  </a-sub-menu>
+                  </SubMenu>
                 ) : (
-                  <a-menu-item
+                  <MenuItem
                     key={element?.name}
                     v-slots={{ icon }}
                     onMouseenter={() => prefetchRoute(element)}
@@ -264,11 +285,11 @@
                   >
                     <span>{getMenuTitle(element)}</span>
                     {element?.meta?.linkIcon ? (
-                      <icon-launch style="margin-left:6px;font-size:14px;" />
+                      <IconLaunch style="margin-left:6px;font-size:14px;" />
                     ) : (
                       ''
                     )}
-                  </a-menu-item>
+                  </MenuItem>
                 );
 
               nodes.push(node as never);
@@ -286,14 +307,14 @@
         <div class="menu-panel">
           {showMicroBack.value ? (
             <div class="menu-micro-back" onClick={goBackFromMicro}>
-              <icon-arrow-left class="c-blue" />
+              <IconArrowLeft class="c-blue" />
               <div class="ml-10">
                 <div class="b fs-16" style="line-height:18px;">云主机列表</div>
                 <div class="mt-8 fs-12 c-66">{ckmname}</div>
               </div>
             </div>
           ) : null}
-          <a-menu
+          <Menu
             mode={topMenu.value ? 'horizontal' : 'vertical'}
             collapsed={collapsed.value}
             v-model:open-keys={openKeys.value}
@@ -306,7 +327,7 @@
             onCollapse={setCollapse}
           >
             {renderSubMenu()}
-          </a-menu>
+          </Menu>
         </div>
       );
     },

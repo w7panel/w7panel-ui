@@ -20,7 +20,7 @@
 
 <script>
 import axios from 'axios';
-import * as echarts from 'echarts';
+import { initChart } from '@/utils/echarts';
 import { useNamespaceStore } from '@/store';
 import { useDarkStore } from '@/store';
 import CryptoJS  from 'crypto-js';
@@ -76,7 +76,7 @@ export default {
     mounted() {
         this.init();
     },
-    beforeDestroy() {
+    beforeUnmount() {
         window.removeEventListener('resize', this.resize);
     },
     watch: {
@@ -257,7 +257,7 @@ export default {
                 let dom = document.getElementById(chartType + 'chart');
                 if (dom) {
                     dom.removeAttribute('_echarts_instance_');
-                    chart = echarts.init(dom);
+                    chart = initChart(dom);
                     this.resize = () => {
                         chart.resize();
                     };

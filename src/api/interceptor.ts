@@ -4,7 +4,7 @@
 
 import axios from 'axios';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
-import { Notification } from '@arco-design/web-vue';
+import Notification from '@arco-design/web-vue/es/notification';
 import { useLoadingStore } from '@/store';
 import { clearToken } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';

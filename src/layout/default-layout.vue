@@ -40,12 +40,12 @@
                 </a-layout>
             </a-layout>
         </a-layout>
-        <contact-us></contact-us>
+        <contact-us v-if="showContactUs"></contact-us>
     </a-layout>
 </template>
 
 <script lang="ts" setup>
-    import { ref, computed, watch, provide, onMounted } from 'vue';
+    import { ref, computed, watch, provide, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue';
     import { useRouter, useRoute } from 'vue-router';
     import { useAppStore, useUserStore } from '@/store';
     import NavBar from '@/components/navbar/index.vue';
@@ -53,7 +53,7 @@
     import usePermission from '@/hooks/permission';
     import useResponsive from '@/hooks/responsive';
     import PageLayout from './page-layout.vue';
-    import contactUs from '@/components/contact-us.vue';
+    const contactUs = defineAsyncComponent(() => import('@/components/contact-us.vue'));
 
     const isInit = ref(false);
     const appStore = useAppStore();
@@ -94,6 +94,8 @@
 //     }
 //   );
     const drawerVisible = ref(false);
+    const showContactUs = ref(false);
+    let contactUsTimer: ReturnType<typeof setTimeout> | null = null;
     const drawerCancel = () => {
         drawerVisible.value = false;
     };
@@ -102,6 +104,22 @@
     });
     onMounted(() => {
         isInit.value = true;
+        contactUsTimer = setTimeout(() => {
+            const requestIdle = (window as any).requestIdleCallback;
+            const show = () => {
+                showContactUs.value = true;
+            };
+            if(typeof requestIdle === 'function'){
+                requestIdle(show, { timeout: 2000 });
+            }else{
+                show();
+            }
+        }, 1200);
+    });
+    onBeforeUnmount(() => {
+        if(contactUsTimer){
+            clearTimeout(contactUsTimer);
+        }
     });
 </script>
 

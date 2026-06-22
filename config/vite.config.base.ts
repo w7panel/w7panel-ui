@@ -4,12 +4,14 @@ import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
 import svgLoader from 'vite-svg-loader';
 import configArcoStyleImportPlugin from './plugin/arcoStyleImport';
+import configArcoResolverPlugin from './plugin/arcoResolver';
 
 export default defineConfig({
   plugins: [
     vue(),
     vueJsx(),
     svgLoader({ svgoConfig: {} }),
+    configArcoResolverPlugin(),
     configArcoStyleImportPlugin(),
   ],
   resolve: {

@@ -23,7 +23,7 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import axios from 'axios'
-import * as echarts from 'echarts'
+import { initChart } from '@/utils/echarts'
 
 import { useDarkStore } from '@/store'
 import { getUserInfo } from '@/utils/auth';
@@ -129,7 +129,7 @@ export default {
     mounted(){
         this.init();
     },
-    beforeDestroy(){
+    beforeUnmount(){
         window.removeEventListener("resize",  this.resize);
         this.chart?.dispose?.();
     },
@@ -565,7 +565,7 @@ export default {
                 if(dom){
                     
                     this.chart?.dispose?.();
-                    this.chart = markRaw(echarts.init(dom));
+                    this.chart = markRaw(initChart(dom));
                     this.chart?.setOption(option,true);
                     window.removeEventListener("resize",  this.resize);
                     this.resize = ()=>{

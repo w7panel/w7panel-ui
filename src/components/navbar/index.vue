@@ -155,7 +155,7 @@
 <script lang="ts" setup>
 import { panelApi, k8sproxy } from '@/utils/api';
 import { computed, ref, inject, reactive, watch } from 'vue';
-import { Message } from '@arco-design/web-vue';
+import Message from '@arco-design/web-vue/es/message';
 import { useDark, useToggle, useFullscreen, useStorage } from '@vueuse/core';
 import { useAppStore, useNamespaceStore } from '@/store';
 import useUser from '@/hooks/user';

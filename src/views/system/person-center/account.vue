@@ -62,7 +62,7 @@
 
 <script>
 import { panelApi } from '@/utils/api';
-import { Message } from '@arco-design/web-vue';
+import Message from '@arco-design/web-vue/es/message';
 import { clearToken, getK8sinfo, getUserInfo } from '@/utils/auth';
 import { useStorage } from '@vueuse/core';
 

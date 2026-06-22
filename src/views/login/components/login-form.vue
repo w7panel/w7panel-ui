@@ -63,7 +63,7 @@ import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import { Message } from '@arco-design/web-vue';
+import Message from '@arco-design/web-vue/es/message';
 import { useStorage } from '@vueuse/core';
 import { useUserStore, useNamespaceStore } from '@/store';
 

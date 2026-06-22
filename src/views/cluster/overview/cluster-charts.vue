@@ -19,7 +19,7 @@
 
 <script>
 
-import * as echarts from 'echarts'
+import { initChart } from '@/utils/echarts'
 import { useDarkStore } from '@/store'
 import { k8sproxy } from '@/utils/api';
 
@@ -169,7 +169,7 @@ export default {
                 let dom = document.getElementById(chartType + 'chart')
                 if(dom){
                     dom.removeAttribute("_echarts_instance_");
-                    chart = echarts.init(dom);
+                    chart = initChart(dom);
                     chart.setOption(option);
                 }
             }

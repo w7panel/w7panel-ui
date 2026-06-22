@@ -62,7 +62,6 @@ export default{
                 })
                 // 根据 index 字段排序
                 this.list.sort((a, b) => a.index - b.index)
-                console.log(this.list)
             })
         },
     }

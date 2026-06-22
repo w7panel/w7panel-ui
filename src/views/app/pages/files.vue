@@ -727,7 +727,7 @@ export default {
         await this.first();
         this.getUserByWebDAV();
     },
-    beforeDestroy() {
+    beforeUnmount() {
         if (this.editor) {
             this.editor?.destroy();
             this.editor = null;
