@@ -1,5 +1,5 @@
 <script lang="tsx">
-  import { defineComponent, ref, h, compile, computed, watch } from 'vue';
+  import { defineComponent, ref, h, resolveComponent, computed, watch, onBeforeUnmount } from 'vue';
   import { useRoute, useRouter, RouteRecordRaw } from 'vue-router';
   import type { RouteMeta } from 'vue-router';
   import { useAppStore } from '@/store';
@@ -14,6 +14,9 @@
       const router = useRouter();
       const route = useRoute();
       const { menuTree } = useMenuTree();
+      const iconSlots = new Map<string, () => any>();
+      const prefetchedRoutes = new Set<string>();
+      let idlePrefetchTimer: number | null = null;
 
       const collapsed = computed(() => {
         if (appStore.device === 'desktop') return appStore.menuCollapse;
@@ -74,34 +77,148 @@
         });
       };
 
+      const getRouteKey = (item: RouteRecordRaw) => String(item?.name || item?.path || '');
+      const prefetchRoute = (item?: RouteRecordRaw | null) => {
+        if (!item || regexUrl.test(item.path)) {
+          return;
+        }
+
+        const key = getRouteKey(item);
+        if (!key || prefetchedRoutes.has(key)) {
+          return;
+        }
+
+        const component = item.component;
+        if (typeof component !== 'function') {
+          return;
+        }
+
+        prefetchedRoutes.add(key);
+        try {
+          const loadComponent = component as unknown as () => Promise<unknown>;
+          const result = loadComponent();
+          if (result && typeof (result as Promise<unknown>).catch === 'function') {
+            (result as Promise<unknown>).catch(() => {
+              prefetchedRoutes.delete(key);
+            });
+          }
+        } catch {
+          prefetchedRoutes.delete(key);
+        }
+      };
+
       const setCollapse = (val: boolean) => {
         if (appStore.device === 'desktop') {
           appStore.updateSettings({ menuCollapse: val });
         }
       };
 
+      const flattenMenuGroups = ['system', 'usermanage', 'person'];
+      const menuFilter = computed(() => appStore.menuFilter || 'cloudserver');
+      const getMenuTitle = (element: RouteRecordRaw) => String(element?.meta?.locale || element?.name || '');
+      const getIconSlot = (iconName: string) => {
+        if (!iconSlots.has(iconName)) {
+          iconSlots.set(iconName, () => h(resolveComponent(iconName)));
+        }
+        return iconSlots.get(iconName);
+      };
+
+      const shouldShowRoute = (element: RouteRecordRaw, isRoot = false) => {
+        if (element?.meta?.hideInMenu) {
+          return false;
+        }
+
+        if (!isRoot) {
+          return true;
+        }
+
+        const group = element?.meta?.menuGroup;
+        if (!group) {
+          return menuFilter.value === 'cloudserver';
+        }
+
+        return group === menuFilter.value;
+      };
+
+      const getFirstPrefetchableRoute = (item?: RouteRecordRaw | null): RouteRecordRaw | null => {
+        if (!item || regexUrl.test(item.path)) {
+          return null;
+        }
+
+        if (!item.children?.length) {
+          return item;
+        }
+
+        for (const child of item.children as RouteRecordRaw[]) {
+          const target = getFirstPrefetchableRoute(child);
+          if (target) {
+            return target;
+          }
+        }
+
+        return typeof item.component === 'function' ? item : null;
+      };
+
+      const collectMenuLeafRoutes = (routes: RouteRecordRaw[], targets: RouteRecordRaw[] = [], isRoot = false) => {
+        routes.forEach((element) => {
+          if (!shouldShowRoute(element, isRoot)) {
+            return;
+          }
+
+          if (isRoot && flattenMenuGroups.includes(String(element.name))) {
+            collectMenuLeafRoutes((element.children || []) as RouteRecordRaw[], targets);
+            return;
+          }
+
+          if (element.children?.length) {
+            collectMenuLeafRoutes(element.children as RouteRecordRaw[], targets);
+            return;
+          }
+
+          targets.push(element);
+        });
+
+        return targets;
+      };
+
+      const scheduleIdleMenuPrefetch = () => {
+        if (idlePrefetchTimer != null) {
+          window.clearTimeout(idlePrefetchTimer);
+        }
+
+        idlePrefetchTimer = window.setTimeout(() => {
+          idlePrefetchTimer = null;
+          const requestIdle = (window as any).requestIdleCallback;
+          const run = () => {
+            collectMenuLeafRoutes(menuTree.value as RouteRecordRaw[], [], true)
+              .filter(item => item.name !== route.name)
+              .slice(0, 6)
+              .forEach(prefetchRoute);
+          };
+
+          if (typeof requestIdle === 'function') {
+            requestIdle(run, { timeout: 1500 });
+          } else {
+            run();
+          }
+        }, 800);
+      };
+
+      watch(
+        [menuTree, menuFilter],
+        () => {
+          scheduleIdleMenuPrefetch();
+        },
+        { immediate: true }
+      );
+
+      onBeforeUnmount(() => {
+        if (idlePrefetchTimer != null) {
+          window.clearTimeout(idlePrefetchTimer);
+        }
+      });
+
       const renderSubMenu = () => {
-        const menuFilter = appStore.menuFilter || 'cloudserver';
-        const flattenMenuGroups = ['system', 'usermanage', 'person'];
-        const getMenuTitle = (element: RouteRecordRaw) => String(element?.meta?.locale || element?.name || '');
-
-        const shouldShowRoute = (element: RouteRecordRaw, isRoot = false) => {
-          if (element?.meta?.hideInMenu) {
-            return false;
-          }
-
-          if (!isRoot) {
-            return true;
-          }
-
-          const group = element?.meta?.menuGroup;
-          if (!group) {
-            return menuFilter === 'cloudserver';
-          }
-
-          return group === menuFilter;
-        };
-
         const travel = (_route: RouteRecordRaw[], nodes: never[] = [], isRoot = false) => {
           if (_route) {
             _route.forEach((element) => {
@@ -117,16 +234,17 @@
               }
 
               const icon = element?.meta?.icon
-                ? () => h(compile(`<${element?.meta?.icon}/>`))
+                ? getIconSlot(String(element.meta.icon))
                 : null;
 
               const node =
                 element?.children && element?.children.length !== 0 ? (
                   <a-sub-menu
                     key={element?.name}
+                    onMouseenter={() => prefetchRoute(getFirstPrefetchableRoute(element))}
                     v-slots={{
                       icon,
-                      title: () => h(compile(getMenuTitle(element))),
+                      title: () => getMenuTitle(element),
                     }}
                   >
                     <span>{travel(element?.children as RouteRecordRaw[])}</span>
@@ -140,6 +258,8 @@
                   <a-menu-item
                     key={element?.name}
                     v-slots={{ icon }}
+                    onMouseenter={() => prefetchRoute(element)}
+                    onFocus={() => prefetchRoute(element)}
                     onClick={() => goto(element)}
                   >
                     <span>{getMenuTitle(element)}</span>

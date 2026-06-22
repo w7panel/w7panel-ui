@@ -153,7 +153,7 @@ export default {
         async submit(){
             this.createList = [];
             
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
             this.loadingsubmit = true;
             for(let i=0; i<this.list.length; i++){
                 try{
@@ -161,7 +161,7 @@ export default {
                 }catch(e){
                     this.activeName = this.list[i].key;
                     this.loadingsubmit = false;
-                    useLoadingStore().loading = false;
+                    useLoadingStore().setLoading(false);
                     return;
                 }
             }
@@ -171,12 +171,12 @@ export default {
                 }catch(e){
                     this.activeName = this.list[i].key;
                     this.loadingsubmit = false;
-                    useLoadingStore().loading = false;
+                    useLoadingStore().setLoading(false);
                     return;
                 }
             }
             this.loadingsubmit = false;
-            useLoadingStore().loading = false;
+            useLoadingStore().setLoading(false);
         },
         getStorage(){
             // k8sproxy.get(`/k8s-proxy/v1/namespaces/${'longhorn-system'}/services/${'longhorn-backend:9500'}/proxy/v1/volumes`,{

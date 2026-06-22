@@ -28,6 +28,10 @@ export default mergeConfig(
           assetFileNames: 'assets/[name].[hash][extname]',
         },
       },
+      esbuild: {
+        pure: ['console.log', 'console.debug'],
+        drop: ['debugger'],
+      },
       chunkSizeWarningLimit: 2000,
     },
   },

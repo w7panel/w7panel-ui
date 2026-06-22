@@ -162,16 +162,16 @@ export default{
             this.upload.filename = files[0].name.replace(/\s/g,'');
             this.form.filename = files[0].name.replace(/\s/g,'');
 
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
             try{
                 const { handleFileUpload } = await import('@/views/app/pages/files.upload.js');
                 await handleFileUpload(this);
                 
                 this.form.downloadUrl = `${window.location.origin}/panel-api/v1/download/${this.upload.filename}?api-token=${getToken()}`
 
-                useLoadingStore().loading = false;
+                useLoadingStore().setLoading(false);
             }catch(err){
-                useLoadingStore().loading = false;
+                useLoadingStore().setLoading(false);
                 this.$message.error('导入失败');
                 console.log(err);
             }

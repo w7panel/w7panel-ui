@@ -808,7 +808,7 @@ export default {
             }];
             let url = "/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.tlsForm.domainName;
             
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
 
             await k8sproxy.patch(url, operation1,{
                 headers: {'Content-Type': 'application/json-patch+json'},
@@ -820,7 +820,7 @@ export default {
                 headers: {'Content-Type': 'application/json-patch+json'},
             }).then(()=>{}).catch(()=>{})
             
-            useLoadingStore().loading = false;
+            useLoadingStore().setLoading(false);
 
             let secretName = this.tlsForm.tlsName;
             k8sproxy.get('/apis/cert-manager.io/v1/namespaces/'+ this.namespaceActive +'/certificates/'+secretName, {noAlert:true,loading:true}).then(res=>{
@@ -1403,7 +1403,7 @@ export default {
         },
         // 设置子域名证书
         setSubdomainTls(){
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
             let list = this.dataList.filter(i=>i?.metadata?.labels?.parents==this.tlsForm.domainName)
             return Promise.all(list.map(i=>{
                 let data = JSON.parse(JSON.stringify(i))
@@ -1447,7 +1447,7 @@ export default {
                     headers: {'Content-Type': 'application/json-patch+json'},
                 });
             })).finally(()=>{
-                useLoadingStore().loading = false;
+                useLoadingStore().setLoading(false);
             });
         },
         openYaml(name){
@@ -2039,7 +2039,7 @@ export default {
                         // 修改子目录 域名 ssl
                         let list = this.dataList.filter(i=>i?.metadata?.labels?.parents==res.data.metadata.name)
                         if(list.length){
-                            useLoadingStore().loading = true;
+                            useLoadingStore().setLoading(true);
                             await Promise.all(list.map(i=>{
                                 let data = JSON.parse(JSON.stringify(i))
                                 if(!data || !data.spec || !data.spec.rules){return}
@@ -2062,7 +2062,7 @@ export default {
     
                                 return k8sproxy.put("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+data.metadata.name, data);
                             })).finally(()=>{
-                                useLoadingStore().loading = false;
+                                useLoadingStore().setLoading(false);
                             });
                         }
 
@@ -2455,7 +2455,7 @@ export default {
                     setAnn(data)
                     
                     // 修改重写，同步策略
-                    useLoadingStore().loading = true;
+                    useLoadingStore().setLoading(true);
                     let nowRewrite = this.domain.rewrite? this.domain.rewrite_host : '';
                     await k8sproxy.get('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins').then(res=>{
                         let list = res?.data?.items || [];
@@ -2480,7 +2480,7 @@ export default {
                             await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+ item.metadata.name, item);
                         }
                     }).finally(()=>{
-                        useLoadingStore().loading = false;
+                        useLoadingStore().setLoading(false);
                     });
                     return k8sproxy.put("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.domain.parent, data, {loading:true}).then(res=>{
                         this.domain.show = false;

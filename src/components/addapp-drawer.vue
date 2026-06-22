@@ -157,18 +157,18 @@ export default {
             this.createList = [];
             this.submitLoading = true;
             let error = false;
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
             for(let i=0; i<this.possibleChanged.length; i++){
                 if(error){break}
                 await this.$refs[this.possibleChanged[i]]?.[0]?.submit(true).catch(()=>{
                     this.submitLoading = false;
-                    useLoadingStore().loading = false;
+                    useLoadingStore().setLoading(false);
                     this.activeIndex = this.possibleChanged[i];
                     error = true;
                 });
             }
             if(error){ return; }
-            useLoadingStore().loading = false;
+            useLoadingStore().setLoading(false);
             this.$message.success('操作成功');
             this.$emit('close',true);
             setTimeout(()=>{

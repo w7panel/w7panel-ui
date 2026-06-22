@@ -14,22 +14,7 @@ import '@/assets/tool.js';
 // import mavonEditor from 'mavon-editor'
 // import 'mavon-editor/dist/css/index.css'
 
-import hljs from 'highlight.js/lib/common'
-
-import VMdPreview from '@kangc/v-md-editor/lib/preview';
-import '@kangc/v-md-editor/lib/style/preview.css';
-import githubTheme from '@kangc/v-md-editor/lib/theme/github.js';
-import '@kangc/v-md-editor/lib/theme/style/github.css';
-import createEmojiPlugin from '@kangc/v-md-editor/lib/plugins/emoji/index';
-import '@kangc/v-md-editor/lib/plugins/emoji/emoji.css';
 import { bus } from 'wujie';
-// GoCaptcha
-import "go-captcha-vue/dist/style.css"
-import GoCaptcha from "go-captcha-vue"
-
-VMdPreview.use(githubTheme, {
-    Hljs: hljs,
-}).use(createEmojiPlugin());
 
 const windowWithWujieNoop = window as any;
 if(!windowWithWujieNoop.__W7_WUJIE_ROUTECHANGE_NOOP__){
@@ -44,7 +29,6 @@ const getPopupContainer = () =>
 
 app.use(ArcoVue, {});
 app.use(ArcoVueIcon);
-app.use(VMdPreview);
 
 Object.values((app as any)._context?.components || {}).forEach((component: any) => {
     const popupContainerProp = component?.props?.popupContainer;
@@ -57,7 +41,6 @@ app.use(router);
 app.use(store);
 // app.use(mavonEditor);
 app.use(globalComponents);
-app.use(GoCaptcha);
 
 app.config.globalProperties.$popupContainer = getPopupContainer();
 

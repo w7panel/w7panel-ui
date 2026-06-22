@@ -818,7 +818,7 @@ export default {
         // updateRelease(){
         //     k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+this.releaseName,{loading:true}).then(async res=>{
         //         let apps = res?.data?.status?.items || [];
-        //         useLoadingStore().loading = true;
+        //         useLoadingStore().setLoading(true);
         //         for(let i in apps){
         //             let { data } = await k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+app[i].kind.toLowerCase()+'s'+"/"+apps[i].name,{noAlert:true});
         //             let env = data?.spec?.template?.spec?.containers[0]?.env || [];
@@ -836,9 +836,9 @@ export default {
         //                 }
         //             })
         //         }
-        //         useLoadingStore().loading = false;
+        //         useLoadingStore().setLoading(false);
         //     }).catch(()=>{
-        //         useLoadingStore().loading = false;
+        //         useLoadingStore().setLoading(false);
         //     })
         // },
         switchChange(identifie){

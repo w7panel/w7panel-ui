@@ -14,9 +14,11 @@
 
 <script>
 import { panelApi } from '@/utils/api';
-import axios from 'axios';
+import { Slide as GocaptchaSlide } from 'go-captcha-vue';
+import 'go-captcha-vue/dist/style.css';
 
 export default {
+    components: { GocaptchaSlide },
     data(){
         return {
             data: {}

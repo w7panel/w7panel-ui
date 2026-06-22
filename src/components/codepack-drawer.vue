@@ -11,7 +11,7 @@
                         </div>
                     </div>
                     <a-alert class="fs-14 codepack-readme" :show-icon="false">
-                        <v-md-preview :text="mdtxt"></v-md-preview>
+                        <markdown-preview :text="mdtxt"></markdown-preview>
                     </a-alert>
                 </div>
             </a-form-item>
@@ -29,6 +29,7 @@
 <script>
 import { panelApi } from '@/utils/api';
 import appForm from '@/components/app-form.vue';
+import MarkdownPreview from '@/components/markdown-preview.vue';
 import axios from 'axios';
 import { useLoadingStore } from '@/store';
 
@@ -47,7 +48,7 @@ export default {
             mdtxt: '',
         }
     },
-    components: {appForm},
+    components: {appForm, MarkdownPreview},
     watch:{
         show(v){
             this.visible = v;
@@ -82,16 +83,16 @@ export default {
                 let upname = Date.now() + exname
                 data.append('key', 'upload/' + upname );
                 
-                useLoadingStore().loading = true;
+                useLoadingStore().setLoading(true);
                 axios.post('/s3bucket',data,).then(res=>{
-                    useLoadingStore().loading = false;
+                    useLoadingStore().setLoading(false);
                     let origin = window.origin;
                     if(window.__MICRO_APP_ENVIRONMENT__){origin = window.microApp?.getData()?.requestUrl?.replace(/\/$/,'') || '';}
                     let zip = origin + '/panel-api/v1/download/'+ 'upload/' + upname;
                     let zpkUrl = this.envs[this.form.env].zpkUrl;
                     this.$router.push(`/app/store-install?path=${encodeURIComponent(zpkUrl)}&zipUrl=${encodeURIComponent(zip)}&isTrandition=true`)
                 }).catch(()=>{
-                    useLoadingStore().loading = false;
+                    useLoadingStore().setLoading(false);
                     this.$message.error('上传失败');
                 })
             })

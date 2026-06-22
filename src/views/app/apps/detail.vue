@@ -755,7 +755,7 @@ export default {
             }
         },
         async getData(){
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
 
             this.isHelmPage = /^group\-helm(\-|$)/.test(this.$route.name);
             if(this.isHelmPage){
@@ -810,7 +810,7 @@ export default {
 
                 this.applist = helmTab.concat(list);
                 this.watchStatus();
-                useLoadingStore().loading = false;
+                useLoadingStore().setLoading(false);
             }).then(()=>{
                 new Promise((resolve,reject)=>{
                     if(!this.isMicroPage && !this.appname && (!this.$route.params.kind || !this.$route.params.id)){
@@ -853,7 +853,7 @@ export default {
                     // } 
                 })
             }).catch(()=>{
-                useLoadingStore().loading = false;
+                useLoadingStore().setLoading(false);
             });
         },
         changeKey(val){

@@ -716,7 +716,7 @@ export default {
         bindNodeSubmit(){
             if(!this.bindForm.node?.length){ this.$message.error('请选择Node'); return; }
 
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
             
             let listItems = []; // 选中的node
             this.bindForm.node.forEach(i=>{
@@ -757,7 +757,7 @@ export default {
                 this.bindForm.show = false;
                 this.getList();
             }).catch(()=>{
-                useLoadingStore().loading = false;
+                useLoadingStore().setLoading(false);
             })
         },
         openLoad(tag){

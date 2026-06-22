@@ -397,7 +397,7 @@ export default {
             }
         },
         async toDelete(row){
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
             for(let i in row.sr){
                 let old = row.sr[i];
                 let domainarr = this.domains.filter(d=>{
@@ -413,7 +413,7 @@ export default {
                 this.$message.success('操作成功');
                 this.getData();
             }).finally(()=>{
-                useLoadingStore().loading = false;
+                useLoadingStore().setLoading(false);
             })
         },
         toDeleteItem(index){
@@ -468,7 +468,7 @@ export default {
                 });
             }else{
                 k8sproxy.post('/apis/networking.higress.io/v1/namespaces/'+this.namespaceActive+'/mcpbridges', data, {loading:true}).then(async res => {    
-                    useLoadingStore().loading = true;
+                    useLoadingStore().setLoading(true);
                     for(let i in this.form.form){
                         let item = this.form.form[i];
                         let fullDomain = item.crtDomain;
@@ -485,7 +485,7 @@ export default {
                             })
                         }catch{}
                     }
-                    useLoadingStore().loading = false;
+                    useLoadingStore().setLoading(false);
                 }).then(res=>{
                     this.$message.success('操作成功');
                     this.getData();

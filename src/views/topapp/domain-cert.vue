@@ -262,7 +262,7 @@ export default{
         },
         // 设置子域名证书
         setSubdomainTls(){
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
             let list = [];
             try{
                 list = JSON.parse(this.tlsForm.domainData.metadata.annotations?.['w7.cc/child-hosts'])
@@ -309,7 +309,7 @@ export default{
                     headers: {'Content-Type': 'application/json-patch+json'},
                 });
             })).finally(()=>{
-                useLoadingStore().loading = false;
+                useLoadingStore().setLoading(false);
             });
         },
     }

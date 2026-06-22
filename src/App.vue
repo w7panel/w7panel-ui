@@ -7,7 +7,7 @@
 </template>
 
 <script lang="ts" setup>
-    import { computed } from 'vue';
+    import { computed, onBeforeUnmount, ref, watch } from 'vue';
     import zhCN from '@arco-design/web-vue/es/locale/lang/zh-cn';
     import { useNamespaceStore, useLoadingStore, useDarkStore, useAppStore } from '@/store';
     import { useDark } from '@vueuse/core';
@@ -31,7 +31,32 @@
         appStore.toggleTheme(v);
         useDarkStore().setDark(v);
     })()
-    let loading = computed(()=>useLoadingStore().loading)
+    const loadingStore = useLoadingStore();
+    const rawLoading = computed(()=>loadingStore.loading);
+    const loading = ref(false);
+    let loadingTimer: ReturnType<typeof setTimeout> | null = null;
+
+    watch(rawLoading, (value) => {
+        if(loadingTimer){
+            clearTimeout(loadingTimer);
+            loadingTimer = null;
+        }
+
+        if(value){
+            loadingTimer = setTimeout(() => {
+                loading.value = true;
+                loadingTimer = null;
+            }, 150);
+        }else{
+            loading.value = false;
+        }
+    }, { immediate: true });
+
+    onBeforeUnmount(() => {
+        if(loadingTimer){
+            clearTimeout(loadingTimer);
+        }
+    });
   
     // vuex 获取sessionStorage
     if (sessionStorage.getItem('w7panel_store')) {

@@ -7,7 +7,7 @@
 
         <div v-else class="description__layout" :class="{ 'is-single': !showSidebar }">
             <aside v-if="showSidebar" class="description__sidebar">
-                <button v-for="item in orderDoc()" :key="item.path" type="button" class="description__nav-item"
+                <button v-for="item in orderedDocEntries" :key="item.path" type="button" class="description__nav-item"
                     :class="{ 'is-active': item.path === activePath }" @click="selectEntry(item.path)">
                     <span class="description__nav-title">{{ item.title === 'README' ? '简介' : item.title }}</span>
                 </button>
@@ -15,7 +15,7 @@
 
             <section class="description__main">
                 <div class="description__viewer">
-                    <v-md-preview :text="activeEntry.content"></v-md-preview>
+                    <markdown-preview :text="activeEntry.content"></markdown-preview>
                 </div>
             </section>
         </div>
@@ -23,6 +23,8 @@
 </template>
 
 <script>
+import MarkdownPreview from '@/components/markdown-preview.vue';
+
 const normalizePath = (path = '') => String(path || '')
     .replace(/\\/g, '/')
     .replace(/^\/+/, '')
@@ -42,6 +44,7 @@ const getTitleFromPath = (path = '') => {
 
 export default {
     name: 'SiteDescription',
+    components: { MarkdownPreview },
     props: {
         files: {
             type: Object,
@@ -87,6 +90,21 @@ export default {
                 content: '',
             };
         },
+        orderedDocEntries() {
+            let sortOrder = this.files?.['docs/.order']?.split?.(',') || [];
+            let readme = this.docEntries.find(item => item.isReadme);
+            const sortedItems = [...this.docEntries.filter(i=>!i.isReadme)].sort((x, y) => {
+                const indexX = sortOrder.indexOf(x.path);
+                const indexY = sortOrder.indexOf(y.path);
+
+                if (indexX === -1 && indexY === -1) return 0;
+                if (indexX === -1) return 1;
+                if (indexY === -1) return -1;
+
+                return indexX - indexY;
+            });
+            return readme? [readme,...sortedItems] : sortedItems;
+        },
     },
     watch: {
         files: {
@@ -98,27 +116,6 @@ export default {
         },
     },
     methods: {
-        orderDoc(){
-            let sortOrder = this.files?.['docs/.order']?.split?.(',') || [];
-            let readme = this.docEntries.find(item => item.isReadme);
-            // 排序方法（核心代码）
-            const sortedItems = [...this.docEntries.filter(i=>!i.isReadme)].sort((x, y) => {
-                // 获取两个元素在排序数组中的索引
-                const indexX = sortOrder.indexOf(x.path);
-                const indexY = sortOrder.indexOf(y.path);
-
-                // 都不在排序数组里 → 保持原有相对顺序
-                if (indexX === -1 && indexY === -1) return 0;
-                // 只有 x 不在 → x 排后面
-                if (indexX === -1) return 1;
-                // 只有 y 不在 → y 排后面
-                if (indexY === -1) return -1;
-                
-                // 都在 → 按排序数组的顺序排
-                return indexX - indexY;
-            });
-            return readme? [readme,...sortedItems] : sortedItems;
-        },
         syncActivePath() {
             if (!this.docEntries.length) {
                 this.activePath = '';

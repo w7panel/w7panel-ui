@@ -1237,7 +1237,7 @@ export default {
         getDir(){
             let token = getToken();
             let sendPropfindRequest = async (url)=>{
-                useLoadingStore().loading = true;
+                useLoadingStore().setLoading(true);
                 try {
                     const response = await fetch(url, {
                         method: 'PROPFIND',
@@ -1248,14 +1248,14 @@ export default {
                         },
                     });
 
-                    useLoadingStore().loading = false;
+                    useLoadingStore().setLoading(false);
                     
                     if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
                     const responseText = await response.text();
                     
                     return responseText;
                 }catch{
-                    useLoadingStore().loading = false;
+                    useLoadingStore().setLoading(false);
                 }
             }
             return sendPropfindRequest(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${this.form.path}`).then(result =>{

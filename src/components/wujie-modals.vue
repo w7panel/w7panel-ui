@@ -479,7 +479,7 @@ export default {
         async uploadFile(data, callback) {
             let outEditorInfo = await this.getPid(data.pid);
 
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
             try {
                 const reader = new FileReader();
                 reader.onload = () => {
@@ -498,7 +498,7 @@ export default {
                         this.$message.error('保存失败: ' + (err.response?.data?.message || err.message || '未知错误'));
                         try { callback?.(err); } catch {}
                     }).finally(() => {
-                        useLoadingStore().loading = false;
+                        useLoadingStore().setLoading(false);
                     });
                     return;
                 };

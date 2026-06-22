@@ -983,7 +983,7 @@ export default {
                         // 修改子目录 域名 ssl
                         let list = this.dataList.filter(i=>i?.metadata?.labels?.parents==res.data.metadata.name)
                         if(list.length){
-                            useLoadingStore().loading = true;
+                            useLoadingStore().setLoading(true);
                             await Promise.all(list.map(i=>{
                                 let data = JSON.parse(JSON.stringify(i))
                                 
@@ -1005,7 +1005,7 @@ export default {
     
                                 return k8sproxy.put("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+data.metadata.name, data);
                             }))
-                            useLoadingStore().loading = false;
+                            useLoadingStore().setLoading(false);
                         }
 
                         await this.updateGroupDomain();

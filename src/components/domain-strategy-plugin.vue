@@ -302,7 +302,7 @@ export default {
         //     if(v){ this.getAllPlugin(); }
         // },
         async pluginSubmit(){
-            useLoadingStore().loading = true;
+            useLoadingStore().setLoading(true);
             for(let i=0; i<this.plugin.allPlugin.length; i++){
                 let item = this.plugin.allPlugin[i];
                 if(item.is_whitelist){
@@ -339,7 +339,7 @@ export default {
                     await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(()=>{}).catch(()=>{});
                 }
             }
-            useLoadingStore().loading = false;
+            useLoadingStore().setLoading(false);
             this.$message.success('操作成功');
             this.getAllPlugin();
         },

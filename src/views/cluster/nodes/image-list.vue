@@ -415,7 +415,7 @@ export default {
             this.$refs.importForm.validate(async (err)=>{
                 if(err){return}
                 
-                useLoadingStore().loading = true;
+                useLoadingStore().setLoading(true);
                 try{
                     const { handleFileUpload } = await import('@/views/app/pages/files.upload.js');
                     await handleFileUpload(this);
@@ -435,15 +435,15 @@ export default {
                             return Promise.resolve();
                         }
                     }).then(res=>{
-                        useLoadingStore().loading = false;
+                        useLoadingStore().setLoading(false);
                         this.$message.success('导入成功');
                         this.importDialog.show = false;
                         this.getList();
                     }).catch(()=>{
-                        useLoadingStore().loading = false;
+                        useLoadingStore().setLoading(false);
                     })
                 }catch(err){
-                    useLoadingStore().loading = false;
+                    useLoadingStore().setLoading(false);
                     this.$message.error('导入失败');
                     console.log(err);
                 }

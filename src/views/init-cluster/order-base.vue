@@ -1024,9 +1024,9 @@ export default {
                         url: `https://ip.w7.cc/pay/${res?.data?.ticket}?header=false&footer=false&paid_callback=https%3A%2F%2Fuser.w7.cc%2Forder`
                     }
                 }else{
-                    useLoadingStore().loading = true;
+                    useLoadingStore().setLoading(true);
                     setTimeout(()=>{
-                        useLoadingStore().loading = false;
+                        useLoadingStore().setLoading(false);
                         this.deleteQuery();
                         this.checkInfo();
                     },5000)

@@ -21,7 +21,7 @@
                 </div>
             </div>
             <div v-if="mdtxt" class="topline mt-20">
-                <v-md-preview :text="mdtxt"></v-md-preview>
+                <markdown-preview :text="mdtxt"></markdown-preview>
             </div>
         </div>
     </div>
@@ -29,8 +29,10 @@
 
 <script>
 import axios from 'axios';
+import MarkdownPreview from '@/components/markdown-preview.vue';
 
 export default {
+    components: { MarkdownPreview },
     data(){
         return {
             identifie: '',

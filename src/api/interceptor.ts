@@ -101,7 +101,7 @@ axios.interceptors.request.use(
             config.headers.Authorization = `Bearer ${config.customToken}`;
         }
         if(config?.loading){
-            useLoadingStore().loading = true;
+            useLoadingStore().startLoading();
         }
 
         config.name = config.url + Math.random().toString(36).substring(2, 10);
@@ -116,7 +116,7 @@ axios.interceptors.request.use(
     },
     (error) => {
         if(error?.config?.loading){
-            useLoadingStore().loading = false;
+            useLoadingStore().finishLoading();
         }
         return Promise.reject(error);
     }
@@ -129,7 +129,7 @@ axios.interceptors.response.use(
         }catch{}
 
         if(res?.config?.loading){
-            useLoadingStore().loading = false;
+            useLoadingStore().finishLoading();
         }
         if (res.status >= 200 && res.status < 300 && res) {
             // let expire = getExpire();
@@ -146,7 +146,7 @@ axios.interceptors.response.use(
     },
     async (error) => {
         if(error?.config?.loading){
-            useLoadingStore().loading = false;
+            useLoadingStore().finishLoading();
         }
         try{
             pendingRequests.delete(error?.config?.name);
