@@ -138,9 +138,10 @@
 
 <script>
 
-
-
-
+import { useLoadingStore, useNamespaceStore } from '@/store';
+import { k8sproxy, panelApi } from '@/utils/api';
+import axios from 'axios';
+import dayjs from 'dayjs';
 import buildImage from '@/views/cluster/nodes/build-image.vue';
 import selectContainer from '@/components/select-container.vue';
 import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';

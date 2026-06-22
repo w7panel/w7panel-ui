@@ -15,14 +15,9 @@
       const route = useRoute();
       const { menuTree } = useMenuTree();
 
-      const collapsed = computed({
-        get() {
-          if (appStore.device === 'desktop') return appStore.menuCollapse;
-          return false;
-        },
-        set(value: boolean) {
-          appStore.updateSettings({ menuCollapse: value });
-        },
+      const collapsed = computed(() => {
+        if (appStore.device === 'desktop') return appStore.menuCollapse;
+        return false;
       });
 
       const topMenu = computed(() => appStore.topMenu);
@@ -180,7 +175,7 @@
           ) : null}
           <a-menu
             mode={topMenu.value ? 'horizontal' : 'vertical'}
-            v-model:collapsed={collapsed.value}
+            collapsed={collapsed.value}
             v-model:open-keys={openKeys.value}
             show-collapse-button={appStore.device !== 'mobile'}
             auto-open={false}
