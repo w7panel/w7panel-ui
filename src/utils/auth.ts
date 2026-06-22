@@ -59,18 +59,6 @@ const setToken = (token: string) => {
 const setRefreshToken = (token: string) => {
     localStorage.setItem(REFRESH_TOKEN, token);
 }
-const setIframeToken = (token: string) => {
-    localStorage.setItem(PRE+TOKEN_KEY, token);
-};
-const setIframeRefreshToken = (token: string) => {
-    localStorage.setItem(PRE+REFRESH_TOKEN, token);
-};
-const getIframeToken = () => {
-    return localStorage.getItem(PRE+TOKEN_KEY);
-};
-const getIframeRefreshToken = () => {
-    return localStorage.getItem(PRE+REFRESH_TOKEN);
-};
 // const setExpire = (v: number) => {
 //     localStorage.setItem(EXPIRE, String(v));
 // };
@@ -90,17 +78,6 @@ const clearToken = () => {
     localStorage.removeItem(K8SINFO_KEY);
     localStorage.removeItem(WEBSHELL_KEY);
 };
-
-const clearIframeToken = () => {
-    localStorage.removeItem(PRE+TOKEN_KEY);
-    localStorage.removeItem(PRE+REFRESH_TOKEN);
-    localStorage.removeItem(PRE+USERINFO);
-    localStorage.removeItem(PRE+PERMISSION);
-    localStorage.removeItem(PRE+FILEEDITOR_KEY);
-    localStorage.removeItem(PRE+K8SINFO_KEY);
-    localStorage.removeItem(PRE+WEBSHELL_KEY);
-};
-
 
 const getFileEditor = () => {
     return localStorage.getItem((isSubapp? PRE : '' ) + FILEEDITOR_KEY);
@@ -137,9 +114,4 @@ export { isLogin, getToken, setToken, clearToken,
     setK8sinfo,
     setRefreshToken,
     getRefreshToken,
-    setIframeToken,
-    setIframeRefreshToken,
-    getIframeToken,
-    getIframeRefreshToken,
-    clearIframeToken,
  };

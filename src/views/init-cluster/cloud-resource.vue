@@ -118,9 +118,10 @@
 </template>
 <script>
 import { panelApi } from '@/utils/api';
-import axios from 'axios';
+
 import { isLogin } from '@/utils/auth';
-import { getUserInfo,getK8sinfo } from '@/utils/auth';
+import { getUserInfo, getK8sinfo } from '@/utils/auth';
+
 import { clearToken } from '@/utils/auth';
 import contactUs from '@/components/contact-us.vue';
 import microApp from '@/views/topapp/micro.vue';

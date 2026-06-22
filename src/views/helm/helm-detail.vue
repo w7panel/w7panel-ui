@@ -73,7 +73,7 @@
 
 <script>
 import { panelApi } from '@/utils/api';
-import axios from 'axios'
+
 import hljs from 'highlight.js';
 import jsyaml from 'js-yaml';
 import yamlDrawer from '@/components/yaml-drawer.vue';

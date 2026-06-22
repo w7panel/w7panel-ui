@@ -13,8 +13,7 @@
 </template>
 
 <script>
-import {useUserStore} from '@/store'
-
+import { useUserStore } from '@/store'
 
 const sharedPass = [
     'cluster-nodes',

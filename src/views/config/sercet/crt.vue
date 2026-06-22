@@ -67,7 +67,7 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios'
+
 import forge from 'node-forge';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore } from '@/store';

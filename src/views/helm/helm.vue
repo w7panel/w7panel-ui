@@ -27,7 +27,7 @@
 
 <script>
 import { panelApi } from '@/utils/api';
-import axios from 'axios';
+
 export default {
     data() {
         return {

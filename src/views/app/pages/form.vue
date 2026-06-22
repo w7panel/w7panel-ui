@@ -259,7 +259,6 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 
-import axios from 'axios'
 import { useNamespaceStore } from '@/store';
 
 import yamlView from '@/components/yaml-view.vue'

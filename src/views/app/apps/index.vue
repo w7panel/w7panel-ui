@@ -209,7 +209,7 @@ import addappDrawer from '@/components/addapp-drawer.vue';
 import k8syamlDrawer from '@/components/k8syaml-drawer.vue';
 import codepackDrawer from '@/components/codepack-drawer.vue';
 import helmForm from '../pages/helm-form.vue';
-import { getPermission,getFileEditor,getUserInfo } from '@/utils/auth';
+import { getPermission, getFileEditor, getUserInfo } from '@/utils/auth';
 
 export default {
     data(){

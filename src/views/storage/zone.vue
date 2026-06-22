@@ -179,12 +179,11 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 
-import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import zoneDrawer from './zone-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import { IconBookmark } from '@arco-design/web-vue/es/icon';
-import CryptoJS  from 'crypto-js';
+import CryptoJS from 'crypto-js';
 
 export default {
     data() {

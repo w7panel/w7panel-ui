@@ -1,6 +1,6 @@
 import axios from "axios";
 import { setFileEditor,setWebshell, setK8sinfo } from '@/utils/auth';
-import { getPermission, setPermission, setUserInfo } from '@/utils/auth';
+import { setPermission, setUserInfo } from '@/utils/auth';
 import { cacheManager, CachePresets } from '@/utils/cache';
 
 const PERMISSION_CACHE_KEY = `${CachePresets.PERMISSION}:timestamp`;
@@ -20,13 +20,6 @@ export default async function useK3kinfo(){
         return res;
     })
     
-    // const shouldRefresh = () => {
-    //     if (!getPermission()) return true;
-    //     const cached = cacheManager.get<number>(PERMISSION_CACHE_KEY);
-    //     if (!cached) return true;
-    //     return Date.now() - cached > PERMISSION_CACHE_DURATION;
-    // };
-
     if (true) {
         let arr = [];
         // await axios.get('/panel-api/v1/auth/userinfo').then(res => {})

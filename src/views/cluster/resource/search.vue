@@ -18,8 +18,10 @@
 
 <script>
 import { k8sproxy, panelApi } from '@/utils/api';
-import {basicSetup} from "codemirror"
-import {EditorView, } from "codemirror"
+import { basicSetup } from "codemirror"
+
+import { EditorView } from "codemirror"
+
 import axios from 'axios'
 import { json } from "@codemirror/lang-json";
 

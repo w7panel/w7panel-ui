@@ -18,7 +18,7 @@
 </template>
 
 <script>
-import axios from 'axios'
+
 import * as echarts from 'echarts'
 import { useDarkStore } from '@/store'
 import { k8sproxy } from '@/utils/api';

@@ -29,9 +29,9 @@
 import { k8sproxy } from '@/utils/api';
 import hljs from 'highlight.js'
 import jsyaml from "js-yaml"
-import axios from "axios"
 
-import {basicSetup, EditorView} from "codemirror"
+import { basicSetup, EditorView } from "codemirror"
+
 import { yaml } from "@codemirror/lang-yaml";
 import { keymap } from '@codemirror/view';
 

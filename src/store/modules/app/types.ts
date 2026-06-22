@@ -19,7 +19,6 @@ export interface AppState {
   menuWidth: number;
   globalSettings: boolean;
   device: string;
-  tabBar: boolean;
   menuFromServer: boolean;
   serverMenu: RouteRecordNormalized[];
   topApps: TopAppMenuItem[];

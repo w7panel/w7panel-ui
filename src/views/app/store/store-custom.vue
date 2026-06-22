@@ -44,7 +44,6 @@
 
 <script>
 import { panelApi } from '@/utils/api';
-import { k8sproxy } from '@/utils/api';
 // import axios from './_respoaxios'
 import axios from 'axios'
 import respoItem from '@/components/respo-item.vue'

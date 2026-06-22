@@ -15,7 +15,7 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import microApp from '@micro-zoe/micro-app'
-import axios from 'axios'
+
 import { useNamespaceStore } from '@/store';
 
 export default {

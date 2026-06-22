@@ -430,8 +430,9 @@
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
-import axios from "axios";
-import {useNamespaceStore,useLoadingStore} from "@/store";
+
+import { useNamespaceStore, useLoadingStore } from "@/store";
+
 import olCharts from "./ol-charts.vue";
 import * as echarts from 'echarts'
 import { markRaw } from 'vue'

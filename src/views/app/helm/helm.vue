@@ -13,7 +13,7 @@
 
 <script>
 import { panelApi } from '@/utils/api';
-import axios from 'axios';
+
 import helmItem from '@/components/helm-item.vue';
 
 export default {

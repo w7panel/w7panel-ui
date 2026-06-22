@@ -610,7 +610,8 @@ import { useNamespaceStore, useLoadingStore } from '@/store'
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import domainGrayRelease from '@/components/domain-gray-release.vue';
 import { getUserInfo } from '@/utils/auth';
-import CryptoJS  from 'crypto-js';
+import CryptoJS from 'crypto-js';
+
 import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
 import dayjs from 'dayjs';

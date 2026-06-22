@@ -11,9 +11,9 @@
 
 <script>
 import { panelApi } from '@/utils/api';
-import axios from "axios";
+
 import yamlInput from "@/components/yaml-input.vue"
-import {useNamespaceStore} from "@/store";
+import { useNamespaceStore } from "@/store";
 
 export default {
     data(){

@@ -170,7 +170,7 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
+
 import { useNamespaceStore } from '@/store';
 
 export default {

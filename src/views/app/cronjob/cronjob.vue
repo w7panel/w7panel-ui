@@ -149,7 +149,7 @@ import { getPermission } from '@/utils/auth';
 import { getUserInfo } from '@/utils/auth';
 import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue';
-import {useNamespaceStore} from "@/store";
+import { useNamespaceStore } from "@/store";
 
 export default {
     components: {

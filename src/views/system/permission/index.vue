@@ -37,7 +37,7 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
+
 import menuSelect from './menu-select.vue'
 import { useNamespaceStore } from '@/store';
 

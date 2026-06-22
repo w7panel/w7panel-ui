@@ -83,13 +83,16 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import axios from 'axios';
-import {basicSetup, EditorView} from "codemirror";
+import { basicSetup, EditorView } from "codemirror";
+
 import { yaml } from "@codemirror/lang-yaml";
 import jsyaml from 'js-yaml';
 import yamlDrawer from '@/components/yaml-drawer.vue';
-import { useNamespaceStore, useLoadingStore } from '@/store'
+import { useNamespaceStore } from '@/store'
+
 import { IconSearch } from '@arco-design/web-vue/es/icon';
-import {h} from 'vue'
+import { h } from 'vue'
+
 import { getUserInfo } from '@/utils/auth';
 
 export default {

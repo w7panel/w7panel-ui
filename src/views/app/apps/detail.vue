@@ -126,10 +126,13 @@
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
-import { useNamespaceStore,useLoadingStore } from '@/store';
+import { useNamespaceStore, useLoadingStore } from '@/store';
+
 import formDrawer from '@/views/app/pages/form-drawer.vue';
-import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
-import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
+import { bus, startApp, destroyApp } from "wujie";
+
+import { getPermission, getFileEditor, getToken, getK8sinfo } from '@/utils/auth';
+
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 

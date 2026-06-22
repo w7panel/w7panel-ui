@@ -117,7 +117,7 @@
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
+
 import dayjs from 'dayjs';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import podLog from '@/components/pod-log.vue';

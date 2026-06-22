@@ -65,7 +65,8 @@ import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import axios from 'axios';
 import yamlDrawer from '@/components/yaml-drawer.vue';
-import { useNamespaceStore, useLoadingStore } from '@/store';
+import { useNamespaceStore } from '@/store';
+
 import { getUserInfo } from '@/utils/auth';
 import resourceTree from '@/views/system/users/resource-tree.vue';
 

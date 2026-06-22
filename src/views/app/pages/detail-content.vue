@@ -409,10 +409,11 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios'
+
 import { useNamespaceStore } from '@/store';
 import { getUserInfo } from '@/utils/auth';
-import CryptoJS  from 'crypto-js';
+import CryptoJS from 'crypto-js';
+
 import appFormVolumes from '@/components/app-form-volumes.vue';
 
 export default {

@@ -171,7 +171,6 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 
-import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import ContactUs from './contact-us.vue';
 

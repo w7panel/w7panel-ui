@@ -9,7 +9,6 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
-import axios from 'axios';
 
 export default{
     data(){

@@ -148,22 +148,7 @@
 import { useNamespaceStore } from '@/store';
 import formDrawer from './form-drawer.vue';
 import selectContainer from '@/components/select-container.vue';
-import {
-    applyDeploymentStrategy,
-    buildConfigCenterMap,
-    buildPreviewItems,
-    createStrategyId,
-    fillStrategyGeneratedNames,
-    getConfigCenter,
-    getAvailableVersions,
-    isRecentUpdated,
-    listConfigCenters,
-    normalizeStrategy,
-    resolveConfigVersionItems,
-    runAutoDeployForConfigChain,
-    touchDescendants,
-    updateConfigCenter,
-} from './shared';
+import { applyDeploymentStrategy, buildConfigCenterMap, buildPreviewItems, createStrategyId, fillStrategyGeneratedNames, getConfigCenter, getAvailableVersions, isRecentUpdated, listConfigCenters, normalizeStrategy, resolveConfigVersionItems, runAutoDeployForConfigChain, touchDescendants, updateConfigCenter } from './shared';
 
 export default {
     components: {

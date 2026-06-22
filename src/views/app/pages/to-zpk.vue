@@ -7,7 +7,6 @@
 import { k8sproxy } from '@/utils/api';
 import defaultLayout from '@/components/default-layout.vue'
 import { useNamespaceStore } from '@/store';
-import axios from 'axios';
 
 export default {
     components: {

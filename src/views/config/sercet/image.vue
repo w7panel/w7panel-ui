@@ -54,7 +54,7 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios'
+
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore } from '@/store';
 import imageformDrawer from './imageform-drawer.vue';

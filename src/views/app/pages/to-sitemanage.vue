@@ -7,8 +7,8 @@
 import { k8sproxy } from '@/utils/api';
 import defaultLayout from '@/components/default-layout.vue'
 import { useNamespaceStore } from '@/store';
-import axios from 'axios';
-import { getK8sinfo } from '@/utils/auth';
+
+
 const ROLE_NAME = {
     founder: '创始人',
     found: '创始人',

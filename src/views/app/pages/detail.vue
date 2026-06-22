@@ -36,9 +36,8 @@ import detailContent from './detail-content.vue'
 import detailYaml from './detail-yaml.vue'
 import detailEnv from './detail-env.vue'
 
-import axios from 'axios';
 import { useNamespaceStore } from '@/store'
-import { getUserInfo,getPermission } from '@/utils/auth';
+import { getUserInfo, getPermission } from '@/utils/auth';
 
 export default {
     props: ['data','title'],

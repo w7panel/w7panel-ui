@@ -549,9 +549,12 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import axios from 'axios'
-import {basicSetup} from "codemirror"
-import {EditorView, keymap, Decoration} from "@codemirror/view"
-import {Compartment, StateEffect, EditorSelection} from "@codemirror/state"
+import { basicSetup } from "codemirror"
+
+import { EditorView, keymap, Decoration } from "@codemirror/view"
+
+import { Compartment, StateEffect, EditorSelection } from "@codemirror/state"
+
 import { StreamLanguage, HighlightStyle, syntaxHighlighting, indentOnInput, indentUnit, bracketMatching } from "@codemirror/language"
 import { javascript } from "@codemirror/lang-javascript"
 import { html } from "@codemirror/lang-html"
@@ -568,7 +571,8 @@ import { shell } from "@codemirror/legacy-modes/mode/shell"
 import { go } from "@codemirror/legacy-modes/mode/go"
 import { rust } from "@codemirror/legacy-modes/mode/rust"
 import { tags } from "@lezer/highlight"
-import { useNamespaceStore,useLoadingStore } from '@/store'
+import { useNamespaceStore, useLoadingStore } from '@/store'
+
 import { getToken } from '@/utils/auth';
 import { compressFiles, extractFiles } from '@/api/cluster';
 

@@ -194,7 +194,7 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
+
 import menuSelect from '@/views/system/permission/menu-select.vue';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';

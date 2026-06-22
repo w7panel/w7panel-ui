@@ -50,10 +50,12 @@ import { k8sproxy } from '@/utils/api';
 
 import cronJob from "@/components/cron-job.vue"
 import axios from "axios"
-import {useNamespaceStore} from "@/store";
+import { useNamespaceStore } from "@/store";
+
 import appForm from '@/components/app-form.vue';
 import appFormVolumes from '@/components/app-form-volumes.vue';
-import CryptoJS  from 'crypto-js';
+import CryptoJS from 'crypto-js';
+
 import formDrawer from '@/views/config/configmap/form-drawer.vue';
 import appFormContainer from '@/components/app-form-container.vue';
 

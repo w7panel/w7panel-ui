@@ -118,16 +118,7 @@
 
 <script>
 import { useNamespaceStore } from '@/store';
-import {
-    buildConfigCenterMap,
-    buildPreviewItems,
-    createConfigCenter,
-    getAvailableVersions,
-    getConfigCenter,
-    normalizeConfigCenter,
-    updateConfigCenter,
-    validateNoCircularInherit,
-} from './shared';
+import { buildConfigCenterMap, buildPreviewItems, createConfigCenter, getAvailableVersions, getConfigCenter, normalizeConfigCenter, updateConfigCenter, validateNoCircularInherit } from './shared';
 
 export default {
     props: ['show', 'id', 'configList'],

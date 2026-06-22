@@ -16,19 +16,6 @@ export function registerWujieEvent(event: string, handler: Function) {
   registeredEvents.push({ event, handler });
 }
 
-export function unregisterWujieEvent(event: string, handler: Function) {
-  if (!handler) {
-    return;
-  }
-  bus.$off(event, handler);
-  const index = registeredEvents.findIndex(
-    (item) => item.event === event && item.handler === handler
-  );
-  if (index > -1) {
-    registeredEvents.splice(index, 1);
-  }
-}
-
 export function clearAllWujieEvents() {
   registeredEvents.forEach(({ event, handler }) => {
     if (handler) {
@@ -36,12 +23,4 @@ export function clearAllWujieEvents() {
     }
   });
   registeredEvents.length = 0;
-}
-
-export function useWujieEvents() {
-  return {
-    registerEvent: registerWujieEvent,
-    unregisterEvent: unregisterWujieEvent,
-    clearAllEvents: clearAllWujieEvents,
-  };
 }

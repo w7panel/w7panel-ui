@@ -56,7 +56,6 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 
-import axios from "axios";
 import { useNamespaceStore } from '@/store';
 import { getUserInfo } from '@/utils/auth';
 

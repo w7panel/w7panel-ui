@@ -51,7 +51,7 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
+
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';

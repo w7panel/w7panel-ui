@@ -7,9 +7,10 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
+
 import { useNamespaceStore } from '@/store';
-import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
+import { setupApp, startApp } from "wujie";
+
 import { getToken } from '@/utils/auth';
 
 export default {

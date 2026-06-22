@@ -116,7 +116,6 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 
-import axios from 'axios';
 import { useNamespaceStore } from '@/store'
 import storeInstallDrawer from '@/components/store-install-drawer.vue';
 

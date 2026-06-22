@@ -10,8 +10,9 @@
 
 <script>
 import { k8sproxy, panelApi } from '@/utils/api';
-import axios from 'axios';
-import { setToken,setPermission, setUserInfo,getK8sinfo, setRefreshToken } from '@/utils/auth';
+
+import { setToken, getK8sinfo, setRefreshToken } from '@/utils/auth';
+
 import treeData from '@/config/treedata.json';
 import useK3kinfo from '@/hooks/k3k-info';
 import { useNamespaceStore } from '@/store';

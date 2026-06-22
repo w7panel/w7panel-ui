@@ -21,8 +21,7 @@
 
 <script>
 import { panelApi } from '@/utils/api';
-import axios from 'axios';
-import { useUserStore } from '@/store';
+
 
 export default {
     data(){

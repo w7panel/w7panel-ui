@@ -64,31 +64,8 @@ class CacheManager {
     this.notifyListeners(pattern.toString());
   }
 
-  has(key: string): boolean {
-    return this.memoryCache.has(key);
-  }
-
-  keys(prefix?: string): string[] {
-    const allKeys = Array.from(this.memoryCache.keys());
-    if (!prefix) {
-      return allKeys;
-    }
-    return allKeys.filter(key => key.startsWith(`${prefix}:`) || key === prefix);
-  }
-
   invalidate(prefix: string): void {
     this.clear(prefix);
-  }
-
-  subscribe(key: string, listener: () => void): () => void {
-    if (!this.listeners.has(key)) {
-      this.listeners.set(key, new Set());
-    }
-    this.listeners.get(key)!.add(listener);
-
-    return () => {
-      this.listeners.get(key)?.delete(listener);
-    };
   }
 
   private notifyListeners(key: string): void {
@@ -104,16 +81,6 @@ class CacheManager {
     }
   }
 
-  getSize(): number {
-    return this.memoryCache.size;
-  }
-
-  getStats(): { size: number; keys: string[] } {
-    return {
-      size: this.memoryCache.size,
-      keys: Array.from(this.memoryCache.keys()),
-    };
-  }
 }
 
 export const cacheManager = new CacheManager();
@@ -121,34 +88,4 @@ export const cacheManager = new CacheManager();
 export const CachePresets = {
   NAMESPACE: 'namespace',
   PERMISSION: 'permission',
-  USER_INFO: 'userinfo',
-  APP_LIST: 'applist',
-  POD_LIST: 'podlist',
-  NODE_LIST: 'nodelist',
-  STORAGE_LIST: 'storagelist',
 };
-
-export function createCachedRequest<T>(
-  key: string,
-  fetcher: () => Promise<T>,
-  options: CacheOptions = {}
-): () => Promise<T> {
-  return async () => {
-    const cached = cacheManager.get<T>(key);
-    if (cached !== undefined) {
-      return cached;
-    }
-
-    const data = await fetcher();
-    cacheManager.set(key, data, options);
-    return data;
-  };
-}
-
-export function invalidateCache(prefix: string): void {
-  cacheManager.invalidate(prefix);
-}
-
-export function subscribeToCache(key: string, listener: () => void): () => void {
-  return cacheManager.subscribe(key, listener);
-}

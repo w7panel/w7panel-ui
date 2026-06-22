@@ -41,7 +41,7 @@ import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import podsCharts from '@/components/pods-charts.vue'
 import { useNamespaceStore } from '@/store';
-import axios from 'axios'
+
 import { getUserInfo } from '@/utils/auth';
 import dayjs from 'dayjs';
 

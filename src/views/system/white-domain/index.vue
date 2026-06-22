@@ -57,7 +57,6 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import psl from 'psl';
-import axios from 'axios';
 
 export default{
     data(){

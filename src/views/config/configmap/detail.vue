@@ -36,7 +36,7 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios'
+
 import hljs from 'highlight.js';
 import { useNamespaceStore } from '@/store';
 import formDrawer from './form-drawer.vue';

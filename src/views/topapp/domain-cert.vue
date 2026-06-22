@@ -31,8 +31,8 @@
 <script>
 import { k8sproxy } from '@/utils/api';
     
-import axios from 'axios';
-import { useNamespaceStore,useLoadingStore } from '@/store';
+
+import { useNamespaceStore, useLoadingStore } from '@/store';
 
 const templateData = {
     data: {

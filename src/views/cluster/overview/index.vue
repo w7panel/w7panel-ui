@@ -64,7 +64,6 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 
-import axios from 'axios';
 import ClusterCharts from './cluster-charts.vue';
 import { useNamespaceStore } from '@/store'
 import olCharts from './ol-charts.vue';

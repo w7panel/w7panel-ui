@@ -326,11 +326,12 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 
-import axios from 'axios';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import {FitAddon} from '@xterm/addon-fit';
-import { useNamespaceStore,useLoadingStore } from '@/store'
+import { FitAddon } from '@xterm/addon-fit';
+
+import { useNamespaceStore } from '@/store'
+
 import { getToken } from '@/utils/auth';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import setGpu from "./set-gpu.vue";
@@ -339,7 +340,8 @@ import nbPage from '@/components/node/nb-page.vue';
 import ndSet from '@/components/node/nd-set.vue';
 
 import yamlEditor from "@/components/yaml-editor.vue";
-import { getPermission,getWebshell,getFileEditor } from '@/utils/auth';
+import { getPermission, getWebshell, getFileEditor } from '@/utils/auth';
+
 import jsyaml from "js-yaml";
 import storeInstallDrawer from '@/components/store-install-drawer.vue';
 

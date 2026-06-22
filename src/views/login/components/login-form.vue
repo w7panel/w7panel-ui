@@ -65,10 +65,11 @@ import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { Message } from '@arco-design/web-vue';
 import { useStorage } from '@vueuse/core';
-import { useUserStore,useNamespaceStore } from '@/store';
+import { useUserStore, useNamespaceStore } from '@/store';
+
 import useLoading from '@/hooks/loading';
 import SlideCapt from "@/components/slide-capt.vue";
-import axios from 'axios';
+
 import { getK8sinfo, getToken } from '@/utils/auth';
 import useK3kinfo from '@/hooks/k3k-info';
 

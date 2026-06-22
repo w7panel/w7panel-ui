@@ -285,7 +285,7 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
+
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 
@@ -296,7 +296,8 @@ import yamlDrawer from '@/components/yaml-drawer.vue';
 import webShell from "@/components/web-shell.vue";
 import podsCharts from '@/components/pods-charts.vue';
 import podLog from '@/components/pod-log.vue';
-import { getToken,getUserInfo } from '@/utils/auth';
+import { getToken, getUserInfo } from '@/utils/auth';
+
 import { getPermission } from '@/utils/auth';
 import { getWebshell } from '@/utils/auth';
 

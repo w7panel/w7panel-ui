@@ -49,8 +49,9 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
-import {basicSetup, EditorView} from "codemirror";
+
+import { basicSetup, EditorView } from "codemirror";
+
 import { yaml } from "@codemirror/lang-yaml";
 import jsyaml from "js-yaml";
 

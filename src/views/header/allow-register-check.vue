@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import { isLogin,setToken } from '@/utils/auth';
+import { isLogin, setToken } from '@/utils/auth';
 
 export default {
     data(){
