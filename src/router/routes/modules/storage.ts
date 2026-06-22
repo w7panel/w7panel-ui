@@ -65,17 +65,6 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     roles: ['*'],
                 },
             },
-            
-            // {
-            //     path:'storage',
-            //     name:'storage-storage',
-            //     component: () => import('@/views/storage/storage.vue'),
-            //     meta: {
-            //         locale: '存储管理',
-            //         requiresAuth: true,
-            //         roles: ['*'],
-            //     },
-            // },
         ],
     },
 ];

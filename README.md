@@ -4,7 +4,7 @@
 
 ## 技术栈
 
-- **Vue 3.5** - 响应式框架
+- **Vue 3** - 响应式框架
 - **TypeScript** - 类型安全
 - **Arco Design** - UI 组件库
 - **Pinia** - 状态管理
@@ -18,19 +18,19 @@ w7panel-ui/
 │   ├── api/                   # API 接口
 │   ├── assets/                # 静态资源
 │   ├── components/            # 公共组件
-│   │   └── navbar/           # 导航栏
+│   │   ├── navbar/           # 顶部导航
+│   │   ├── menu/             # 侧边菜单
+│   │   └── node/             # 节点相关组件
 │   ├── hooks/                 # 组合式 API
 │   ├── router/                # 路由配置
-│   │   └── routes/           # 路由模块
 │   ├── store/                # 状态管理
-│   ├── styles/                # 全局样式
 │   ├── utils/                 # 工具函数
 │   └── views/                 # 页面组件
 │       ├── app/               # 应用管理
 │       ├── cluster/           # 集群管理
 │       ├── storage/           # 存储管理
 │       └── system/            # 系统管理
-├── public/                    # 公共资源
+├── config/                    # Vite 配置
 └── dist/                      # 构建输出
 ```
 
@@ -38,7 +38,7 @@ w7panel-ui/
 
 ### 环境要求
 
-- Node.js 18+
+- Node.js 18+（项目 `package.json` 声明最低为 14，建议按当前构建链使用 18+）
 
 ### 安装依赖
 
@@ -93,6 +93,6 @@ bash compress-ui-test.sh all
 
 ## 相关文档
 
-- [UI 菜单地图](../docs/testing/ui/ui-menu-map.md)
-- [UI 测试报告](../docs/testing/ui/)
-- [用户手册](../docs/user-guide/)
+- [前端开发文档](../docs/src/development/frontend/index.md)
+- [前端组件文档](../docs/src/development/frontend/components.md)
+- [用户手册](../docs/src/user-guide/index.md)

@@ -257,14 +257,6 @@
             @submit="submitQuota"
         ></quota-edit>
 
-        <!-- <cost-edit
-            :show="costForm.show"
-            :data="costForm"
-            :list="costList"
-            @submit="submitCost"
-            @close="costForm.show=false"
-        ></cost-edit> -->
-
     </div>
 </template>
 
@@ -279,7 +271,6 @@ import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import permissionEdit from '@/components/permission-edit.vue';
 import quotaEdit from '@/components/quota-edit.vue';
-import costEdit from '@/components/cost-edit.vue';
 import dayjs from 'dayjs';
 
 const dataTemplate = {
@@ -422,7 +413,6 @@ export default {
         yamlDrawer,
         permissionEdit,
         quotaEdit,
-        costEdit,
     },
     unmounted(){
         this.leavePage = true;

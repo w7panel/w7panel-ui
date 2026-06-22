@@ -242,19 +242,6 @@
                     </div>
                     <template #extra>主服务器(节点)apiserver地址: https://服务器内网ip:6443</template>
                 </a-form-item>
-                <!-- <a-form-item label="主服务器(节点)token" field="k3s_token" :rules="[{required:true,message:'请输入主服务器token'}]">
-                    <a-input v-model="form.k3s_token" placeholder="请输入"></a-input>
-                    <template #extra>
-                        <span>主服务器(节点)token获取方式: 主服务执行sudo cat /var/lib/rancher/k3s/server/node-token</span>
-                        <a-popover position="left">
-                            <icon-question-circle-fill class="fs-14 cursor ml-2" />
-                            <template #content>
-                                <img src="@/assets/image/apiserver.png" alt="" />
-                            </template>
-                        </a-popover>
-                    </template>
-                </a-form-item> -->
-
                 <a-form-item label="节点类型">
                     <a-select v-model="form.type" placeholder="请选择" @change="form.command?submitForm():'';">
                         <a-option value="agent">agent</a-option>
@@ -332,7 +319,6 @@
         </a-drawer>
 
         <store-install-drawer :show="installLonghornPlugin.show" :path="installLonghornPlugin.path" @close="installLonghornPlugin.show=false;" @installedStatusSuccess="installLonghornPlugin.show=false;testLonghornSystem();"></store-install-drawer>
-        <!-- <node-bind :show="nodebindshow" :list="list" @close="v=>{nodebindshow=false;v?getList():null;}"></node-bind> -->
     </div>
 </template>
 
@@ -349,9 +335,7 @@ import { getToken } from '@/utils/auth';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import setGpu from "./set-gpu.vue";
 import { getUserInfo } from '@/utils/auth';
-import nodeBind from '@/components/node/node-bind.vue';
 import nbPage from '@/components/node/nb-page.vue';
-import ddcNode from '@/components/node/ddc-node.vue';
 import ndSet from '@/components/node/nd-set.vue';
 
 import yamlEditor from "@/components/yaml-editor.vue";
@@ -509,9 +493,7 @@ export default {
         yamlDrawer,
         setGpu,
         yamlEditor,
-        nodeBind,
         nbPage,
-        ddcNode,
         ndSet,
         storeInstallDrawer,
     },

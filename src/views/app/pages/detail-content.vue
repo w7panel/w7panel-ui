@@ -371,17 +371,6 @@
             </a-form>
             
             <template #footer>
-                <!-- <div v-if="userInfo['k3k.io/cluster-mode']=='shared'&&userInfo['w7.cc/user-mode']=='cluster'" class="df jc-e" style="margin-bottom:10px;">
-                    <test-resource
-                        :cpu="form.cpu+form.cpuDw"
-                        :memory="form.memory"
-                        :replica="replicasForm.isAuto? Math.max(replicasForm.max,replicasForm.min) : replicasForm.replicas"
-                        :novisible="false"
-                        @changeStatus="v=>{replicasForm.passed=v}"
-                        @onlyshow="v=>{}"
-                    ></test-resource>
-                </div> -->
-                
                 <div class="df ai-c jc-e">
                     <a-button @click="replicasForm.dialog=false;">取消</a-button>
                     <a-button class="ml-20" type="primary" :loading="submitLoading" @click="submitReplicas">确定</a-button>
@@ -424,7 +413,6 @@ import axios from 'axios'
 import { useNamespaceStore } from '@/store';
 import { getUserInfo } from '@/utils/auth';
 import CryptoJS  from 'crypto-js';
-// import testResource from '@/components/test-resource.vue';
 import appFormVolumes from '@/components/app-form-volumes.vue';
 
 export default {
@@ -493,7 +481,6 @@ export default {
         // ...mapState(['namespace','namespaceActive']),
     },
     components: {
-        // testResource,
         appFormVolumes,
     },
     watch:{

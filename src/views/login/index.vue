@@ -1,18 +1,11 @@
 <template>
     <div class="container">
         <div class="logo">
-            <!-- <img alt="logo" src="//p3-armor.byteimg.com/tos-cn-i-49unhts6dw/dfdba5317c0c20ce20e64fac803d52bc.svg~tplv-49unhts6dw-image.image" /> -->
-            <!-- <div class="logo-text">Arco Design Pro</div> -->
-            <!-- <img alt="logo" src="@/assets/images/logo.png" style="height:30px;" /> -->
         </div>
-        <!-- <LoginBanner /> -->
         <div class="content">
             <div class="content-inner">
                 <LoginForm />
             </div>
-            <!-- <div class="footer">
-            <Footer />
-            </div> -->
         </div>
         
         <div class="df ai-c jc-c df-ww padding-20 c-99 fs-12 mt-10" style="gap:15px;">
@@ -28,14 +21,19 @@
 
 <script lang="ts" setup>
 import { panelApi } from '@/utils/api';
-//   import Footer from '@/components/footer/index.vue';
-//   import LoginBanner from './components/banner.vue';
 import { ref } from 'vue';
-  import LoginForm from './components/login-form.vue';
-import axios from 'axios';
+import LoginForm from './components/login-form.vue';
 import contactUs from '@/components/contact-us.vue';
 
-const site = ref({});
+interface SiteBeian {
+    icpnumber?: string;
+    number?: string;
+    location?: string;
+    license?: string;
+    tbol?: string;
+}
+
+const site = ref<SiteBeian>({});
 
 panelApi.get('/noauth/site/beian',{noAlert:true}).then(res=>{
     let o = res.data || {};

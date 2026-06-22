@@ -1,5 +1,4 @@
 import { mergeConfig } from 'vite';
-// import eslint from 'vite-plugin-eslint';
 import baseConfig from './vite.config.base';
 
 // const proxyUrl = 'http://172.16.1.13:8002';
@@ -105,13 +104,6 @@ export default mergeConfig(
         },
       },
     },
-    plugins: [
-      // eslint({
-      //     cache: false,
-      //     include: ['src/**/*.ts', 'src/**/*.tsx', 'src/**/*.vue'],
-      //     exclude: ['node_modules'],
-      // }),
-    ],
   },
   baseConfig
 );

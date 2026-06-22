@@ -42,7 +42,7 @@ export default defineStore('namespace', {
                     },
                     noAlert: true,
                     timeout: 10000,
-                });
+                } as any);
                 
                 let list = res?.data?.items || [];
                 list = list.map((i: any) => i?.metadata?.name).filter(Boolean);
