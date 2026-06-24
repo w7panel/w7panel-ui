@@ -204,6 +204,10 @@ export default{
                 is_register = data?.is_register;
                 thirdparty_cd_token = data?.thirdparty_cd_token;
             });
+            let frontProps = {};
+            await panelApi.get(`/microapp/${this.info.appgroup}/frontProps`, { noAlert: true }).then(res=>{
+                frontProps = res?.data || {};
+            }).catch(()=>{});
             let props = {
                 url: /^\//.test(this.info.backendUrl)? window.location.origin + this.info.backendUrl : this.info.backendUrl,
                 Authorization: 'Basic '+ btoa(this.info.username+':'+this.info.password),
@@ -212,6 +216,7 @@ export default{
                 w7PanelToken: thirdparty_cd_token,
                 paneltoken: getToken(),
                 ...this.info,
+                ...frontProps,
             }
             console.log(props)
             this.microLoading = true;
