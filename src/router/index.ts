@@ -11,6 +11,8 @@ import useK3kinfo from '@/hooks/k3k-info';
 
 NProgress.configure({ showSpinner: false });
 
+const DYNAMIC_IMPORT_RELOAD_KEY = 'w7panel-dynamic-import-reloaded';
+
 const getMenuGroupFromRoute = (to: any) => {
   const matchedGroup = [...(to.matched || [])]
     .reverse()
@@ -64,6 +66,22 @@ const router = createRouter(({
     return { top: 0 };
   },
 }) as any);
+
+router.onError((error) => {
+  const message = String(error?.message || error || '');
+  if (!/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message)) {
+    return;
+  }
+  if (sessionStorage.getItem(DYNAMIC_IMPORT_RELOAD_KEY) === '1') {
+    return;
+  }
+  sessionStorage.setItem(DYNAMIC_IMPORT_RELOAD_KEY, '1');
+  window.location.reload();
+});
+
+router.afterEach(() => {
+  sessionStorage.removeItem(DYNAMIC_IMPORT_RELOAD_KEY);
+});
 
 router.beforeEach(async (to, from, next) => {
   const namespaceList = useNamespaceStore().namespaceList;
