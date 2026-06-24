@@ -60,13 +60,10 @@
             
             <a-layout-content v-if="isMicroPage" class="ml-6 df df-c">
                 <div class="bg-white routerviewbox fc ml-6" >
-                    <iframe v-if="info.load_mode === 'iframe'" :src="info.iframeSrc" style="display:block;width:100%;height:100%;border:0;"></iframe>
-                    <template v-else> 
-                        <div v-show="downOk" id="app-detail-micro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
-                        <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:calc(100vh - 146px);">
-                            <div style="height:100%;" class="bg-white"></div>
-                        </a-spin>
-                    </template>
+                    <div v-show="downOk" id="app-detail-micro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
+                    <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:calc(100vh - 146px);">
+                        <div style="height:100%;" class="bg-white"></div>
+                    </a-spin>
                 </div>
             </a-layout-content>
             <a-layout-content v-else class="ml-6 df df-c">
@@ -267,15 +264,43 @@ export default {
             if(!token){ return base; }
             return base + (base.includes('?') ? '&' : '?') + 'api-token=' + token;
         },
+        getMicroAppBaseUrl(){
+            if(this.info.load_mode === 'iframe'){
+                return this.info.serverUrl || this.info.url || this.info.frontendUrl || '';
+            }
+            return this.info.frontendUrl || '';
+        },
+        buildMicroAppUrl(route){
+            const base = this.getMicroAppBaseUrl();
+            if(this.info.load_mode === 'iframe'){
+                return this.buildIframeSrc(base, route);
+            }
+            return base + (route || '');
+        },
+        getMicroRoutePrefix(){
+            return getWujieRoutePrefix(this.getMicroAppBaseUrl());
+        },
+        getMicroNormalizePrefix(){
+            const base = this.getMicroAppBaseUrl();
+            const prefix = this.getMicroRoutePrefix();
+            if(this.info.frontendUrl && this.info.frontendUrl !== base){
+                return {
+                    ...prefix,
+                    frontendIndex: this.info.frontendUrl,
+                    frontendOther: this.info.frontendUrl,
+                };
+            }
+            return prefix;
+        },
         routeChange(v){
             if(this.info.load_mode === 'iframe'){
-                this.info.iframeRoute = v || '';
-                this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
-            }else{
-                bus.$emit("routeChange", (v || '').replace(/^#/,''), {
-                    fromSubPanel: window.__POWERED_BY_WUJIE__
-                });
+                this.menuActive = v || '';
+                this.wujieInit();
+                return;
             }
+            bus.$emit("routeChange", (v || '').replace(/^#/,''), {
+                fromSubPanel: window.__POWERED_BY_WUJIE__
+            });
         },
         async wujieInit(){
             
@@ -286,12 +311,7 @@ export default {
                 this.downOk = res.data?.status !== 'no_download';
                 return res;
             })
-            if(this.info.load_mode=='iframe'){
-                this.info.iframePath = this.info.url;
-                this.info.iframeRoute = this.menuActive || '';
-                this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
-                return;
-            }
+
             
             try{
                 destroyApp(APP_DETAIL_MICRO_NAME);
@@ -322,8 +342,7 @@ export default {
                 paneltoken: getToken(),
                 ...this.info,
             }
-            console.log(props)
-            const appUrl = this.info.frontendUrl + (this.menuActive || '');
+            const appUrl = this.buildMicroAppUrl(this.menuActive || '');
             startApp({
                 name: APP_DETAIL_MICRO_NAME,
                 url: appUrl,
@@ -334,7 +353,7 @@ export default {
                 // alive: true,
                 sync: true,
                 props: props,
-                prefix: getWujieRoutePrefix(this.info.frontendUrl),
+                prefix: this.getMicroRoutePrefix(),
                 loadError: (url, error)=>{
                     console.log(`appdetail loadError`, url, error);
                 },
@@ -368,7 +387,7 @@ export default {
             if(this.isMicroPage){
                 this.routeChange(v);
             }else{
-                this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?'+APP_DETAIL_MICRO_QUERY+'='+encodeURIComponent(this.info.frontendUrl + this.menuActive)).then(res=>{
+                this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?'+APP_DETAIL_MICRO_QUERY+'='+encodeURIComponent(this.getMicroAppBaseUrl() + this.menuActive)).then(res=>{
                     this.$nextTick(()=>{
                         this.wujieInit();
                     })
@@ -416,7 +435,7 @@ export default {
 
                 this.getMenu(item?.spec?.bindings||[]);
                 if(this.isMicroPage){
-                    const appDetailMicro = normalizeWujieSyncRoute(this.$route.query?.[APP_DETAIL_MICRO_QUERY], getWujieRoutePrefix(this.info.frontendUrl));
+                    const appDetailMicro = normalizeWujieSyncRoute(this.$route.query?.[APP_DETAIL_MICRO_QUERY], this.getMicroNormalizePrefix());
                     this.menuActive = appDetailMicro || this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
                     this.selectMenu = [appDetailMicro];
                     if(!this.selectMenu[0] && this.menuActive){
