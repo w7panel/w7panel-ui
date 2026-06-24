@@ -334,7 +334,7 @@ export default {
                 thirdparty_cd_token = data?.thirdparty_cd_token;
             });
             let frontProps = {};
-            await panelApi.get(`/microapp/${this.info.appgroup}/frontProps`, { noAlert: true }).then(res=>{
+            await panelApi.get(`/microapp/${this.info.appgroup}/frontprops`, { noAlert: true }).then(res=>{
                 frontProps = res?.data || {};
             }).catch(()=>{});
             let props = {
