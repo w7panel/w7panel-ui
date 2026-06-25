@@ -6,6 +6,7 @@
             <a-badge text="推荐" class="mr-20">
                 <a-button type="outline" @click="$router.push('/app/store')">应用商店</a-button>
             </a-badge>
+            <!-- <a-button type="outline" class="mr-20" @click="$router.push('/app/product-market')">制品市场</a-button> -->
             <a-button v-if="clusterInfo.exist && clusterInfo.valid" type="outline" class="mr-20" @click="$router.push('/app/cloudstore')">云端应用商店</a-button>
             <a-popover v-if="clusterInfo.exist && !clusterInfo.valid">
                 <a-button disabled type="outline" class="mr-20">云端应用商店</a-button>
