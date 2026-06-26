@@ -119,7 +119,7 @@
             </div>
         </a-modal>
 
-        <wujie-modals v-if="isMicroPage" />
+        <wujie-modals v-if="isMicroPage" :exclude-wujie-events="modalExcludeWujieEvents" />
     </div>
 </template>
 
@@ -241,6 +241,14 @@ export default {
     },
     computed:{
         isMicroPage(){ return this.$route.name == 'group-micro' || this.$route.name == 'group-micro2'; },
+        modalExcludeWujieEvents(){
+            const group = this.$route.params.group || '';
+            const identifie = this.extra?.identifie || this.identifie || '';
+            if(/^w7panel-ckm-/.test(group) || /^w7panel-ckm($|-)/.test(identifie)){
+                return ['toStoreInstall'];
+            }
+            return [];
+        },
     },
     components: {
         formDrawer,

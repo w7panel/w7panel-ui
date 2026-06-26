@@ -11,7 +11,7 @@
                 <div style="height:100%;"></div>
             </a-spin>
 
-            <wujie-modals />
+            <wujie-modals :exclude-wujie-events="modalExcludeWujieEvents" />
         <!-- </template> -->
     </div>
 </template>
@@ -79,6 +79,16 @@ export default{
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
+    },
+    computed: {
+        modalExcludeWujieEvents(){
+            const appgroup = this.info?.appgroup || '';
+            const identifie = this.extra?.identifie || '';
+            if(/^w7panel-ckm-/.test(appgroup) || /^w7panel-ckm($|-)/.test(identifie)){
+                return ['toStoreInstall'];
+            }
+            return [];
+        },
     },
     methods: {
         changeAppMenu(show){

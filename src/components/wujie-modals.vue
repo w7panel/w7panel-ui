@@ -119,7 +119,7 @@ import { useNamespaceStore, useLoadingStore } from '@/store';
 import { getRefreshToken, getToken } from '@/utils/auth';
 import axios from 'axios';
 import { compressFiles } from '@/api/cluster';
-import { registerWujieEvent, clearAllWujieEvents } from '@/hooks/use-wujie-events';
+import { registerWujieEvent, unregisterWujieEvent } from '@/hooks/use-wujie-events';
 
 import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue';
@@ -133,6 +133,12 @@ import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';
 
 export default {
     name: 'WujieModals',
+    props: {
+        excludeWujieEvents: {
+            type: Array,
+            default: () => [],
+        },
+    },
     data() {
         return {
             namespaceActive: '',
@@ -193,32 +199,13 @@ export default {
                 data: {},
                 serverInfo: {},
             },
+            wujieEventHandlers: [],
         };
     },
     created() {
         this.namespaceActive = useNamespaceStore().namespace;
 
-        // 注册 wujie 事件
-        registerWujieEvent('toStoreInstall', this.toStoreInstall);
-        registerWujieEvent('openPage', this.openPage);
-        registerWujieEvent('openApp', this.openApp);
-        registerWujieEvent('toFile', this.toFile);
-        registerWujieEvent('openFile', this.openFile);
-        registerWujieEvent('buildImage', this.buildImage);
-        registerWujieEvent('buildImageLog', this.buildImageLog);
-        registerWujieEvent('closeBuildImageLog', this.closeBuildImageLog);
-        registerWujieEvent('zip', this.zip);
-        registerWujieEvent('uploadFile', this.uploadFile);
-        registerWujieEvent('domainCert', this.setDomainCert);
-        registerWujieEvent('podLog', this.openPodLog);
-        registerWujieEvent('openAppForm', this.openAppForm);
-        registerWujieEvent('ingressEdit', this.openDomainEdit);
-        registerWujieEvent('ingressStrategy', this.openStrategy);
-        registerWujieEvent('checkSession', this.checkSession);
-        registerWujieEvent('containerPlugin', this.openContainerPlugin);
-        registerWujieEvent('buildContainerImage', this.openBuildContainerImage);
-        registerWujieEvent('getOidcCode', this.getOidcCode);
-        registerWujieEvent('getRole', this.getRole)
+        this.registerHostWujieEvents();
 
 // 测试
 // setTimeout(()=>{
@@ -235,7 +222,7 @@ export default {
     },
     beforeUnmount() {
         window.removeEventListener('message', this.iframeMessage)
-        clearAllWujieEvents();
+        this.unregisterHostWujieEvents();
     },
     components: {
         jobLog,
@@ -249,6 +236,42 @@ export default {
         buildImageStatus,
     },
     methods: {
+        registerHostWujieEvents() {
+            const excludeEvents = new Set(this.excludeWujieEvents);
+            const events = [
+                ['toStoreInstall', this.toStoreInstall],
+                ['openPage', this.openPage],
+                ['openApp', this.openApp],
+                ['toFile', this.toFile],
+                ['openFile', this.openFile],
+                ['buildImage', this.buildImage],
+                ['buildImageLog', this.buildImageLog],
+                ['closeBuildImageLog', this.closeBuildImageLog],
+                ['zip', this.zip],
+                ['uploadFile', this.uploadFile],
+                ['domainCert', this.setDomainCert],
+                ['podLog', this.openPodLog],
+                ['openAppForm', this.openAppForm],
+                ['ingressEdit', this.openDomainEdit],
+                ['ingressStrategy', this.openStrategy],
+                ['checkSession', this.checkSession],
+                ['containerPlugin', this.openContainerPlugin],
+                ['buildContainerImage', this.openBuildContainerImage],
+                ['getOidcCode', this.getOidcCode],
+                ['getRole', this.getRole],
+            ];
+
+            this.wujieEventHandlers = events.filter(([event]) => !excludeEvents.has(event));
+            this.wujieEventHandlers.forEach(([event, handler]) => {
+                registerWujieEvent(event, handler);
+            });
+        },
+        unregisterHostWujieEvents() {
+            this.wujieEventHandlers.forEach(([event, handler]) => {
+                unregisterWujieEvent(event, handler);
+            });
+            this.wujieEventHandlers = [];
+        },
         iframeMessage(e){
             if(e?.data?.type=='zpk-store:open-install'){
                 let path = e.data.payload?.path + '?order_sn=' + e.data.payload?.orderSn;
