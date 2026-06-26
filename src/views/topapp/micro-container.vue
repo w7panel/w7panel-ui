@@ -208,6 +208,13 @@ export default{
             await panelApi.get(`/microapp/${this.info.appgroup}/frontprops`, { noAlert: true }).then(res=>{
                 frontProps = res?.data || {};
             }).catch(()=>{});
+            const loginCloud = (componentAppId)=>{
+                const appId = typeof componentAppId === 'object' ? componentAppId?.componentAppId : componentAppId;
+                return panelApi.get('/js-cloud-code', {
+                    params: { componentAppId: appId },
+                    noAlert: true,
+                }).then(res=>res.data);
+            };
             let props = {
                 url: /^\//.test(this.info.backendUrl)? window.location.origin + this.info.backendUrl : this.info.backendUrl,
                 Authorization: 'Basic '+ btoa(this.info.username+':'+this.info.password),
@@ -217,6 +224,7 @@ export default{
                 paneltoken: getToken(),
                 ...this.info,
                 ...frontProps,
+                loginCloud,
             }
             console.log(props)
             this.microLoading = true;
