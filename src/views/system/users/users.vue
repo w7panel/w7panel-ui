@@ -244,6 +244,7 @@
             :fileeditor="pmsForm.fileeditor"
             :name="pmsForm.name"
             :whitelist="pmsForm.whitelist"
+            :api="pmsForm.api"
             :disabledBase="pmsForm.userMode=='founder'"
             :disabledMenu="pmsForm.userMode=='founder'"
             @close="pmsForm.show=false"
@@ -360,6 +361,7 @@ export default {
                 name: '',
                 permissionPackage: '',
                 list: [],
+                api: {},
             },
             quotaForm: {
                 show: false,
@@ -637,6 +639,7 @@ export default {
                 webshell: row.webshell,
                 fileeditor: row.fileeditor,
                 list: row.permission,
+                api: row.api,
                 whitelist: row.whitelist || [],
                 userMode: row.userMode,
             }
@@ -650,6 +653,10 @@ export default {
                 op: 'replace',
                 path: '/metadata/annotations/w7.cc~1menu-name',
                 value: data.permissionPackage,
+            },{
+                op: 'replace',
+                path: '/metadata/annotations/w7.cc~1api',
+                value: JSON.stringify(data.api || {}),
             },{
                 op: 'replace',
                 path: '/metadata/annotations/w7.cc~1domain-white-list',
@@ -896,6 +903,7 @@ export default {
                         permissionPackage: permissionPackage,
                         permissionPackageTitle: permissionPackageTitle,
                         permission: JSON.parse(i.metadata.annotations?.['w7.cc/menu'] || '[]'),
+                        api: JSON.parse(i.metadata.annotations?.['w7.cc/api'] || '{}'),
                         
                         peie: ql?.hard? (hard.cpu+'核'+'/'+hard.memory+'Gi/'+hard.bandwidth+'Mbps/'+hard['requests.storage'])+'Gi' : '',
                         quotaLimit: ql,

@@ -46,6 +46,49 @@
                     <a-tab-pane key="3" title="域名白名单">
                         <whitelist-component ref="whitelist" :data="pmsForm.whitelist"></whitelist-component>
                     </a-tab-pane>
+                    <a-tab-pane key="4" title="API权限">
+                        <a-form-item label="全部API">
+                            <a-switch v-model="pmsForm.apiAll" @change="pmsForm.permissionPackage=''"></a-switch>
+                        </a-form-item>
+                        <a-form-item label="API列表" v-if="!pmsForm.apiAll">
+                            <div class="api-permission-panel">
+                                <div class="api-permission-toolbar">
+                                    <a-input-search v-model="pmsForm.apiSearch" placeholder="搜索 URL / 说明 / Method" allow-clear />
+                                    <a-space>
+                                        <a-button size="small" @click="selectAllApiRoutes">全选</a-button>
+                                        <a-button size="small" @click="clearApiRoutes">清空</a-button>
+                                    </a-space>
+                                </div>
+                                <div class="api-permission-table">
+                                    <table class="com-table">
+                                        <tbody>
+                                            <tr>
+                                                <td style="width:220px;">说明</td>
+                                                <td>URL</td>
+                                                <td style="width:220px;">Method</td>
+                                            </tr>
+                                            <tr v-for="group in filteredApiRouteGroups" :key="group.path">
+                                                <td>{{ group.title }}</td>
+                                                <td class="api-path">{{ group.path }}</td>
+                                                <td>
+                                                    <a-space wrap>
+                                                        <a-checkbox
+                                                            v-for="route in group.routes"
+                                                            :key="apiRouteKey(route)"
+                                                            :model-value="pmsForm.apiSelectedKeys.includes(apiRouteKey(route))"
+                                                            @change="checked => toggleApiRoute(route, checked)"
+                                                        >
+                                                            {{ route.method }}
+                                                        </a-checkbox>
+                                                    </a-space>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </a-form-item>
+                    </a-tab-pane>
                 </a-tabs>
             </a-form>
         </div>
@@ -53,11 +96,16 @@
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import axios from "axios";
 import { useNamespaceStore,useUserStore } from '@/store';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
 import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
+import {
+    getLoadedApiRouteDescriptions,
+    loadApiRouteDescriptions,
+    resolveApiRouteDescription,
+} from '@/utils/api-route-description';
 
 const sharedPass = [
     'cluster-nodes',
@@ -85,7 +133,7 @@ const virtualPass = [
     'zpk',
 ]
 export default {
-    props: ['show','list','name', 'debug','fileeditor','whitelist','webshell','permissionPackage','disabledBase','disabledMenu','noCustom'],
+    props: ['show','list','api','name', 'debug','fileeditor','whitelist','webshell','permissionPackage','disabledBase','disabledMenu','noCustom'],
     data(){
         return {
             namespaceActive: '',
@@ -101,11 +149,18 @@ export default {
                 debug: false,
                 fileeditor: false,
                 webshell: false,
+                apiAll: false,
+                apiSearch: '',
+                apiSelectedKeys: [],
+                apiExtraRules: {},
             },
             
             sharedTreeData: [],
             virtualTreeData: [],
             globalTreeData: [],
+            apiRoutes: [],
+            apiRoutesPromise: null,
+            apiRouteDescriptions: getLoadedApiRouteDescriptions(),
         }
     },
     components: {
@@ -124,7 +179,44 @@ export default {
         this.treeData = useUserStore().getTreeData;
         this.init();
         this.taocan();
+        this.getApiRoutes();
         this.initTreeData();
+    },
+    computed: {
+        apiRouteGroups(){
+            let groupMap = {};
+            this.apiRoutes.forEach(route => {
+                let description = this.apiRouteDescription(route);
+                if(!groupMap[route.path]){
+                    groupMap[route.path] = {
+                        path: route.path,
+                        title: description,
+                        routes: [],
+                    };
+                }
+                groupMap[route.path].routes.push(route);
+            });
+            return Object.values(groupMap).map(group => {
+                group.routes.sort((a, b) => this.methodOrder(a.method) - this.methodOrder(b.method));
+                let titles = Array.from(new Set(group.routes.map(route => this.apiRouteDescription(route)).filter(Boolean)));
+                group.title = titles.length <= 1
+                    ? (titles[0] || '')
+                    : group.routes
+                        .filter(route => this.apiRouteDescription(route))
+                        .map(route => `${route.method} ${this.apiRouteDescription(route)}`)
+                        .join('；');
+                return group;
+            });
+        },
+        filteredApiRouteGroups(){
+            let keyword = String(this.pmsForm.apiSearch || '').trim().toLowerCase();
+            if(!keyword){return this.apiRouteGroups;}
+            return this.apiRouteGroups.filter(group => {
+                return String(group.path || '').toLowerCase().includes(keyword)
+                    || String(group.title || '').toLowerCase().includes(keyword)
+                    || group.routes.some(route => String(route.method || '').toLowerCase().includes(keyword));
+            });
+        },
     },
     components: {
         whitelistComponent,
@@ -139,6 +231,17 @@ export default {
             this.pmsForm.permissionPackage = this.permissionPackage || '';
             this.hasDebug = this.debug===true || this.debug===false;
             this.pmsForm.whitelist = this.whitelist || [];
+            this.pmsForm = {
+                ...this.pmsForm,
+                ...this.apiToForm(this.api || {}),
+            };
+            this.getApiRoutes().then(()=>{
+                if(!this.show){return}
+                this.pmsForm = {
+                    ...this.pmsForm,
+                    ...this.apiToForm(this.api || {}),
+                };
+            });
             
             this.pmsls = this.permissionPackageList;
 
@@ -157,6 +260,7 @@ export default {
             let role = find?.role || parent?.role || '';
             this.$emit('submit',{
                 list: toPermissionPaths(this.pmsForm.list),
+                api: this.formToApi(),
                 permissionPackage: this.pmsForm.permissionPackage,
                 role: role,
                 debug: this.pmsForm.debug,
@@ -189,6 +293,7 @@ export default {
                         webshell: i.spec?.features?.webshell === true,
                         fileeditor: i.spec?.features?.fileeditor === true,
                         whitelist: whitelist,
+                        api: i.spec?.api || {},
                         role: i?.spec?.role || '',
                         parentPermission: i?.spec?.parentPermission || '',
                     }
@@ -213,6 +318,138 @@ export default {
             this.pmsForm.webshell = find.webshell;
             this.pmsForm.fileeditor = find.fileeditor;
             this.pmsForm.whitelist = find.whitelist;
+            this.pmsForm = {
+                ...this.pmsForm,
+                ...this.apiToForm(find.api || {}),
+            };
+        },
+        getApiRoutes(){
+            if(this.apiRoutesPromise){
+                return this.apiRoutesPromise;
+            }
+            this.apiRoutesPromise = Promise.all([
+                panelApi.get('/auth/permissions/routes', {noAlert:true}),
+                loadApiRouteDescriptions(),
+            ]).then(([res, descriptions])=>{
+                this.apiRouteDescriptions = descriptions;
+                let list = res?.data?.data || res?.data || [];
+                this.apiRoutes = Array.isArray(list) ? list.map(route => this.normalizeApiRoute(route)) : [];
+                this.pmsForm.apiSelectedKeys = this.normalizeApiSelectedKeys(this.pmsForm.apiSelectedKeys);
+                return this.apiRoutes;
+            }).finally(()=>{
+                this.apiRoutesPromise = null;
+            });
+            return this.apiRoutesPromise;
+        },
+        apiRouteKey(route){
+            return `${route.method} ${route.path}`;
+        },
+        normalizeApiRoute(route){
+            let method = route?.method || route?.Method || '';
+            let path = route?.path || route?.Path || '';
+            let normalized = {
+                ...route,
+                method: method,
+                path: path,
+                verb: route?.verb || route?.Verb || this.apiRouteVerb(method),
+            };
+            return {
+                ...normalized,
+                description: this.apiRouteDescription(normalized),
+            };
+        },
+        apiRouteDescription(route){
+            return resolveApiRouteDescription(this.apiRouteDescriptions, {
+                method: route?.method || route?.Method,
+                route: route?.path || route?.Path,
+                fallback: route?.description || route?.title || route?.Description || route?.Title || '',
+            });
+        },
+        apiRouteVerb(method){
+            return {
+                GET: 'get',
+                HEAD: 'get',
+                POST: 'create',
+                PUT: 'update',
+                PATCH: 'patch',
+                DELETE: 'delete',
+            }[String(method || '').toUpperCase()] || '';
+        },
+        methodOrder(method){
+            return {
+                GET: 1,
+                POST: 2,
+                PUT: 3,
+                PATCH: 4,
+                DELETE: 5,
+                HEAD: 6,
+            }[String(method || '').toUpperCase()] || 99;
+        },
+        normalizeApiSelectedKeys(keys){
+            let valid = new Set(this.apiRoutes.map(route => this.apiRouteKey(route)));
+            return (keys || []).filter(key => valid.has(key));
+        },
+        apiToForm(api){
+            let rules = api || {};
+            let apiAll = Array.isArray(rules['*']) && rules['*'].includes('*');
+            let selected = [];
+            this.apiRoutes.forEach(route => {
+                let key = this.apiRouteKey(route);
+                let verbs = rules[route.path] || [];
+                if(apiAll || verbs.includes('*') || verbs.includes(route.verb)){
+                    selected.push(key);
+                }
+            });
+            let extraRules = {};
+            Object.keys(rules).forEach(path => {
+                if(path === '*'){return}
+                let matched = this.apiRoutes.some(route => route.path === path);
+                if(!matched){
+                    extraRules[path] = rules[path];
+                }
+            });
+            return {
+                apiAll: apiAll,
+                apiSearch: '',
+                apiSelectedKeys: selected,
+                apiExtraRules: extraRules,
+            };
+        },
+        formToApi(){
+            if(this.pmsForm.apiAll){
+                return {'*': ['*']};
+            }
+            let api = {...(this.pmsForm.apiExtraRules || {})};
+            let selected = new Set(this.pmsForm.apiSelectedKeys || []);
+            this.apiRoutes.forEach(route => {
+                if(!selected.has(this.apiRouteKey(route))){return}
+                if(!api[route.path]){
+                    api[route.path] = [];
+                }
+                if(!api[route.path].includes(route.verb)){
+                    api[route.path].push(route.verb);
+                }
+            });
+            return api;
+        },
+        toggleApiRoute(route, checked){
+            this.pmsForm.permissionPackage = '';
+            let key = this.apiRouteKey(route);
+            let selected = new Set(this.pmsForm.apiSelectedKeys || []);
+            if(checked){
+                selected.add(key);
+            }else{
+                selected.delete(key);
+            }
+            this.pmsForm.apiSelectedKeys = Array.from(selected);
+        },
+        selectAllApiRoutes(){
+            this.pmsForm.permissionPackage = '';
+            this.pmsForm.apiSelectedKeys = this.apiRoutes.map(route => this.apiRouteKey(route));
+        },
+        clearApiRoutes(){
+            this.pmsForm.permissionPackage = '';
+            this.pmsForm.apiSelectedKeys = [];
         },
         initTreeData(){
             this.sharedTreeData = this.filterTree(sharedPass);
@@ -242,4 +479,24 @@ export default {
 </script>
 
 <style scoped>
+.api-permission-panel {
+    width: 100%;
+}
+.api-permission-toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.api-permission-toolbar :deep(.arco-input-wrapper) {
+    max-width: 360px;
+}
+.api-permission-table {
+    max-height: 420px;
+    overflow: auto;
+}
+.api-path {
+    word-break: break-all;
+}
 </style>

@@ -72,42 +72,9 @@ function routeCandidates(route?: string, path?: string) {
   return result;
 }
 
-function methodAction(method?: string, locale?: string) {
-  const upper = String(method || '').toUpperCase();
-  const isEN = normalizeLocale(locale || currentLocale()) === 'en-US';
-  const zh: Record<string, string> = {
-    GET: '查询',
-    HEAD: '查询',
-    POST: '创建或提交',
-    PUT: '更新',
-    PATCH: '部分更新',
-    DELETE: '删除',
-    MKCOL: '创建目录',
-    COPY: '复制',
-    MOVE: '移动',
-    LOCK: '锁定',
-    UNLOCK: '解锁',
-  };
-  const en: Record<string, string> = {
-    GET: 'Query',
-    HEAD: 'Query',
-    POST: 'Create or submit',
-    PUT: 'Update',
-    PATCH: 'Partially update',
-    DELETE: 'Delete',
-    MKCOL: 'Create directory',
-    COPY: 'Copy',
-    MOVE: 'Move',
-    LOCK: 'Lock',
-    UNLOCK: 'Unlock',
-  };
-  return (isEN ? en : zh)[upper] || (isEN ? 'Operate' : '操作');
-}
-
 export function fallbackApiRouteDescription(options: DescribeOptions = {}) {
-  const route = options.route || options.path || '';
-  const action = methodAction(options.method, options.locale);
-  return route ? `${action} ${route}` : action;
+  const isEN = normalizeLocale(options.locale || currentLocale()) === 'en-US';
+  return options.fallback || (isEN ? 'API description not configured' : '接口说明未配置');
 }
 
 export function resolveApiRouteDescription(
