@@ -203,6 +203,31 @@ export default {
                 })
                 return o;
             };
+            const normalizeApiResourceList = (data, groupName, version) => {
+                let kinds = {};
+                const resourceList = Array.isArray(data?.resources) ? data.resources : [];
+                resourceList.forEach(resource => {
+                    if(!resource?.kind || !resource?.name){return}
+                    kinds[resource.kind] = {
+                        resource: resource.name,
+                        scope: resource.namespaced ? 'Namespaced' : 'Cluster',
+                    }
+                })
+                return {
+                    [groupName]: {
+                        [version]: kinds,
+                    }
+                };
+            };
+            const mergeApiResources = (target = {}, source = {}) => {
+                Object.keys(source).forEach(group => {
+                    target[group] = target[group] || {};
+                    Object.keys(source[group]).forEach(version => {
+                        target[group][version] = Object.assign(target[group][version] || {}, source[group][version]);
+                    })
+                })
+                return target;
+            };
 
             await k8sproxy.get('/apis',{
                 headers:{"Accept": "application/json;g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
@@ -211,17 +236,21 @@ export default {
                 this.apis = normalizeApiResources(res?.data?.items);
             })
             await k8sproxy.get('/api',{
-                headers:{"Accept": "g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
+                headers:{"Accept": "application/json;g=apidiscovery.k8s.io;v=v2;as=APIGroupDiscoveryList,application/json;g=apidiscovery.k8s.io;v=v2beta1;as=APIGroupDiscoveryList,application/json"},
             }).then(res=>{
                 let items = res?.data?.items || [];
                 let o = normalizeApiResources(items, 'core');
+                this.apis = mergeApiResources(this.apis, o);
                 if(!o.core && Array.isArray(res?.data?.versions)){
                     o.core = {};
-                    res.data.versions.forEach(version => {
-                        o.core[version] = {};
+                    return Promise.all(res.data.versions.map(version => {
+                        return k8sproxy.get(`/api/${version}`).then(resourceRes => {
+                            mergeApiResources(o, normalizeApiResourceList(resourceRes?.data, 'core', version));
+                        })
+                    })).then(()=>{
+                        this.apis = mergeApiResources(this.apis, o);
                     })
                 }
-                this.apis = Object.assign(this.apis,o);
             })
         },
         toApp(row){
