@@ -18,6 +18,10 @@
             "title": "修改镜像源",
             "key": "cluster-nodes-registries",
             "route": "cluster/nodes/registries"
+        },{
+            "title": "镜像管理",
+            "key": "cluster-nodes-image-list",
+            "route": "cluster/nodes-image-list"
         }]
     },{
         "title": "私有DNS解析",
