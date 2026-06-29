@@ -48,7 +48,7 @@
                                             <icon-close-circle-fill v-else class="va-middle ml-4 c-red fs-14" />
                                             
                                             <a-tooltip v-if="!item.isInstall" :content="item.required?'强制安装，必须先安装该应用后才可进行下一步操作':'不强制安装，可通过自定义填写对应的配置项来取消安装'">
-                                                <a-button size="mini" class="ml-10 super-mini-btn" type="outline" @click="emitNeedInstall(item.name,testModuleNames,item);">
+                                                <a-button size="mini" class="ml-10 super-mini-btn" type="outline" @click="$emit('needInstall',item.name,testModuleNames);">
                                                     <template #icon><icon-download /></template>
                                                     <span v-if="item.required">必选安装</span>
                                                     <span v-else>可选安装</span>
@@ -63,7 +63,7 @@
                                 <div class="fs-14 c-99 mt-10">
                                     <span class="c-red va-middle">未安装主应用</span>
                                     <icon-close-circle-fill class="va-middle ml-4 c-red fs-14" />
-                                    <a-button size="mini" class="ml-10 super-mini-btn" type="outline" @click="emitNeedInstall(item.parentIdentifie,mainAppTest,item);">
+                                    <a-button size="mini" class="ml-10 super-mini-btn" type="outline" @click="$emit('needInstall',item.parentIdentifie,mainAppTest);">
                                         <template #icon><icon-download /></template>
                                         <span>去安装</span>
                                     </a-button>
@@ -124,7 +124,7 @@
                                     <a-select v-model="item.parentReleaseName" label="主应用" placeholder="请选择">
                                         <a-option v-for="opt in rpList[item.parentIdentifie]" :key="opt.name" :label="opt.title+'('+opt.name+')'" :value="opt.name"></a-option>
                                     </a-select>
-                                    <span v-if="!rpList[item.parentIdentifie]||!rpList[item.parentIdentifie].length" class="ml-20 c-blue cursor" style="flex-shrink:0;" @click="emitNeedInstall(item.parentIdentifie,testModuleNames,item);">去安装</span>
+                                    <span v-if="!rpList[item.parentIdentifie]||!rpList[item.parentIdentifie].length" class="ml-20 c-blue cursor" style="flex-shrink:0;" @click="$emit('needInstall',item.parentIdentifie,testModuleNames);">去安装</span>
                                 </a-form-item> -->
 
                                 <a-form-item v-if="item.requirePvc" label="存储" field="pvcname" :rules="[{required:true,message:'请选择存储'}]">
@@ -273,7 +273,7 @@ import shortuuid from 'short-uuid';
 
 export default {
     props: ['is_component','path_identifie','version'],
-    emits: [ 'complete', 'needInstall', 'installed', 'installedStatusSuccess', 'close' ],
+    emits: [ 'complete' ],
     data(){
         return {
             namespaceActive: '',
@@ -372,35 +372,6 @@ export default {
                     i.parentReleaseName = this.rpList?.[i.parentIdentifie]?.[0]?.name || '';
                 }
             })
-        },
-        getRepoInfoPrefix(path){
-            let url = path || this.path || '';
-            if(!url){ return ''; }
-            url = String(url).trim();
-            if(!/^https?:\/\//.test(url)){
-                url = 'https://' + url;
-            }
-            let match = url.match(/^(https?:\/\/[^/]+\/(?:zpk\/)?respo\/info)(?:\/|$)/);
-            if(match?.[1]){ return match[1] + '/'; }
-            url = url.replace(/\/+$/, '') + '/';
-            if(/\/zpk\/$/.test(url)){
-                return url + 'respo/info/';
-            }
-            return url + 'zpk/respo/info/';
-        },
-        getNeedInstallRepoPrefix(item){
-            return this.getRepoInfoPrefix(
-                item?.path_identifie ||
-                item?.repoUrl ||
-                item?.repo_url ||
-                item?.url ||
-                item?.domain ||
-                item?.host ||
-                this.path
-            );
-        },
-        emitNeedInstall(module_name, callback, item){
-            this.$emit('needInstall', module_name, callback, this.getNeedInstallRepoPrefix(item));
         },
         selectDomain(){
             let url = this.configConsole.domains?.find(i=>i.deployItemId==this.form.fullDomain)?.siteUrl || '';
@@ -882,7 +853,7 @@ export default {
             if(sp.module_name!='w7_mysql5' && sp.module_name!='w7_mysql' && sp.module_name!='w7_redis'){return}
             let install = await this.testRely(sp.module_name);
             if(install===false){
-                this.emitNeedInstall(sp.module_name,this.testModuleNames,sp);
+                this.$emit('needInstall',sp.module_name,this.testModuleNames);
             }
         },
         // 检测依赖
@@ -926,7 +897,7 @@ export default {
         // 获取模块名称
         async getTitleByMn(name){
             return panelApi.get('/zpk/config',{params:{
-                repoUrl: (this.getRepoInfoPrefix() || 'https://zpk.w7.cc/zpk/respo/info/') + name,
+                repoUrl: 'https://zpk.w7.cc/zpk/respo/info/'+name,
                 thirdpartyCDToken: this.$route.query.thirdpartyCDToken,
             }}).then(res=>{
                 return res.data?.[0]?.name;
