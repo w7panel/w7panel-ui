@@ -120,6 +120,17 @@ import { useNamespaceStore } from '@/store';
 import SelSvg from './sel-svg.vue';
 
 export default{
+    props: {
+        modelValue: {
+            type: Array,
+            default: null,
+        },
+        embedded: {
+            type: Boolean,
+            default: false,
+        },
+    },
+    emits: ['update:modelValue', 'change'],
     data(){
         return {
             list: [],
@@ -164,12 +175,76 @@ export default{
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
-        this.getList();
+        if(this.useModelValue){
+            this.applyModelValue(this.modelValue);
+        }else{
+            this.getList();
+        }
+    },
+    watch: {
+        modelValue: {
+            deep: true,
+            handler(value){
+                if(this.useModelValue){
+                    this.applyModelValue(value);
+                }
+            },
+        },
     },
     components: {
         SelSvg,
     },
+    computed: {
+        useModelValue(){
+            return Array.isArray(this.modelValue);
+        },
+    },
     methods: {
+        applyModelValue(value){
+            this.list = (value || []).map((item, index)=>{
+                return {
+                    ...this.normalizeItem(item),
+                    configmapName: item.configmapName || item.name || `contact-us-${index + 1}`,
+                    data: item.data || null,
+                };
+            }).sort((a, b)=>a.index - b.index);
+        },
+        normalizeItem(item = {}){
+            return {
+                type: item.type || 'link',
+                name: item.name || '',
+                showName: !!item.showName,
+                text: item.text || '',
+                link: item.link || '',
+                customIcon: Boolean(item.icon),
+                selicon: item.selicon || item.selIcon || 'icon-customer-service',
+                icon: item.icon || item.selicon || item.selIcon || 'icon-customer-service',
+                qrcode: item.qrcode || '',
+                style: String(item.style ?? 0),
+                index: Number(item.index) || 1,
+            };
+        },
+        toModelItem(item){
+            return {
+                type: item.type,
+                link: item.link || '',
+                text: item.text || '',
+                name: item.name || '',
+                showName: !!item.showName,
+                selicon: item.customIcon ? (item.selicon || 'icon-customer-service') : (item.icon || item.selicon || 'icon-customer-service'),
+                icon: item.customIcon ? (item.icon || '') : '',
+                qrcode: item.qrcode || '',
+                style: String(item.style ?? 0),
+                index: Number(item.index || 1),
+            };
+        },
+        emitModelChange(){
+            const value = this.list
+                .map(item=>this.toModelItem(item))
+                .sort((a, b)=>a.index - b.index);
+            this.$emit('update:modelValue', value);
+            this.$emit('change', value);
+        },
         openDrawer(row){
             if(!row){
                 this.form = {
@@ -209,6 +284,7 @@ export default{
             }
         },
         getList(){
+            if(this.useModelValue){ return; }
             k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/contactconfigs").then(res=>{
                 let list = res?.data?.items || [];
                 this.list = list.map(i=>{
@@ -231,6 +307,12 @@ export default{
             })
         },
         del(row){
+            if(this.useModelValue){
+                this.list = this.list.filter(item=>item.configmapName !== row.configmapName);
+                this.emitModelChange();
+                this.$message.success('操作成功');
+                return;
+            }
             k8sproxy.delete("/apis/w7panel.w7.com/v1alpha1/contactconfigs/"+row.configmapName).then(res=>{
                 this.$message.success('操作成功');
                 this.getList();
@@ -276,6 +358,21 @@ export default{
                     this.form.show = false;
                     this.getList();
                 }
+                if(this.useModelValue){
+                    const item = this.normalizeItem(data.spec);
+                    item.configmapName = this.form.configmapName || 'contact-us-' + this.createName();
+                    const index = this.list.findIndex(i=>i.configmapName === item.configmapName);
+                    if(index > -1){
+                        this.list.splice(index, 1, item);
+                    }else{
+                        this.list.push(item);
+                    }
+                    this.list.sort((a, b)=>a.index - b.index);
+                    this.$message.success("操作成功");
+                    this.form.show = false;
+                    this.emitModelChange();
+                    return;
+                }
                 if(this.form.configmapName){
                     data.metadata.resourceVersion = this.form?.data?.metadata?.resourceVersion || '';
                     k8sproxy.put("/apis/w7panel.w7.com/v1alpha1/contactconfigs/"+this.form.configmapName,data).then(callback)
@@ -294,6 +391,11 @@ export default{
             return p;
         },
         updateIndex(row){
+            if(this.useModelValue){
+                this.emitModelChange();
+                this.$message.success('排序更新成功');
+                return;
+            }
             // 使用 patch 请求直接更新 index 字段
             k8sproxy.patch(
                 "/apis/w7panel.w7.com/v1alpha1/contactconfigs/"+row.configmapName,

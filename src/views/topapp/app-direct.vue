@@ -74,10 +74,10 @@
         </div>
 
         <div v-else-if="activeTab === 'contact' && showContact" class="app-direct-contact-section">
-            <contact-us />
+            <contact-us v-model="contactList" embedded @change="submitSetting" />
         </div>
 
-        <div v-if="activeTab !== 'contact'" class="app-direct-actions">
+        <div class="app-direct-actions">
             <a-button type="primary" @click="submitSetting">保存设置</a-button>
         </div>
 
@@ -184,6 +184,7 @@ export default {
                     valueAddedTelecomBusinessLicense: '',
                 },
             },
+            contactList: [],
         }
     },
     created(){
@@ -270,6 +271,7 @@ export default {
                 ...(fallbackGeneral.filing || {}),
                 ...(general.filing || {}),
             };
+            this.contactList = JSON.parse(JSON.stringify(general.contactConfigs || fallbackGeneral.contactConfigs || []));
         },
         async loadReferencedConfigMaps(){
             await Promise.all([
@@ -498,6 +500,7 @@ export default {
                         filing: {
                             ...this.icpDrawer.form,
                         },
+                        contactConfigs: JSON.parse(JSON.stringify(this.contactList || [])),
                     },
                 },
             };
