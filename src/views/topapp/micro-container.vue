@@ -11,7 +11,7 @@
                 <div style="height:100%;"></div>
             </a-spin>
 
-            <wujie-modals :exclude-wujie-events="modalExcludeWujieEvents" />
+            <wujie-modals ref="wujieModals" :exclude-wujie-events="modalExcludeWujieEvents" />
         <!-- </template> -->
     </div>
 </template>
@@ -22,6 +22,7 @@ import { getToken, getK8sinfo } from '@/utils/auth';
 import { bus, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -223,6 +224,7 @@ export default{
                 paneltoken: getToken(),
                 ...this.info,
             }
+            appendWujieModalHandles(props, () => this.$refs.wujieModals);
             console.log(props)
             this.microLoading = true;
             const url = isIframeMode? (this.info.iframeSrc) : (this.info.frontendUrl + this.page)

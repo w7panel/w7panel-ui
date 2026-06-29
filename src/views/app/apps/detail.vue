@@ -119,7 +119,7 @@
             </div>
         </a-modal>
 
-        <wujie-modals v-if="isMicroPage" :exclude-wujie-events="modalExcludeWujieEvents" />
+        <wujie-modals v-if="isMicroPage" ref="wujieModals" :exclude-wujie-events="modalExcludeWujieEvents" />
     </div>
 </template>
 
@@ -132,6 +132,7 @@ import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -330,6 +331,7 @@ export default {
                 paneltoken: getToken(),
                 ...this.info,
             }
+            appendWujieModalHandles(props, () => this.$refs.wujieModals);
             console.log(props)
             const appUrl = this.info.frontendUrl + (this.menuActive || '');
             startApp({
