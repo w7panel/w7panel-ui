@@ -169,6 +169,10 @@
         "key": "system-white-domain",
         "route": "usermanage/usermanage-whitedomain"
     },{
+        "title": "站点设置",
+        "key": "system-site-setting",
+        "route": "usermanage/site-setting"
+    },{
         "title": "系统设置",
         "key": "system-system",
         "route": "usermanage/usermanage-system"

@@ -15,6 +15,12 @@
                 <a-form-item label="注册开关">
                     <a-switch v-model="loginForm.registrationEnabled" />
                 </a-form-item>
+                <a-form-item v-if="showHomepage" label="首页配置">
+                    <a-radio-group v-model="loginForm.indexPage">
+                        <a-radio value="login">登录页</a-radio>
+                        <a-radio value="resource">云资源聚合页</a-radio>
+                    </a-radio-group>
+                </a-form-item>
                 <a-form-item label="协议配置">
                     <div class="df df-c" >
                         <div class="df ai-c ">
@@ -58,6 +64,11 @@
 
         <div class="app-direct-actions">
             <a-button type="primary" @click="submitSetting">保存设置</a-button>
+        </div>
+
+        <div v-if="showContact" class="app-direct-contact">
+            <div class="app-direct-contact-title">联系方式</div>
+            <contact-us />
         </div>
 
         <a-drawer
@@ -108,17 +119,40 @@
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import richEditor from './rich-editor.vue';
+import ContactUs from '@/views/system/system/contact-us.vue';
 
 export default {
-    props: ['roles', 'info'],
+    props: {
+        roles: Array,
+        info: Object,
+        settingName: String,
+        fallbackSettingName: {
+            type: String,
+            default: 'default',
+        },
+        globalMode: {
+            type: Boolean,
+            default: false,
+        },
+        showContact: {
+            type: Boolean,
+            default: false,
+        },
+        showHomepage: {
+            type: Boolean,
+            default: false,
+        },
+    },
     emits: ['open'],
     components: {
         richEditor,
+        ContactUs,
     },
     data(){
         return {
             namespaceActive: 'default',
             settingData: null,
+            globalSettingData: null,
             protocolRefs: {
                 user: null,
                 privacy: null,
@@ -129,6 +163,7 @@ export default {
             loginForm: {
                 loginType: 'password',
                 registrationEnabled: false,
+                indexPage: 'login',
             },
             commonForm: {
                 siteName: '',
@@ -175,37 +210,55 @@ export default {
     },
     methods: {
         getAppgroup(){
-            return this.info?.appgroup || this.$route.params.group;
+            return this.settingName || this.info?.appgroup || this.$route.params.group;
         },
         async initData(){
             const appgroup = this.getAppgroup();
             if(!appgroup){ return; }
             this.configMapCache = {};
+            this.globalSettingData = null;
             try{
-                const res = await k8sproxy.get(
-                    `/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/microappsettings/${appgroup}`,
-                    { noAlert: true }
-                );
+                const requests = [
+                    k8sproxy.get(
+                        `/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/microappsettings/${appgroup}`,
+                        { noAlert: true }
+                    ).catch(()=>null),
+                ];
+                if(!this.globalMode && this.fallbackSettingName && this.fallbackSettingName !== appgroup){
+                    requests.push(k8sproxy.get(
+                        `/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/microappsettings/${this.fallbackSettingName}`,
+                        { noAlert: true }
+                    ).catch(()=>null));
+                }
+                const [res, globalRes] = await Promise.all(requests);
                 this.settingData = res?.data || null;
-                this.applySetting(this.settingData);
+                this.globalSettingData = globalRes?.data || null;
+                this.applySetting(this.settingData, this.globalSettingData);
                 await this.loadReferencedConfigMaps();
             }catch(e){
                 this.settingData = null;
+                this.applySetting(null, null);
             }
         },
-        applySetting(data){
+        applySetting(data, fallbackData){
             const spec = data?.spec || {};
+            const fallbackSpec = fallbackData?.spec || {};
             const login = spec.login || {};
+            const fallbackLogin = fallbackSpec.login || {};
             const general = spec.general || {};
+            const fallbackGeneral = fallbackSpec.general || {};
+            const protocolConfig = login.protocolConfig || {};
+            const fallbackProtocolConfig = fallbackLogin.protocolConfig || {};
 
             this.loginForm = {
                 ...this.loginForm,
-                loginType: login.loginMode || 'password',
-                registrationEnabled: !!login.registrationEnabled,
+                loginType: login.loginMode || fallbackLogin.loginMode || 'password',
+                registrationEnabled: data ? !!login.registrationEnabled : !!fallbackLogin.registrationEnabled,
+                indexPage: login.indexPage || fallbackLogin.indexPage || 'login',
             };
             this.protocolRefs = {
-                user: login.protocolConfig?.userAgreement || null,
-                privacy: login.protocolConfig?.privacyPolicy || null,
+                user: protocolConfig.userAgreement || fallbackProtocolConfig.userAgreement || null,
+                privacy: protocolConfig.privacyPolicy || fallbackProtocolConfig.privacyPolicy || null,
             };
             this.protocols = {
                 user: {
@@ -220,13 +273,14 @@ export default {
 
             this.commonForm = {
                 ...this.commonForm,
-                siteName: general.siteName || '',
+                siteName: general.siteName || fallbackGeneral.siteName || '',
                 logo: '',
-                siteDescription: general.siteDescription || '',
+                siteDescription: general.siteDescription || fallbackGeneral.siteDescription || '',
             };
-            this.logoRef = general.siteLogo || null;
+            this.logoRef = general.siteLogo || fallbackGeneral.siteLogo || null;
             this.icpDrawer.form = {
                 ...this.icpDrawer.form,
+                ...(fallbackGeneral.filing || {}),
                 ...(general.filing || {}),
             };
         },
@@ -356,6 +410,9 @@ export default {
             return this.settingData?.metadata?.namespace || this.namespaceActive;
         },
         getSharedConfigMapName(){
+            if(this.globalMode){
+                return 'default-settings';
+            }
             const refs = [
                 this.protocolRefs.user,
                 this.protocolRefs.privacy,
@@ -439,6 +496,7 @@ export default {
                     login: {
                         loginMode: this.loginForm.loginType || 'password',
                         registrationEnabled: !!this.loginForm.registrationEnabled,
+                        indexPage: this.loginForm.indexPage || 'login',
                         protocolConfig: {
                             userAgreement: {
                                 name: configMapName,

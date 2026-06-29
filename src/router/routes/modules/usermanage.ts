@@ -68,6 +68,17 @@ const DASHBOARD: any = [{
             key: 'system-white-domain'
         },
     },{
+        path: 'site-setting',
+        name: 'usermanage-site-setting',
+        component: ()=>import('@/views/system/site-setting/index.vue'),
+        meta: {
+            locale: '站点设置',
+            hideInMenu: false,
+            requireAuth: true,
+            rules: ['*'],
+            key: 'system-site-setting'
+        },
+    },{
         path: 'usermanage-system',
         name: 'usermanage-system',
         component: ()=>import('@/views/system/system/index.vue'),

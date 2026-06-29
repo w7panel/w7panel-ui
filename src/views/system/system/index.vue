@@ -3,11 +3,8 @@
         <route-breadcrumb />
         <div class="padding-20 bg-white">
             <a-tabs v-model:active-key="tab">
-                <a-tab-pane key="1" title="系统配置"></a-tab-pane>
                 <a-tab-pane key="2" title="超卖配置"></a-tab-pane>
-                <a-tab-pane key="3" title="ICP/域名备案信息"></a-tab-pane>
                 <a-tab-pane key="4" title="域名解析记录"></a-tab-pane>
-                <a-tab-pane key="5" title="联系方式"></a-tab-pane>
             </a-tabs>
             <div v-if="tab=='1'">
                 <a-form ref="register" :model="register" auto-label-width class="padding-20">
@@ -179,7 +176,7 @@ export default{
     data(){
         return {
             namespaceActive: 'default',
-            tab: '1',
+            tab: '2',
             oversold: {},
             register: {},
             filing: {},
@@ -189,16 +186,14 @@ export default{
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
-        this.initRegister();
+        this.initOversold();
     },
     components: {
         ContactUs,
     },
     watch: {
         tab(v){
-            if(v=='1'){this.initRegister()}
             if(v=='2'){this.initOversold()}
-            if(v=='3'){this.initFiling()}
             if(v=='4'){this.initDomainparse()}
         }
     },
