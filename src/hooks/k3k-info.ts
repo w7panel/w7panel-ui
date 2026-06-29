@@ -50,7 +50,7 @@ export default async function useK3kinfo(){
             });
         }
 
-        await axios.get("/panel-api/v1/auth/console/info?code=test").then(res => {
+        await axios.get("/panel-api/v1/auth/console/info?code=test", { noAlert: true } as any).then(res => {
             let cData = res.data;
             if(cData && cData.code === 200 && cData.data) {
                 cData = cData.data;
@@ -73,7 +73,7 @@ export default async function useK3kinfo(){
                 duration: PERMISSION_CACHE_DURATION,
                 prefix: CachePresets.PERMISSION,
             });
-        });
+        }).catch(() => {});
     }
 
     return {data}

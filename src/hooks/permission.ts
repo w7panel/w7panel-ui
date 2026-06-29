@@ -1,13 +1,29 @@
 import { RouteLocationNormalized, RouteRecordRaw } from 'vue-router';
+import { onMounted, onUnmounted, ref } from 'vue';
 // import { useUserStore } from '@/store';
 import { getPermission } from '@/utils/auth';
 import { hasPermission, normalizePermissionPath } from '@/utils/permission-match';
 
 export default function usePermission() {
 //   const userStore = useUserStore();
-  const permission = getPermission() || [];
+  const version = ref(0);
+  const updateVersion = () => {
+    version.value += 1;
+  };
+
+  onMounted(() => {
+    window.addEventListener('w7panel-auth-change', updateVersion);
+    window.addEventListener('storage', updateVersion);
+  });
+  onUnmounted(() => {
+    window.removeEventListener('w7panel-auth-change', updateVersion);
+    window.removeEventListener('storage', updateVersion);
+  });
+
   return {
     accessRouter(route: RouteLocationNormalized | RouteRecordRaw, routePath?: string) {
+      version.value;
+      const permission = getPermission() || [];
       const metaKey = route.meta?.key as string;
       const path = normalizePermissionPath(routePath || (route as RouteLocationNormalized).fullPath || route.path);
       return (

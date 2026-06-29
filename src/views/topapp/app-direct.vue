@@ -3,15 +3,12 @@
         <a-tabs v-model:active-key="activeTab" hide-content class="app-direct-tabs">
             <a-tab-pane key="login" title="登录设置"></a-tab-pane>
             <a-tab-pane key="common" title="通用设置"></a-tab-pane>
+            <a-tab-pane key="filing" title="备案设置"></a-tab-pane>
+            <a-tab-pane v-if="showContact" key="contact" title="联系方式"></a-tab-pane>
         </a-tabs>
 
         <div v-if="activeTab === 'login'" class="app-direct-section">
             <a-form :model="loginForm" auto-label-width>
-                <a-form-item label="登录方式">
-                    <a-select v-model="loginForm.loginType" placeholder="请选择登录方式" style="width:300px;">
-                        <a-option value="password" label="密码登录"></a-option>
-                    </a-select>
-                </a-form-item>
                 <a-form-item label="注册开关">
                     <a-switch v-model="loginForm.registrationEnabled" />
                 </a-form-item>
@@ -36,7 +33,7 @@
             </a-form>
         </div>
 
-        <div v-else class="app-direct-section">
+        <div v-else-if="activeTab === 'common'" class="app-direct-section">
             <a-form :model="commonForm" auto-label-width>
                 <a-form-item label="站点名称">
                     <a-input v-model="commonForm.siteName" :spellcheck="false" placeholder="请输入站点名称" style="width:420px;" />
@@ -56,19 +53,32 @@
                         style="width:520px;"
                     />
                 </a-form-item>
-                <a-form-item label="备案设置">
-                    <a-button type="text" size="small" @click.stop="openIcpSetting">配置</a-button> 
+            </a-form>
+        </div>
+
+        <div v-else-if="activeTab === 'filing'" class="app-direct-section">
+            <a-form :model="icpDrawer.form" auto-label-width>
+                <a-form-item label="ICP备案号">
+                    <a-input v-model="icpDrawer.form.icp" :spellcheck="false" placeholder="请输入ICP备案号" />
+                </a-form-item>
+                <a-form-item label="公安联网备案号">
+                    <a-input v-model="icpDrawer.form.publicSecurityNetworkFiling" :spellcheck="false" placeholder="请输入公安联网备案号" />
+                </a-form-item>
+                <a-form-item label="电子营业执照信息">
+                    <a-input v-model="icpDrawer.form.electronicBusinessLicense" :spellcheck="false" placeholder="请输入电子营业执照信息" />
+                </a-form-item>
+                <a-form-item label="增值电信业务经营许可证">
+                    <a-input v-model="icpDrawer.form.valueAddedTelecomBusinessLicense" :spellcheck="false" placeholder="请输入增值电信业务经营许可证" />
                 </a-form-item>
             </a-form>
         </div>
 
-        <div class="app-direct-actions">
-            <a-button type="primary" @click="submitSetting">保存设置</a-button>
+        <div v-else-if="activeTab === 'contact' && showContact" class="app-direct-contact-section">
+            <contact-us />
         </div>
 
-        <div v-if="showContact" class="app-direct-contact">
-            <div class="app-direct-contact-title">联系方式</div>
-            <contact-us />
+        <div v-if="activeTab !== 'contact'" class="app-direct-actions">
+            <a-button type="primary" @click="submitSetting">保存设置</a-button>
         </div>
 
         <a-drawer
@@ -89,29 +99,6 @@
             />
         </a-drawer>
 
-        <a-drawer
-            :width="720"
-            :visible="icpDrawer.show"
-            @ok="submitIcp"
-            @cancel="icpDrawer.show=false"
-            :popup-container="$popupContainer"
-        >
-            <template #title>备案设置</template>
-            <a-form :model="icpDrawer.form" auto-label-width>
-                <a-form-item label="ICP备案号">
-                    <a-input v-model="icpDrawer.form.icp" :spellcheck="false" placeholder="请输入ICP备案号" />
-                </a-form-item>
-                <a-form-item label="公安联网备案号">
-                    <a-input v-model="icpDrawer.form.publicSecurityNetworkFiling" :spellcheck="false" placeholder="请输入公安联网备案号" />
-                </a-form-item>
-                <a-form-item label="电子营业执照信息">
-                    <a-input v-model="icpDrawer.form.electronicBusinessLicense" :spellcheck="false" placeholder="请输入电子营业执照信息" />
-                </a-form-item>
-                <a-form-item label="增值电信业务经营许可证">
-                    <a-input v-model="icpDrawer.form.valueAddedTelecomBusinessLicense" :spellcheck="false" placeholder="请输入增值电信业务经营许可证" />
-                </a-form-item>
-            </a-form>
-        </a-drawer>
     </div>
 </template>
 
@@ -399,13 +386,6 @@ export default {
         uploadLogo(file){
             // TODO: 接入站点 LOGO 上传
         },
-        openIcpSetting(){
-            this.icpDrawer.show = true;
-        },
-        submitIcp(){
-            // TODO: 接入备案设置保存
-            this.icpDrawer.show = false;
-        },
         getSettingNamespace(){
             return this.settingData?.metadata?.namespace || this.namespaceActive;
         },
@@ -558,6 +538,9 @@ export default {
 }
 .app-direct-section{
     max-width:760px;
+}
+.app-direct-contact-section{
+    max-width:1120px;
 }
 .app-direct-actions{
     margin-top:24px;

@@ -55,6 +55,10 @@ const getUserInfo = () => {
     return userInfo;
 }
 
+const dispatchAuthChange = () => {
+    window.dispatchEvent(new CustomEvent('w7panel-auth-change'));
+};
+
 const setToken = (token: string) => {
     localStorage.setItem((isSubapp? PRE : '' ) + TOKEN_KEY, token);
 };
@@ -78,6 +82,7 @@ const getIframeRefreshToken = () => {
 // };
 const setPermission = (v: string[]) => {
     localStorage.setItem((isSubapp? PRE : '' ) + PERMISSION, JSON.stringify(expandPermissionValues(v)));
+    dispatchAuthChange();
 };
 const setUserInfo = (v: string[]) => {
     localStorage.setItem((isSubapp? PRE : '' ) + USERINFO, JSON.stringify(v));
@@ -91,6 +96,7 @@ const clearToken = () => {
     localStorage.removeItem(FILEEDITOR_KEY);
     localStorage.removeItem(K8SINFO_KEY);
     localStorage.removeItem(WEBSHELL_KEY);
+    dispatchAuthChange();
 };
 
 const clearIframeToken = () => {
