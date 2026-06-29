@@ -582,7 +582,7 @@ export default {
             let enable = this.clusterInfo.ips.filter(i=>!i.onlyshow&&i.enable)?.map(i=>i.ip);
             let disable = this.clusterInfo.ips.filter(i=>!i.onlyshow&&!i.enable)?.map(i=>i.ip);
 
-            k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config',[{
+            k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config',[{
                 op: 'replace',
                 path: '/spec/data/k3s.tls-san',
                 value: enable.join(','),
@@ -609,7 +609,7 @@ export default {
                 ips: [],
                 addIps: [],
             };
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config').then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(res=>{
                 let ips = res?.data?.spec?.data?.['k3s.default-tls-san'] || '';
                 ips = ips?.split(',')?.filter(i=>i);
                 ips = ips.map(i=>{
@@ -677,7 +677,7 @@ export default {
         },
         getConfig(){
             // config
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config').then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(res=>{
                 // console.log(res.data);
                 let data = res?.data || {};
                 if(data.spec?.data?.['k3s.cluster-init']==='false' && data.spec?.data?.['k3s.datastore-endpoint']===''){

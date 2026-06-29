@@ -160,7 +160,7 @@ const dataTemplate = {
     "kind": "ConfigMap",
     "apiVersion": "v1",
     "metadata": {
-        "name": "k3k.quota",
+        "name": "quota",
         "namespace": "default",
         "labels": {
             "type": "quota",
@@ -266,7 +266,7 @@ export default {
                 bandwidth: 1000,
                 bandwidthPercent: 1000,
             };
-            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/k3k.overselling.config',{noAlert:true,loading:true}).then(res=>{
+            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/config',{noAlert:true,loading:true}).then(res=>{
                 this.oversold.exist = true;
                 let spec = res.data.spec;
                 this.oversold.cpuPercent = Number(spec.cpu);
@@ -292,7 +292,7 @@ export default {
             }
 
             if(exist){
-                k8sproxy.patch("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/k3k.overselling.config",{spec},{
+                k8sproxy.patch("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/config",{spec},{
                     loading: true,
                     headers: {'Content-Type': 'application/merge-patch+json'},
                 }).then(()=>{
@@ -304,7 +304,7 @@ export default {
                     apiVersion: 'w7panel.w7.com/v1alpha1',
                     kind: 'OverSellingConfig',
                     metadata: {
-                        name: 'k3k.overselling.config',
+                        name: 'config',
                         labels: {},
                         annotations: {},
                     },
@@ -487,7 +487,7 @@ export default {
                     data.metadata.annotations.title = this.form.title;
                     data.metadata.labels.clustermode = this.form.clustermode;
                     data.metadata.namespace = this.namespaceActive;
-                    data.metadata.name = "k3k.quota." + this.createName();
+                    data.metadata.name = this.createName();
                     k8sproxy.post("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps",data).then(res=>{
                         this.$message.success('操作成功');
                         this.form.show = false;

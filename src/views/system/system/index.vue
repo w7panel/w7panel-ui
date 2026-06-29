@@ -298,13 +298,13 @@ export default{
             //     this.permissionPackageList = list;
             // });
             
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{noAlert:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/config',{noAlert:true}).then(res=>{
                 this.register = {
                     ...this.register,
                     allowConsoleRegister: res?.data?.spec?.data?.allowConsoleRegister === 'true',
                     // showInShop: res?.data?.spec?.data?.showInShop === 'true',
                     indexpage: res?.data?.spec?.data?.indexpage || 'login',
-                    defaultPermissionName: 'k3k.permission.normal',
+                    defaultPermissionName: 'normal',
                     // defaultPermissionName: res?.data?.spec?.data?.defaultPermissionName,
                 }
             }).catch((err)=>{
@@ -319,7 +319,7 @@ export default{
                     apiVersion: 'w7panel.w7.com/v1alpha1',
                     kind: 'K3kConfig',
                     metadata: {
-                        name: 'k3k.config',
+                        name: 'config',
                         labels: {},
                         annotations: {},
                     },
@@ -332,7 +332,7 @@ export default{
                         ...this.register,
                         allowConsoleRegister: false,
                         // showInShop: false,
-                        defaultPermissionName: 'k3k.permission.normal',
+                        defaultPermissionName: 'normal',
                         indexpage: 'login',
                     }
                 });
@@ -376,7 +376,7 @@ export default{
             }
         },
         async submitRegister(){
-            await k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{
+            await k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/config',{
                 spec:{
                     data:{
                         allowConsoleRegister: String(this.register.allowConsoleRegister),
@@ -492,7 +492,7 @@ export default{
                 bandwidth: 1000,
                 bandwidthPercent: 1000,
             };
-            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/k3k.overselling.config',{noAlert:true}).then(res=>{
+            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/config',{noAlert:true}).then(res=>{
                 this.oversold.exist = true;
                 let spec = res.data.spec;
                 this.oversold.cpuPercent = Number(spec.cpu);
@@ -516,7 +516,7 @@ export default{
             }
 
             if(exist){
-                k8sproxy.patch("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/k3k.overselling.config",{spec},{
+                k8sproxy.patch("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/config",{spec},{
                     loading: true,
                     headers: {'Content-Type': 'application/merge-patch+json'},
                 }).then(()=>{
@@ -527,7 +527,7 @@ export default{
                     apiVersion: 'w7panel.w7.com/v1alpha1',
                     kind: 'OverSellingConfig',
                     metadata: {
-                        name: 'k3k.overselling.config',
+                        name: 'config',
                         labels: {},
                         annotations: {},
                     },

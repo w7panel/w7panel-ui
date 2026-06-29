@@ -856,7 +856,7 @@ export default {
                     };
                 }
                 if(this.config.editType==2){
-                    k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config',{
+                    k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config',{
                         metadata: {labels:{'data-hash': String(Date.now())}},
                         spec: {data: {'k3s.cluster-init':"true"}}
                     },{
@@ -884,7 +884,7 @@ export default {
         setConfigtype3(){
             this.$refs.configdb.validate(err=>{
                 if(err){return}
-                k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config',{
+                k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config',{
                     metadata: {labels:{'data-hash': String(Date.now())}},
                     spec: {data: {'k3s.datastore-endpoint': this.config.form.dsn}}
                 },{
@@ -905,7 +905,7 @@ export default {
         },
         getConfig(){
             // config
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/k3s.config').then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(res=>{
                 // console.log(res.data);
                 let data = res?.data || {};
                 if(data.spec?.data?.['k3s.cluster-init']==='false' && data.spec?.data?.['k3s.datastore-endpoint']===''){

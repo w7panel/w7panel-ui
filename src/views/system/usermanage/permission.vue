@@ -26,7 +26,7 @@
                         <a-tooltip content="修改">
                             <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
                         </a-tooltip>
-                        <a-button v-if="record.name!='k3k.permission.founder'" type="outline" class="ml-4" icon="plus" size="mini" @click="addCustom(record)">
+                        <a-button v-if="record.name!='founder'" type="outline" class="ml-4" icon="plus" size="mini" @click="addCustom(record)">
                             <template #icon><icon-plus /></template>
                             <span>创建权限</span>
                         </a-button>
@@ -255,7 +255,7 @@ const dataTemplate = {
     "kind": "Permission",
     "apiVersion": "w7panel.w7.com/v1alpha1",
     "metadata": {
-        "name": "k3k.permission",
+        "name": "permission",
         "labels": {
             "typemode": "custom",
         },
@@ -266,8 +266,8 @@ const dataTemplate = {
         "type": "custom",
         "role": "normal",
         "parentPermission": "",
-        "menu": [],
-        "api": {},
+        "menuRules": [],
+        "apiRules": [],
         "features": {
             "debug": false,
             "webshell": false,
@@ -312,7 +312,7 @@ export default {
             sharedTreeData: [],
             virtualTreeData: [],
 
-            founderName: 'k3k.permission.founder',
+            founderName: 'founder',
             apiRoutes: [],
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
@@ -394,7 +394,7 @@ export default {
             k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
                 list = list.map(i=>{
-                    let permission = toTreeKeys(i?.spec?.menu || []);
+                    let permission = toTreeKeys(i?.spec?.menuRules || []);
                     let whitelist = i?.spec?.domainWhiteList || [];
                     return {
                         originData: i,
@@ -409,7 +409,7 @@ export default {
                         clustermode: 'virtual',
                         clustermodeTxt: '独享',
                         whitelist: whitelist,
-                        api: i.spec?.api || {},
+                        api: this.apiRulesToApi(i.spec?.apiRules || []),
                         parentPermission: i.spec?.parentPermission || '',
 
                         type: i.spec?.type == 'builtin' ? 'in' : (i.metadata?.labels?.typemode || 'custom'),
@@ -454,7 +454,7 @@ export default {
             delete originData.metadata.resourceVersion;
             delete originData.metadata.creationTimestamp;
             delete originData.metadata.uid;
-            originData.metadata.name = originData.metadata.name + '.' + this.createName();
+            originData.metadata.name = this.createName();
             originData.metadata.labels = originData.metadata.labels || {};
             originData.metadata.labels.typemode = 'custom';
             originData.spec = originData.spec || {};
@@ -521,7 +521,7 @@ export default {
                     if(this.form.isAdd){
                         data.spec.title = this.form.originTitle + this.form.title;
                     }else{
-                        data.metadata.name = 'k3k.permission.' + this.createName();
+                        data.metadata.name = this.createName();
                         data.spec.title = this.form.title;
                     }
                     delete data.metadata.namespace;
@@ -529,8 +529,8 @@ export default {
                     data.spec.parentPermission = data.spec.type === 'custom'
                         ? (this.form.parentPermission || data.spec.parentPermission || '')
                         : '';
-                    data.spec.menu = toPermissionPaths(this.form.permission);
-                    data.spec.api = api;
+                    data.spec.menuRules = toPermissionPaths(this.form.permission);
+                    data.spec.apiRules = this.apiToRules(api);
                     data.spec.features = {
                         debug: this.form.debug,
                         webshell: this.form.webshell,
@@ -550,8 +550,8 @@ export default {
                     data.spec.parentPermission = data.spec.type === 'custom'
                         ? (this.form.parentPermission || data.spec.parentPermission || '')
                         : '';
-                    data.spec.menu = toPermissionPaths(this.form.permission);
-                    data.spec.api = api;
+                    data.spec.menuRules = toPermissionPaths(this.form.permission);
+                    data.spec.apiRules = this.apiToRules(api);
                     data.spec.features = {
                         debug: this.form.debug,
                         webshell: this.form.webshell,
@@ -684,6 +684,20 @@ export default {
                 }
             });
             return api;
+        },
+        apiRulesToApi(apiRules){
+            let api = {};
+            (apiRules || []).forEach(rule => {
+                if(!rule?.path){return}
+                api[rule.path] = Array.isArray(rule.method) ? [...rule.method] : [];
+            });
+            return api;
+        },
+        apiToRules(api){
+            return Object.keys(api || {}).map(path => ({
+                path,
+                method: Array.isArray(api[path]) ? [...api[path]] : [],
+            }));
         },
         toggleApiRoute(route, checked){
             let key = this.apiRouteKey(route);

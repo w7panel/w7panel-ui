@@ -280,7 +280,7 @@ export default {
             k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
                 list = list.map(i=>{
-                    let permission = toTreeKeys(i?.spec?.menu || []);
+                    let permission = toTreeKeys(i?.spec?.menuRules || []);
                     let whitelist = i?.spec?.domainWhiteList || [];
 
                     return {
@@ -293,7 +293,7 @@ export default {
                         webshell: i.spec?.features?.webshell === true,
                         fileeditor: i.spec?.features?.fileeditor === true,
                         whitelist: whitelist,
-                        api: i.spec?.api || {},
+                        api: this.apiRulesToApi(i.spec?.apiRules || []),
                         role: i?.spec?.role || '',
                         parentPermission: i?.spec?.parentPermission || '',
                     }
@@ -429,6 +429,14 @@ export default {
                 if(!api[route.path].includes(route.verb)){
                     api[route.path].push(route.verb);
                 }
+            });
+            return api;
+        },
+        apiRulesToApi(apiRules){
+            let api = {};
+            (apiRules || []).forEach(rule => {
+                if(!rule?.path){return}
+                api[rule.path] = Array.isArray(rule.method) ? [...rule.method] : [];
             });
             return api;
         },

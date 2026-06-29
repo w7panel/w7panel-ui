@@ -554,7 +554,7 @@ export default {
         //     })
         // },
         // openRegister(){
-        //     k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{noAlert:true}).then(res=>{
+        //     k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/config',{noAlert:true}).then(res=>{
         //         this.register = {
         //             show: true,
         //             allowConsoleRegister: res?.data?.spec?.data?.allowConsoleRegister === 'true',
@@ -573,7 +573,7 @@ export default {
         //             apiVersion: 'w7panel.w7.com/v1alpha1',
         //             kind: 'K3kConfig',
         //             metadata: {
-        //                 name: 'k3k.config',
+        //                 name: 'config',
         //                 labels: {},
         //                 annotations: {},
         //             },
@@ -590,7 +590,7 @@ export default {
         //     })
         // },
         // submitRegister(){
-        //     k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/k3k.config',{
+        //     k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/config',{
         //         spec:{
         //             data:{
         //                 allowConsoleRegister: String(this.register.allowConsoleRegister),
