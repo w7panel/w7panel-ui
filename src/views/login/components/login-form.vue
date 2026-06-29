@@ -232,11 +232,11 @@ const handleSubmit = async (am?:any) => {
     try {
         let loginData:any = {};
         if(!am?.passLogin){
-            let {data} = await userStore.login({
+            const res = await userStore.login({
                 ...userInfo,
                 password: userInfo.password,
             });
-            loginData = data;
+            loginData = res?.data?.code === 200 && res?.data?.data ? res.data.data : res?.data;
             console.log('loooooooooogin')
         }else{
             loginData = userStore.loginData;
@@ -253,21 +253,27 @@ const handleSubmit = async (am?:any) => {
             return;
         }
 
-        const {data:k3kInfo} = await useK3kinfo();
+        let k3kInfo:any = {};
+        try{
+            const res = await useK3kinfo();
+            k3kInfo = res?.data || {};
+        }catch(e){
+            k3kInfo = getK8sinfo() || {};
+        }
         console.log('k3kinfo',k3kInfo)
         console.log('loginData',loginData)
         if(k3kInfo?.['w7.cc/role']=='normal'){
             router.push('/appgroup/w7panel-ckm-root/micro')
         }else{
             if(!loginData.isK3kUser){
-                beforeTest();
+                await beforeTest();
             }else{
                 let couponCode = router?.currentRoute?.value?.query?.couponCode || '';
                 
                 if(k3kInfo?.['w7.cc/need-create-order']=='true' || k3kInfo?.['w7.cc/need-renew']=='true'){
                     router.push('/order-base?couponCode=' + couponCode);
                 }else if(k3kInfo?.['w7.cc/k3k-job-status']=='complete'){
-                    beforeTest();
+                    await beforeTest();
                 }else{
                     router.push('/init-cluster')
                 }

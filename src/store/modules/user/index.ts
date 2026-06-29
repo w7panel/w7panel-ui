@@ -80,7 +80,7 @@ const useUserStore = defineStore('user', {
                 // }
                 // setPermission(arr);
 
-                // res.data = loginData; // 直接将真正的 data 覆盖上去，这样所有的外层组件不用改
+                res.data = loginData; // 直接将真正的 data 覆盖上去，这样所有的外层组件不用改
                 return res;
             } catch (err) {
                 clearToken();
