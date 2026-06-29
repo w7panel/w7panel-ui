@@ -241,7 +241,7 @@ export default {
                 ...this.loginForm,
                 loginType: login.loginMode || fallbackLogin.loginMode || 'password',
                 registrationEnabled: data ? !!login.registrationEnabled : !!fallbackLogin.registrationEnabled,
-                indexPage: login.indexPage || fallbackLogin.indexPage || 'login',
+                indexPage: this.showHomepage ? (login.indexPage || fallbackLogin.indexPage || 'login') : 'login',
             };
             this.protocolRefs = {
                 user: protocolConfig.userAgreement || fallbackProtocolConfig.userAgreement || null,
@@ -476,7 +476,7 @@ export default {
                     login: {
                         loginMode: this.loginForm.loginType || 'password',
                         registrationEnabled: !!this.loginForm.registrationEnabled,
-                        indexPage: this.loginForm.indexPage || 'login',
+                        indexPage: this.showHomepage ? (this.loginForm.indexPage || 'login') : 'login',
                         protocolConfig: {
                             userAgreement: {
                                 name: configMapName,

@@ -73,8 +73,7 @@ function routeCandidates(route?: string, path?: string) {
 }
 
 export function fallbackApiRouteDescription(options: DescribeOptions = {}) {
-  const isEN = normalizeLocale(options.locale || currentLocale()) === 'en-US';
-  return options.fallback || (isEN ? 'API description not configured' : '接口说明未配置');
+  return options.fallback || '-';
 }
 
 export function resolveApiRouteDescription(

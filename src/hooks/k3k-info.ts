@@ -66,7 +66,7 @@ export default async function useK3kinfo(){
             }
 
             if (license_type == 'free') {
-                arr = arr.filter(i => !['system-user', 'system-usergroup', 'usermanage/users', 'usermanage/usergroup'].includes(i))
+                arr = arr.filter(i => !['system-usergroup', 'usermanage/usergroup'].includes(i))
             }
             setPermission(arr);
             cacheManager.set(PERMISSION_CACHE_KEY, Date.now(), {

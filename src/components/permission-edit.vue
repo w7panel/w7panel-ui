@@ -78,7 +78,7 @@
                                                             :model-value="pmsForm.apiSelectedKeys.includes(apiRouteKey(route))"
                                                             @change="checked => toggleApiRoute(route, checked)"
                                                         >
-                                                            {{ route.method }}
+                                                            <a-tag class="api-method-tag" :color="apiMethodColor(route.method)" size="small">{{ route.method }}</a-tag>
                                                         </a-checkbox>
                                                     </a-space>
                                                 </td>
@@ -385,6 +385,17 @@ export default {
                 HEAD: 6,
             }[String(method || '').toUpperCase()] || 99;
         },
+        apiMethodColor(method){
+            return {
+                GET: 'green',
+                POST: 'blue',
+                PUT: 'arcoblue',
+                PATCH: 'orange',
+                DELETE: 'red',
+                HEAD: 'gray',
+                OPTIONS: 'purple',
+            }[String(method || '').toUpperCase()] || 'gray';
+        },
         normalizeApiSelectedKeys(keys){
             let valid = new Set(this.apiRoutes.map(route => this.apiRouteKey(route)));
             return (keys || []).filter(key => valid.has(key));
@@ -506,5 +517,11 @@ export default {
 }
 .api-path {
     word-break: break-all;
+}
+.api-method-tag {
+    min-width: 58px;
+    text-align: center;
+    font-family: var(--font-family);
+    font-weight: 500;
 }
 </style>
