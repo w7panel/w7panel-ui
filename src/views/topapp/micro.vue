@@ -29,6 +29,7 @@
                         v-if="isAppDirectPage"
                         :roles="roles"
                         :info="info"
+                        show-homepage
                         @open="routeChange"
                     />
                 </div>
