@@ -189,7 +189,7 @@
                         <a-form-item label="API列表" v-if="!form.apiAll">
                             <div class="api-permission-panel">
                                 <div class="api-permission-toolbar">
-                                    <a-input-search v-model="form.apiSearch" placeholder="搜索 URL / 说明 / Method" allow-clear />
+                                    <a-input-search v-model="form.apiSearch" placeholder="搜索 PATH / 说明 / Method" allow-clear />
                                     <a-space>
                                         <a-button size="small" @click="selectAllApiRoutes">全选</a-button>
                                         <a-button size="small" @click="clearApiRoutes">清空</a-button>
@@ -207,16 +207,21 @@
                                                 <td>{{ group.title }}</td>
                                                 <td class="api-path">{{ group.path }}</td>
                                                 <td>
-                                                    <a-space wrap>
-                                                        <a-checkbox
+                                                    <a-select
+                                                        :model-value="apiGroupSelectedMethods(group, form.apiSelectedKeys)"
+                                                        multiple
+                                                        allow-clear
+                                                        placeholder="方法匹配值，可多选"
+                                                        style="width:220px;"
+                                                        @change="methods => setApiGroupMethods(group, methods)"
+                                                    >
+                                                        <a-option
                                                             v-for="route in group.routes"
                                                             :key="apiRouteKey(route)"
-                                                            :model-value="form.apiSelectedKeys.includes(apiRouteKey(route))"
-                                                            @change="checked => toggleApiRoute(route, checked)"
-                                                        >
-                                                            <a-tag class="api-method-tag" :color="apiMethodColor(route.method)" size="small">{{ route.method }}</a-tag>
-                                                        </a-checkbox>
-                                                    </a-space>
+                                                            :label="route.method"
+                                                            :value="route.method"
+                                                        ></a-option>
+                                                    </a-select>
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -469,8 +474,9 @@ export default {
             this.form.originData = originData;
             this.edit({
                 ...row,
+                originData: originData,
                 title: '',
-                name: originData.name,
+                name: originData.metadata.name,
                 isAdd: true,
                 originTitle: originTitle? '['+originTitle+'] ' : '',
             });
@@ -514,7 +520,7 @@ export default {
                 if(!this.form.name || this.form.isAdd){
                     let data = null;
                     if(this.form.isAdd){
-                        data = this.form.originData;
+                        data = JSON.parse(JSON.stringify(this.form.originData || {}));
                     }else{
                         data = JSON.parse(JSON.stringify(dataTemplate));
                     }
@@ -524,7 +530,7 @@ export default {
                         data.metadata.name = this.createName();
                         data.spec.title = this.form.title;
                     }
-                    delete data.metadata.namespace;
+                    this.sanitizeCreateMetadata(data);
                     data.spec.domainWhiteList = whitelist;
                     data.spec.parentPermission = data.spec.type === 'custom'
                         ? (this.form.parentPermission || data.spec.parentPermission || '')
@@ -564,6 +570,17 @@ export default {
                     });
                 }
             });
+        },
+        sanitizeCreateMetadata(data){
+            data.metadata = data.metadata || {};
+            delete data.metadata.namespace;
+            delete data.metadata.resourceVersion;
+            delete data.metadata.uid;
+            delete data.metadata.creationTimestamp;
+            delete data.metadata.generation;
+            delete data.metadata.managedFields;
+            data.metadata.annotations = data.metadata.annotations || {};
+            delete data.metadata.annotations['kubectl.kubernetes.io/last-applied-configuration'];
         },
         openYaml(name){
             k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions/" + name, {loading:true}).then(res=>{
@@ -636,16 +653,27 @@ export default {
                 HEAD: 6,
             }[String(method || '').toUpperCase()] || 99;
         },
-        apiMethodColor(method){
-            return {
-                GET: 'green',
-                POST: 'blue',
-                PUT: 'arcoblue',
-                PATCH: 'orange',
-                DELETE: 'red',
-                HEAD: 'gray',
-                OPTIONS: 'purple',
-            }[String(method || '').toUpperCase()] || 'gray';
+        apiGroupSelectedMethods(group, selectedKeys){
+            let selected = new Set(selectedKeys || []);
+            return (group?.routes || [])
+                .filter(route => selected.has(this.apiRouteKey(route)))
+                .map(route => route.method);
+        },
+        nextApiSelectedKeysForGroup(group, methods, currentKeys){
+            let selected = new Set(currentKeys || []);
+            let methodSet = new Set(methods || []);
+            (group?.routes || []).forEach(route => {
+                let key = this.apiRouteKey(route);
+                if(methodSet.has(route.method)){
+                    selected.add(key);
+                }else{
+                    selected.delete(key);
+                }
+            });
+            return Array.from(selected);
+        },
+        setApiGroupMethods(group, methods){
+            this.form.apiSelectedKeys = this.nextApiSelectedKeysForGroup(group, methods, this.form.apiSelectedKeys);
         },
         normalizeApiSelectedKeys(keys){
             let valid = new Set(this.apiRoutes.map(route => this.apiRouteKey(route)));
@@ -750,11 +778,5 @@ export default {
 }
 .api-path {
     word-break: break-all;
-}
-.api-method-tag {
-    min-width: 58px;
-    text-align: center;
-    font-family: var(--font-family);
-    font-weight: 500;
 }
 </style>

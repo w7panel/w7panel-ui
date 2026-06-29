@@ -53,7 +53,7 @@
                         <a-form-item label="API列表" v-if="!pmsForm.apiAll">
                             <div class="api-permission-panel">
                                 <div class="api-permission-toolbar">
-                                    <a-input-search v-model="pmsForm.apiSearch" placeholder="搜索 URL / 说明 / Method" allow-clear />
+                                    <a-input-search v-model="pmsForm.apiSearch" placeholder="搜索 PATH / 说明 / Method" allow-clear />
                                     <a-space>
                                         <a-button size="small" @click="selectAllApiRoutes">全选</a-button>
                                         <a-button size="small" @click="clearApiRoutes">清空</a-button>
@@ -71,16 +71,21 @@
                                                 <td>{{ group.title }}</td>
                                                 <td class="api-path">{{ group.path }}</td>
                                                 <td>
-                                                    <a-space wrap>
-                                                        <a-checkbox
+                                                    <a-select
+                                                        :model-value="apiGroupSelectedMethods(group, pmsForm.apiSelectedKeys)"
+                                                        multiple
+                                                        allow-clear
+                                                        placeholder="方法匹配值，可多选"
+                                                        style="width:220px;"
+                                                        @change="methods => setPmsApiGroupMethods(group, methods)"
+                                                    >
+                                                        <a-option
                                                             v-for="route in group.routes"
                                                             :key="apiRouteKey(route)"
-                                                            :model-value="pmsForm.apiSelectedKeys.includes(apiRouteKey(route))"
-                                                            @change="checked => toggleApiRoute(route, checked)"
-                                                        >
-                                                            <a-tag class="api-method-tag" :color="apiMethodColor(route.method)" size="small">{{ route.method }}</a-tag>
-                                                        </a-checkbox>
-                                                    </a-space>
+                                                            :label="route.method"
+                                                            :value="route.method"
+                                                        ></a-option>
+                                                    </a-select>
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -385,16 +390,28 @@ export default {
                 HEAD: 6,
             }[String(method || '').toUpperCase()] || 99;
         },
-        apiMethodColor(method){
-            return {
-                GET: 'green',
-                POST: 'blue',
-                PUT: 'arcoblue',
-                PATCH: 'orange',
-                DELETE: 'red',
-                HEAD: 'gray',
-                OPTIONS: 'purple',
-            }[String(method || '').toUpperCase()] || 'gray';
+        apiGroupSelectedMethods(group, selectedKeys){
+            let selected = new Set(selectedKeys || []);
+            return (group?.routes || [])
+                .filter(route => selected.has(this.apiRouteKey(route)))
+                .map(route => route.method);
+        },
+        nextApiSelectedKeysForGroup(group, methods, currentKeys){
+            let selected = new Set(currentKeys || []);
+            let methodSet = new Set(methods || []);
+            (group?.routes || []).forEach(route => {
+                let key = this.apiRouteKey(route);
+                if(methodSet.has(route.method)){
+                    selected.add(key);
+                }else{
+                    selected.delete(key);
+                }
+            });
+            return Array.from(selected);
+        },
+        setPmsApiGroupMethods(group, methods){
+            this.pmsForm.permissionPackage = '';
+            this.pmsForm.apiSelectedKeys = this.nextApiSelectedKeysForGroup(group, methods, this.pmsForm.apiSelectedKeys);
         },
         normalizeApiSelectedKeys(keys){
             let valid = new Set(this.apiRoutes.map(route => this.apiRouteKey(route)));
@@ -517,11 +534,5 @@ export default {
 }
 .api-path {
     word-break: break-all;
-}
-.api-method-tag {
-    min-width: 58px;
-    text-align: center;
-    font-family: var(--font-family);
-    font-weight: 500;
 }
 </style>
