@@ -4,9 +4,8 @@
         <div>
             <a-button v-if="permission.includes('app/apps/add')" class="mr-20" type="primary" @click="openForm()"><template #icon><icon-plus /></template>新建</a-button>
             <a-badge text="推荐" class="mr-20">
-                <a-button type="outline" @click="$router.push('/app/store')">应用商店</a-button>
+                <a-button type="outline" @click="$router.push('/app/product-market')">制品市场</a-button>
             </a-badge>
-            <!-- <a-button type="outline" class="mr-20" @click="$router.push('/app/product-market')">制品市场</a-button> -->
             <a-button v-if="clusterInfo.exist && clusterInfo.valid" type="outline" class="mr-20" @click="$router.push('/app/cloudstore')">云端应用商店</a-button>
             <a-popover v-if="clusterInfo.exist && !clusterInfo.valid">
                 <a-button disabled type="outline" class="mr-20">云端应用商店</a-button>
@@ -18,7 +17,6 @@
             <a-button type="outline" class="mr-20" @click="k8syaml.show=true;">K8sYaml创建</a-button>
             <!-- <a-button type="outline" class="mr-20" @click="codepack.show=true;">代码包创建</a-button> -->
             <a-button type="outline" class="mr-20" @click="helm.show=true;">Helm创建</a-button>
-            <a-button v-if="zpk.show" type="outline" class="mr-20" @click="toZpkstore" >制品商店</a-button>
         </div>
         <div class="bg-white padding-20 mt-20">
             <a-table :data="data" class="filetable applisttable" :bordered="false" :pagination="false">
@@ -301,10 +299,6 @@ export default {
                 this.zpk.groupName = res.data?.metadata?.labels?.['w7.cc/identifie'];
                 this.zpk.show = true;
             })
-        },
-        toZpkstore(){
-            // this.$router.push('/appgroup/'+this.zpk.groupName+'/micro?showMenu=false&do='+encodeURIComponent('#/zpk-store-list'))
-            this.$router.push('/app/store/zpk')
         },
         toUpgrade(item){
             let domain = item?.defaultDomain || item?.domain_apps?.[0] || '';

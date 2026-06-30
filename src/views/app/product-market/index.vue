@@ -2,17 +2,16 @@
     <div class="product-market-page">
         <route-breadcrumb class="df-s0" />
         <div class="product-market-body">
-            <div v-if="remoteUrl" id="product-market-wujie" class="product-market-wujie"></div>
-            <a-empty v-else description="制品市场地址未配置" />
+            <div id="product-market-wujie" class="product-market-wujie"></div>
         </div>
     </div>
 </template>
 
 <script>
 import { startApp, destroyApp } from 'wujie';
-import { getToken } from '@/utils/auth';
+import { panelApi } from '@/utils/api';
 
-const PRODUCT_MARKET_URL = '';
+const PRODUCT_MARKET_URL = 'https://zm.w7.com/#/panel-store-list';
 const PRODUCT_MARKET_APP_NAME = 'product-market';
 
 export default {
@@ -28,8 +27,10 @@ export default {
         this.destroyMarket();
     },
     methods: {
-        initMarket() {
+        async initMarket() {
             if (!this.remoteUrl) { return; }
+            const data = await panelApi.get(`/microapp/${this.info.appgroup}/frontprops`, { noAlert: true })
+            console.log(data)
             startApp({
                 name: PRODUCT_MARKET_APP_NAME,
                 url: this.remoteUrl,
@@ -37,7 +38,9 @@ export default {
                 exec: true,
                 sync: true,
                 props: {
-                    paneltoken: getToken(),
+                    frontend_props: {
+                        ...(data?.data || {})
+                    }
                 },
             });
         },
