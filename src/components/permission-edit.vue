@@ -256,7 +256,6 @@ export default {
         },
         submit(){
             let whitelist = this.$refs.whitelist.getList() || [];
-            whitelist = JSON.stringify(whitelist);
             
             let find = this.permissionPackageList.find(i=>i.name==this.pmsForm.permissionPackage);
             let parent = find?.parentPermission
