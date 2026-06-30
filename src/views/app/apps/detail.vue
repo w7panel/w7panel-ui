@@ -116,7 +116,7 @@
             </div>
         </a-modal>
 
-        <wujie-modals v-if="isMicroPage" />
+        <wujie-modals v-if="isMicroPage" ref="wujieModals" :exclude-wujie-events="modalExcludeWujieEvents" />
     </div>
 </template>
 
@@ -129,6 +129,7 @@ import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -237,6 +238,14 @@ export default {
     },
     computed:{
         isMicroPage(){ return this.$route.name == 'group-micro' || this.$route.name == 'group-micro2'; },
+        modalExcludeWujieEvents(){
+            const group = this.$route.params.group || '';
+            const identifie = this.extra?.identifie || this.identifie || '';
+            if(/^w7panel-ckm-/.test(group) || /^w7panel-ckm($|-)/.test(identifie)){
+                return ['toStoreInstall'];
+            }
+            return [];
+        },
     },
     components: {
         formDrawer,
@@ -354,6 +363,8 @@ export default {
                 ...frontProps,
                 loginCloud,
             }
+            appendWujieModalHandles(props, () => this.$refs.wujieModals);
+            console.log(props)
             const appUrl = this.buildMicroAppUrl(this.menuActive || '');
             startApp({
                 name: APP_DETAIL_MICRO_NAME,
