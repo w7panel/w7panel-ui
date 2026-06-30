@@ -172,7 +172,7 @@ const router = useRouter();
 const webshell = ref(getWebshell());
 const userInfo = ref(getUserInfo());
 const isRegister = ref(false);
-const logoimg = ref(window.origin + '/assets/logo.png');
+const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png');
 const permissions = ref(getPermission());
 
 const hasClusterConsole = computed(() => hasPermission(permissions.value || [], 'cluster', 'cluster'));

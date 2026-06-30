@@ -80,6 +80,7 @@ const userStore = useUserStore();
 
 const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png')
 const microLogin = (window as any)?.w7_microapp?.site?.login || {};
+const isMicroAppDirect = Boolean((window as any)?.w7_microapp?.name);
 
 if(microLogin?.indexPage){
     if(microLogin.indexPage=='resource' && !sessionStorage.getItem('passResourcePage')){
@@ -212,7 +213,7 @@ const beforeTest = async ()=>{
             return;
         };
         const { redirect } = router.currentRoute.value.query;
-        router.push(redirect? redirect : {name:'cluster-panel'} as any);
+        router.push(redirect? redirect : (isMicroAppDirect ? '/' : {name:'cluster-panel'} as any));
         Message.success({
             content: '登录成功',
         });
