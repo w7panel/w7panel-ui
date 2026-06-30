@@ -284,20 +284,31 @@ import costEdit from '@/components/cost-edit.vue';
 import dayjs from 'dayjs';
 
 const dataTemplate = {
-    apiVersion: 'v1',
-    automountServiceAccountToken: true,
-    kind: 'ServiceAccount',
+    apiVersion: 'w7panel.w7.com/v1alpha1',
+    kind: 'User',
     metadata: {
         labels:{
-            "w7.cc/user-mode": "cluster",
-            "k3k.io/cluster-status": "new",
         },
         annotations: {
-            password: '',
         },
         name: '',
-        namespace: 'default',
-    }
+    },
+    spec: {
+        passwordHash: '',
+        userMode: 'normal',
+        role: 'normal',
+        permissionName: 'normal',
+        menuRules: [],
+        apiRules: [],
+        features: {
+            debug: false,
+            webshell: false,
+            fileeditor: false,
+        },
+        domainWhiteList: [],
+        demoUser: false,
+        version: 1,
+    },
 }
 
 export default {
@@ -441,12 +452,12 @@ export default {
                 if (err) {
                     return;
                 }
-                k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+this.expiretimeModal.name,[{
-                    op: this.expiretimeModal.forever? 'remove' : 'replace',
-                    path: '/metadata/annotations/w7.cc~1expiretime',
-                    ...(this.expiretimeModal.forever? {} : {value: this.expiretimeModal.expiretime}),
-                }],{
-                    headers: {'Content-Type': 'application/json-patch+json'},
+                k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/users/'+this.expiretimeModal.name,{
+                    spec: {
+                        expireTime: this.expiretimeModal.forever ? null : this.expiretimeModal.expiretime,
+                    }
+                },{
+                    headers: {'Content-Type': 'application/merge-patch+json'},
                     loading: true,
                 }).then(res=>{
                     this.$message.success('操作成功');
@@ -613,16 +624,13 @@ export default {
             }
         },
         submitQuota(data){
-            k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+data.name,[{
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1quota-limit',
-                value: data.limit,
+            k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/users/'+data.name,{
+                spec: {
+                    quotaLimit: data.limit,
+                    quotaLimitLock: Boolean(data.isLock),
+                }
             },{
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1quota-limit-lock',
-                value: String(data.isLock),
-            }],{
-                headers: {'Content-Type': 'application/json-patch+json'},
+                headers: {'Content-Type': 'application/merge-patch+json'},
             }).then(res=>{
                 this.$message.success('操作成功');
                 this.quotaForm.show = false;
@@ -645,42 +653,21 @@ export default {
             }
         },
         submitPermission(data){
-            k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+data.name,[{
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1menu',
-                value: JSON.stringify(data.list),
+            k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/users/'+data.name,{
+                spec: {
+                    menuRules: data.list || [],
+                    permissionName: data.permissionPackage,
+                    apiRules: Object.entries(data.api || {}).map(([path, method])=>({path, method})),
+                    domainWhiteList: Array.isArray(data.whitelist)? data.whitelist : [],
+                    features: {
+                        debug: Boolean(data.debug),
+                        webshell: Boolean(data.webshell),
+                        fileeditor: Boolean(data.fileeditor),
+                    },
+                    ...(data.role ? { role: data.role, userMode: data.role } : {}),
+                }
             },{
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1menu-name',
-                value: data.permissionPackage,
-            },{
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1api',
-                value: JSON.stringify(data.api || {}),
-            },{
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1domain-white-list',
-                value: data.whitelist,
-            },{
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1debug',
-                value: String(data.debug),
-            },{
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1web-shell',
-                value: String(data.webshell),
-            },{
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1file-editor',
-                value: String(data.fileeditor),
-            },
-            ...(data.role?[{
-                op: 'replace',
-                path: '/metadata/labels/w7.cc~1role',
-                value: data.role,
-            }]:[])
-            ],{
-                headers: {'Content-Type': 'application/json-patch+json'},
+                headers: {'Content-Type': 'application/merge-patch+json'},
             }).then(res=>{
                 this.$message.success('操作成功');
                 this.pmsForm.show = false;
@@ -760,14 +747,14 @@ export default {
             this.ws.getLink();
         },
         openYaml(name){
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+name, {loading:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/users/'+name, {loading:true}).then(res=>{
                 if(!res?.data){return}
                 this.yamlData = {
                     show: true,
                     data: res?.data,
                     title: res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
                     submit: (data)=>{
-                        return k8sproxy.put('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/' + data?.metadata?.name, data).then(res=>{
+                        return k8sproxy.put('/apis/w7panel.w7.com/v1alpha1/users/' + data?.metadata?.name, data).then(res=>{
                             this.$message.success("修改成功");
                             this.yamlData = {...this.yamlData, show:false,};
                         })
@@ -795,18 +782,13 @@ export default {
         },
 
         getList(){
-            let labelSelector = "w7.cc/user-mode";
-            if(this.search.clusterStatus){ labelSelector = labelSelector + `,k3k.io/cluster-status=${this.search.clusterStatus}`; }
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts',{
-                params:{
-                    // limit: 500,
-                    labelSelector: labelSelector,
-                },
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/users',{
                 noAlert: true
             }).then(res=>{
                 let list = res?.data?.items || [];
                 list = list.map(i=>{
-                    let storageSize = i.metadata.annotations?.['k3k.io/storage-request-size'] || '';
+                    let spec = i.spec || {};
+                    let storageSize = spec.storageRequestSize || '';
                     let storageSizeDw = 'Mi';
                     if(/Gi$/.test(storageSize)){
                         storageSize = Number(storageSize.replace('Gi',''));
@@ -816,47 +798,45 @@ export default {
                         storageSizeDw = 'Mi';
                     }
                     
-                    let expiretime = new Date(i.metadata.annotations?.['w7.cc/expiretime']).getTime();
-                    let is_expired = !(!i.metadata.annotations?.['w7.cc/expiretime'] || expiretime>Date.now());
+                    let expiretime = new Date(spec.expireTime).getTime();
+                    let is_expired = !(!spec.expireTime || expiretime>Date.now());
 
-                    let permissionPackage = i.metadata.annotations?.['w7.cc/menu-name'] || '';
+                    let permissionPackage = spec.permissionName || '';
                     let permissionPackageTitle = '';
                     if(permissionPackage && this.permissionPackageList.length){
                         permissionPackageTitle = this.permissionPackageList?.find(i=>i.name==permissionPackage)?.title;
                     }
                     
-                    let clusterStatus = i.metadata?.labels?.['k3k.io/cluster-status'];
+                    let clusterStatus = spec.clusterStatus;
                     let clusterStatusTxt = {new:'无资源',ready:'有资源',wait:'待回收',recycle:'回收中',creating:'创建中'}[clusterStatus];
 
 
-                    let whitelist = i.metadata?.annotations?.['w7.cc/domain-white-list'] || '[]';
-                    whitelist = JSON.parse(whitelist);
+                    let whitelist = spec.domainWhiteList || [];
                     
                     // 费用
-                    let costName = i.metadata?.annotations?.['w7.cc/cost-name'] || '';
+                    let costName = spec.costName || '';
                     let costTitle = costName;
                     if(costName){
                         let find = this.costList.find(cl=>cl.name == costName);
                         costTitle = find?.title || costName;
                         if(find){
                             try{
-                                i.metadata.annotations['w7.cc/cost'] = JSON.stringify(find?.data);
+                                spec.cost = find?.data;
                             }catch{}
                         }
-                    }else if(i.metadata?.annotations?.['w7.cc/cost']){
+                    }else if(spec.cost){
                         costTitle = '自定义'
                     }
-                    let cost = i.metadata?.annotations?.['w7.cc/cost'];
-                    cost = cost? JSON.parse(cost) : null;
+                    let cost = spec.cost || null;
                     if(cost?.buymode){
                         cost.buymodeTxt = {give:'赠送',buy:'购买'}[cost.buymode];
                     }
 
                     // 配额
-                    let ql = JSON.parse(i.metadata?.annotations?.['w7.cc/quota-limit'] || '{}');
+                    let ql = spec.quotaLimit || {};
                     
-                    if(i.metadata?.annotations?.['w7.cc/quota-limit-lock']!=='true' && i?.metadata.annotations?.['w7.cc/cost-name']){
-                        let fc = this.costList.find(c=>c.name==i.metadata?.annotations?.['w7.cc/cost-name']);
+                    if(!spec.quotaLimitLock && spec.costName){
+                        let fc = this.costList.find(c=>c.name==spec.costName);
                         if(fc){
                             let d = null;
                             try{
@@ -878,32 +858,35 @@ export default {
                     
                     return {
                         name: i.metadata.name,
-                        expiretime: i.metadata.annotations?.['w7.cc/expiretime'],
+                        expiretime: spec.expireTime,
                         is_expired: is_expired,
                         storageclass: ql?.storageclass || '',
-                        'w7.cc/pause': i.metadata.annotations?.['w7.cc/pause'],
-                        status: i.metadata.annotations?.['w7.cc/k3k-job-status'],
-                        jobname: i.metadata.annotations?.['w7.cc/k3k-job-name'],
-                        clustermode: i.metadata.annotations?.['k3k.io/cluster-mode'] || '',
-                        debug: i.metadata.annotations?.['w7.cc/debug'] == 'true',
-                        webshell: i.metadata.annotations?.['w7.cc/web-shell'] == 'true',
-                        fileeditor: i.metadata.annotations?.['w7.cc/file-editor'] == 'true',
-                        demouser: i.metadata.labels?.['w7.cc/demo-user'] == 'true',
-                        cvmuser: i.metadata.labels?.['w7.cc/cvm-user'] == 'true',
-                        weihu: i.metadata.labels?.['w7.cc/weihu'] == 'true',
+                        'w7.cc/pause': spec.pause,
+                        status: spec.status,
+                        jobname: spec.jobName,
+                        clustermode: spec.clusterMode || '',
+                        debug: spec.features?.debug === true,
+                        webshell: spec.features?.webshell === true,
+                        fileeditor: spec.features?.fileeditor === true,
+                        demouser: spec.demoUser === true,
+                        cvmuser: spec.cvmUser === true,
+                        weihu: spec.maintenance === true,
                         createTime: createTime,
 
-                        userMode: i.metadata.labels?.['w7.cc/user-mode'],
+                        userMode: spec.userMode,
 
-                        recycleTime: i.metadata?.annotations?.['w7.cc/pending-recycle-time'] || '',
+                        recycleTime: spec.pendingRecycleTime || '',
 
                         clusterStatus: clusterStatus,
                         clusterStatusTxt: clusterStatusTxt,
-                        version: Number(i.metadata.annotations?.['w7.cc/version']) || 0,
+                        version: Number(spec.version) || 0,
                         permissionPackage: permissionPackage,
                         permissionPackageTitle: permissionPackageTitle,
-                        permission: JSON.parse(i.metadata.annotations?.['w7.cc/menu'] || '[]'),
-                        api: JSON.parse(i.metadata.annotations?.['w7.cc/api'] || '{}'),
+                        permission: spec.menuRules || [],
+                        api: (spec.apiRules || []).reduce((acc, rule)=>{
+                            if(rule?.path){ acc[rule.path] = rule.method || []; }
+                            return acc;
+                        }, {}),
                         
                         peie: ql?.hard? (hard.cpu+'核'+'/'+hard.memory+'Gi/'+hard.bandwidth+'Mbps/'+hard['requests.storage'])+'Gi' : '',
                         quotaLimit: ql,
@@ -914,7 +897,7 @@ export default {
 
                         storageSize: storageSize,
                         storageSizeDw: storageSizeDw,
-                        password: i.metadata.annotations?.password,
+                        password: spec.passwordHash,
                         whitelist: whitelist,
                         
                         data: i,
@@ -1150,28 +1133,24 @@ export default {
                     delete data.metadata.resourceVersion;
                     delete data.metadata.creationTimestamp;
                     delete data.metadata.uid;
-                    data.metadata.annotations = data.metadata.annotations || {};
-                    data.metadata.labels = data.metadata.labels || {};
-                    data.metadata.annotations.password = this.form.password? hash : this.form.old_password;
-
-                    data.metadata.annotations['k3k.io/storageclass'] = this.form.storageclass;
-                    data.metadata.annotations['k3k.io/cluster-mode'] = this.form.clustermode;
-                    data.metadata.labels['w7.cc/weihu'] = this.form.weihu? 'true' : 'false';
-                    data.metadata.labels['w7.cc/demo-user'] = String(this.form.demouser);
-                    // data.metadata.labels['w7.cc/cvm-user'] = String(this.form.cvmuser);
-                    data.metadata.annotations['k3k.io/storage-request-size'] = this.form.storageSize!==''? (this.form.storageSize + this.form.storageSizeDw) : '';
-                    data.metadata.annotations['w7.cc/version'] = String(this.form.version + 1);
+                    data.spec = data.spec || {};
+                    data.spec.passwordHash = this.form.password? hash : this.form.old_password;
+                    data.spec.clusterMode = this.form.clustermode;
+                    data.spec.maintenance = Boolean(this.form.weihu);
+                    data.spec.demoUser = Boolean(this.form.demouser);
+                    data.spec.storageRequestSize = this.form.storageSize!==''? (this.form.storageSize + this.form.storageSizeDw) : '';
+                    data.spec.version = Number(this.form.version || 0) + 1;
 
                     if(this.form.waitToReady){
-                        data.metadata.labels['k3k.io/cluster-status'] = 'ready';
+                        data.spec.clusterStatus = 'ready';
                     }
                     if(!this.form.forever){
-                        data.metadata.annotations['w7.cc/expiretime'] = this.form.expiretime;
+                        data.spec.expireTime = this.form.expiretime;
                     }else{
-                        delete data.metadata.annotations['w7.cc/expiretime'];
+                        delete data.spec.expireTime;
                     }
 
-                    k8sproxy.put('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+this.form.username,data).then(res=>{
+                    k8sproxy.put('/apis/w7panel.w7.com/v1alpha1/users/'+this.form.username,data).then(res=>{
                         this.$message.success('操作成功');
                         this.form.show = false;
                         this.getList();
@@ -1182,28 +1161,15 @@ export default {
 
                     const salt = bcrypt.genSaltSync(10);
                     const hash = bcrypt.hashSync(this.form.password, salt);
-                    data.metadata.annotations.password = hash;
-                    data.metadata.annotations['k3k.io/storageclass'] = this.form.storageclass;
-                    data.metadata.annotations['k3k.io/cluster-mode'] = this.form.clustermode;
-                    data.metadata.labels['w7.cc/weihu'] = this.form.weihu? 'true' : 'false';
-                    data.metadata.labels['w7.cc/demo-user'] = String(this.form.demouser);
-                    // data.metadata.labels['w7.cc/cvm-user'] = String(this.form.cvmuser);
-                    data.metadata.labels['w7.cc/role'] = '';
-
-                    data.metadata.annotations['k3k.io/storage-request-size'] =  this.form.storageSize!==""? (this.form.storageSize + this.form.storageSizeDw) : '';
-                    data.metadata.annotations['w7.cc/debug'] = 'false';
-                    data.metadata.annotations['w7.cc/web-shell'] = 'false';
-                    data.metadata.annotations['w7.cc/file-editor'] = 'false';
-                    data.metadata.annotations['w7.cc/version'] = '1';
-                    data.metadata.annotations['w7.cc/menu'] = '[]';
-                    data.metadata.annotations['w7.cc/menu-name'] = '';
-                    data.metadata.annotations['w7.cc/domain-white-list'] = '[]';
-
-                    data.metadata.namespace = this.namespaceActive;
+                    data.spec.passwordHash = hash;
+                    data.spec.clusterMode = this.form.clustermode;
+                    data.spec.maintenance = Boolean(this.form.weihu);
+                    data.spec.demoUser = Boolean(this.form.demouser);
+                    data.spec.storageRequestSize =  this.form.storageSize!==""? (this.form.storageSize + this.form.storageSizeDw) : '';
                     if(!this.form.forever){
-                        data.metadata.annotations['w7.cc/expiretime'] = this.form.expiretime;
+                        data.spec.expireTime = this.form.expiretime;
                     }
-                    k8sproxy.post('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts',data).then(res=>{
+                    k8sproxy.post('/apis/w7panel.w7.com/v1alpha1/users',data).then(res=>{
                         this.$message.success('操作成功');
                         this.form.show = false;
                         this.getList();
@@ -1212,7 +1178,7 @@ export default {
             });
         },
         del(row){
-            k8sproxy.delete('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+row.name).then(res=>{
+            k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/users/'+row.name).then(res=>{
                 this.$message.success('操作成功');
                 this.getList();
             })
