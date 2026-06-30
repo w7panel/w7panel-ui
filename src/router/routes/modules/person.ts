@@ -27,7 +27,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         },
         {
             path: 'order-center',
-            name: 'system-order-center',
+            name: 'person-order-center',
             component: () => import('@/views/system/order-center/list.vue'),
             meta: {
                 locale: '订单中心',
@@ -38,7 +38,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         },
         {
             path: 'order-detail/:id',
-            name: 'system-order-detail',
+            name: 'person-order-detail',
             component: () => import('@/views/system/order-center/detail.vue'),
             meta: {
                 locale: '订单详情',
@@ -49,7 +49,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         },
         {
             path: 'cost-center',
-            name: 'system-cost-center',
+            name: 'person-cost-center',
             component: () => import('@/views/system/cost-center/list.vue'),
             meta: {
                 locale: '费用中心',
@@ -60,7 +60,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         },
         {
             path: 'cost-detail/:id',
-            name: 'system-cost-detail',
+            name: 'person-cost-detail',
             component: () => import('@/views/system/cost-center/detail.vue'),
             meta: {
                 locale: '订单详情',

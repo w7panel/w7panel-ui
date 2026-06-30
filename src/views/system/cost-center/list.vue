@@ -76,7 +76,7 @@ export default {
     },
     methods: {
         goDetail(id){
-            this.$router.push('/system/cost-detail/'+id);
+            this.$router.push({ name: 'person-cost-detail', params: { id } });
         },
         getList(value) {
             // console.log(this.pagination.current);

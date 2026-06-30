@@ -76,7 +76,7 @@ export default {
     },
     methods: {
         goDetail(id){
-            this.$router.push('/system/order-detail/'+id);
+            this.$router.push({ name: 'person-order-detail', params: { id } });
         },
         getList(value) {
             // console.log(this.pagination.current);

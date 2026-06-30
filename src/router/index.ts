@@ -16,7 +16,10 @@ const MICRO_APP_ALLOWED_ROUTE_NAMES = ['cloud-resource', 'login', 'console-login
 
 const isMicroAppDirect = () => Boolean((window as any)?.w7_microapp?.name);
 
-const isMicroAppAllowedRoute = (to: any) => MICRO_APP_ALLOWED_ROUTE_NAMES.includes(String(to.name || ''));
+const isMicroAppAllowedRoute = (to: any) => {
+  const path = String(to.path || '');
+  return MICRO_APP_ALLOWED_ROUTE_NAMES.includes(String(to.name || '')) || path === '/person' || path.startsWith('/person/');
+};
 
 const getMenuGroupFromRoute = (to: any) => {
   const matchedGroup = [...(to.matched || [])]

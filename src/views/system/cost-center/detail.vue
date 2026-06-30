@@ -66,9 +66,9 @@ export default {
             adjustmentList: [],
             topbc: [
                 {name: 'root'},
-                {name: 'system', label: '系统管理'},
-                {name: "system-cost-center", label: "费用中心"},
-                {name: "system-cost-detail", label: "详情"},
+                {name: 'person', label: '个人中心'},
+                {name: "person-cost-center", label: "费用中心"},
+                {name: "person-cost-detail", label: "详情"},
             ]
         }
     },

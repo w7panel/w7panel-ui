@@ -12,8 +12,8 @@ const LEGACY_ROUTE_OVERRIDES: Record<string, string> = {
   'system-whitelist': 'usermanage/usermanage-whitedomain',
   'system-usergroup': 'usermanage/usergroup',
   'system-quota': 'usermanage/quota',
-  'system-order-center': 'person/order-center',
-  'system-cost-center': 'person/cost-center',
+  'person-order-center': 'person/order-center',
+  'person-cost-center': 'person/cost-center',
 };
 
 const KEY_TO_ROUTE: Record<string, string> = {};
