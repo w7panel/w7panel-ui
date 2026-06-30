@@ -12,6 +12,11 @@ import useK3kinfo from '@/hooks/k3k-info';
 NProgress.configure({ showSpinner: false });
 
 const DYNAMIC_IMPORT_RELOAD_KEY = 'w7panel-dynamic-import-reloaded';
+const MICRO_APP_ALLOWED_ROUTE_NAMES = ['cloud-resource', 'login', 'console-login'];
+
+const isMicroAppDirect = () => Boolean((window as any)?.w7_microapp?.name);
+
+const isMicroAppAllowedRoute = (to: any) => MICRO_APP_ALLOWED_ROUTE_NAMES.includes(String(to.name || ''));
 
 const getMenuGroupFromRoute = (to: any) => {
   const matchedGroup = [...(to.matched || [])]
@@ -86,6 +91,11 @@ router.afterEach(() => {
 router.beforeEach(async (to, from, next) => {
   const namespaceList = useNamespaceStore().namespaceList;
   const appStore = useAppStore();
+
+  if (isMicroAppDirect() && !isMicroAppAllowedRoute(to)) {
+    next({ name: isLogin() ? 'cloud-resource' : 'login', replace: true });
+    return;
+  }
 
   // Switch menu group from route meta before async init to avoid showing the old menu briefly.
   appStore.changeMenuFilter(getMenuGroupFromRoute(to));

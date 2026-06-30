@@ -93,7 +93,8 @@ export default {
                     return;
                 };
                 const redirect = this.$route.query?.redirect;
-                this.$router.push(redirect? redirect : {name:'cluster-panel'});
+                const isMicroAppDirect = Boolean(window?.w7_microapp?.name);
+                this.$router.push(isMicroAppDirect ? '/' : (redirect? redirect : {name:'cluster-panel'}));
                 this.$message.success('欢迎使用');
             }).catch(()=>{
                 this.$router.push('/init-cluster')

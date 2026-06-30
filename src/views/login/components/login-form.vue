@@ -213,7 +213,7 @@ const beforeTest = async ()=>{
             return;
         };
         const { redirect } = router.currentRoute.value.query;
-        router.push(redirect? redirect : (isMicroAppDirect ? '/' : {name:'cluster-panel'} as any));
+        router.push(isMicroAppDirect ? '/' : (redirect? redirect : {name:'cluster-panel'} as any));
         Message.success({
             content: '登录成功',
         });
