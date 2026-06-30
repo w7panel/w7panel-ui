@@ -29,7 +29,7 @@ export default {
     methods: {
         async initMarket() {
             if (!this.remoteUrl) { return; }
-            const data = await panelApi.get(`/microapp/${this.info.appgroup}/frontprops`, { noAlert: true })
+            const data = await panelApi.get('/microapp/global-frontprops', { noAlert: true })
             console.log(data)
             startApp({
                 name: PRODUCT_MARKET_APP_NAME,
