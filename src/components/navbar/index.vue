@@ -12,10 +12,9 @@
                 />
             </a-space>
         </div>
-        <div class="center-side df ai-c jc-b">
+        <div v-if="!isMicroAppDirect" class="center-side df ai-c jc-b">
             <div class="fc df ai-c">
                 <a-menu
-                    v-if="route.name !== 'order-base-index' && route.name !== 'init-cluster-index'"
                     mode="horizontal"
                     :selected-keys="selkeys"
                 >
@@ -33,7 +32,7 @@
             </div>
             <div class="df ai-c">
                 <div
-                    v-if="permissions && (hasUsermanage || hasSystem) && route.name !== 'order-base-index' && route.name !== 'init-cluster-index'"
+                    v-if="permissions && (hasUsermanage || hasSystem)"
                 >
                     <a-radio-group
                         v-model="menuFilterValue"
@@ -173,6 +172,7 @@ const webshell = ref(getWebshell());
 const userInfo = ref(getUserInfo());
 const isRegister = ref(false);
 const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png');
+const isMicroAppDirect = Boolean((window as any)?.w7_microapp?.name);
 const permissions = ref(getPermission());
 
 const hasClusterConsole = computed(() => hasPermission(permissions.value || [], 'cluster', 'cluster'));
@@ -279,6 +279,9 @@ const userRole = getK8sinfo()['w7.cc/role'];
 const hasPwd = ref(getK8sinfo()['w7.cc/has-password']);
 
 const getMenutop = () => {
+    if (isMicroAppDirect) {
+        return;
+    }
     if (appStore.topAppsLoaded || appStore.topAppsLoading) {
         return;
     }
@@ -316,16 +319,16 @@ const getConsoleInfo = () => {
     }).catch(() => {});
 };
 
-if (route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {
+if (!isMicroAppDirect) {
     getMenutop();
     getConsoleInfo();
 }
 
 watch(() => route.name, () => {
-    if (!appStore.topAppsLoaded && route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {
+    if (!isMicroAppDirect && !appStore.topAppsLoaded) {
         getMenutop();
     }
-    if (route.name !== 'order-base-index' && route.name !== 'init-cluster-index') {
+    if (!isMicroAppDirect) {
         getConsoleInfo();
     }
 });

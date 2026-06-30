@@ -95,7 +95,7 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
-  if (isLogin() && to.name !== 'order-base-index' && to.name !== 'init-cluster-index') {
+  if (isLogin()) {
     try {
       if (!getPermission()) {
         await useK3kinfo();
