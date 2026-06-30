@@ -345,6 +345,12 @@ export default {
             await panelApi.get(`/microapp/${this.info.appgroup}/frontprops`, { noAlert: true }).then(res=>{
                 frontProps = res?.data || {};
             }).catch(()=>{});
+            if(this.info.frontend_props) {
+                this.info.frontend_props = {
+                    ...this.info.frontend_props,
+                    ...frontProps
+                }
+            }
             const loginCloud = (componentAppId)=>{
                 const appId = typeof componentAppId === 'object' ? componentAppId?.componentAppId : componentAppId;
                 return panelApi.get('/js-cloud-code', {

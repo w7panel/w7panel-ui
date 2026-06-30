@@ -226,6 +226,12 @@ export default{
                     noAlert: true,
                 }).then(res=>res.data);
             };
+            if(this.info.frontend_props) {
+                this.info.frontend_props = {
+                    ...this.info.frontend_props,
+                    ...frontProps
+                }
+            }
             let props = {
                 url: /^\//.test(this.info.backendUrl)? window.location.origin + this.info.backendUrl : this.info.backendUrl,
                 Authorization: 'Basic '+ btoa(this.info.username+':'+this.info.password),
