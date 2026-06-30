@@ -8,6 +8,7 @@ import { k8sproxy } from '@/utils/api';
 import defaultLayout from '@/components/default-layout.vue'
 import { useNamespaceStore } from '@/store';
 import axios from 'axios';
+const ZPK_APPGROUP = 'w7-zpkv2';
 
 export default {
     components: {
@@ -24,14 +25,16 @@ export default {
     },
     methods:{
         getZpk(){
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie=w7-zpkv2&limit=500').then(res=>{
-                if(!res?.data?.items?.[0]){
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/'+ZPK_APPGROUP, {noAlert:true}).then(res=>{
+                if(!res?.data?.metadata?.name){
                     this.$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7_zpkv2');
                     return;
                 }
                 // let url = res.data.items[0]?.spec?.frontendUrl;
 
-                this.$router.push('/app/appgroup/w7-zpkv2/micro2');
+                this.$router.push('/app/appgroup/'+res.data.metadata.name+'/micro2');
+            }).catch(()=>{
+                this.$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7_zpkv2');
             });
         },
     }
