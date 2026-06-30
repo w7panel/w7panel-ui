@@ -212,7 +212,7 @@ export default {
             let userInfo = getUserInfo();
             let wl = userInfo?.['w7.cc/domain-white-list'] || '[]';
             wl = JSON.parse(wl);
-            if(wl.length){
+            if(wl && wl.length){
                 this.whiteList = wl?.filter(i=>!i.disabled);
             }
             return;
