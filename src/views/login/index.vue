@@ -36,11 +36,16 @@ import axios from 'axios';
 import contactUs from '@/components/contact-us.vue';
 
 const site = ref({});
+const microSite = (window as any)?.w7_microapp?.site || {};
 
-panelApi.get('/noauth/site/beian',{noAlert:true}).then(res=>{
-    let o = res.data || {};
-    site.value = o;
-})
+if(microSite?.filing){
+    site.value = microSite.filing;
+}else{
+    panelApi.get('/noauth/site/beian',{noAlert:true}).then(res=>{
+        let o = res.data || {};
+        site.value = o;
+    })
+}
 
 </script>
 

@@ -78,19 +78,29 @@ const slidecapt = ref(null);
 const { loading, setLoading } = useLoading();
 const userStore = useUserStore();
 
-const logoimg = ref(window.origin + '/assets/logo.png')
+const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png')
+const microLogin = (window as any)?.w7_microapp?.site?.login || {};
 
-panelApi.get('/noauth/site/k3k-config',{
-    noAlert: true,
-    noTokenRequired: true,
-}).then(res=>{
-    if(res?.data?.data?.indexpage=='resource' && !sessionStorage.getItem('passResourcePage')){
+if(microLogin?.indexPage){
+    if(microLogin.indexPage=='resource' && !sessionStorage.getItem('passResourcePage')){
         router.push({
             path: '/',
             query: router?.currentRoute?.value?.query || {},
         });
     }
-}).catch(()=>{})
+}else{
+    panelApi.get('/noauth/site/k3k-config',{
+        noAlert: true,
+        noTokenRequired: true,
+    }).then(res=>{
+        if(res?.data?.data?.indexpage=='resource' && !sessionStorage.getItem('passResourcePage')){
+            router.push({
+                path: '/',
+                query: router?.currentRoute?.value?.query || {},
+            });
+        }
+    }).catch(()=>{})
+}
 
 if(getToken()){
     panelApi.get('/k3k/info',{noAlert:true}).then(res=>{

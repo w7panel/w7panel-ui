@@ -137,9 +137,9 @@ export default{
             },
             
             list: [],
-            site: {},
+            site: window?.w7_microapp?.site?.filing || {},
             userInfo: {},
-            logoimg: window.origin + '/assets/logo.png',
+            logoimg: window?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png',
 
             micro: {},
         }
@@ -203,10 +203,12 @@ export default{
             }).catch(()=>{
                     this.toIndex(this.$route.query);
             })
-            panelApi.get('/noauth/site/beian',{noAlert:true}).then(res=>{
-                let site = res.data || {};
-                this.site = site;
-            })
+            if(!window?.w7_microapp?.site?.filing){
+                panelApi.get('/noauth/site/beian',{noAlert:true}).then(res=>{
+                    let site = res.data || {};
+                    this.site = site;
+                })
+            }
         },
         toLogin(){
             if(!isLogin()){
