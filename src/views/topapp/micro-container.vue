@@ -215,6 +215,16 @@ export default{
                 is_register = data?.is_register;
                 thirdparty_cd_token = data?.thirdparty_cd_token;
             });
+            let frontProps = {};
+            await panelApi.get(`/microapp/${this.info.appgroup}/frontprops`, { noAlert: true }).then(res=>{
+                frontProps = res?.data || {};
+            }).catch(()=>{});
+            if(this.info.frontend_props) {
+                this.info.frontend_props = {
+                    ...this.info.frontend_props,
+                    ...frontProps
+                }
+            }
             let props = {
                 url: /^\//.test(this.info.backendUrl)? window.location.origin + this.info.backendUrl : this.info.backendUrl,
                 Authorization: 'Basic '+ btoa(this.info.username+':'+this.info.password),
