@@ -10,23 +10,6 @@
                 <a-form-item label="用户名">
                     <a-input v-model="search.username" placeholder="请输入用户名"></a-input>
                 </a-form-item>
-                <!-- <a-form-item label="过期状态">
-                    <a-select v-model="search.expiretime" placeholder="请选择" style="min-width:150px;">
-                        <a-option label="全部" value=""></a-option>
-                        <a-option label="未过期" value="notexpired"></a-option>
-                        <a-option label="已过期" value="expired"></a-option>
-                    </a-select>
-                </a-form-item>
-                <a-form-item label="资源回收阶段">
-                    <a-select v-model="search.clusterStatus" placeholder="请选择" style="min-width:150px;">
-                        <a-option label="全部" value=""></a-option>
-                        <a-option label="无资源" value="new"></a-option>
-                        <a-option label="有资源" value="ready"></a-option>
-                        <a-option label="待回收" value="wait"></a-option>
-                        <a-option label="回收中" value="recycle"></a-option>
-                        <a-option label="创建中" value="creating"></a-option>
-                    </a-select>
-                </a-form-item> -->
                 <a-form-item>
                     <a-button type="primary" @click="getList">确定</a-button>
                 </a-form-item>
@@ -42,75 +25,6 @@
                         </template>
                     </a-table-column>
 
-                    <!-- <a-table-column title="费用">
-                        <template #cell="{record}">
-                            <div @click="openCost(record)" class="cursor df ai-c">
-                                
-                                <span class="lh-20">{{record.costTitle||'-'}}</span>
-                                <i class="opt-icon hovershow"><icon-edit /></i>
-                            </div>
-                        </template>
-                    </a-table-column> -->
-                    
-                    <!-- <a-table-column title="配额" :width="400">
-                        <template #cell="{record,rowIndex}">
-                            <div class="df df-c">
-                                <div v-else class="df ai-c">
-                                    <span v-if="record.clusterStatusTxt" class="cursor lh-20 mr-4" :class="{'ready':'c-blue','new':'c-99','wait':'c-red','recycle':'c-99','creating':'c-orange'}[record.clusterStatus]"  @click="search.clusterStatus = record.clusterStatus; getList();">[{{record.clusterStatusTxt}}]</span>
-                                    <span>
-                                        <span v-if="record.sourceStatus==-1" class="c-red mr-4">{{ record.sourceStatusTxt }}</span>
-                                        <span v-if="record.sourceStatus==1" class="c-green mr-4">{{ record.sourceStatusTxt }}</span>
-                                        <span v-if="record.sourceStatus==2" class="c-red mr-4">{{ record.sourceStatusTxt }}</span>
-                                        <span v-if="record.sourceStatus==3" class="c-orange mr-4">{{ record.sourceStatusTxt }}</span>
-                                        <span v-if="record.sourceStatus==4" class="c-red mr-4">{{ record.sourceStatusTxt }}</span>
-                                        <a-popover v-if="record.sourceStatus==5" position="bl" @popup-visible-change="v=>v?getErrorReason(record,rowIndex):null" :content-style="{ padding: '6px 10px 10px', minWidth: '100px', minHeight: '40px' }">
-                                            <span class="c-red cursor mr-4">{{ record.sourceStatusTxt }}</span>
-                                            <template #content>
-                                                <a-spin :loading="record.podStatus && record.podStatus.loading" style="width:100%;height:100%;">
-                                                    <div class="c-33" style="white-space:pre;">{{ record.podStatus && record.podStatus.data }}</div>
-                                                </a-spin>
-                                            </template>
-                                        </a-popover>
-                                    </span>
-    
-                                    <span>
-                                        <span v-if="record.sourceStatus==4 || record.sourceStatus==5" class="lh-20 cursor c-99">{{record.peie||'-'}}</span>
-                                        <span v-else-if="record.clusterStatus=='new' || record.clusterStatus=='recycle'" class="lh-20 cursor c-99">{{record.peie||'-'}}</span>
-                                        <span v-else @click="toUserResource(record)" class="lh-20 cursor c-blue">{{record.peie||'-'}}</span>
-                                    </span>
-                                    
-                                    <i @click="editQuota(record)" class="opt-icon hovershow"><icon-edit /></i>
-                                    
-                                    <a-tooltip v-if="record.clusterStatus=='new'" content="创建资源" @click="csCreate(record)">
-                                        <i class="opt-icon hovershow"><icon-plus /></i>
-                                    </a-tooltip>
-    
-                                    <a-tooltip v-if="record.clusterStatus=='ready'" content="回收资源" @click="csWait(record)">
-                                        <i class="opt-icon hovershow"><icon-refresh /></i>
-                                    </a-tooltip>
-                                    <a-tooltip v-if="record.clusterStatus=='wait'" content="恢复资源" @click="csReady(record)">
-                                        <i class="opt-icon hovershow"><icon-reply /></i>
-                                    </a-tooltip>
-                                    
-                                    <a-popconfirm v-if="record.clusterStatus=='wait'||record.clusterStatus=='creating'" :content="'确定快速回收吗'" @ok="quickCsReady(record)" position="tr" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                        <a-tooltip content="快速回收">
-                                            <i class="opt-icon hovershow"><icon-close /></i>
-                                        </a-tooltip>
-                                    </a-popconfirm>
-                                </div>
-                                <div>
-                                    <div class="fs-12 c-99 df ai-c" :class="{cursor:record.expiretime}">
-                                        <span v-if="record.userMode!=='cluster'">-</span>
-                                        <span v-else-if="record.clusterStatus=='new'">-</span>
-                                        <span v-else class="lh-20">{{record.expiretime? (record.expiretime+' 到期') : '永久'}}</span>
-                                            <i class="opt-icon hovershow" @click="editExpiretime(record)"><icon-edit /></i>
-                                        </a-tooltip>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </a-table-column> -->
-                    
                     <a-table-column title="权限" >
                         <template #cell="{record}">
                             <span @click="openPmsForm(record)" class="cursor df ai-c">
@@ -120,12 +34,6 @@
                         </template>
                     </a-table-column>
                     
-                    <!-- <a-table-column title="集群模式" data-index="clustermode" :width="100">
-                        <template #cell>
-                            <span>独享</span>
-                        </template>
-                    </a-table-column> -->
-
                     <a-table-column title="操作" :width="200" fixed="right">
                         <template #cell="{ record,rowIndex }">
                             <a-tooltip v-if="debug" content="yaml">
@@ -159,31 +67,13 @@
                     <a-input v-model="form.password" type="password" :spellcheck="false" placeholder="请输入"></a-input>
                 </a-form-item>
                 
-                <!-- <a-form-item label="集群模式" field="clustermode">
-                    <a-select v-model="form.clustermode" :disabled="true" placeholder="请选择集群模式">
-                        <a-option label="全局" value="global"></a-option>
-                        <a-option label="共享" value="shared"></a-option>
-                        <a-option label="独享" value="virtual"></a-option>
-                    </a-select>
-                    <template #extra>
-                        <div v-if="form.clustermode=='shared'">共享：基于主集群轻度隔离，轻量，适用于内部团队场景。</div>
-                        <div v-if="form.clustermode=='virtual'">独享：基于主集群完全隔离，完整的集群架构，适用于商业多租户场景。</div>
-                        <div v-if="form.clustermode=='global'">全局：可直接对创始人端后台进行管理。</div>
-                    </template>
-                </a-form-item> -->
                 <!-- <a-form-item v-if="!form.isEdit" label="到期时间" field="expiretime">
                     <a-date-picker v-if="!form.forever" v-model="form.expiretime" showTime class="mr-20" />
                     <a-checkbox v-model="form.forever">永久</a-checkbox>
-                    <template v-if="form.isEdit&&form.clusterStatus=='wait'" #extra>
-                        <a-checkbox v-model="form.waitToReady" :disabled="form.waitToReadyDisabled">是否恢复待回收资源</a-checkbox>
-                    </template>
                 </a-form-item> -->
                 <a-form-item label="演示用户">
                     <a-switch v-model="form.demouser"></a-switch>
                 </a-form-item>
-                <!-- <a-form-item label="CVM用户">
-                    <a-switch v-model="form.cvmuser"></a-switch>
-                </a-form-item> -->
                 <!-- <a-form-item label="救援模式">
                     <a-switch v-model="form.weihu"></a-switch>
                 </a-form-item> -->
@@ -200,16 +90,6 @@
                 </a-form-item>
             </a-form>
         </a-modal>
-
-        <!-- <a-modal title="创建资源" :visible="createCluster.show" width="600px" :ok-loading="createCluster.loading" @ok="submitCreateCluster" @cancel="createCluster.show=false;" okText="初始化集群">
-            <a-form ref="createCluster" :model="createCluster" :rules="ccModalRules" auto-label-width>
-                <a-form-item label="到期时间" field="expiretime">
-                    <a-date-picker v-if="!createCluster.forever" v-model="createCluster.expiretime" style="width:300px;" showTime class="mr-20" />
-                    <a-checkbox v-model="createCluster.forever">永久</a-checkbox>
-                </a-form-item>
-            </a-form>
-
-        </a-modal> -->
 
         <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancel="ws.dialog = false;" top="10vh" :popup-container="$popupContainer">
             <template #title>webshell</template>
@@ -250,38 +130,17 @@
             @close="pmsForm.show=false"
             @submit="submitPermission"
         ></permission-edit>
-        <quota-edit
-            :show="quotaForm.show"
-            :data="quotaForm.data"
-            :name="quotaForm.name"
-            @close="quotaForm.show=false"
-            @submit="submitQuota"
-        ></quota-edit>
-
-        <!-- <cost-edit
-            :show="costForm.show"
-            :data="costForm"
-            :list="costList"
-            @submit="submitCost"
-            @close="costForm.show=false"
-        ></cost-edit> -->
-
     </div>
 </template>
 
 <script>
-import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 
-import axios from 'axios';
-import { useNamespaceStore,useLoadingStore } from '@/store';
+import { useNamespaceStore } from '@/store';
 import bcrypt from "bcryptjs";
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import permissionEdit from '@/components/permission-edit.vue';
-import quotaEdit from '@/components/quota-edit.vue';
-import costEdit from '@/components/cost-edit.vue';
-import dayjs from 'dayjs';
 
 const dataTemplate = {
     apiVersion: 'w7panel.w7.com/v1alpha1',
@@ -318,7 +177,6 @@ export default {
             search: {
                 username: '',
                 expiretime: '',
-                clusterStatus: '',
             },
             list: [],
             form: {
@@ -326,9 +184,7 @@ export default {
                 forever: false,
                 username: '',
                 password: '',
-                storageclass: '',
                 expiretime: null,
-                clustermode: '',
                 whitelist: [],
             },
             yamlData: {
@@ -340,9 +196,6 @@ export default {
             rules: {
                 username: [{ required: true, message: '请输入用户名', trigger: 'blur' },],
                 password: [{ required: true, message: '请输入密码', trigger: 'blur' },],
-                storageclass: [{ required: true, message: '请选择存储设备', trigger: 'blur' },],
-                storageSize: [{ required: true, message: '请输入存储大小', trigger: 'blur' },],
-                clustermode: [{ required: true, message: '请选择集群模式', trigger: 'blur' },],
                 expiretime: [{required:true, validator: (value, cb) => {
                     if(!value&&!this.form.forever){cb('请选择到期时间'); return}
                     cb();
@@ -354,13 +207,6 @@ export default {
                     cb();
                 }}],
             },
-            // ccModalRules: {
-            //     expiretime: [{required:true, validator: (value, cb) => {
-            //         if(!value&&!this.createCluster.forever){cb('请选择到期时间'); return}
-            //         cb();
-            //     }}],
-            // },
-            storageLs: [],
             ws: {
                 dialog: false,
                 type: 'bin/sh',
@@ -374,33 +220,7 @@ export default {
                 list: [],
                 api: {},
             },
-            quotaForm: {
-                show: false,
-                name: '',
-                data: {},
-            },
-
             permissionPackageList: [],
-
-            // register: {
-            //     show: false,
-            //     allowConsoleRegister: false,
-            //     defaultPermissionName: '',
-            //     showInShop: false,
-            // },
-            costList: [],
-            
-            // costForm: {
-            //     show: false,
-            //     name: "",
-            //     package: "",
-            //     buymode: "",
-            //     cpu: "",
-            //     memory: "",
-            //     storage: "",
-            //     bandwidth: "",
-            //     packageConfig: [],
-            // },
             
             userInfo: {},
 
@@ -409,44 +229,26 @@ export default {
                 name: '',
                 expiretime: '',
             },
-            // createCluster: {
-            //     show: false,
-            //     name: '',
-            //     expiretime: '',
-            // },
 
             leavePage: false,
-            statusList: [],
         }
     },
     async created(){
         this.userInfo = getUserInfo();
         this.debug = this.userInfo?.['w7.cc/debug']=='true';
         this.namespaceActive = useNamespaceStore().namespace;
-        
-        await this.getCostList();
 
         this.getList();
-        this.getStatus();
-        // this.getStorageList();
         this.getPermissionPackages();
     },
     components: {
         yamlDrawer,
         permissionEdit,
-        quotaEdit,
-        costEdit,
     },
     unmounted(){
         this.leavePage = true;
     },
     methods: {
-        // toUserResource(row){
-        //     if(row.clusterStatus=='recycle'){return}
-        //     if(row.clusterStatus=='new'){return}
-        //     let time = row.recycleTime || '';
-        //     this.$router.push('/usermanage/user-resource?username='+row.name+'&time='+time+'&status='+row.clusterStatus);
-        // },
         submitExpiretime(){
             this.$refs.expiretimeModal.validate((err) => {
                 if (err) {
@@ -466,46 +268,6 @@ export default {
                 })
             })
         },
-        // submitCreateCluster(){
-        //     this.$refs.createCluster.validate((err) => {
-        //         if (err) { return; }
-                
-        //         this.createCluster.loading = true;
-        //         k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+this.createCluster.name,[{
-        //             op: this.createCluster.forever? 'remove' : 'replace',
-        //             path: '/metadata/annotations/w7.cc~1expiretime',
-        //             ...(this.createCluster.forever? {} : {value: this.createCluster.expiretime}),
-        //         },{
-        //             op: 'replace',
-        //             path: '/metadata/labels/w7.cc~1over-mode',
-        //             value: 'success',
-        //         },{
-        //             op: 'replace',
-        //             path: '/metadata/labels/w7.cc~1base-order-pass',
-        //             value: 'true',
-        //         },],{
-        //             headers: {'Content-Type': 'application/json-patch+json'},
-        //             loading: true,
-        //         }).then(res=>{
-        //             return panelApi.post('/k3k/init-cluster',{k3kUserName:this.createCluster.name})
-        //         }).then(res=>{
-        //             this.$message.success('操作成功');
-        //             this.createCluster.show = false;
-        //             this.createCluster.loading = false; 
-        //             this.getList();
-        //         }).catch(()=>{
-        //             this.createCluster.loading = false;
-        //         })
-        //     })
-        // },
-        // csCreate(row){
-        //     this.createCluster = {
-        //         ...this.createCluster,
-        //         show: true,
-        //         expiretime: row.expiretime,
-        //         name: row.name,
-        //     }
-        // },
         editExpiretime(row){
             this.expiretimeModal = {
                 ...this.expiretimeModal,
@@ -514,56 +276,6 @@ export default {
                 name: row.name,
             }
         },
-        // openCost(row){
-        //     this.costForm = {
-        //         ...this.costForm,
-        //         show: true,
-        //         name: row?.name,
-        //         package: row?.costName || "",
-        //         buymode: row?.cost?.buymode || "give",
-        //         cpu: row?.cost?.cpu || "",
-        //         memory: row?.cost?.memory || "",
-        //         storage: row?.cost?.storage || "",
-        //         bandwidth: row?.cost?.bandwidth || "",
-        //         packageConfig: row?.cost?.packageConfig || [],
-        //     }
-        // },
-        // submitCost(data){
-        //     let editQuota = [];
-        //     let find = this.list.find(i=>i.name==this.costForm.name)?.data;
-            
-        //     if(data.package && data.limit && find?.metadata?.annotations?.['w7.cc/quota-limit-lock']!=='true'){
-        //         editQuota.push({
-        //             op: 'replace',
-        //             path: '/metadata/annotations/w7.cc~1quota-limit',
-        //             value: data.limit,
-        //         })
-        //     }
-        //     k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+this.costForm.name,[
-        //         ...editQuota,
-        //         {
-        //             op: 'replace',
-        //             path: '/metadata/annotations/w7.cc~1cost-name',
-        //             value: data.package,
-        //         },{
-        //             op: 'replace',
-        //             path: '/metadata/annotations/w7.cc~1cost',
-        //             value: JSON.stringify({
-        //                 cpu: data.cpu,
-        //                 memory: data.memory,
-        //                 storage: data.storage,
-        //                 bandwidth: data.bandwidth,
-        //                 packageConfig: data?.packageConfig || [],
-        //             }),
-        //         },
-        //     ],{
-        //         headers: {'Content-Type': 'application/json-patch+json'},
-        //     }).then(res=>{
-        //         this.$message.success('操作成功');
-        //         this.costForm.show = false;
-        //         this.getList();
-        //     })
-        // },
         // openRegister(){
         //     k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/config',{noAlert:true}).then(res=>{
         //         this.register = {
@@ -616,27 +328,6 @@ export default {
         //         this.register.show = false;
         //     })
         // },
-        editQuota(row){
-            this.quotaForm = {
-                show: true,
-                name: row.name,
-                data: row.quotaLimit,
-            }
-        },
-        submitQuota(data){
-            k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/users/'+data.name,{
-                spec: {
-                    quotaLimit: data.limit,
-                    quotaLimitLock: Boolean(data.isLock),
-                }
-            },{
-                headers: {'Content-Type': 'application/merge-patch+json'},
-            }).then(res=>{
-                this.$message.success('操作成功');
-                this.quotaForm.show = false;
-                this.getList();
-            })
-        },
         openPmsForm(row){
             row = JSON.parse(JSON.stringify(row))
             this.pmsForm = {
@@ -674,60 +365,6 @@ export default {
                 this.getList();
             })
         },
-        // csWait(row){
-        //     k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+row.name,[{
-        //         op: 'replace',
-        //         path: '/metadata/labels/k3k.io~1cluster-status',
-        //         value: 'wait'
-        //     }],{
-        //         headers: {'Content-Type': 'application/json-patch+json'},
-        //     }).then(res=>{
-        //         this.$message.success('操作成功');
-        //         this.getList();
-        //     })
-        // },
-        // quickCsReady(row){
-        //     k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+row.name,[{
-        //         op: 'replace',
-        //         path: '/metadata/annotations/w7.cc~1pending-recycle-time',
-        //         value: dayjs().format('YYYY-MM-DD hh:mm:ss')
-        //     },{
-        //         op: 'replace',
-        //         path: '/metadata/labels/k3k.io~1cluster-status',
-        //         value: 'recycle'
-        //     }],{
-        //         headers: {'Content-Type': 'application/json-patch+json'},
-        //     }).then(res=>{
-        //         this.$message.success('操作成功');
-        //         this.getList();
-        //     })
-        //     // if(!row.is_expired){
-        //     // }else{
-        //     //     this.$message.error('用户已到期，请先修改到期时间');
-        //     //     setTimeout(()=>{
-        //     //         this.edit(row,true);
-        //     //     },600)
-        //     // }
-        // },
-        // csReady(row){
-        //     if(!row.is_expired){
-        //         k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/serviceaccounts/'+row.name,[{
-        //             op: 'replace',
-        //             path: '/metadata/labels/k3k.io~1cluster-status',
-        //             value: 'ready'
-        //         }],{
-        //             headers: {'Content-Type': 'application/json-patch+json'},
-        //         }).then(res=>{
-        //             this.$message.success('操作成功');
-        //             this.getList();
-        //         })
-        //     }else{
-        //         this.$message.error('用户已到期，请先修改到期时间');
-        //         setTimeout(()=>{
-        //             this.edit(row,true);
-        //         },600)
-        //     }
-        // },
         openWs(row){
             if(row?.status!=='complete'){return;}
             this.ws.row = row;
@@ -780,7 +417,6 @@ export default {
                 }
             })
         },
-
         getList(){
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/users',{
                 noAlert: true
@@ -788,16 +424,7 @@ export default {
                 let list = res?.data?.items || [];
                 list = list.map(i=>{
                     let spec = i.spec || {};
-                    let storageSize = spec.storageRequestSize || '';
-                    let storageSizeDw = 'Mi';
-                    if(/Gi$/.test(storageSize)){
-                        storageSize = Number(storageSize.replace('Gi',''));
-                        storageSizeDw = 'Gi';
-                    }else if(/Mi$/.test(storageSize)){
-                        storageSize = Number(storageSize.replace('Mi',''));
-                        storageSizeDw = 'Mi';
-                    }
-                    
+
                     let expiretime = new Date(spec.expireTime).getTime();
                     let is_expired = !(!spec.expireTime || expiretime>Date.now());
 
@@ -806,70 +433,21 @@ export default {
                     if(permissionPackage && this.permissionPackageList.length){
                         permissionPackageTitle = this.permissionPackageList?.find(i=>i.name==permissionPackage)?.title;
                     }
-                    
-                    let clusterStatus = spec.clusterStatus;
-                    let clusterStatusTxt = {new:'无资源',ready:'有资源',wait:'待回收',recycle:'回收中',creating:'创建中'}[clusterStatus];
-
-
                     let whitelist = spec.domainWhiteList || [];
-                    
-                    // 费用
-                    let costName = spec.costName || '';
-                    let costTitle = costName;
-                    if(costName){
-                        let find = this.costList.find(cl=>cl.name == costName);
-                        costTitle = find?.title || costName;
-                        if(find){
-                            try{
-                                spec.cost = find?.data;
-                            }catch{}
-                        }
-                    }else if(spec.cost){
-                        costTitle = '自定义'
-                    }
-                    let cost = spec.cost || null;
-                    if(cost?.buymode){
-                        cost.buymodeTxt = {give:'赠送',buy:'购买'}[cost.buymode];
-                    }
 
-                    // 配额
-                    let ql = spec.quotaLimit || {};
-                    
-                    if(!spec.quotaLimitLock && spec.costName){
-                        let fc = this.costList.find(c=>c.name==spec.costName);
-                        if(fc){
-                            let d = null;
-                            try{
-                                d = JSON.parse(fc.quota);
-                            }catch{}
-                            if(d){ ql = d; }
-                        }
-                    }
-
-                    let hard = {
-                        ...ql?.hard,
-                        cpu: String(ql?.hard?.cpu).replace(/[a-zA-Z]+$/,''),
-                        memory: String(ql?.hard?.memory).replace(/[a-zA-Z]+$/,''),
-                        'requests.storage': String(ql?.hard?.['requests.storage']).replace(/[a-zA-Z]+$/,''),
-                        bandwidth: String(ql?.hard?.bandwidth).replace(/[a-zA-Z]+$/,''),
-                    };
-                    
-                    let createTime = dayjs(i.metadata['creationTimestamp']).valueOf();
+                    let createTime = new Date(i.metadata['creationTimestamp']).getTime();
                     
                     return {
                         name: i.metadata.name,
                         expiretime: spec.expireTime,
                         is_expired: is_expired,
-                        storageclass: ql?.storageclass || '',
                         'w7.cc/pause': spec.pause,
                         status: spec.status,
                         jobname: spec.jobName,
-                        clustermode: spec.clusterMode || '',
                         debug: spec.features?.debug === true,
                         webshell: spec.features?.webshell === true,
                         fileeditor: spec.features?.fileeditor === true,
                         demouser: spec.demoUser === true,
-                        cvmuser: spec.cvmUser === true,
                         weihu: spec.maintenance === true,
                         createTime: createTime,
 
@@ -877,8 +455,6 @@ export default {
 
                         recycleTime: spec.pendingRecycleTime || '',
 
-                        clusterStatus: clusterStatus,
-                        clusterStatusTxt: clusterStatusTxt,
                         version: Number(spec.version) || 0,
                         permissionPackage: permissionPackage,
                         permissionPackageTitle: permissionPackageTitle,
@@ -887,16 +463,6 @@ export default {
                             if(rule?.path){ acc[rule.path] = rule.method || []; }
                             return acc;
                         }, {}),
-                        
-                        peie: ql?.hard? (hard.cpu+'核'+'/'+hard.memory+'Gi/'+hard.bandwidth+'Mbps/'+hard['requests.storage'])+'Gi' : '',
-                        quotaLimit: ql,
-
-                        cost: cost,
-                        costTitle: costTitle,
-                        costName: costName,
-
-                        storageSize: storageSize,
-                        storageSizeDw: storageSizeDw,
                         password: spec.passwordHash,
                         whitelist: whitelist,
                         
@@ -911,43 +477,6 @@ export default {
                 }
                 list.sort((a, b) => b.createTime - a.createTime);
                 this.list = list;
-                if(this.statusList?.length){
-                    this.statusList.map(data=>{
-                        let findIndex = this.list.findIndex(li=>li.name == data.metadata.name);
-                        if(findIndex==-1){return}
-                        let find = this.list[findIndex];
-                        if(find.userMode!='cluster'){return}
-                        if(find.clusterStatus=='new'){return}
-                        
-                        if(find?.['w7.cc/pause']=='true'){
-                            this.list[findIndex].sourceStatus = -1;
-                            this.list[findIndex].sourceStatusTxt = '已停机';
-                            return;
-                        }
-
-                        let status = data?.status?.conditions?.[0]?.status;
-                        let phase = data?.status?.phase;
-                        
-                        let txt = '';
-                        let type = '';
-                        if(phase == 'Ready' && status == 'True'){
-                            txt = '运行中';
-                            type = 1;
-                        }else if(phase == 'Terminating' && status == 'False'){
-                            txt = '回收中';
-                            type = 2;
-                        }else if((phase == 'Pending' && status == 'False') || (phase == 'Provisioning' && status == 'False')){
-                            txt = '配置中';
-                            type = 3;
-                        }else if(phase == 'Failed' && status == 'False'){
-                            txt = '故障中';
-                            type = 5;
-                        }
-                        
-                        this.list[findIndex].sourceStatus = type;
-                        this.list[findIndex].sourceStatusTxt = txt;
-                    })
-                }
             })
         },
         getErrorReason(row,index){
@@ -976,90 +505,6 @@ export default {
                 }
             })
         },
-        async getStatus(){
-            
-            k8sproxy.get(`/apis/k3k.io/v1alpha1/clusters`,{noAlert:true}).then(res=>{
-                let items = res?.data?.items || [];
-                this.statusList = items;
-                items.map(data=>{
-                    let findIndex = this.list.findIndex(li=>li.name == data.metadata.name);
-                    if(findIndex==-1){return}
-                    let find = this.list[findIndex];
-                    if(find.userMode!='cluster'){return}
-                    if(find.clusterStatus=='new'){return}
-
-                    if(find?.['w7.cc/pause']=='true'){
-                        this.list[findIndex].sourceStatus = -1;
-                        this.list[findIndex].sourceStatusTxt = '已停机';
-                        return;
-                    }
-
-                    let status = data?.status?.conditions?.[0]?.status;
-                    let phase = data?.status?.phase;
-                    
-                    let txt = '';
-                    let type = '';
-                    if(phase == 'Ready' && status == 'True'){
-                        txt = '运行中';
-                        type = 1;
-                    }else if(phase == 'Terminating' && status == 'False'){
-                        txt = '回收中';
-                        type = 2;
-                    }else if((phase == 'Pending' && status == 'False') || (phase == 'Provisioning' && status == 'False')){
-                        txt = '配置中';
-                        type = 3;
-                    }else if(phase == 'Failed' && status == 'False'){
-                        txt = '故障中';
-                        type = 5;
-                    }
-                    
-                    this.list[findIndex].sourceStatus = type;
-                    this.list[findIndex].sourceStatusTxt = txt;
-                })
-
-            }).catch(()=>({}));
-        },
-        getCostList(){
-            return k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps?labelSelector=type=cost",{noAlert:true}).then(res=>{
-                let list = res?.data?.items;
-                list = list.map(i=>{
-                    return {
-                        title: i.metadata?.annotations?.title || i.metadata.name,
-                        name: i.metadata.name,
-                        created: window.formatDate(i.metadata.creationTimestamp),
-                        data: i.data,
-                        ...i.data,
-                    }
-                });
-                this.costList = list;
-                
-                // if(this.list?.length){
-                //     this.list.map((i,index)=>{
-                //         let costName = i.costName || '';
-                //         let costTitle = i.costName;
-                //         if(costName){
-                //             let find = this.costList.find(cl=>cl.name == costName);
-                //             costTitle = find?.title || costName;
-                            
-                //             if(find){
-                //                 try{
-                                    
-                //                     let cost = find.data;
-                //                     if(cost?.buymode){
-                //                         cost.buymodeTxt = {give:'赠送',buy:'购买'}[cost.buymode];
-                //                     }
-                                    
-                //                     this.list[index].cost = cost;
-                //                 }catch{}
-                //             }
-                //         }else if(i.cost){
-                //             costTitle = '自定义'
-                //         }
-                //         i.costTitle = costTitle;
-                //     })
-                // }
-            })
-        },
         // getStorageList(){
         //     k8sproxy.get('/apis/storage.k8s.io/v1/storageclasses').then(res=>{
         //         let data = res?.data || [];
@@ -1080,10 +525,6 @@ export default {
                 username: '',
                 password: '',
                 expiretime: '',
-                storageclass: '',
-                storageSize: '',
-                storageSizeDw: 'Gi',
-                clustermode: 'virtual',
                 // debug: false,
                 version: 0,
                 demouser: false,
@@ -1099,17 +540,10 @@ export default {
                 forever: !row.expiretime,
                 username: row.name,
                 password: '',
-                storageSize: row.storageSize,
-                storageSizeDw: row.storageSizeDw,
                 old_password: row.password,
-                storageclass: row.storageclass || '',
                 expiretime: row.expiretime || '',
-                clustermode: row.clustermode || '',
                 // debug: row.debug,
                 version: row.version || 0,
-                clusterStatus: row.clusterStatus,
-                waitToReady: recycle || false,
-                waitToReadyDisabled: recycle,
                 demouser: row.demouser,
                 // cvmuser: row.cvmuser,
                 weihu: row.weihu,
@@ -1117,8 +551,6 @@ export default {
             // console.log(this.form)
         },
         submit(){
-            this.form.clustermode = 'virtual';
-
             this.$refs.form.validate((err) => {
                 if (err) {
                     this.$refs.form.scrollToField(Object.keys(err)[0])
@@ -1135,15 +567,10 @@ export default {
                     delete data.metadata.uid;
                     data.spec = data.spec || {};
                     data.spec.passwordHash = this.form.password? hash : this.form.old_password;
-                    data.spec.clusterMode = this.form.clustermode;
                     data.spec.maintenance = Boolean(this.form.weihu);
                     data.spec.demoUser = Boolean(this.form.demouser);
-                    data.spec.storageRequestSize = this.form.storageSize!==''? (this.form.storageSize + this.form.storageSizeDw) : '';
                     data.spec.version = Number(this.form.version || 0) + 1;
 
-                    if(this.form.waitToReady){
-                        data.spec.clusterStatus = 'ready';
-                    }
                     if(!this.form.forever){
                         data.spec.expireTime = this.form.expiretime;
                     }else{
@@ -1162,10 +589,8 @@ export default {
                     const salt = bcrypt.genSaltSync(10);
                     const hash = bcrypt.hashSync(this.form.password, salt);
                     data.spec.passwordHash = hash;
-                    data.spec.clusterMode = this.form.clustermode;
                     data.spec.maintenance = Boolean(this.form.weihu);
                     data.spec.demoUser = Boolean(this.form.demouser);
-                    data.spec.storageRequestSize =  this.form.storageSize!==""? (this.form.storageSize + this.form.storageSizeDw) : '';
                     if(!this.form.forever){
                         data.spec.expireTime = this.form.expiretime;
                     }
