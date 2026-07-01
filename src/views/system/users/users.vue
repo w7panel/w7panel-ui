@@ -27,19 +27,23 @@
 
                     <a-table-column title="权限" >
                         <template #cell="{record}">
-                            <span @click="openPmsForm(record)" class="cursor df ai-c">
+                            <span
+                                @click="openPmsForm(record)"
+                                class="df ai-c"
+                                :class="isFounderUser(record) ? 'disabled-text' : 'cursor'"
+                            >
                                 <span class="lh-20">{{record.permissionPackageTitle||'自定义'}}</span>
-                                <i class="opt-icon hovershow"><icon-edit /></i>
+                                <i v-if="!isFounderUser(record)" class="opt-icon hovershow"><icon-edit /></i>
                             </span>
                         </template>
                     </a-table-column>
                     
                     <a-table-column title="操作" :width="200" fixed="right">
                         <template #cell="{ record,rowIndex }">
-                            <a-tooltip v-if="debug" content="yaml">
+                            <a-tooltip v-if="debug&&!isFounderUser(record)" content="yaml">
                                 <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
                             </a-tooltip>
-                            <a-tooltip v-if="record.userMode!=='founder'" content="修改">
+                            <a-tooltip v-if="!isFounderUser(record)" content="修改">
                                 <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
                             </a-tooltip>
                             
@@ -48,7 +52,7 @@
                                     <icon-code-square />
                                 </span>
                             </a-tooltip>
-                            <a-popconfirm v-if="record.userMode!=='founder'" :content="'确认要删除吗'" @ok="del(record,rowIndex)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
+                            <a-popconfirm v-if="!isFounderUser(record)" :content="'确认要删除吗'" @ok="del(record,rowIndex)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <a-tooltip content="删除">
                                     <i class="opt-icon"><icon-delete /></i>
                                 </a-tooltip>
@@ -277,6 +281,14 @@ export default {
                 name: row.name,
             }
         },
+        isFounderUser(row){
+            return row?.userMode == 'founder'
+                || row?.role == 'founder'
+                || row?.spec?.userMode == 'founder'
+                || row?.spec?.role == 'founder'
+                || row?.data?.spec?.userMode == 'founder'
+                || row?.data?.spec?.role == 'founder';
+        },
         // openRegister(){
         //     k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3kconfigs/config',{noAlert:true}).then(res=>{
         //         this.register = {
@@ -330,6 +342,10 @@ export default {
         //     })
         // },
         openPmsForm(row){
+            if(this.isFounderUser(row)){
+                this.$message.warning('创始人权限不允许编辑');
+                return;
+            }
             row = JSON.parse(JSON.stringify(row))
             this.pmsForm = {
                 show: true,
@@ -345,8 +361,8 @@ export default {
             }
         },
         submitPermission(data){
-            if(this.pmsForm.userMode=='founder' && data.role && data.role!='founder'){
-                this.$message.error('创始人角色不允许修改为其他角色');
+            if(this.isFounderUser(this.pmsForm)){
+                this.$message.error('创始人权限不允许编辑');
                 return;
             }
             if(this.pmsForm.userMode!='founder' && (data.role=='founder' || data.permissionPackage=='founder')){
@@ -395,6 +411,10 @@ export default {
         openYaml(name){
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/users/'+name, {loading:true}).then(res=>{
                 if(!res?.data){return}
+                if(this.isFounderUser(res?.data)){
+                    this.$message.warning('创始人权限不允许编辑');
+                    return;
+                }
                 this.yamlData = {
                     show: true,
                     data: res?.data,
@@ -461,6 +481,7 @@ export default {
                         createTime: createTime,
 
                         userMode: spec.userMode,
+                        role: spec.role,
 
                         recycleTime: spec.pendingRecycleTime || '',
 
@@ -624,6 +645,7 @@ export default {
 <style scoped>
 .mr-4{margin-right:4px;}
 .mr-5{margin-right:5px;}
+.disabled-text{color:var(--color-text-3);}
 </style>
 <style>
 .cptable .hovershow{display:inline-block; margin-left:3px; opacity:0;}

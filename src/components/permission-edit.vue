@@ -22,8 +22,8 @@
                             <a-switch :disabled="disabledBase" v-model="pmsForm.webshell" @change="pmsForm.permissionPackage=''"></a-switch>
                             <template #extra>开启后，可在终端控制台执行命令行。</template>
                         </a-form-item>
-                        <a-form-item :disabled="disabledBase" label="文件管理权限">
-                            <a-switch v-model="pmsForm.fileeditor" @change="pmsForm.permissionPackage=''"></a-switch>
+                        <a-form-item label="文件管理权限">
+                            <a-switch :disabled="disabledBase" v-model="pmsForm.fileeditor" @change="pmsForm.permissionPackage=''"></a-switch>
                             <template #extra>开启后，可管理应用内的文件。</template>
                         </a-form-item>
                     </a-tab-pane>
@@ -48,15 +48,15 @@
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
-                            <a-switch v-model="pmsForm.apiAll" @change="pmsForm.permissionPackage=''"></a-switch>
+                            <a-switch :disabled="disabledMenu" v-model="pmsForm.apiAll" @change="pmsForm.permissionPackage=''"></a-switch>
                         </a-form-item>
                         <a-form-item label="API列表" v-if="!pmsForm.apiAll">
                             <div class="api-permission-panel">
                                 <div class="api-permission-toolbar">
                                     <a-input-search v-model="pmsForm.apiSearch" placeholder="搜索 PATH / 说明 / Method" allow-clear />
                                     <a-space>
-                                        <a-button size="small" @click="selectAllApiRoutes">全选</a-button>
-                                        <a-button size="small" @click="clearApiRoutes">清空</a-button>
+                                        <a-button size="small" :disabled="disabledMenu" @click="selectAllApiRoutes">全选</a-button>
+                                        <a-button size="small" :disabled="disabledMenu" @click="clearApiRoutes">清空</a-button>
                                     </a-space>
                                 </div>
                                 <div class="api-permission-table">
@@ -75,6 +75,7 @@
                                                         :model-value="apiGroupSelectedMethods(group, pmsForm.apiSelectedKeys)"
                                                         multiple
                                                         allow-clear
+                                                        :disabled="disabledMenu"
                                                         placeholder="方法匹配值，可多选"
                                                         style="width:220px;"
                                                         @change="methods => setPmsApiGroupMethods(group, methods)"
@@ -425,6 +426,7 @@ export default {
             return Array.from(selected);
         },
         setPmsApiGroupMethods(group, methods){
+            if(this.disabledMenu){return}
             this.pmsForm.permissionPackage = '';
             this.pmsForm.apiSelectedKeys = this.nextApiSelectedKeysForGroup(group, methods, this.pmsForm.apiSelectedKeys);
         },
@@ -484,6 +486,7 @@ export default {
             return api;
         },
         toggleApiRoute(route, checked){
+            if(this.disabledMenu){return}
             this.pmsForm.permissionPackage = '';
             let key = this.apiRouteKey(route);
             let selected = new Set(this.pmsForm.apiSelectedKeys || []);
@@ -495,10 +498,12 @@ export default {
             this.pmsForm.apiSelectedKeys = Array.from(selected);
         },
         selectAllApiRoutes(){
+            if(this.disabledMenu){return}
             this.pmsForm.permissionPackage = '';
             this.pmsForm.apiSelectedKeys = this.apiRoutes.map(route => this.apiRouteKey(route));
         },
         clearApiRoutes(){
+            if(this.disabledMenu){return}
             this.pmsForm.permissionPackage = '';
             this.pmsForm.apiSelectedKeys = [];
         },
