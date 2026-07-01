@@ -937,9 +937,12 @@ export default {
                 if(!res?.data){return}
                 let data = res?.data;
                 let pn = this.applist.find(i=>!i.isHelm && i.name);
+                data.metadata.labels = data.metadata.labels || {};
+                data.metadata.annotations = data.metadata.annotations || {};
                 data.metadata.labels.parent = pn?.name;
 
-                let name = 'copy-' + this.createName(4) + '-' + data.metadata.name;
+                let baseName = data.metadata?.labels?.['w7.cc/identifie'] || data.metadata?.annotations?.['w7.cc/identifie'] || data.metadata.name;
+                let name = baseName + '-' + this.createName(4);
                 data.metadata.name = name;
                 data.metadata.labels.app = name;
                 data?.spec?.selector?.matchLabels && (data.spec.selector.matchLabels.app = name);
