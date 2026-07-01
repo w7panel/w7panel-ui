@@ -259,6 +259,7 @@ export default {
                 ['buildContainerImage', this.openBuildContainerImage],
                 ['getOidcCode', this.getOidcCode],
                 ['getRole', this.getRole],
+                ['toStoreInstallWithOrder', this.toStoreInstallWithOrder]
             ];
 
             this.wujieEventHandlers = events.filter(([event]) => !excludeEvents.has(event));
@@ -618,6 +619,11 @@ export default {
         // ========== 应用商店安装 ==========
         toStoreInstall(path) {
             this.$router.push('/app/store-install?path=' + path);
+        },
+        toStoreInstallWithOrder(data) {
+            let path = data.path + '?order_sn=' + data.orderSn;
+            path = encodeURIComponent(path);
+            this.toStoreInstall(path)
         },
     },
 };
