@@ -426,7 +426,7 @@
             </a-form>
         </a-modal>
 
-        <a-drawer :visible="authority.show" width="900px" @ok="changeAuthority" @cancel="authority.show=false;" :popup-container="$popupContainer">
+        <a-drawer class="file-authority-drawer" :visible="authority.show" width="900px" @ok="changeAuthority" @cancel="authority.show=false;" :popup-container="$popupContainer">
             <template #title>修改权限</template>
             <a-form :model="authority" layout="vertical">
                 <div class="df padding-10">
@@ -3703,6 +3703,7 @@ export default {
 body[arco-theme='dark'] .filetable .opt-icon{color:#3c7eff;}
 .filetable .opt-icon:hover{background:var(--color-secondary-hover);}
 .filetable .opt-icon + .opt-icon{margin-left:10px;}
+.file-authority-drawer.arco-drawer-container{z-index:4000!important;}
 
 /* 编辑器增强样式 - 全局样式 */
 .editor-modal .arco-modal-body,

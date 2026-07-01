@@ -46,6 +46,11 @@ export default mergeConfig(
         strict: true,
       },
       proxy: {
+        '/ui/microapp/': {
+          target: proxyUrl,
+          changeOrigin: true,
+          ws: true,
+        },
         '/k8s/v1/namespaces/longhorn-system/services/longhorn-backend/proxy/v1': {
         //   target: 'http://172.16.1.117:9090',
         //   target: 'http://118.25.145.25:9999',
