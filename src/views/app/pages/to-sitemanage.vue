@@ -32,17 +32,15 @@ export default {
     },
     methods:{
         getZpk(){
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie=w7-sitemanager&limit=500').then(async res=>{
-                if(!res?.data?.items?.[0]){
-                    this.$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7_sitemanager');
-                    return;
-                }
-                let group = res?.data?.items?.[0]?.metadata?.annotations?.['meta.helm.sh/release-name'];
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/w7-sitemanager', {noAlert:true}).then(async res=>{
+                let group = res?.data?.metadata?.name || 'w7-sitemanager';
                 // let {data} = await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ group,{loading:true})
                 // let menuActive = this.getMenu(data);
                 // let url = res.data.items[0]?.spec?.frontendUrl + menuActive;
                 
                 this.$router.push('/app/appgroup/'+group+'/micro2');
+            }).catch(()=>{
+                this.$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7_sitemanager');
             });
         },
         
