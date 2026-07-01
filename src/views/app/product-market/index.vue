@@ -23,6 +23,14 @@ export default {
             remoteUrl: PRODUCT_MARKET_URL,
         };
     },
+    components: {
+        wujieModals
+    },
+    computed: {
+        modalExcludeWujieEvents(){
+            return [];
+        },
+    },
     mounted() {
         this.initMarket();
     },
@@ -38,13 +46,14 @@ export default {
                     ...(data?.data || {})
                 }
             }
+            appendWujieModalHandles(props, () => this.$refs.wujieModals)
             startApp({
                 name: PRODUCT_MARKET_APP_NAME,
                 url: this.remoteUrl,
                 el: '#product-market-wujie',
                 exec: true,
                 sync: true,
-                props: appendWujieModalHandles(props, () => this.$refs.wujieModals)
+                props
             });
         },
         destroyMarket() {
