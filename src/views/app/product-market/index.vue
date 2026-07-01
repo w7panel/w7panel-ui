@@ -4,12 +4,15 @@
         <div class="product-market-body">
             <div id="product-market-wujie" class="product-market-wujie"></div>
         </div>
+        <wujie-modals ref="wujieModals" :exclude-wujie-events="modalExcludeWujieEvents" />
     </div>
 </template>
 
 <script>
 import { startApp, destroyApp } from 'wujie';
 import { panelApi } from '@/utils/api';
+import wujieModals from '@/components/wujie-modals.vue';
+import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
 
 const PRODUCT_MARKET_URL = 'https://zm.w7.com/#/panel-store-list';
 const PRODUCT_MARKET_APP_NAME = 'product-market';
@@ -30,18 +33,18 @@ export default {
         async initMarket() {
             if (!this.remoteUrl) { return; }
             const data = await panelApi.get('/microapp/global-frontprops', { noAlert: true })
-            console.log(data)
+            const props = {
+                frontend_props: {
+                    ...(data?.data || {})
+                }
+            }
             startApp({
                 name: PRODUCT_MARKET_APP_NAME,
                 url: this.remoteUrl,
                 el: '#product-market-wujie',
                 exec: true,
                 sync: true,
-                props: {
-                    frontend_props: {
-                        ...(data?.data || {})
-                    }
-                },
+                props: appendWujieModalHandles(props, () => this.$refs.wujieModals)
             });
         },
         destroyMarket() {
