@@ -7,6 +7,7 @@ const WUJIE_MODAL_HANDLE_MAP = {
     containerPlugin: 'openContainerPlugin',
     ingressEdit: 'openDomainEdit',
     ingressStrategy: 'openStrategy',
+    toStoreInstallWithOrder: 'toStoreInstallWithOrder'
 };
 
 export function createWujieModalHandles(getModal) {
