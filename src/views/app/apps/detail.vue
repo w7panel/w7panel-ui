@@ -191,6 +191,7 @@ export default {
             fileeditor: '',
 
             hasThirdpartyCd: false,
+            microApp: null,
             downOk: true,
         }
     },
@@ -233,7 +234,7 @@ export default {
         this.groupTitle = this.$route.params.group;
         await this.getData();
         if(!this.isMicroPage && this.hasThirdpartyCd){
-            this.getFront();
+            this.getFront(this.microApp);
         }
     },
     computed:{
@@ -423,11 +424,12 @@ export default {
                 })
             }
         },
-        getFront(){
+        getFront(microApp){
 
             // /apis/w7panel.w7.com/v1alpha1/namespaces/default/microapps/w7-sitemanager-htwgbayk
             // /apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+appgroup
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group,{noAlert:true}).then(res=>{
+            const getMicroApp = microApp ? Promise.resolve({data: microApp}) : k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group,{noAlert:true});
+            getMicroApp.then(res=>{
 
                 let item  = res?.data;
                 if(!item){ return; }
@@ -814,16 +816,14 @@ export default {
                 let {helmTab,list} = this.arrangeList(res?.data);
                 this.identifie = res?.data?.metadata?.annotations?.['w7.cc/identifie'];
                 this.isHelmApp = Boolean(helmTab?.length);
-                if(res?.data?.metadata?.annotations?.['w7.cc/front-type']){
-                    try{
-                        let ft = JSON.parse(res?.data?.metadata?.annotations?.['w7.cc/front-type'])
-                        if(ft.includes("thirdparty_cd")){this.hasThirdpartyCd = true;}
-                    }catch{}
-                }
-
-                if(this.isMicroPage && this.hasThirdpartyCd){
-                    this.getFront()
-                }
+                this.hasThirdpartyCd = false;
+                this.microApp = null;
+                await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group,{noAlert:true}).then(res=>{
+                    if(res?.data){
+                        this.hasThirdpartyCd = true;
+                        this.microApp = res.data;
+                    }
+                }).catch(()=>{});
                 
                 if(res?.data?.metadata?.labels?.['w7.cc/parent']){
                     await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ res?.data?.metadata?.labels?.['w7.cc/parent']).then(res=>{
@@ -854,6 +854,13 @@ export default {
                 }
 
                 this.applist = helmTab.concat(list);
+                if(this.isMicroPage){
+                    if(this.hasThirdpartyCd){
+                        this.getFront(this.microApp);
+                    }else{
+                        this.noMicroJump();
+                    }
+                }
                 this.watchStatus();
                 useLoadingStore().loading = false;
             }).then(()=>{

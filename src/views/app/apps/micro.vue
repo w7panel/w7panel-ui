@@ -88,33 +88,21 @@ export default {
                 }));
                 this.childrenApp = childrenApp;
 
-                let frontType = [];
-                try{ frontType = JSON.parse(data?.metadata?.annotations?.['w7.cc/front-type']); }catch{}
-                let identifie = data?.metadata?.annotations?.['w7.cc/identifie'];
-
-                if(!frontType || !frontType?.includes("thirdparty_cd") || !identifie){
-                    if(data?.spec?.isHelm){
-                        this.$router.push({path:'/app/appgroup/'+ this.$route.params.group +'/helm/detail'});
-                        return;
-                    }
-                    this.$router.push('/app/appgroup/'+ this.$route.params.group);
-                    return;
-                }
-
                 this.getMenu(data);
-                this.getFront(identifie);
+                this.getFront(data);
             })
         },
-        getFront(identifie,data){
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ identifie +'&limit=500').then(res=>{
+        getFront(data){
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group, {noAlert:true}).then(res=>{
 
-                let item  = res?.data?.items?.[0];
+                let item  = res?.data;
                 if(!item){
                     if(data?.spec?.isHelm){
                         this.$router.push({path:'/app/appgroup/'+ this.$route.params.group +'/helm/detail'});
                         return;
                     }
                     this.$router.push('/app/appgroup/'+ this.$route.params.group);
+                    return;
                 }
                 this.info = {
                     ...this.info,
@@ -125,6 +113,12 @@ export default {
                     appImage: item?.spec?.config?.props?.image,
                 }
                 this.wujieInit();
+            }).catch(()=>{
+                if(data?.spec?.isHelm){
+                    this.$router.push({path:'/app/appgroup/'+ this.$route.params.group +'/helm/detail'});
+                    return;
+                }
+                this.$router.push('/app/appgroup/'+ this.$route.params.group);
             })
         },
         wujieInit(){
