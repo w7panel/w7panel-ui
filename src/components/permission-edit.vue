@@ -5,7 +5,7 @@
             <a-form :model="pmsForm" auto-label-width>
                 
                 <a-form-item label="权限套餐">
-                    <a-select v-model="pmsForm.permissionPackage" @change="pmsFormChangePermissionPackage" placeholder="请选择">
+                    <a-select v-model="pmsForm.permissionPackage" :disabled="pmsForm.userMode=='founder'" @change="pmsFormChangePermissionPackage" placeholder="请选择">
                         <a-option v-if="!noCustom" label="自定义" value=""></a-option>
                         <a-option v-for="item in pmsls" :key="item.name" :label="item.title" :value="item.name"></a-option>
                     </a-select>
@@ -138,7 +138,7 @@ const virtualPass = [
     'zpk',
 ]
 export default {
-    props: ['show','list','api','name', 'debug','fileeditor','whitelist','webshell','permissionPackage','disabledBase','disabledMenu','noCustom'],
+    props: ['show','list','api','name', 'debug','fileeditor','whitelist','webshell','permissionPackage','userMode','disabledBase','disabledMenu','noCustom'],
     data(){
         return {
             namespaceActive: '',
@@ -154,6 +154,7 @@ export default {
                 debug: false,
                 fileeditor: false,
                 webshell: false,
+                userMode: '',
                 apiAll: false,
                 apiSearch: '',
                 apiSelectedKeys: [],
@@ -234,6 +235,7 @@ export default {
             this.pmsForm.list = toTreeKeys(this.list || []);
             this.pmsForm.type = 'virtual'; //this.type || 'shared';
             this.pmsForm.permissionPackage = this.permissionPackage || '';
+            this.pmsForm.userMode = this.userMode || '';
             this.hasDebug = this.debug===true || this.debug===false;
             this.pmsForm.whitelist = this.whitelist || [];
             this.pmsForm = {
@@ -248,7 +250,7 @@ export default {
                 };
             });
             
-            this.pmsls = this.permissionPackageList;
+            this.pmsls = this.getVisiblePermissionPackages();
 
             // this.pmsls = this.permissionPackageList;
             // if(this.type=='shared'){ this.pmsls = this.permissionPackageListShared; }
@@ -280,6 +282,20 @@ export default {
             this.visible = false;
             this.$emit('close', v);
         },
+        isFounderPermissionPackage(item){
+            if(!item){return false}
+            if(item.name=='founder' || item.role=='founder'){return true}
+            let parent = item.parentPermission
+                ? this.permissionPackageList.find(i=>i.name==item.parentPermission)
+                : null;
+            return parent?.name=='founder' || parent?.role=='founder';
+        },
+        getVisiblePermissionPackages(){
+            if(this.pmsForm.userMode=='founder'){
+                return this.permissionPackageList.filter(i=>this.isFounderPermissionPackage(i));
+            }
+            return this.permissionPackageList.filter(i=>!this.isFounderPermissionPackage(i));
+        },
         taocan(){
             k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
@@ -303,7 +319,7 @@ export default {
                     }
                 });
                 this.permissionPackageList = list;
-                this.pmsls = list; //.filter(i=>i.clustermode=='virtual');
+                this.pmsls = this.getVisiblePermissionPackages(); //.filter(i=>i.clustermode=='virtual');
                 // this.permissionPackageListShared = list.filter(i=>i.clustermode=='shared');
                 // this.permissionPackageListVirtual = list.filter(i=>i.clustermode=='virtual');
                 // this.pmsls = this.permissionPackageList;

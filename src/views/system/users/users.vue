@@ -125,6 +125,7 @@
             :name="pmsForm.name"
             :whitelist="pmsForm.whitelist"
             :api="pmsForm.api"
+            :userMode="pmsForm.userMode"
             :disabledBase="pmsForm.userMode=='founder'"
             :disabledMenu="pmsForm.userMode=='founder'"
             @close="pmsForm.show=false"
@@ -344,6 +345,14 @@ export default {
             }
         },
         submitPermission(data){
+            if(this.pmsForm.userMode=='founder' && data.role && data.role!='founder'){
+                this.$message.error('创始人角色不允许修改为其他角色');
+                return;
+            }
+            if(this.pmsForm.userMode!='founder' && (data.role=='founder' || data.permissionPackage=='founder')){
+                this.$message.error('不允许选择创始人权限');
+                return;
+            }
             k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/users/'+data.name,{
                 spec: {
                     menuRules: data.list || [],
