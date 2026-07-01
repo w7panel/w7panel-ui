@@ -343,10 +343,11 @@ export default {
             this.helm.show = false;
             if(v){ this.getList(); }
         },
-        toDetail(item){
+        async toDetail(item){
             if(item.deletionTimestamp){return}
             let app = item?.childrenApp?.[0];
-            if(item?.frontType?.includes('thirdparty_cd')){
+            let hasMicroApp = await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps/'+item.groupName, {noAlert:true}).then(()=>true).catch(()=>false);
+            if(hasMicroApp){
                 this.$router.push({path:'/app/appgroup/'+item.groupName+'/micro'});
                 return;
             }
@@ -414,7 +415,6 @@ export default {
                         ready: si.ready,
                         group: i.metadata.name,
                     }));
-                    let frontType = [];
                     try{
                         domain_apps = JSON.parse(i?.metadata?.annotations?.['w7.cc/domains']);
                         const dedupeDomains = urls => {
@@ -431,8 +431,6 @@ export default {
                             });
                         };
                         domain_apps = dedupeDomains(domain_apps);
-
-                        frontType = JSON.parse(i?.metadata?.annotations?.['w7.cc/front-type']);
                     }catch(e){}
                     return {
                         title: i?.spec?.title || i.metadata.name,
@@ -448,7 +446,6 @@ export default {
                         isHelm: i?.spec?.isHelm,
                         releaseName: '',
                         defaultDomain: '',
-                        frontType,
                         childrenApp,
                         domain_apps,
                         denyDelete: i?.metadata?.annotations?.['w7.cc/deny-delete']==='true',

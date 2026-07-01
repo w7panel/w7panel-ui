@@ -88,33 +88,22 @@ export default {
                 }));
                 this.childrenApp = childrenApp;
 
-                let frontType = [];
-                try{ frontType = JSON.parse(data?.metadata?.annotations?.['w7.cc/front-type']); }catch{}
-                let identifie = data?.metadata?.annotations?.['w7.cc/identifie'];
-
-                if(!frontType || !frontType?.includes("thirdparty_cd") || !identifie){
-                    if(data?.spec?.isHelm){
-                        this.$router.push({path:'/app/appgroup/'+ this.$route.params.group +'/helm/detail'});
-                        return;
-                    }
-                    this.$router.push('/app/appgroup/'+ this.$route.params.group);
-                    return;
-                }
-
-                this.getMenu(data);
-                this.getFront(identifie);
+                this.getFront(data);
             })
         },
-        getFront(identifie,data){
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps?labelSelector=w7.cc/identifie='+ identifie +'&limit=500').then(res=>{
-
-                let item  = res?.data?.items?.[0];
+        noMicroJump(data){
+            if(data?.spec?.isHelm){
+                this.$router.push({path:'/app/appgroup/'+ this.$route.params.group +'/helm/detail'});
+                return;
+            }
+            this.$router.push('/app/appgroup/'+ this.$route.params.group);
+        },
+        getFront(data){
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group, {noAlert:true}).then(res=>{
+                let item  = res?.data;
                 if(!item){
-                    if(data?.spec?.isHelm){
-                        this.$router.push({path:'/app/appgroup/'+ this.$route.params.group +'/helm/detail'});
-                        return;
-                    }
-                    this.$router.push('/app/appgroup/'+ this.$route.params.group);
+                    this.noMicroJump(data);
+                    return;
                 }
                 this.info = {
                     ...this.info,
@@ -124,8 +113,9 @@ export default {
                     password: item?.spec?.config?.props?.password,
                     appImage: item?.spec?.config?.props?.image,
                 }
+                this.getMenu(item);
                 this.wujieInit();
-            })
+            }).catch(()=>this.noMicroJump(data))
         },
         wujieInit(){
             setupApp({
@@ -145,7 +135,7 @@ export default {
         },
         getMenu(data){
             let menus = [];
-            try{ menus = JSON.parse(data?.metadata?.annotations?.['w7.cc/bindings'])?.[0]?.menu; }catch{}
+            try{ menus = data?.spec?.bindings?.[0]?.menu || []; }catch{}
             menus.sort((a,b)=>b.displayorder-a.displayorder);
             this.menuActive = menus?.find(i=>i.is_default==1)?.do || this.menus?.[0]?.do || '';
             this.selectMenu = [decodeURIComponent(this.$route.query?.appmicro || '')?.replace(/^\//,'')];

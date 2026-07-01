@@ -194,7 +194,6 @@ export default {
             permission: [],
             fileeditor: '',
 
-            hasThirdpartyCd: false,
             downOk: true,
         }
     },
@@ -236,7 +235,7 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.groupTitle = this.$route.params.group;
         await this.getData();
-        if(!this.isMicroPage && this.hasThirdpartyCd){
+        if(!this.isMicroPage){
             this.getFront();
         }
     },
@@ -776,14 +775,8 @@ export default {
                 let {helmTab,list} = this.arrangeList(res?.data);
                 this.identifie = res?.data?.metadata?.annotations?.['w7.cc/identifie'];
                 this.isHelmApp = Boolean(helmTab?.length);
-                if(res?.data?.metadata?.annotations?.['w7.cc/front-type']){
-                    try{
-                        let ft = JSON.parse(res?.data?.metadata?.annotations?.['w7.cc/front-type'])
-                        if(ft.includes("thirdparty_cd")){this.hasThirdpartyCd = true;}
-                    }catch{}
-                }
 
-                if(this.isMicroPage && this.hasThirdpartyCd){
+                if(this.isMicroPage){
                     this.getFront()
                 }
                 
