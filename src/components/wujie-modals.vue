@@ -123,7 +123,7 @@ import { registerWujieEvent, unregisterWujieEvent } from '@/hooks/use-wujie-even
 
 import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue';
-import domainCert from '@/views/topapp/domain-cert.vue';
+import domainCert from '@/components/domain-cert.vue';
 import appFile from '@/views/app/pages/files.vue';
 import microAppForm from '@/components/micro-app-form.vue';
 import domainMicroEdit from '@/components/domain-micro-edit.vue';
@@ -478,7 +478,7 @@ export default {
 
         // ========== 域名证书 ==========
         setDomainCert(data) {
-            this.domainCertData = data;
+            this.domainCertData = data ? {...data, __updateTime: Date.now()} : data;
         },
 
         // ========== 构建镜像 ==========

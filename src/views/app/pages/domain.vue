@@ -522,54 +522,7 @@
         <!-- 策略 -->
         <domain-strategy ref="domainstrategy" :show="strategy.show" :data="strategy.data" :multiple="strategy.multiple" :hideRewrite="true" @submit="strategy.submit" @refresh="getList()" @cancel="strategy.show=false;"></domain-strategy>
         <!-- 证书 -->
-        <a-drawer :width="800" :visible="tlsForm.show" @ok="submitTls" @cancel="tlsForm.show=false;" :popup-container="$popupContainer">
-            <template #title>证书</template>
-            <a-form :model="tlsForm" ref="tlsForm" auto-label-width class="padding-20" >
-                <a-form-item label="域名">
-                    <div class="df df-c">
-                        <a-select v-model="tlsForm.domainName" @change="v=>getSecrets(v)">
-                            <a-option v-for="item in tlsForm.list" :key="item.name" :label="(item.autoSsl?'https://':'http://')+item.domain" :value="item.name"></a-option>
-                        </a-select>
-                        <!-- <a-input v-model="tlsForm.domain" disabled></a-input> -->
-                        <div class="df ai-c mt-16">
-                            <a-checkbox v-model="tlsForm.auto_ssl">自动https</a-checkbox>
-                            <span v-if="tlsForm.testStatus && tlsForm.auto_ssl" class="ml-10">
-                                <icon-check-circle v-if="tlsForm.testStatus.status=='success'" class="c-green fs-16"/>
-                                <span v-else-if="tlsForm.testStatus.status=='warning'" class="df ai-c">
-                                    <icon-info-circle class="c-orange fs-16"/>
-                                    <span class="c-orange ml-2">签发中</span>
-                                </span>
-                                <span v-else-if="tlsForm.testStatus.status=='issuing'" class="df ai-c">
-                                    <icon-info-circle class="c-orange fs-16"/>
-                                    <span class="c-orange ml-2">获取中</span>
-                                </span>
-                                <a-popover v-else-if="tlsForm.testStatus.status=='error'" position="bottom">
-                                    <span class="cursor df ai-c" @click="retryTestStatus">
-                                        <icon-close-circle class="c-red lh-1 fs-16"/>
-                                        <span class="c-red ml-2 lh-1 fs-12">重试</span>
-                                    </span>
-                                    <template #content>
-                                        <div>时间：{{ tlsForm.testStatus.time }}</div>
-                                        <div>原因：{{ tlsForm.testStatus.reason }}</div>
-                                    </template>
-                                </a-popover>
-                            </span>
-                            <span class="c-99 ml-10">（如果您想使用自有证书，请先关闭https功能）</span>
-                        </div>
-                    </div>
-                </a-form-item>
-                <a-form-item label="证书（crt文件）">
-                    <a-textarea v-model="tlsForm.crt" :disabled="tlsForm.auto_ssl" placeholder="请输入" style="height:120px;" :spellcheck="false" allow-clear/>
-                </a-form-item>
-                <a-form-item label="私钥（key文件）">
-                    <a-textarea v-model="tlsForm.key" :disabled="tlsForm.auto_ssl" placeholder="请输入" style="height:120px;" :spellcheck="false" allow-clear/>
-                </a-form-item>
-                <a-form-item label="强制跳转">
-                    <a-switch v-model="tlsForm.redirect" >强制跳转</a-switch>
-                    <div class="c-99 ml-10">根据配置将用户访问强制跳转为https或http</div>
-                </a-form-item>
-            </a-form>
-        </a-drawer>
+        <domain-cert ref="domainCert" :data-list="dataList" :domain-list="list" @success="getList(patchApp)"></domain-cert>
         <!-- 灰度发布 -->
         <domain-gray-release
             ref="grayrelease"
@@ -613,28 +566,13 @@ import { getUserInfo } from '@/utils/auth';
 import CryptoJS  from 'crypto-js';
 import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
-import dayjs from 'dayjs';
+import domainCert from '@/components/domain-cert.vue';
 
 const type3Backend = {
     service: {
         name: 'w7panel-offline',
         port: {number: 8000},
     }
-}
-
-const templateData = {
-    data: {
-        "tls.crt": "",
-        "tls.key": "",
-    },
-    metadata:{
-        annotations: {
-            title: "",
-        },
-        name: '',
-        namespace: '',
-    },
-    type: "kubernetes.io/tls",
 }
 
 export default {
@@ -674,18 +612,6 @@ export default {
                 title: "",
                 submit: ()=>{},
             },
-            tlsForm: {
-                show: false,
-                auto_ssl: false,
-                domainName: "",
-                domain: "",
-                tlsName: "",
-                crt: "",
-                key: "",
-                redirect: false,
-                exist: false,
-            },
-            tlsList: [],
 
             rules: {
                 destination: [{ required: true, message: '请选择代理', trigger: 'blur' },],
@@ -741,6 +667,7 @@ export default {
         yamlDrawer,
         domainGrayRelease,
         domainParseAlert,
+        domainCert,
     },
     async created(){
         this.debug = getUserInfo()?.['w7.cc/debug']=='true';
@@ -787,66 +714,6 @@ export default {
                 }))
                 this.topApps = topApps;
             })
-        },
-        async retryTestStatus(){
-            let operation1 = [{
-                op: 'remove',
-                path: '/metadata/annotations/cert-manager.io~1cluster-issuer',
-            },{
-                op: 'remove',
-                path: '/metadata/annotations/cert-manager.io~1renew-before',
-            }]
-            let operation2 = [{
-                op: 'replace',
-                path: '/metadata/annotations/cert-manager.io~1cluster-issuer',
-                value: 'w7-letsencrypt-prod'
-            },{
-                op: 'replace',
-                path: '/metadata/annotations/cert-manager.io~1renew-before',
-                value: '30m'
-            }];
-            let url = "/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.tlsForm.domainName;
-            
-            useLoadingStore().loading = true;
-
-            await k8sproxy.patch(url, operation1,{
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(()=>{}).catch(()=>{})
-
-            await new Promise(r => setTimeout(r, 2000));
-
-            await k8sproxy.patch(url, operation2, {
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(()=>{}).catch(()=>{})
-            
-            useLoadingStore().loading = false;
-
-            let secretName = this.tlsForm.tlsName;
-            k8sproxy.get('/apis/cert-manager.io/v1/namespaces/'+ this.namespaceActive +'/certificates/'+secretName, {noAlert:true,loading:true}).then(res=>{
-                let readyItem = res.data?.status?.conditions?.find?.(i=>i.type == 'Ready');
-                let status = 'warning';
-                let failedIssuanceAttempts = res.data?.status?.failedIssuanceAttempts;
-
-                if(readyItem && readyItem.status.toLowerCase() == 'true'){
-                    status = 'success';
-                }else{
-                    if(failedIssuanceAttempts > 0){
-                        status = 'error'
-                    }else{
-                        status = 'issuing';
-                    }
-                }
-                
-                this.tlsForm = {
-                    ...this.tlsForm,
-                    testStatus: {
-                        status: status,
-                        reason: readyItem?.message || '',
-                        time: dayjs(readyItem?.lastTransitionTime || '').format('YYYY-MM-DD HH:mm:ss'),
-                    }
-                }
-            })
-
         },
         openBind(row){
             this.bindDomain = {
@@ -1195,258 +1062,10 @@ export default {
         },
         // 设置证书
         openTls(item){
-            this.tlsForm.list = [
-                ...(item?.children?.map?.(i=>({
-                    name: item.name+'-'+i.name,
-                    domain: i.host,
-                    parent: item.name,
-                    autoSsl: i.autoSsl,
-                    sslRedirect: i.sslRedirect,
-                }))),
-                { name: item.name, domain: item?.domain },
-            ]
-            this.tlsForm.domainName = item?.name || "";
-            this.tlsForm.domain = item?.domain || "";
-            this.tlsForm.tlsName = item?.secretName || "";
-            this.tlsForm.crt = "";
-            this.tlsForm.key = "";
-            this.tlsForm.exist = false;
-            this.tlsForm.auto_ssl = item?.is_auto_ssl || false;
-            this.tlsForm.redirect = item?.redirect || false;
-            this.getSecrets(this.tlsForm.domainName);
-        },
-        getSecrets(name){
-            let o = {
-                crt: '',
-                key: '',
-                exist: false,
-                show: true,
-            }
-
-            let data = this.dataList.find(i=>i?.metadata?.name == name);
-            let inChild = this.tlsForm.list.find(i=>i.name==name);
-            console.log(inChild)
-            let secretName = "";
-
-            if(inChild.parent){
-                this.tlsForm.auto_ssl = inChild.autoSsl;
-                this.tlsForm.redirect = inChild.sslRedirect;
-                this.tlsForm.domain = inChild.domain;
-                secretName = this.domainToname(this.tlsForm.domain) + "-tls-secret";
-            }else{
-
-                let is_auto_ssl = data?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
-                let redirect = data?.metadata?.annotations?.['w7.cc/ssl-redirect'] == 'true';
-                
-                this.tlsForm.auto_ssl = is_auto_ssl;
-                this.tlsForm.redirect = redirect;
-                
-                this.tlsForm.domain = data?.spec?.rules?.[0]?.host;
-                secretName = data?.spec?.tls?.[0]?.secretName || '';
-            }
-
-            this.tlsForm.tlsName = secretName || "";
-
-            if(!secretName){
-                this.tlsForm = {
-                    ...this.tlsForm,
-                    ...o,
-                }
-                return;
-            }
-
-            k8sproxy.get('/apis/cert-manager.io/v1/namespaces/'+ this.namespaceActive +'/certificates/'+secretName, {noAlert:true,loading:true}).then(res=>{
-                let readyItem = res.data?.status?.conditions?.find?.(i=>i.type == 'Ready');
-                let status = 'warning';
-                let failedIssuanceAttempts = res.data?.status?.failedIssuanceAttempts;
-
-                if(readyItem && readyItem.status.toLowerCase() == 'true'){
-                    status = 'success';
-                }else{
-                    if(failedIssuanceAttempts > 0){
-                        status = 'error'
-                    }else{
-                        status = 'issuing';
-                    }
-                }
-
-                this.tlsForm = {
-                    ...this.tlsForm,
-                    testStatus: {
-                        status: status,
-                        reason: readyItem?.message || '',
-                        time: dayjs(readyItem?.lastTransitionTime || '').format('YYYY-MM-DD HH:mm:ss'),
-                    }
-                }
-            })
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/secrets/'+secretName, {noAlert:true,loading:true}).then(res=>{
-                if(!res?.data){return}
-                this.tlsForm.crt = atob(res?.data?.data?.['tls.crt'] || '');
-                this.tlsForm.key = atob(res?.data?.data?.['tls.key'] || '');
-                this.tlsForm.exist = res.data;
-                this.tlsForm.show = true;
-            }).catch(()=>{
-                this.tlsForm = {
-                    ...this.tlsForm,
-                    ...o,
-                }
-            })
-
-        },
-        // 提交设置证书
-        async submitTls(){
-            let data = this.dataList.find(i=>i?.metadata?.name == this.tlsForm.domainName);
-            if(!data){
-                console.log('no domain', this.tlsForm.domainName)
-                return;
-            }
-
-            let operation = [];
-            this.tlsForm.tlsName = this.tlsForm.tlsName || (this.domainToname(this.tlsForm.domain) + "-tls-secret");
-
-            let children = [];
-            let parentName = this.tlsForm?.list?.find?.(i=>i.name==this.tlsForm.domainName)?.parent;
-            if(parentName){
-                children = this.list.find(i=>i.name==parentName).children || [];
-            }
-            
-            // 自动https
-            if(this.tlsForm.auto_ssl != (data?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod')){
-                if(this.tlsForm.auto_ssl){
-                    operation.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/cert-manager.io~1cluster-issuer',
-                        value: 'w7-letsencrypt-prod'
-                    })
-                    operation.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/cert-manager.io~1renew-before',
-                        value: '30m'
-                    })
-                }else{
-                    operation.push({
-                        op: 'remove',
-                        path: '/metadata/annotations/cert-manager.io~1cluster-issuer',
-                    })
-                    operation.push({
-                        op: 'remove',
-                        path: '/metadata/annotations/cert-manager.io~1renew-before',
-                    })
-                }
-            }
-            operation.push({
-                op: 'replace',
-                path: '/spec/tls',
-                value: [{
-                    hosts: [data?.spec?.rules?.[0]?.host,],
-                    secretName: this.tlsForm.tlsName,
-                }]
-            })
-            // 强制跳转
-            // data.metadata.annotations['w7.cc/ssl-redirect'] = this.tlsForm.redirect? 'true' : 'false';
-            operation.push({
-                op: 'replace',
-                path: '/metadata/annotations/w7.cc~1ssl-redirect',
-                value: this.tlsForm.redirect? 'true' : 'false'
-            })
-            // 修改证书
-            let formdata = JSON.parse(JSON.stringify(this.tlsForm.exist || templateData));
-            if(!formdata.metadata.annotations.title){
-                formdata.metadata.annotations.title = this.tlsForm.domainName;
-            }
-            formdata.metadata.name = this.tlsForm.tlsName;
-            formdata.data['tls.crt'] = btoa(this.tlsForm.crt);
-            formdata.data['tls.key'] = btoa(this.tlsForm.key);
-
-            if(children.length){
-                children.map(i=>{
-                    if(parentName+'-'+i.name!==this.tlsForm.domainName){return}
-                    i.autoSsl = this.tlsForm.auto_ssl;
-                    i.sslRedirect = this.tlsForm.redirect;
-                })
-                await k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+parentName,[{
-                    op: 'replace',
-                    path: '/metadata/annotations/w7.cc~1child-hosts',
-                    value: JSON.stringify(children)
-                }],{
-                    headers: {'Content-Type': 'application/json-patch+json'},
-                }).then(()=>{}).catch(()=>{})
-            }
-
-            let exist = false;
-            try {
-                await k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/secrets/'+this.tlsForm.tlsName, {noAlert:true})
-                exist = true;
-            }catch(e){}
-            if(exist){
-                await k8sproxy.put('/api/v1/namespaces/'+ this.namespaceActive +'/secrets/'+this.tlsForm.tlsName, formdata, {loading:true})
-            }else{
-                await k8sproxy.post('/api/v1/namespaces/'+ this.namespaceActive +'/secrets', formdata, {loading:true})
-            }
-            
-            if(!parentName){
-                k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.tlsForm.domainName, operation,{
-                    headers: {'Content-Type': 'application/json-patch+json'},
-                }).then(()=>{
-                    return this.setSubdomainTls();
-                }).then(res=>{
-                    this.$message.success("操作成功");
-                    this.tlsForm.show = false;
-                    this.getList(this.patchApp);
-                })
-            }else{
-                this.$message.success("操作成功")
-                this.tlsForm.show = false;
-                this.getList(this.patchApp);
-            }
-        },
-        // 设置子域名证书
-        setSubdomainTls(){
-            useLoadingStore().loading = true;
-            let list = this.dataList.filter(i=>i?.metadata?.labels?.parents==this.tlsForm.domainName)
-            return Promise.all(list.map(i=>{
-                let data = JSON.parse(JSON.stringify(i))
-                let operation = [];
-
-                if(this.tlsForm.auto_ssl){
-                    operation.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/cert-manager.io~1cluster-issuer',
-                        value: 'w7-letsencrypt-prod'
-                    })
-                    operation.push({
-                        op: 'replace',
-                        path: '/metadata/annotations/cert-manager.io~1renew-before',
-                        value: '30m'
-                    })
-                }else{
-                    operation.push({
-                        op: 'remove',
-                        path: '/metadata/annotations/cert-manager.io~1cluster-issuer',
-                    })
-                    operation.push({
-                        op: 'remove',
-                        path: '/metadata/annotations/cert-manager.io~1renew-before',
-                    })
-                }
-                operation.push({
-                    op: 'replace',
-                    path: '/spec/tls',
-                    value: [{
-                        hosts: [data?.spec?.rules?.[0]?.host,],
-                        secretName: this.tlsForm.tlsName,
-                    }]
-                })
-                operation.push({
-                    op: 'replace',
-                    path: '/metadata/annotations/w7.cc~1ssl-redirect',
-                    value: this.tlsForm.redirect? 'true' : 'false'
-                })
-                return k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+data.metadata.name, operation, {
-                    headers: {'Content-Type': 'application/json-patch+json'},
-                });
-            })).finally(()=>{
-                useLoadingStore().loading = false;
+            this.$refs.domainCert.open(item, {
+                dataList: this.dataList,
+                domainList: this.list,
+                namespace: this.namespaceActive,
             });
         },
         openYaml(name){
