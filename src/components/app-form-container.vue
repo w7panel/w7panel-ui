@@ -120,7 +120,7 @@
                                     <a-switch :disabled="true"></a-switch>
                                     <template #content>{{testEasyCmd(form).reason}}</template>
                                 </a-popover>
-                                <a-switch v-else v-model="form.easyCmd" @change="form.command.length==1?form.command=['sh','-c'].concat(form.command):null;"></a-switch>
+                                <a-switch v-else v-model="form.easyCmd" @change="v=>toggleEasyCmd(form,v)"></a-switch>
                             </div>
                             <div v-if="form.easyCmd">
                                 <a-textarea v-model="form.command[2]" placeholder="请输入命令" style="height:80px;width:760px;" :spellcheck="false" allow-clear/>
@@ -431,7 +431,7 @@
                                     <a-switch :disabled="true"></a-switch>
                                     <template #content>{{testEasyCmd(form).reason}}</template>
                                 </a-popover>
-                                <a-switch v-else v-model="form.easyCmd" @change="form.command.length==1?form.command=['sh','-c'].concat(form.command):null;"></a-switch>
+                                <a-switch v-else v-model="form.easyCmd" @change="v=>toggleEasyCmd(form,v)"></a-switch>
                             </div>
                             <div v-if="form.easyCmd">
                                 <a-textarea v-model="form.command[2]" placeholder="请输入命令" style="height:80px;width:760px;" :spellcheck="false" allow-clear/>
@@ -744,14 +744,49 @@ export default{
             });
         },
         testEasyCmd(form){
-            let c = form?.command || [];
-            let a = form?.args || [];
-            let tc = c.length<=1 || (c.length==3 && c[0]=='sh' && c[1]=='-c');
-            let ta = a.filter(i=>i).length == 0;
-            if(tc && ta){return {pass:true}}
+            let easyCmd = this.normalizeEasyCmd(form);
+            if(easyCmd.pass){return {pass:true}}
             return {
                 pass: false,
-                reason: tc?'运行参数不为空，请删减后开启！':'运行命令大于1个，请删减后开启！',
+                reason: easyCmd.commandPass?'运行参数不为空，请删减后开启！':'运行命令大于1个，请删减后开启！',
+            }
+        },
+        normalizeEasyCmd(form){
+            let command = Array.isArray(form?.command) ? form.command : [];
+            let args = Array.isArray(form?.args) ? form.args : [];
+            let commandValues = command.filter(i=>i);
+            let argsValues = args.filter(i=>i);
+            let shellPrefix = commandValues[0]=='sh' && commandValues[1]=='-c';
+            let commandPass = commandValues.length<=1 || (shellPrefix && commandValues.length<=3);
+            let argsPass = argsValues.length==0 || (shellPrefix && commandValues.length==2 && argsValues.length==1);
+            let pass = commandPass && argsPass;
+            let easyValue = '';
+            if(pass){
+                if(shellPrefix){
+                    easyValue = commandValues[2] || argsValues[0] || '';
+                }else{
+                    easyValue = commandValues[0] || '';
+                }
+            }
+            return {
+                pass,
+                commandPass,
+                command: ['sh','-c', easyValue],
+                args: [''],
+            }
+        },
+        toggleEasyCmd(form, checked){
+            if(checked){
+                let easyCmd = this.normalizeEasyCmd(form);
+                if(easyCmd.pass){
+                    form.command = easyCmd.command;
+                    form.args = easyCmd.args;
+                }
+            }else{
+                if(form.command?.length==3 && form.command[0]=='sh' && form.command[1]=='-c'){
+                    form.command = [form.command[2] || ''];
+                }
+                form.args = form.args?.length ? form.args : [''];
             }
         },
         testImage(index){
@@ -960,14 +995,13 @@ export default{
                 }
             })
 
-            let easyCmd = this.testEasyCmd({
-                command: ctn?.command || [''],
-                args: ctn?.args || [''],
-            }).pass;
-            let command = ctn?.command || [''];
-            if(easyCmd && command.length==1){
-                command = ['sh','-c'].concat(command);
-            }
+            let easyCmdInfo = this.normalizeEasyCmd({
+                command: ctn?.command || [],
+                args: ctn?.args || [],
+            });
+            let easyCmd = easyCmdInfo.pass;
+            let command = easyCmd ? easyCmdInfo.command : (ctn?.command || ['']);
+            let args = easyCmd ? easyCmdInfo.args : (ctn?.args || ['']);
             
             form = {
                 ...form,
@@ -990,7 +1024,7 @@ export default{
                 isInitContainers: containers.isInitContainers,
                 
                 command: command,
-                args: ctn?.args || [''],
+                args: args,
                 easyCmd: easyCmd,
             }
 
@@ -1129,6 +1163,11 @@ export default{
 
                 // 运行命令
                 let command = form.command?.filter(i=>i) || [];
+                let args = form.args?.filter(i=>i) || [];
+                if(form.easyCmd){
+                    command = this.normalizeEasyCmd(form).command.filter(i=>i);
+                    args = [];
+                }
                 if(command.length==2&&command[0]=='sh'&&command[1]=='-c'){
                     command = [];
                 }
@@ -1146,7 +1185,7 @@ export default{
                     }),
                     securityContext: securityContext,
                     command: command,
-                    args: form.args?.filter(i=>i) || [],
+                    args: args,
                 }
 
                 if(form.isInitContainers){
