@@ -166,7 +166,7 @@
         return travel(menuTree.value as RouteRecordRaw[], [], true);
       };
 
-      const ckmname = getK8sinfo()['w7.cc/cvm-name'];
+      const ckmname = getK8sinfo()['w7.cc/ckm-name'];
       return () => (
         <div class="menu-panel">
           {showMicroBack.value ? (
