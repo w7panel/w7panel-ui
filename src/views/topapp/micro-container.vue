@@ -23,6 +23,7 @@ import { bus, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
+import { createWujieLegacyPlugin } from '@/utils/wujie-legacy-plugin';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -258,6 +259,7 @@ export default{
                 sync: true,
                 prefix: getWujieRoutePrefix(this.info.frontendUrl),
                 props: props,
+                plugins: [createWujieLegacyPlugin()],
             }).then(()=>{
                 console.log('app success')
             }).catch(()=>{

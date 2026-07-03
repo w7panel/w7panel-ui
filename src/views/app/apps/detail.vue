@@ -130,6 +130,7 @@ import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
+import { createWujieLegacyPlugin } from '@/utils/wujie-legacy-plugin';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -384,6 +385,7 @@ export default {
                 sync: true,
                 props: props,
                 prefix: this.getMicroRoutePrefix(),
+                plugins: [createWujieLegacyPlugin()],
                 loadError: (url, error)=>{
                     console.log(`appdetail loadError`, url, error);
                 },
