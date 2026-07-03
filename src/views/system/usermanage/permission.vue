@@ -11,14 +11,12 @@
                     <td>名称</td>
                     <td>类型</td>
                     <td>创建时间</td>
-                    <!-- <td>集群模式</td> -->
                     <td>操作</td>
                 </tr>
                 <tr v-for="(record,index) in list.filter(i=>i.type=='in')" :key="index+'in'">
                     <td>{{ record.title }}</td>
                     <td>{{ record.type=='in'? '系统内置' : '自定义'}}</td>
                     <td>-</td>
-                    <!-- <td>{{ record.clustermodeTxt }}</td> -->
                     <td>
                         <a-tooltip v-if="debug" content="yaml">
                             <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
@@ -45,7 +43,6 @@
                     <td>{{ record.title }}</td>
                     <td>{{ record.type=='in'? '系统内置' : '自定义'}}</td>
                     <td>{{ record.created }}</td>
-                    <!-- <td>{{ record.clustermodeTxt }}</td> -->
                     <td>
                         <a-tooltip v-if="debug" content="yaml">
                             <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
@@ -64,65 +61,6 @@
                     </td>
                 </tr>
             </tbody></table>
-            <!-- <a-table class="cptable" :data="list.filter(i=>i.type=='in')" :pagination="false" :bordered="false">
-                <template #columns>
-                    <a-table-column title="名称" data-index="title"></a-table-column>
-                    <a-table-column title="类型">
-                        <template #cell="{record}">{{ record.type=='in'? '系统内置' : '自定义' }}</template>
-                    </a-table-column>
-                    <a-table-column title="创建时间" data-index="created"></a-table-column>
-                    <a-table-column title="集群模式" data-index="clustermodeTxt"></a-table-column>
-                    <a-table-column title="操作">
-                        <template #cell="{ record }">
-                            
-                            <a-tooltip v-if="debug" content="yaml">
-                                <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
-                            </a-tooltip>
-                            <a-tooltip content="修改">
-                                <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
-                            </a-tooltip>
-                            <a-tooltip v-if="record.type=='in'" content="创建新权限">
-                                <i class="opt-icon" @click="addCustom(record)"><icon-plus /></i>
-                            </a-tooltip>
-                            <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                <a-tooltip content="删除">
-                                    <i class="opt-icon"><icon-delete /></i>
-                                </a-tooltip>
-                            </a-popconfirm>
-                        </template>
-                    </a-table-column>
-                </template>
-            </a-table>
-
-            <a-table class="cptable mt-30" :data="list.filter(i=>i.type!='in')" :pagination="false" :bordered="false">
-                <template #columns>
-                    <a-table-column title="名称" data-index="title"></a-table-column>
-                    <a-table-column title="类型">
-                        <template #cell="{record}">{{ record.type=='in'? '系统内置' : '自定义' }}</template>
-                    </a-table-column>
-                    <a-table-column title="创建时间" data-index="created"></a-table-column>
-                    <a-table-column title="集群模式" data-index="clustermodeTxt"></a-table-column>
-                    <a-table-column title="操作">
-                        <template #cell="{ record }">
-                            
-                            <a-tooltip v-if="debug" content="yaml">
-                                <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
-                            </a-tooltip>
-                            <a-tooltip content="修改">
-                                <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
-                            </a-tooltip>
-                            <a-tooltip v-if="record.type=='in'" content="创建新权限">
-                                <i class="opt-icon" @click="addCustom(record)"><icon-plus /></i>
-                            </a-tooltip>
-                            <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                <a-tooltip content="删除">
-                                    <i class="opt-icon"><icon-delete /></i>
-                                </a-tooltip>
-                            </a-popconfirm>
-                        </template>
-                    </a-table-column>
-                </template>
-            </a-table> -->
         </div>
 
         <a-drawer
@@ -137,19 +75,6 @@
                 <a-form-item label="名称" field="title">
                     <a-input v-model="form.title" placeholder="请输入"></a-input>
                 </a-form-item>
-                <!-- <a-form-item label="集群模式" :disabled="!!form.name && !form.isAdd" field="clustermode" :rules="[{required:true,message:'请选择集群模式', trigger: 'blur' }]">
-                    <a-select v-model="form.clustermode" placeholder="请选择集群模式">
-                        <a-option label="全局" value="global"></a-option>
-                        <a-option label="共享" value="shared"></a-option>
-                        <a-option label="独享" value="virtual"></a-option>
-                    </a-select>
-                    <template #extra>
-                        <div v-if="form.clustermode=='shared'">共享：基于主集群轻度隔离，轻量，适用于内部团队场景。</div>
-                        <div v-if="form.clustermode=='virtual'">独享：基于主集群完全隔离，完整的集群架构，适用于商业多租户场景。</div>
-                        <div v-if="form.clustermode=='global'">全局：可直接对创始人端后台进行管理。</div>
-                    </template>
-                </a-form-item> -->
-
                 <a-tabs default-active-key="1" style="margin-bottom:20px;">
 
                     <a-tab-pane key="1" title="基础权限">
@@ -174,7 +99,6 @@
                                     :disabled="form.name==founderName || (menuConstraintKeys && !menuConstraintKeys.length)"
                                     :permission="form.permission"
                                     :allowed-keys="menuConstraintKeys"
-                                    :allowedMode="formMenuMode"
                                     @checked="v=>form.permission=v"
                                 ></menu-select>
                             </div>
@@ -297,7 +221,6 @@ export default {
                 debug: false,
                 webshell: false,
                 fileeditor: false,
-                clustermode: 'virtual',
                 permission: [],
                 apiAll: false,
                 apiSearch: '',
@@ -315,9 +238,6 @@ export default {
                 submit: ()=>{},
             },
             debug: false,
-
-            sharedTreeData: [],
-            virtualTreeData: [],
 
             founderName: 'founder',
             apiRoutes: [],
@@ -401,10 +321,6 @@ export default {
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;
         },
-        formMenuMode(){
-            if(this.form.name === this.founderName){return 'global'}
-            return this.form.clustermode;
-        },
     },
     components: {
         menuSelect,
@@ -412,10 +328,6 @@ export default {
         whitelistComponent,
     },
     methods: {
-        // initTreeData(){
-        //     this.sharedTreeData = this.filterTree(sharedPass);
-        //     this.virtualTreeData = this.filterTree(virtualPass);
-        // },
         filterTree(keys){
             const menuDataCopy = JSON.parse(JSON.stringify(this.treeData));
     
@@ -433,18 +345,6 @@ export default {
             traverseAndDisable(menuDataCopy);
             return menuDataCopy;
         },
-        permissionClusterMode(permission){
-            const name = permission?.metadata?.name || '';
-            const mode = permission?.spec?.clustermode || permission?.spec?.clusterMode || (name === this.founderName ? 'global' : '');
-            return {
-                clustermode: mode,
-                clustermodeTxt: {
-                    global: '全局',
-                    shared: '共享',
-                    virtual: '独享',
-                }[mode] || '',
-            };
-        },
         getList(){
             k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
@@ -461,7 +361,6 @@ export default {
                         debug: i.spec?.features?.debug === true,
                         webshell: i.spec?.features?.webshell === true,
                         fileeditor: i.spec?.features?.fileeditor === true,
-                        ...this.permissionClusterMode(i),
                         whitelist: whitelist,
                         api: this.apiRulesToApi(i.spec?.apiRules || []),
                         parentPermission: i.spec?.parentPermission || '',
@@ -493,16 +392,6 @@ export default {
             });
             return this.apiRoutesPromise;
         },
-        // add(){
-        //     this.form = {
-        //         show: true,
-        //         title: '',
-        //         name: '',
-        //         clustermode: 'shared',
-        //         permission: [],
-        //         whitelist: [],
-        //     }
-        // },
         addCustom(row){
             let originData = JSON.parse(JSON.stringify(row.originData));
             delete originData.metadata.resourceVersion;
@@ -540,7 +429,6 @@ export default {
                 originData: row.originData,
                 title: row.title,
                 name: row.name,
-                clustermode: row.clustermode,
                 permission: row.permission,
                 debug: row.debug,
                 webshell: row.webshell,
