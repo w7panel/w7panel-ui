@@ -174,7 +174,7 @@
                                     :disabled="form.name==founderName || (menuConstraintKeys && !menuConstraintKeys.length)"
                                     :permission="form.permission"
                                     :allowed-keys="menuConstraintKeys"
-                                    :allowedMode="form.clustermode"
+                                    :allowedMode="formMenuMode"
                                     @checked="v=>form.permission=v"
                                 ></menu-select>
                             </div>
@@ -400,6 +400,10 @@ export default {
         },
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;
+        },
+        formMenuMode(){
+            if(this.form.name === this.founderName){return 'global'}
+            return this.form.clustermode;
         },
     },
     components: {
