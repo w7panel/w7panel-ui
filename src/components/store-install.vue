@@ -1071,6 +1071,7 @@ export default {
                 installOptions: installOptions,
                 clusterId: this.$route.query.insClusterId || '',
                 thirdpartyCDToken: this.$route.query.thirdpartyCDToken || this.thirdparty_cd_token,
+                panelUrl: window.location.origin,
             }
 
             if(!this.is_component && this.$route.query.isTrandition){
