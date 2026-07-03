@@ -333,7 +333,7 @@ export default {
             if(this.pmsForm.permissionPackage==''){return}
             let find = this.permissionPackageList.find(i=>i.name==this.pmsForm.permissionPackage);
             if(!find){return}
-            let permission = find?.permission || [];
+            let permission = this.getPermissionPackageMenu(find);
             this.pmsForm.list = permission.filter(i=>!(this.pmsForm.type=='shared'?sharedPass:virtualPass).includes(i));
             this.pmsForm.debug = find.debug;
             this.pmsForm.webshell = find.webshell;
@@ -343,6 +343,18 @@ export default {
                 ...this.pmsForm,
                 ...this.apiToForm(find.api || {}),
             };
+        },
+        getPermissionPackageMenu(permissionPackage, visited = []){
+            if(!permissionPackage || visited.includes(permissionPackage.name)){
+                return [];
+            }
+            let parent = permissionPackage.parentPermission
+                ? this.permissionPackageList.find(i=>i.name==permissionPackage.parentPermission)
+                : null;
+            return Array.from(new Set([
+                ...this.getPermissionPackageMenu(parent, [...visited, permissionPackage.name]),
+                ...(permissionPackage.permission || []),
+            ]));
         },
         getApiRoutes(){
             if(this.apiRoutesPromise){
