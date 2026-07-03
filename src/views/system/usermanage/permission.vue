@@ -433,6 +433,18 @@ export default {
             traverseAndDisable(menuDataCopy);
             return menuDataCopy;
         },
+        permissionClusterMode(permission){
+            const name = permission?.metadata?.name || '';
+            const mode = permission?.spec?.clustermode || permission?.spec?.clusterMode || (name === this.founderName ? 'global' : '');
+            return {
+                clustermode: mode,
+                clustermodeTxt: {
+                    global: '全局',
+                    shared: '共享',
+                    virtual: '独享',
+                }[mode] || '',
+            };
+        },
         getList(){
             k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
@@ -449,8 +461,7 @@ export default {
                         debug: i.spec?.features?.debug === true,
                         webshell: i.spec?.features?.webshell === true,
                         fileeditor: i.spec?.features?.fileeditor === true,
-                        clustermode: 'virtual',
-                        clustermodeTxt: '独享',
+                        ...this.permissionClusterMode(i),
                         whitelist: whitelist,
                         api: this.apiRulesToApi(i.spec?.apiRules || []),
                         parentPermission: i.spec?.parentPermission || '',
