@@ -1,5 +1,3 @@
-export const WUJIE_LEGACY_SELF_NAVIGATE_EVENT = 'w7LegacySelfNavigate';
-
 function normalizeSrc(src) {
     return String(src || '').replace(/^https?:/, '');
 }
@@ -150,46 +148,6 @@ export function createWujieLegacyPlugin() {
         return !!anchor.href;
     }
 
-    function getRouteFromHref(href) {
-        try{
-            var url = new URL(href, window.location.href);
-            return url.pathname + url.search + url.hash;
-        }catch(e){
-            return href;
-        }
-    }
-
-    function getWujieBus() {
-        var wujie = window.$wujie || (window.__WUJIE && window.__WUJIE.provide);
-        return wujie && wujie.bus;
-    }
-
-    function getWujieLocation() {
-        if(window.__WUJIE && window.__WUJIE.proxyLocation){
-            return window.__WUJIE.proxyLocation;
-        }
-        if(window.$wujie && window.$wujie.location){
-            return window.$wujie.location;
-        }
-        return window.location;
-    }
-
-    function navigateBySelf(anchor) {
-        var href = anchor.href;
-        var bus = getWujieBus();
-        var payload = {
-            appId: window.__WUJIE && window.__WUJIE.id,
-            href: href,
-            route: getRouteFromHref(href),
-        };
-
-        getWujieLocation().href = href;
-
-        if(bus && typeof bus.$emit === 'function'){
-            bus.$emit(${JSON.stringify(WUJIE_LEGACY_SELF_NAVIGATE_EVENT)}, payload);
-        }
-    }
-
     function patchAnchor(anchor) {
         if(anchor && shouldNormalizeSelfTarget(anchor.getAttribute('target'))){
             anchor.setAttribute('target', '_self');
@@ -215,7 +173,7 @@ export function createWujieLegacyPlugin() {
                 return;
             }
             event.preventDefault();
-            navigateBySelf(anchor);
+            window.location.href = anchor.href;
         }, false);
     }
     if(window.MutationObserver && !window.__W7_WUJIE_ANCHOR_OBSERVER__){

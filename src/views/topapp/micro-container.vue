@@ -23,7 +23,7 @@ import { bus, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
-import { createWujieLegacyPlugin, WUJIE_LEGACY_SELF_NAVIGATE_EVENT } from '@/utils/wujie-legacy-plugin';
+import { createWujieLegacyPlugin } from '@/utils/wujie-legacy-plugin';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -44,7 +44,6 @@ export default{
         this.namespaceActive = useNamespaceStore().namespace;
 
         bus.$on('changeAppMenu', this.changeAppMenu);
-        bus.$on(WUJIE_LEGACY_SELF_NAVIGATE_EVENT, this.handleWujieLegacySelfNavigate);
     },
     mounted(){
         if(this.appgroup){
@@ -74,7 +73,6 @@ export default{
     beforeUnmount(){
 
         bus.$off('changeAppMenu', this.changeAppMenu);
-        bus.$off(WUJIE_LEGACY_SELF_NAVIGATE_EVENT, this.handleWujieLegacySelfNavigate);
 
         this.destroyMicro();
         this.clearSyncedAppmicroUrl();
@@ -114,32 +112,6 @@ export default{
             // }
             bus.$emit("routeChange", (v || '').replace(/^#/,''));
             this.rememberMicroRoute(v);
-        },
-        handleWujieLegacySelfNavigate(payload = {}){
-            if(payload?.appId !== 'appmicro'){
-                return;
-            }
-
-            const rawRoute = payload.route || payload.href || '';
-            const route = normalizeWujieSyncRoute(rawRoute, getWujieRoutePrefix(this.info.frontendUrl));
-            if(route){
-                this.page = route;
-                this.rememberMicroRoute(route);
-            }
-            this.syncAppmicroRouteQuery(rawRoute || route);
-        },
-        syncAppmicroRouteQuery(value){
-            if(!value){
-                return;
-            }
-            this.$router.replace({
-                path: this.$route.path,
-                query: {
-                    ...this.$route.query,
-                    appmicro: value,
-                },
-                hash: this.$route.hash,
-            }).catch(()=>{});
         },
         resetMicro(){
             try{
@@ -283,6 +255,7 @@ export default{
 // url: 'http://218.23.2.48:9090' + url,
                 exec: true,
                 el: '#appmicro',
+                degrade: isIframeMode,
                 sync: true,
                 prefix: getWujieRoutePrefix(this.info.frontendUrl),
                 props: props,

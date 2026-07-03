@@ -130,7 +130,7 @@ import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
-import { createWujieLegacyPlugin, WUJIE_LEGACY_SELF_NAVIGATE_EVENT } from '@/utils/wujie-legacy-plugin';
+import { createWujieLegacyPlugin } from '@/utils/wujie-legacy-plugin';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -233,7 +233,6 @@ export default {
         this.selectMenu = [this.$route.meta.routekey]
         this.namespaceActive = useNamespaceStore().namespace;
         this.groupTitle = this.$route.params.group;
-        bus.$on(WUJIE_LEGACY_SELF_NAVIGATE_EVENT, this.handleWujieLegacySelfNavigate);
         await this.getData();
         if(!this.isMicroPage && this.hasThirdpartyCd){
             this.getFront(this.microApp);
@@ -258,7 +257,6 @@ export default {
         if(this.watchInterval){
             clearInterval(this.watchInterval);
         }
-        bus.$off(WUJIE_LEGACY_SELF_NAVIGATE_EVENT, this.handleWujieLegacySelfNavigate);
         try{
             destroyApp(APP_DETAIL_MICRO_NAME);
         }catch{
@@ -313,32 +311,6 @@ export default {
             bus.$emit("routeChange", (v || '').replace(/^#/,''), {
                 fromSubPanel: window.__POWERED_BY_WUJIE__
             });
-        },
-        handleWujieLegacySelfNavigate(payload = {}){
-            if(payload?.appId !== APP_DETAIL_MICRO_NAME){
-                return;
-            }
-
-            const rawRoute = payload.route || payload.href || '';
-            const route = normalizeWujieSyncRoute(rawRoute, this.getMicroNormalizePrefix());
-            if(route){
-                this.menuActive = route;
-                this.selectMenu = [route];
-            }
-            this.syncMicroRouteQuery(APP_DETAIL_MICRO_QUERY, rawRoute || route);
-        },
-        syncMicroRouteQuery(queryKey, value){
-            if(!value){
-                return;
-            }
-            this.$router.replace({
-                path: this.$route.path,
-                query: {
-                    ...this.$route.query,
-                    [queryKey]: value,
-                },
-                hash: this.$route.hash,
-            }).catch(()=>{});
         },
         async wujieInit(){
             
