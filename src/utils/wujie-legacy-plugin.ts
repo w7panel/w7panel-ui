@@ -101,10 +101,140 @@ function loadLegacyJs(code, url) {
     return exposeRequireGlobals(queueJqueryReady(code, url), url);
 }
 
+const patchLocationNavigation = `
+;(function() {
+    if(window.__W7_WUJIE_LOCATION_NAVIGATION_PATCHED__){
+        return;
+    }
+    window.__W7_WUJIE_LOCATION_NAVIGATION_PATCHED__ = true;
+
+    var sandbox = window.__WUJIE;
+    if(!sandbox || !sandbox.proxyLocation || typeof Proxy !== 'function'){
+        return;
+    }
+
+    var rawLocation = sandbox.proxyLocation;
+
+    function getWujieProps() {
+        return window.$wujie && window.$wujie.props;
+    }
+
+    function getNavigateHandler() {
+        var props = getWujieProps();
+        if(!props){
+            return null;
+        }
+        return props.navigateMicro || props.restartMicroApp || null;
+    }
+
+    function callHostNavigation(value, options) {
+        var handler = getNavigateHandler();
+        if(typeof handler !== 'function'){
+            return false;
+        }
+
+        var href = String(value == null ? '' : value);
+        if(!href){
+            return false;
+        }
+
+        try {
+            return handler({
+                href: href,
+                replace: !!(options && options.replace),
+                source: (options && options.source) || 'location',
+            }) !== false;
+        } catch (e) {
+            if(window.console && console.warn){
+                console.warn('[wujie] host navigation failed', e);
+            }
+            return false;
+        }
+    }
+
+    function fallbackNavigation(value, options) {
+        if(options && options.replace && typeof rawLocation.replace === 'function'){
+            rawLocation.replace(value);
+            return;
+        }
+        rawLocation.href = value;
+    }
+
+    function navigateOrFallback(value, options) {
+        if(!callHostNavigation(value, options)){
+            fallbackNavigation(value, options);
+        }
+    }
+
+    window.__W7_WUJIE_NAVIGATE__ = callHostNavigation;
+
+    var patchedLocation = new Proxy(rawLocation, {
+        get: function(target, prop) {
+            if(prop === '__W7_WUJIE_RAW_LOCATION__'){
+                return target;
+            }
+            if(prop === 'assign'){
+                return function(value) {
+                    navigateOrFallback(value, { source: 'location.assign' });
+                };
+            }
+            if(prop === 'replace'){
+                return function(value) {
+                    navigateOrFallback(value, { replace: true, source: 'location.replace' });
+                };
+            }
+            if(prop === 'toString'){
+                return function() {
+                    return String(target.href);
+                };
+            }
+
+            var value = target[prop];
+            return typeof value === 'function' ? value.bind(target) : value;
+        },
+        set: function(target, prop, value) {
+            if(prop === 'href' && callHostNavigation(value, { source: 'location.href' })){
+                return true;
+            }
+            target[prop] = value;
+            return true;
+        },
+        has: function(target, prop) {
+            return prop in target;
+        },
+        ownKeys: function(target) {
+            return Reflect.ownKeys(target);
+        },
+        getOwnPropertyDescriptor: function(target, prop) {
+            var descriptor = Object.getOwnPropertyDescriptor(target, prop);
+            if(descriptor){
+                descriptor.configurable = true;
+                return descriptor;
+            }
+            return {
+                configurable: true,
+                enumerable: true,
+                value: target[prop],
+            };
+        },
+    });
+
+    sandbox.proxyLocation = patchedLocation;
+    if(sandbox.provide){
+        sandbox.provide.location = patchedLocation;
+    }
+    if(window.$wujie){
+        window.$wujie.location = patchedLocation;
+    }
+})();`;
+
 export function createWujieLegacyPlugin() {
     return {
         htmlLoader: loadLegacyHtml,
         jsLoader: loadLegacyJs,
+        jsBeforeLoaders: [{
+            content: patchLocationNavigation,
+        }],
         jsAfterLoaders: [{
             content: `
 ;try {
@@ -173,7 +303,9 @@ export function createWujieLegacyPlugin() {
                 return;
             }
             event.preventDefault();
-            window.location.href = anchor.href;
+            if(!window.__W7_WUJIE_NAVIGATE__ || !window.__W7_WUJIE_NAVIGATE__(anchor.href, { source: 'anchor' })){
+                window.location.href = anchor.href;
+            }
         }, false);
     }
     if(window.MutationObserver && !window.__W7_WUJIE_ANCHOR_OBSERVER__){

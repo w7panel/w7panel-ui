@@ -1,6 +1,9 @@
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { mergeConfig } from 'vite';
 // import eslint from 'vite-plugin-eslint';
 import baseConfig from './vite.config.base';
+
 
 // const proxyUrl = 'http://172.16.1.13:8002';
 // const proxyUrl =  'http://172.16.1.117:3090';
@@ -42,6 +45,10 @@ export default mergeConfig(
       host: '0.0.0.0',
       open: false,
       port: 8000,
+      https: {
+        key: readFileSync(resolve(__dirname, '../certs/localhost-key.pem')),
+        cert: readFileSync(resolve(__dirname, '../certs/localhost.pem')),
+      },
       fs: {
         strict: true,
       },
@@ -61,6 +68,11 @@ export default mergeConfig(
           ws: true,
         },
         '/version': {
+          target: proxyUrl,
+          changeOrigin: true,
+          ws: true,
+        },
+        '/ui/microapp': {
           target: proxyUrl,
           changeOrigin: true,
           ws: true,
