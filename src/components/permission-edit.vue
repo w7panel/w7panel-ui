@@ -5,12 +5,12 @@
             <a-form :model="pmsForm" auto-label-width>
                 
                 <a-form-item label="权限套餐">
-                    <a-select v-model="pmsForm.permissionPackage" :disabled="pmsForm.userMode=='founder'" @change="pmsFormChangePermissionPackage" placeholder="请选择">
-                        <a-option v-for="item in pmsls" :key="item.name" :label="item.title" :value="item.name"></a-option>
-                    </a-select>
-                </a-form-item>
-                <a-form-item v-if="!noCustom" label="自定义权限">
-                    <a-checkbox v-model="pmsForm.customPermission" :disabled="pmsForm.userMode=='founder'" @change="customPermissionChange">允许修改基础权限、菜单权限、域名白名单、API权限</a-checkbox>
+                    <div class="df ai-c" style="flex:1;">
+                        <a-select v-model="pmsForm.permissionPackage" :disabled="pmsForm.userMode=='founder'" @change="pmsFormChangePermissionPackage" placeholder="请选择">
+                            <a-option v-for="item in pmsls" :key="item.name" :label="item.title" :value="item.name"></a-option>
+                        </a-select>
+                        <a-checkbox v-if="!noCustom" v-model="pmsForm.customPermission" :disabled="pmsForm.userMode=='founder'" @change="customPermissionChange" class="ml-20 df-s0">自定义权限</a-checkbox>
+                    </div>
                 </a-form-item>
 
                 <a-tabs v-show="!noCustom" default-active-key="1" style="margin-bottom:20px;">

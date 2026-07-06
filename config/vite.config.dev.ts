@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { mergeConfig } from 'vite';
 // import eslint from 'vite-plugin-eslint';
@@ -13,6 +13,15 @@ import baseConfig from './vite.config.base';
 // const proxyUrl =  'http://218.23.2.55:9090';
 
 const proxyUrl = 'http://218.23.2.48:9090';
+
+const localhostKeyPath = resolve(__dirname, '../certs/localhost-key.pem');
+const localhostCertPath = resolve(__dirname, '../certs/localhost.pem');
+const httpsConfig = existsSync(localhostKeyPath) && existsSync(localhostCertPath)
+  ? {
+      key: readFileSync(localhostKeyPath),
+      cert: readFileSync(localhostCertPath),
+    }
+  : false;
 
 // const proxyUrl = 'http://172.16.1.162:9090';
 // const proxyUrl = 'http://172.16.1.18:8000';
@@ -45,10 +54,7 @@ export default mergeConfig(
       host: '0.0.0.0',
       open: false,
       port: 8000,
-      https: {
-        key: readFileSync(resolve(__dirname, '../certs/localhost-key.pem')),
-        cert: readFileSync(resolve(__dirname, '../certs/localhost.pem')),
-      },
+      https: httpsConfig,
       fs: {
         strict: true,
       },
