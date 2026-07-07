@@ -1497,6 +1497,29 @@ export default {
             })
         },
         // 获取域名列表
+        getAppGroupIngressNames(){
+            return (this.groupData?.status?.items || [])
+                .filter(i=>i?.kind=='Ingress' && i?.name)
+                .map(i=>i.name);
+        },
+        mergeIngressList(data, extra){
+            let map = {};
+            [...(data || []), ...(extra || [])].forEach(item=>{
+                if(item?.metadata?.name){
+                    map[item.metadata.name] = item;
+                }
+            })
+            return Object.values(map);
+        },
+        fetchAppGroupItemIngresses(data){
+            let exists = new Set((data || []).map(i=>i?.metadata?.name).filter(Boolean));
+            let names = this.getAppGroupIngressNames().filter(name=>!exists.has(name));
+            return Promise.all(names.map(name=>{
+                return k8sproxy.get('/apis/networking.k8s.io/v1/namespaces/'+ this.namespaceActive +'/ingresses/'+name, {noAlert:true, loading:true})
+                    .then(res=>res?.data)
+                    .catch(()=>null);
+            })).then(list=>list.filter(Boolean));
+        },
         getList(callback){
 
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups',{loading:true}).then(res=>{
@@ -1518,6 +1541,20 @@ export default {
                 })
                 this.allGroup = allGroup;
                 this.allAppList = allAppList;
+                if(!this.inRvproxy){
+                    let group = list.find(i=>i?.metadata?.name==this.$route.params?.group);
+                    if(group){
+                        this.groupData = group;
+                        this.appList = group?.status?.items?.map(i=>{
+                            return {
+                                title: i.title || i.name,
+                                name: i.name,
+                                kind: i.kind?.toLowerCase()+'s',
+                            }
+                        });
+                        this.init();
+                    }
+                }
             }).finally(()=>{
                 if(this.inRvproxy){
                     k8sproxy.get('/apis/networking.higress.io/v1/namespaces/'+ this.namespaceActive +'/mcpbridges/'+this.$route.query.name,{loading:true}).then(async res=>{
@@ -1553,7 +1590,9 @@ export default {
                     }).finally(()=>{
                         k8sproxy.get('/apis/networking.k8s.io/v1/namespaces/'+ this.namespaceActive +'/ingresses?labelSelector='+search, {loading:true}).then(res=>{
                             let data = res?.data?.items || [];
-                            this.getListData(data,callback);
+                            this.fetchAppGroupItemIngresses(data).then(extra=>{
+                                this.getListData(this.mergeIngressList(data, extra),callback);
+                            })
                         });
                     })
                 }
