@@ -11,14 +11,12 @@
                     <td>名称</td>
                     <td>类型</td>
                     <td>创建时间</td>
-                    <!-- <td>集群模式</td> -->
                     <td>操作</td>
                 </tr>
                 <tr v-for="(record,index) in list.filter(i=>i.type=='in')" :key="index+'in'">
                     <td>{{ record.title }}</td>
                     <td>{{ record.type=='in'? '系统内置' : '自定义'}}</td>
                     <td>-</td>
-                    <!-- <td>{{ record.clustermodeTxt }}</td> -->
                     <td>
                         <a-tooltip v-if="debug" content="yaml">
                             <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
@@ -45,7 +43,6 @@
                     <td>{{ record.title }}</td>
                     <td>{{ record.type=='in'? '系统内置' : '自定义'}}</td>
                     <td>{{ record.created }}</td>
-                    <!-- <td>{{ record.clustermodeTxt }}</td> -->
                     <td>
                         <a-tooltip v-if="debug" content="yaml">
                             <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
@@ -64,65 +61,6 @@
                     </td>
                 </tr>
             </tbody></table>
-            <!-- <a-table class="cptable" :data="list.filter(i=>i.type=='in')" :pagination="false" :bordered="false">
-                <template #columns>
-                    <a-table-column title="名称" data-index="title"></a-table-column>
-                    <a-table-column title="类型">
-                        <template #cell="{record}">{{ record.type=='in'? '系统内置' : '自定义' }}</template>
-                    </a-table-column>
-                    <a-table-column title="创建时间" data-index="created"></a-table-column>
-                    <a-table-column title="集群模式" data-index="clustermodeTxt"></a-table-column>
-                    <a-table-column title="操作">
-                        <template #cell="{ record }">
-                            
-                            <a-tooltip v-if="debug" content="yaml">
-                                <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
-                            </a-tooltip>
-                            <a-tooltip content="修改">
-                                <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
-                            </a-tooltip>
-                            <a-tooltip v-if="record.type=='in'" content="创建新权限">
-                                <i class="opt-icon" @click="addCustom(record)"><icon-plus /></i>
-                            </a-tooltip>
-                            <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                <a-tooltip content="删除">
-                                    <i class="opt-icon"><icon-delete /></i>
-                                </a-tooltip>
-                            </a-popconfirm>
-                        </template>
-                    </a-table-column>
-                </template>
-            </a-table>
-
-            <a-table class="cptable mt-30" :data="list.filter(i=>i.type!='in')" :pagination="false" :bordered="false">
-                <template #columns>
-                    <a-table-column title="名称" data-index="title"></a-table-column>
-                    <a-table-column title="类型">
-                        <template #cell="{record}">{{ record.type=='in'? '系统内置' : '自定义' }}</template>
-                    </a-table-column>
-                    <a-table-column title="创建时间" data-index="created"></a-table-column>
-                    <a-table-column title="集群模式" data-index="clustermodeTxt"></a-table-column>
-                    <a-table-column title="操作">
-                        <template #cell="{ record }">
-                            
-                            <a-tooltip v-if="debug" content="yaml">
-                                <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
-                            </a-tooltip>
-                            <a-tooltip content="修改">
-                                <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
-                            </a-tooltip>
-                            <a-tooltip v-if="record.type=='in'" content="创建新权限">
-                                <i class="opt-icon" @click="addCustom(record)"><icon-plus /></i>
-                            </a-tooltip>
-                            <a-popconfirm v-if="record.name!=founderName && record.type!='in'" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                <a-tooltip content="删除">
-                                    <i class="opt-icon"><icon-delete /></i>
-                                </a-tooltip>
-                            </a-popconfirm>
-                        </template>
-                    </a-table-column>
-                </template>
-            </a-table> -->
         </div>
 
         <a-drawer
@@ -137,32 +75,19 @@
                 <a-form-item label="名称" field="title">
                     <a-input v-model="form.title" placeholder="请输入"></a-input>
                 </a-form-item>
-                <!-- <a-form-item label="集群模式" :disabled="!!form.name && !form.isAdd" field="clustermode" :rules="[{required:true,message:'请选择集群模式', trigger: 'blur' }]">
-                    <a-select v-model="form.clustermode" placeholder="请选择集群模式">
-                        <a-option label="全局" value="global"></a-option>
-                        <a-option label="共享" value="shared"></a-option>
-                        <a-option label="独享" value="virtual"></a-option>
-                    </a-select>
-                    <template #extra>
-                        <div v-if="form.clustermode=='shared'">共享：基于主集群轻度隔离，轻量，适用于内部团队场景。</div>
-                        <div v-if="form.clustermode=='virtual'">独享：基于主集群完全隔离，完整的集群架构，适用于商业多租户场景。</div>
-                        <div v-if="form.clustermode=='global'">全局：可直接对创始人端后台进行管理。</div>
-                    </template>
-                </a-form-item> -->
-
                 <a-tabs default-active-key="1" style="margin-bottom:20px;">
 
                     <a-tab-pane key="1" title="基础权限">
                         <a-form-item label="调试权限">
-                            <a-switch v-model="form.debug" :disabled="form.name==founderName"></a-switch>
+                            <a-switch v-model="form.debug" :disabled="form.name==founderName || (featureConstraint && featureConstraint.debug !== true)"></a-switch>
                             <template #extra>开启后，可查看并修改资源YAML内容。</template>
                         </a-form-item>
                         <a-form-item label="终端执行权限">
-                            <a-switch v-model="form.webshell" :disabled="form.name==founderName"></a-switch>
+                            <a-switch v-model="form.webshell" :disabled="form.name==founderName || (featureConstraint && featureConstraint.webshell !== true)"></a-switch>
                             <template #extra>开启后，可在终端控制台执行命令行。</template>
                         </a-form-item>
                         <a-form-item label="文件管理权限">
-                            <a-switch v-model="form.fileeditor" :disabled="form.name==founderName"></a-switch>
+                            <a-switch v-model="form.fileeditor" :disabled="form.name==founderName || (featureConstraint && featureConstraint.fileeditor !== true)"></a-switch>
                             <template #extra>开启后，可管理应用内的文件。</template>
                         </a-form-item>
                     </a-tab-pane>
@@ -171,9 +96,9 @@
                             <div class="padding-10" style="background:var(--color-neutral-1);flex:1;">
                                 <menu-select
                                     v-if="form.show"
-                                    :disabled="form.name==founderName"
+                                    :disabled="form.name==founderName || (menuConstraintKeys && !menuConstraintKeys.length)"
                                     :permission="form.permission"
-                                    :allowedMode="form.clustermode"
+                                    :allowed-keys="menuConstraintKeys"
                                     @checked="v=>form.permission=v"
                                 ></menu-select>
                             </div>
@@ -184,7 +109,7 @@
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
-                            <a-switch v-model="form.apiAll" :disabled="form.name==founderName"></a-switch>
+                            <a-switch v-model="form.apiAll" :disabled="form.name==founderName || !canGrantAllApi"></a-switch>
                         </a-form-item>
                         <a-form-item label="API列表" v-if="!form.apiAll">
                             <div class="api-permission-panel">
@@ -203,7 +128,7 @@
                                                 <td>URL</td>
                                                 <td style="width:220px;">Method</td>
                                             </tr>
-                                            <tr v-for="group in filteredApiRouteGroups" :key="group.path">
+                                            <tr v-for="group in constrainedApiRouteGroups" :key="group.path">
                                                 <td>{{ group.title }}</td>
                                                 <td class="api-path">{{ group.path }}</td>
                                                 <td>
@@ -213,10 +138,11 @@
                                                         allow-clear
                                                         placeholder="方法匹配值，可多选"
                                                         style="width:220px;"
+                                                        :disabled="apiGroupAllowedMethods(group).length === 0"
                                                         @change="methods => setApiGroupMethods(group, methods)"
                                                     >
                                                         <a-option
-                                                            v-for="route in group.routes"
+                                                            v-for="route in apiGroupAllowedRoutes(group)"
                                                             :key="apiRouteKey(route)"
                                                             :label="route.method"
                                                             :value="route.method"
@@ -249,7 +175,7 @@ import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import whitelistComponent from '../whitelist/whitelist-component.vue';
-import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
+import { expandPermissionValues, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
     getLoadedApiRouteDescriptions,
     loadApiRouteDescriptions,
@@ -295,7 +221,6 @@ export default {
                 debug: false,
                 webshell: false,
                 fileeditor: false,
-                clustermode: 'virtual',
                 permission: [],
                 apiAll: false,
                 apiSearch: '',
@@ -313,9 +238,6 @@ export default {
                 submit: ()=>{},
             },
             debug: false,
-
-            sharedTreeData: [],
-            virtualTreeData: [],
 
             founderName: 'founder',
             apiRoutes: [],
@@ -360,12 +282,44 @@ export default {
         },
         filteredApiRouteGroups(){
             let keyword = String(this.form.apiSearch || '').trim().toLowerCase();
-            if(!keyword){return this.apiRouteGroups;}
-            return this.apiRouteGroups.filter(group => {
+            const groups = this.apiRouteGroups.filter(group => this.apiGroupAllowedRoutes(group).length > 0);
+            if(!keyword){return groups;}
+            return groups.filter(group => {
                 return String(group.path || '').toLowerCase().includes(keyword)
                     || String(group.title || '').toLowerCase().includes(keyword)
                     || group.routes.some(route => String(route.method || '').toLowerCase().includes(keyword));
             });
+        },
+        constrainedApiRouteGroups(){
+            return this.filteredApiRouteGroups.map(group => ({
+                ...group,
+                routes: this.apiGroupAllowedRoutes(group),
+            })).filter(group => group.routes.length > 0);
+        },
+        permissionConstraint(){
+            const parentName = this.form.parentPermission || '';
+            if(parentName){
+                return this.list.find(item => item.name === parentName)?.originData || null;
+            }
+            if(this.form.originData?.spec?.type === 'custom' && this.form.originData?.spec?.parentPermission){
+                return this.list.find(item => item.name === this.form.originData.spec.parentPermission)?.originData || null;
+            }
+            return null;
+        },
+        menuConstraintKeys(){
+            if(!this.permissionConstraint){return null}
+            return expandPermissionValues(this.permissionConstraint?.spec?.menuRules || []);
+        },
+        apiConstraintMap(){
+            if(!this.permissionConstraint){return null}
+            return this.apiRulesToApi(this.permissionConstraint?.spec?.apiRules || []);
+        },
+        canGrantAllApi(){
+            if(!this.apiConstraintMap){return true}
+            return Array.isArray(this.apiConstraintMap['*']) && this.apiConstraintMap['*'].includes('*');
+        },
+        featureConstraint(){
+            return this.permissionConstraint?.spec?.features || null;
         },
     },
     components: {
@@ -374,10 +328,6 @@ export default {
         whitelistComponent,
     },
     methods: {
-        // initTreeData(){
-        //     this.sharedTreeData = this.filterTree(sharedPass);
-        //     this.virtualTreeData = this.filterTree(virtualPass);
-        // },
         filterTree(keys){
             const menuDataCopy = JSON.parse(JSON.stringify(this.treeData));
     
@@ -411,8 +361,6 @@ export default {
                         debug: i.spec?.features?.debug === true,
                         webshell: i.spec?.features?.webshell === true,
                         fileeditor: i.spec?.features?.fileeditor === true,
-                        clustermode: 'virtual',
-                        clustermodeTxt: '独享',
                         whitelist: whitelist,
                         api: this.apiRulesToApi(i.spec?.apiRules || []),
                         parentPermission: i.spec?.parentPermission || '',
@@ -444,16 +392,6 @@ export default {
             });
             return this.apiRoutesPromise;
         },
-        // add(){
-        //     this.form = {
-        //         show: true,
-        //         title: '',
-        //         name: '',
-        //         clustermode: 'shared',
-        //         permission: [],
-        //         whitelist: [],
-        //     }
-        // },
         addCustom(row){
             let originData = JSON.parse(JSON.stringify(row.originData));
             delete originData.metadata.resourceVersion;
@@ -491,7 +429,6 @@ export default {
                 originData: row.originData,
                 title: row.title,
                 name: row.name,
-                clustermode: row.clustermode,
                 permission: row.permission,
                 debug: row.debug,
                 webshell: row.webshell,
@@ -500,6 +437,7 @@ export default {
                 ...this.apiToForm(row.api || {}),
                 parentPermission: row.parentPermission || row.originData?.spec?.parentPermission || '',
             }
+            this.applyFormConstraints();
         },
         del(row){
             k8sproxy.delete("/apis/w7panel.w7.com/v1alpha1/permissions/" + row.name).then(res=>{
@@ -516,6 +454,8 @@ export default {
 
                 let whitelist = this.$refs.whitelist.getList() || [];
                 let api = this.formToApi();
+                this.applyFormConstraints();
+                api = this.formToApi();
 
                 if(!this.form.name || this.form.isAdd){
                     let data = null;
@@ -655,14 +595,14 @@ export default {
         },
         apiGroupSelectedMethods(group, selectedKeys){
             let selected = new Set(selectedKeys || []);
-            return (group?.routes || [])
+            return this.apiGroupAllowedRoutes(group)
                 .filter(route => selected.has(this.apiRouteKey(route)))
                 .map(route => route.method);
         },
         nextApiSelectedKeysForGroup(group, methods, currentKeys){
             let selected = new Set(currentKeys || []);
             let methodSet = new Set(methods || []);
-            (group?.routes || []).forEach(route => {
+            this.apiGroupAllowedRoutes(group).forEach(route => {
                 let key = this.apiRouteKey(route);
                 if(methodSet.has(route.method)){
                     selected.add(key);
@@ -715,6 +655,7 @@ export default {
             let selected = new Set(this.form.apiSelectedKeys || []);
             this.apiRoutes.forEach(route => {
                 if(!selected.has(this.apiRouteKey(route))){return}
+                if(!this.apiRouteAllowed(route)){return}
                 if(!api[route.path]){
                     api[route.path] = [];
                 }
@@ -723,6 +664,69 @@ export default {
                 }
             });
             return api;
+        },
+        apiGroupAllowedRoutes(group){
+            return (group?.routes || []).filter(route => this.apiRouteAllowed(route));
+        },
+        apiGroupAllowedMethods(group){
+            return this.apiGroupAllowedRoutes(group).map(route => route.method);
+        },
+        apiRouteAllowed(route){
+            if(!this.apiConstraintMap){return true}
+            if(Array.isArray(this.apiConstraintMap['*']) && this.apiConstraintMap['*'].includes('*')){return true}
+            const verbs = this.matchApiRuleMethods(this.apiConstraintMap, route.path);
+            return verbs.includes('*') || verbs.includes(route.verb);
+        },
+        matchApiRuleMethods(rules, path){
+            let bestPattern = '';
+            let bestMethods = [];
+            Object.keys(rules || {}).forEach(pattern => {
+                if(!this.matchApiPath(pattern, path)){return}
+                if(!bestPattern || pattern.length > bestPattern.length){
+                    bestPattern = pattern;
+                    bestMethods = rules[pattern] || [];
+                }
+            });
+            return bestMethods;
+        },
+        matchApiPath(pattern, path){
+            if(pattern === '*' || pattern === path){return true}
+            if(String(pattern).endsWith('/*') && !String(pattern).slice(0, -2).includes('*')){
+                const prefix = String(pattern).slice(0, -2);
+                return path === prefix || String(path).startsWith(prefix + '/');
+            }
+            const parts = String(pattern).split('*');
+            if(parts.length === 1){return false}
+            let pos = 0;
+            for(let i = 0; i < parts.length; i++){
+                const part = parts[i];
+                if(!part){continue}
+                const idx = String(path).slice(pos).indexOf(part);
+                if(idx < 0){return false}
+                if(i === 0 && idx !== 0){return false}
+                pos += idx + part.length;
+            }
+            const last = parts[parts.length - 1];
+            return !last || String(path).endsWith(last);
+        },
+        applyFormConstraints(){
+            if(this.menuConstraintKeys){
+                const allowed = new Set(this.menuConstraintKeys);
+                this.form.permission = (this.form.permission || []).filter(key => allowed.has(key));
+            }
+            if(this.apiConstraintMap){
+                this.form.apiAll = this.canGrantAllApi && this.form.apiAll;
+                this.form.apiSelectedKeys = (this.form.apiSelectedKeys || []).filter(key => {
+                    const route = this.apiRoutes.find(item => this.apiRouteKey(item) === key);
+                    return route && this.apiRouteAllowed(route);
+                });
+                this.form.apiExtraRules = {};
+            }
+            if(this.featureConstraint){
+                this.form.debug = this.featureConstraint.debug === true && this.form.debug;
+                this.form.webshell = this.featureConstraint.webshell === true && this.form.webshell;
+                this.form.fileeditor = this.featureConstraint.fileeditor === true && this.form.fileeditor;
+            }
         },
         apiRulesToApi(apiRules){
             let api = {};
@@ -749,7 +753,7 @@ export default {
             this.form.apiSelectedKeys = Array.from(selected);
         },
         selectAllApiRoutes(){
-            this.form.apiSelectedKeys = this.apiRoutes.map(route => this.apiRouteKey(route));
+            this.form.apiSelectedKeys = this.apiRoutes.filter(route => this.apiRouteAllowed(route)).map(route => this.apiRouteKey(route));
         },
         clearApiRoutes(){
             this.form.apiSelectedKeys = [];

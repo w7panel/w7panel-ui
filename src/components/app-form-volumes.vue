@@ -358,7 +358,7 @@ export default{
                 }
                 if(i.secret){
                     type = 'secret';
-                    secretName = i.secret?.name || '';
+                    secretName = i.secret?.secretName || i.secret?.name || '';
                     secretAllKey = !i.secret?.items?.length;
                     if(!secretAllKey){
                         secretKey = i.secret.items || [];

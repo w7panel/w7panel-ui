@@ -21,8 +21,9 @@ import { useNamespaceStore } from '@/store';
 import { getToken, getK8sinfo } from '@/utils/auth';
 import { bus, startApp, destroyApp } from "wujie";
 import wujieModals from '@/components/wujie-modals.vue';
-import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { getWujieRoutePrefix, normalizeWujieSyncRoute, normalizeWujieNavigationRoute, joinWujieUrlRoute } from '@/utils/wujie-route';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
+import { createWujieLegacyPlugin } from '@/utils/wujie-legacy-plugin';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -97,9 +98,40 @@ export default{
         },
         buildIframeSrc(path, route){
             const token = getToken();
-            const base = (path || '') + (route || '');
+            const base = joinWujieUrlRoute(path, route);
             if(!token){ return base; }
             return base + (base.includes('?') ? '&' : '?') + 'api-token=' + token;
+        },
+        getMicroAppBaseUrl(){
+            if(this.info.load_mode === 'iframe'){
+                return this.info.iframePath || this.info.url || this.info.frontendUrl || '';
+            }
+            return this.info.frontendUrl || '';
+        },
+        buildMicroAppUrl(route){
+            const targetRoute = route || '';
+            if(/^https?:\/\//i.test(targetRoute)){
+                return targetRoute;
+            }
+            return joinWujieUrlRoute(this.getMicroAppBaseUrl(), targetRoute);
+        },
+        getNavigateMicroRoute(payload){
+            const href = typeof payload === 'object'
+                ? (payload?.href || payload?.url || payload?.route)
+                : payload;
+            return normalizeWujieNavigationRoute(href, this.getMicroAppBaseUrl()) || href || '';
+        },
+        navigateMicro(payload){
+            const route = this.getNavigateMicroRoute(payload);
+            if(!route){
+                return false;
+            }
+
+            this.page = route;
+            this.rememberMicroRoute(route);
+            this.destroyMicro();
+            this.wujieInit();
+            return true;
         },
         routeChange(v){
             // if(this.info.load_mode === 'iframe'){
@@ -242,11 +274,13 @@ export default{
                 ...this.info,
                 ...frontProps,
                 loginCloud,
+                navigateMicro: (payload) => this.navigateMicro(payload),
+                restartMicroApp: (payload) => this.navigateMicro(payload),
             }
             appendWujieModalHandles(props, () => this.$refs.wujieModals);
             console.log(props)
             this.microLoading = true;
-            const url = isIframeMode? (this.info.iframeSrc) : (this.info.frontendUrl + this.page)
+            const url = isIframeMode? (this.info.iframeSrc) : this.buildMicroAppUrl(this.page)
             startApp({
                 name: "appmicro",
                 url: url,
@@ -254,10 +288,10 @@ export default{
 // url: 'http://218.23.2.48:9090' + url,
                 exec: true,
                 el: '#appmicro',
-                degrade: isIframeMode,
                 sync: true,
                 prefix: getWujieRoutePrefix(this.info.frontendUrl),
                 props: props,
+                plugins: [createWujieLegacyPlugin()],
             }).then(()=>{
                 console.log('app success')
             }).catch(()=>{

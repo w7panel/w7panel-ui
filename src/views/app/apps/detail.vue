@@ -128,8 +128,10 @@ import formDrawer from '@/views/app/pages/form-drawer.vue';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
-import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { getWujieRoutePrefix, normalizeWujieSyncRoute, normalizeWujieNavigationRoute, joinWujieUrlRoute } from '@/utils/wujie-route';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
+import { createWujieLegacyPlugin } from '@/utils/wujie-legacy-plugin';
+import { wujieFetch } from '@/utils/wujie-cors-fetch';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -269,9 +271,9 @@ export default {
     methods: {
         buildIframeSrc(path, route){
             const token = getToken();
-            const base = (path || '') + (route || '');
+            const base = joinWujieUrlRoute(path, route);
             if(!token){ return base; }
-            return base + (base.includes('?') ? '&' : '?') + 'api-token=' + token;
+            return base
         },
         getMicroAppBaseUrl(){
             if(this.info.load_mode === 'iframe'){
@@ -280,11 +282,15 @@ export default {
             return this.info.frontendUrl || '';
         },
         buildMicroAppUrl(route){
+            const targetRoute = route || '';
+            if(/^https?:\/\//i.test(targetRoute)){
+                return targetRoute;
+            }
             const base = this.getMicroAppBaseUrl();
             if(this.info.load_mode === 'iframe'){
-                return this.buildIframeSrc(base, route);
+                return this.buildIframeSrc(base, targetRoute);
             }
-            return base + (route || '');
+            return joinWujieUrlRoute(base, targetRoute);
         },
         getMicroRoutePrefix(){
             return getWujieRoutePrefix(this.getMicroAppBaseUrl());
@@ -300,6 +306,23 @@ export default {
                 };
             }
             return prefix;
+        },
+        getNavigateMicroRoute(payload){
+            const href = typeof payload === 'object'
+                ? (payload?.href || payload?.url || payload?.route)
+                : payload;
+            return normalizeWujieNavigationRoute(href, this.getMicroAppBaseUrl()) || href || '';
+        },
+        navigateMicro(payload){
+            const route = this.getNavigateMicroRoute(payload);
+            if(!route){
+                return false;
+            }
+
+            this.menuActive = route;
+            this.selectMenu = [route];
+            this.wujieInit();
+            return true;
         },
         routeChange(v){
             if(this.info.load_mode === 'iframe'){
@@ -369,6 +392,8 @@ export default {
                 ...this.info,
                 ...frontProps,
                 loginCloud,
+                navigateMicro: (payload) => this.navigateMicro(payload),
+                restartMicroApp: (payload) => this.navigateMicro(payload),
             }
             appendWujieModalHandles(props, () => this.$refs.wujieModals);
             console.log(props)
@@ -384,6 +409,8 @@ export default {
                 sync: true,
                 props: props,
                 prefix: this.getMicroRoutePrefix(),
+                plugins: [createWujieLegacyPlugin()],
+                fetch: wujieFetch,
                 loadError: (url, error)=>{
                     console.log(`appdetail loadError`, url, error);
                 },
@@ -417,7 +444,7 @@ export default {
             if(this.isMicroPage){
                 this.routeChange(v);
             }else{
-                this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?'+APP_DETAIL_MICRO_QUERY+'='+encodeURIComponent(this.getMicroAppBaseUrl() + this.menuActive)).then(res=>{
+                this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?'+APP_DETAIL_MICRO_QUERY+'='+encodeURIComponent(joinWujieUrlRoute(this.getMicroAppBaseUrl(), this.menuActive))).then(res=>{
                     this.$nextTick(()=>{
                         this.wujieInit();
                     })

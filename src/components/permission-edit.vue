@@ -5,25 +5,27 @@
             <a-form :model="pmsForm" auto-label-width>
                 
                 <a-form-item label="权限套餐">
-                    <a-select v-model="pmsForm.permissionPackage" :disabled="pmsForm.userMode=='founder'" @change="pmsFormChangePermissionPackage" placeholder="请选择">
-                        <a-option v-if="!noCustom" label="自定义" value=""></a-option>
-                        <a-option v-for="item in pmsls" :key="item.name" :label="item.title" :value="item.name"></a-option>
-                    </a-select>
+                    <div class="df ai-c" style="flex:1;">
+                        <a-select v-model="pmsForm.permissionPackage" :disabled="pmsForm.userMode=='founder'" @change="pmsFormChangePermissionPackage" placeholder="请选择">
+                            <a-option v-for="item in pmsls" :key="item.name" :label="item.title" :value="item.name"></a-option>
+                        </a-select>
+                        <a-checkbox v-if="!noCustom" v-model="pmsForm.customPermission" :disabled="pmsForm.userMode=='founder'" @change="customPermissionChange" class="ml-20 df-s0">自定义权限</a-checkbox>
+                    </div>
                 </a-form-item>
 
                 <a-tabs v-show="!noCustom" default-active-key="1" style="margin-bottom:20px;">
 
                     <a-tab-pane key="1" title="基础权限">
                         <a-form-item label="调试权限">
-                            <a-switch :disabled="disabledBase" v-model="pmsForm.debug" @change="pmsForm.permissionPackage=''"></a-switch>
+                            <a-switch :disabled="editDisabledBase" v-model="pmsForm.debug" @change="markCustomPermission"></a-switch>
                             <template #extra>开启后，可查看并修改资源YAML内容。</template>
                         </a-form-item>
                         <a-form-item label="终端执行权限">
-                            <a-switch :disabled="disabledBase" v-model="pmsForm.webshell" @change="pmsForm.permissionPackage=''"></a-switch>
+                            <a-switch :disabled="editDisabledBase" v-model="pmsForm.webshell" @change="markCustomPermission"></a-switch>
                             <template #extra>开启后，可在终端控制台执行命令行。</template>
                         </a-form-item>
                         <a-form-item label="文件管理权限">
-                            <a-switch :disabled="disabledBase" v-model="pmsForm.fileeditor" @change="pmsForm.permissionPackage=''"></a-switch>
+                            <a-switch :disabled="editDisabledBase" v-model="pmsForm.fileeditor" @change="markCustomPermission"></a-switch>
                             <template #extra>开启后，可管理应用内的文件。</template>
                         </a-form-item>
                     </a-tab-pane>
@@ -35,7 +37,7 @@
                                     ref="tree"
                                     :checkable="true"
                                     v-model:checked-keys="pmsForm.list"
-                                    @check="pmsForm.permissionPackage=''"
+                                    @check="markCustomPermission"
                                     :data="{shared:sharedTreeData,virtual:virtualTreeData,global:globalTreeData}[pmsForm.type]"
                                     check-strictly
                                 />
@@ -44,19 +46,19 @@
                     </a-tab-pane>
 
                     <a-tab-pane key="3" title="域名白名单">
-                        <whitelist-component ref="whitelist" :data="pmsForm.whitelist"></whitelist-component>
+                        <whitelist-component ref="whitelist" :data="pmsForm.whitelist" :disabled="editDisabledMenu"></whitelist-component>
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
-                            <a-switch :disabled="disabledMenu" v-model="pmsForm.apiAll" @change="pmsForm.permissionPackage=''"></a-switch>
+                            <a-switch :disabled="editDisabledMenu" v-model="pmsForm.apiAll" @change="markCustomPermission"></a-switch>
                         </a-form-item>
                         <a-form-item label="API列表" v-if="!pmsForm.apiAll">
                             <div class="api-permission-panel">
                                 <div class="api-permission-toolbar">
                                     <a-input-search v-model="pmsForm.apiSearch" placeholder="搜索 PATH / 说明 / Method" allow-clear />
                                     <a-space>
-                                        <a-button size="small" :disabled="disabledMenu" @click="selectAllApiRoutes">全选</a-button>
-                                        <a-button size="small" :disabled="disabledMenu" @click="clearApiRoutes">清空</a-button>
+                                        <a-button size="small" :disabled="editDisabledMenu" @click="selectAllApiRoutes">全选</a-button>
+                                        <a-button size="small" :disabled="editDisabledMenu" @click="clearApiRoutes">清空</a-button>
                                     </a-space>
                                 </div>
                                 <div class="api-permission-table">
@@ -75,7 +77,7 @@
                                                         :model-value="apiGroupSelectedMethods(group, pmsForm.apiSelectedKeys)"
                                                         multiple
                                                         allow-clear
-                                                        :disabled="disabledMenu"
+                                                        :disabled="editDisabledMenu"
                                                         placeholder="方法匹配值，可多选"
                                                         style="width:220px;"
                                                         @change="methods => setPmsApiGroupMethods(group, methods)"
@@ -156,6 +158,7 @@ export default {
                 fileeditor: false,
                 webshell: false,
                 userMode: '',
+                customPermission: false,
                 apiAll: false,
                 apiSearch: '',
                 apiSelectedKeys: [],
@@ -178,6 +181,9 @@ export default {
             this.init();
         },
         disabledMenu(){
+            this.initTreeData();
+        },
+        'pmsForm.customPermission'(){
             this.initTreeData();
         },
     },
@@ -224,6 +230,12 @@ export default {
                     || group.routes.some(route => String(route.method || '').toLowerCase().includes(keyword));
             });
         },
+        editDisabledBase(){
+            return this.disabledBase || !this.pmsForm.customPermission;
+        },
+        editDisabledMenu(){
+            return this.disabledMenu || !this.pmsForm.customPermission;
+        },
     },
     components: {
         whitelistComponent,
@@ -236,6 +248,7 @@ export default {
             this.pmsForm.list = toTreeKeys(this.list || []);
             this.pmsForm.type = 'virtual'; //this.type || 'shared';
             this.pmsForm.permissionPackage = this.permissionPackage || '';
+            this.pmsForm.customPermission = !this.pmsForm.permissionPackage;
             this.pmsForm.userMode = this.userMode || '';
             this.hasDebug = this.debug===true || this.debug===false;
             this.pmsForm.whitelist = this.whitelist || [];
@@ -259,6 +272,10 @@ export default {
         },
         submit(){
             let whitelist = this.$refs.whitelist.getList() || [];
+            if(!this.pmsForm.customPermission && !this.pmsForm.permissionPackage){
+                this.$message.warning('请选择权限套餐');
+                return;
+            }
             
             let find = this.permissionPackageList.find(i=>i.name==this.pmsForm.permissionPackage);
             let parent = find?.parentPermission
@@ -333,7 +350,8 @@ export default {
             if(this.pmsForm.permissionPackage==''){return}
             let find = this.permissionPackageList.find(i=>i.name==this.pmsForm.permissionPackage);
             if(!find){return}
-            let permission = find?.permission || [];
+            this.pmsForm.customPermission = false;
+            let permission = this.getPermissionPackageMenu(find);
             this.pmsForm.list = permission.filter(i=>!(this.pmsForm.type=='shared'?sharedPass:virtualPass).includes(i));
             this.pmsForm.debug = find.debug;
             this.pmsForm.webshell = find.webshell;
@@ -343,6 +361,27 @@ export default {
                 ...this.pmsForm,
                 ...this.apiToForm(find.api || {}),
             };
+        },
+        customPermissionChange(v){
+            if(v){
+                this.pmsForm.permissionPackage = '';
+            }
+        },
+        markCustomPermission(){
+            if(!this.pmsForm.customPermission){return}
+            this.pmsForm.permissionPackage = '';
+        },
+        getPermissionPackageMenu(permissionPackage, visited = []){
+            if(!permissionPackage || visited.includes(permissionPackage.name)){
+                return [];
+            }
+            let parent = permissionPackage.parentPermission
+                ? this.permissionPackageList.find(i=>i.name==permissionPackage.parentPermission)
+                : null;
+            return Array.from(new Set([
+                ...this.getPermissionPackageMenu(parent, [...visited, permissionPackage.name]),
+                ...(permissionPackage.permission || []),
+            ]));
         },
         getApiRoutes(){
             if(this.apiRoutesPromise){
@@ -426,8 +465,8 @@ export default {
             return Array.from(selected);
         },
         setPmsApiGroupMethods(group, methods){
-            if(this.disabledMenu){return}
-            this.pmsForm.permissionPackage = '';
+            if(this.editDisabledMenu){return}
+            this.markCustomPermission();
             this.pmsForm.apiSelectedKeys = this.nextApiSelectedKeysForGroup(group, methods, this.pmsForm.apiSelectedKeys);
         },
         normalizeApiSelectedKeys(keys){
@@ -486,8 +525,8 @@ export default {
             return api;
         },
         toggleApiRoute(route, checked){
-            if(this.disabledMenu){return}
-            this.pmsForm.permissionPackage = '';
+            if(this.editDisabledMenu){return}
+            this.markCustomPermission();
             let key = this.apiRouteKey(route);
             let selected = new Set(this.pmsForm.apiSelectedKeys || []);
             if(checked){
@@ -498,13 +537,13 @@ export default {
             this.pmsForm.apiSelectedKeys = Array.from(selected);
         },
         selectAllApiRoutes(){
-            if(this.disabledMenu){return}
-            this.pmsForm.permissionPackage = '';
+            if(this.editDisabledMenu){return}
+            this.markCustomPermission();
             this.pmsForm.apiSelectedKeys = this.apiRoutes.map(route => this.apiRouteKey(route));
         },
         clearApiRoutes(){
-            if(this.disabledMenu){return}
-            this.pmsForm.permissionPackage = '';
+            if(this.editDisabledMenu){return}
+            this.markCustomPermission();
             this.pmsForm.apiSelectedKeys = [];
         },
         initTreeData(){
@@ -526,7 +565,7 @@ export default {
                     }
                 });
             }
-            traverseAndDisable(menuDataCopy, [], this.disabledMenu);
+            traverseAndDisable(menuDataCopy, [], this.editDisabledMenu);
             return menuDataCopy;
         },
     },

@@ -799,10 +799,10 @@ export default {
                 this.userInfo = res?.data;
                 this.clusterMode = this.userInfo?.["k3k.io/cluster-mode"];
 
-                if(res?.data?.['w7.cc/is-cvm-req']=='true'){
-                    let name = res?.data?.['w7.cc/cvm-name'];
-                    let namespace = res?.data?.['w7.cc/cvm-namespace'];
-                    panelApi.get(`/k3k/cvm/v1/${namespace}/info/${name}`).then(res=>{
+                if(res?.data?.['w7.cc/is-ckm-req']=='true'){
+                    let name = res?.data?.['w7.cc/ckm-name'];
+                    let namespace = res?.data?.['w7.cc/ckm-namespace'];
+                    panelApi.get(`/k3k/ckm/v1/${namespace}/info/${name}`).then(res=>{
                         let effectiveResource = res?.data?.status?.effectiveResource;
                         this.quotsInfo = {
                             cpu: (effectiveResource?.cpu || 0) + ' 核',
@@ -828,17 +828,17 @@ export default {
                     return;
                 }
 
-                if(this.userInfo?.['w7.cc/user-mode']!='cluster'){return}
-                let data = this.userInfo?.['w7.cc/quota-limit'] || '{}';
-                data = JSON.parse(data);
-                this.quotsInfo = {
-                    cpu: data?.hard?.cpu + ' 核',
-                    memory: String(data?.hard?.memory).replace(/[a-zA-Z]+$/,'') + 'Gi',
-                    bandwidth: String(data?.hard?.bandwidth).replace(/[a-zA-Z]+$/,'') + 'Mbps',
-                    storagesize: String(data?.hard?.['requests.storage']).replace(/[a-zA-Z]+$/,'') + 'Gi',
-                    expiretime: this.userInfo?.['w7.cc/expiretime'] || '永久',
-                    storageclass: data?.storageclass,
-                }
+                // if(this.userInfo?.['w7.cc/user-mode']!='cluster'){return}
+                // let data = this.userInfo?.['w7.cc/quota-limit'] || '{}';
+                // data = JSON.parse(data);
+                // this.quotsInfo = {
+                //     cpu: data?.hard?.cpu + ' 核',
+                //     memory: String(data?.hard?.memory).replace(/[a-zA-Z]+$/,'') + 'Gi',
+                //     bandwidth: String(data?.hard?.bandwidth).replace(/[a-zA-Z]+$/,'') + 'Mbps',
+                //     storagesize: String(data?.hard?.['requests.storage']).replace(/[a-zA-Z]+$/,'') + 'Gi',
+                //     expiretime: this.userInfo?.['w7.cc/expiretime'] || '永久',
+                //     storageclass: data?.storageclass,
+                // }
             })
         },
         haSelect(boo){

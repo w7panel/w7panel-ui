@@ -1,6 +1,9 @@
+import { existsSync, readFileSync } from 'fs';
+import { resolve } from 'path';
 import { mergeConfig } from 'vite';
 // import eslint from 'vite-plugin-eslint';
 import baseConfig from './vite.config.base';
+
 
 // const proxyUrl = 'http://172.16.1.13:8002';
 // const proxyUrl =  'http://172.16.1.117:3090';
@@ -9,10 +12,19 @@ import baseConfig from './vite.config.base';
 
 // const proxyUrl =  'http://218.23.2.55:9090';
 
-// const proxyUrl = 'http://218.23.2.48:9090';
+const proxyUrl = 'http://218.23.2.48:9090';
+
+const localhostKeyPath = resolve(__dirname, '../certs/localhost-key.pem');
+const localhostCertPath = resolve(__dirname, '../certs/localhost.pem');
+const httpsConfig = existsSync(localhostKeyPath) && existsSync(localhostCertPath)
+  ? {
+      key: readFileSync(localhostKeyPath),
+      cert: readFileSync(localhostCertPath),
+    }
+  : false;
 
 // const proxyUrl = 'http://172.16.1.162:9090';
-const proxyUrl = 'http://172.16.1.18:8000';
+// const proxyUrl = 'http://172.16.1.18:8000';
 // const proxyUrl =  'http://120.209.216.232:9090';
 // const proxyUrl = 'https://idc.w7.com';
 // const proxyUrl = 'https://k3s.mixi.city';
@@ -42,6 +54,7 @@ export default mergeConfig(
       host: '0.0.0.0',
       open: false,
       port: 8000,
+      https: httpsConfig,
       fs: {
         strict: true,
       },
@@ -61,6 +74,11 @@ export default mergeConfig(
           ws: true,
         },
         '/version': {
+          target: proxyUrl,
+          changeOrigin: true,
+          ws: true,
+        },
+        '/ui/microapp': {
           target: proxyUrl,
           changeOrigin: true,
           ws: true,
