@@ -43,6 +43,7 @@ import { k8sproxy } from '@/utils/api';
 import axios from 'axios'
 import { useNamespaceStore,useLoadingStore } from '@/store';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
+import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 
 export default {
     data(){
@@ -78,7 +79,7 @@ export default {
                 let data = res?.data;
                 this.title = data?.metadata?.annotations?.title || data?.metadata?.name;
                 this.isHelm = data?.spec?.isHelm;
-                let statusItem = data?.status?.items || [];
+                let statusItem = filterAppGroupWorkloadItems(data?.status?.items || []);
                 let childrenApp = statusItem.map(si=>({
                     title: si.title||si.name,
                     name: si.name,

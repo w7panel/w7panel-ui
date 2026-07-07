@@ -209,6 +209,7 @@ import k8syamlDrawer from '@/components/k8syaml-drawer.vue';
 import codepackDrawer from '@/components/codepack-drawer.vue';
 import helmForm from '../pages/helm-form.vue';
 import { getPermission,getFileEditor,getUserInfo } from '@/utils/auth';
+import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 
 export default {
     data(){
@@ -404,7 +405,7 @@ export default {
                 list = list.filter(i=>!i?.metadata?.labels?.['w7.cc/parent']).map(i=>{
                     
                     let domain_apps = [];
-                    let statusItem = i?.status?.items || [];
+                    let statusItem = filterAppGroupWorkloadItems(i?.status?.items || []);
                     let childrenApp = statusItem.map(si=>({
                         title: si.title||si.name,
                         name: si.name,

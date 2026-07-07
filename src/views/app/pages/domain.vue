@@ -567,6 +567,7 @@ import CryptoJS  from 'crypto-js';
 import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
 import domainCert from '@/components/domain-cert.vue';
+import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 
 const type3Backend = {
     service: {
@@ -970,7 +971,7 @@ export default {
             if(this.inRvproxy){return;}
             return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group).then(res=>{
                 this.groupData = res?.data;
-                this.appList = res.data?.status?.items?.map(i=>{
+                this.appList = filterAppGroupWorkloadItems(res.data?.status?.items || []).map(i=>{
                     return {
                         title: i.title || i.name,
                         name: i.name,
@@ -1150,7 +1151,7 @@ export default {
                         name: item.metadata.name,
                         title: item?.spec?.title || item.metadata.name,
                     })
-                    allAppList[item.metadata.name] = item?.status?.items?.map(i=>{
+                    allAppList[item.metadata.name] = filterAppGroupWorkloadItems(item?.status?.items || []).map(i=>{
                         return {
                             title: i.title || i.name,
                             name: i.name,
@@ -1164,7 +1165,7 @@ export default {
                     let group = list.find(i=>i?.metadata?.name==this.$route.params?.group);
                     if(group){
                         this.groupData = group;
-                        this.appList = group?.status?.items?.map(i=>{
+                        this.appList = filterAppGroupWorkloadItems(group?.status?.items || []).map(i=>{
                             return {
                                 title: i.title || i.name,
                                 name: i.name,
