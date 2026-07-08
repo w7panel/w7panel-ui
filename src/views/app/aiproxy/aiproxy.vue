@@ -249,9 +249,9 @@ export default {
                                 pathType: 'Prefix',
                                 backend: {
                                     resource: {
-                                        apiGroup: 'extensions.higress.io',
-                                        kind: 'WasmPlugin',
-                                        name: PLUGIN_NAME,
+                                        apiGroup: 'networking.higress.io',
+                                        kind: 'McpBridge',
+                                        name: 'default',
                                     },
                                 },
                             }],
