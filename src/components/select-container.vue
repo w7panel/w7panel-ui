@@ -41,6 +41,7 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
+import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 
 export default {
     data() {
@@ -96,7 +97,7 @@ export default {
         getAppList(groupName) {
             this.appLoading = true;
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/' + this.namespaceActive + '/appgroups/' + groupName, { noAlert: true }).then(async res => {
-                let items = res?.data?.status?.items || [];
+                let items = filterAppGroupWorkloadItems(res?.data?.status?.items || []);
                 this.appList = items.map(i => ({
                     key: (i.kind?.toLowerCase() + 's') + i.name,
                     name: i.name,

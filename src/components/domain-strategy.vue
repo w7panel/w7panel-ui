@@ -319,6 +319,7 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
+import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 import domainStrategyPlugin from './domain-strategy-plugin.vue';
 import axios from 'axios';
 // import domainStrategyFilecache from './domain-strategy-filecache.vue';
@@ -484,7 +485,7 @@ export default {
         changeGroup(v){
             return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ v).then(res=>{
                 this.requests.service = '';
-                this.appList = res.data?.status?.items?.map(i=>{
+                this.appList = filterAppGroupWorkloadItems(res.data?.status?.items || []).map(i=>{
                     return {
                         title: i.title || i.name,
                         name: i.name,

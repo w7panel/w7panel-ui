@@ -134,6 +134,7 @@ import { appendWujieProxyRequestQuery, getWujieProxyBackendUrl } from '@/utils/w
 import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
+import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -787,10 +788,11 @@ export default {
             if(status==1){return;}
             this.watchInterval = setInterval(()=>{
                 k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group).then(async res=>{
-                    let items = res?.data?.status?.items;
+                    let items = filterAppGroupWorkloadItems(res?.data?.status?.items || []);
                     let status = 1;
                     for(let i in items){
-                        let a = this.applist.find(app=>app.name==items[i].name);
+                        let kind = items[i]?.kind?.toLowerCase() + 's';
+                        let a = this.applist.find(app=>app.name==items[i].name && app.kind==kind);
                         if(!a){continue;}
                         let is = items[i].isZeroReplicas? 0 : ( items[i].ready?1:2);
                         a.status = is;
@@ -807,7 +809,7 @@ export default {
             let helmTab = [];
             let list = [];
             
-            let items = data?.status?.items;
+            let items = filterAppGroupWorkloadItems(data?.status?.items || []);
             if(data?.spec?.isHelm){
                 helmTab.push({
                     title: (data?.metadata?.annotations?.title || data?.metadata?.name || '') + '资源概览',

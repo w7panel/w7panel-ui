@@ -117,6 +117,7 @@ import { k8sproxy } from '@/utils/api';
 import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import CryptoJS  from 'crypto-js';
+import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 
 export default {
     props: ['show','appList','appPorts','parentName','parentPath','checkList','multiple'],
@@ -198,7 +199,7 @@ export default {
                         name: item.metadata.name,
                         title: item?.spec?.title || item.metadata.name,
                     })
-                    allAppList[item.metadata.name] = item?.status?.items?.map(i=>{
+                    allAppList[item.metadata.name] = filterAppGroupWorkloadItems(item?.status?.items || []).map(i=>{
                         return {
                             title: i.title || i.name,
                             name: i.name,

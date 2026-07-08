@@ -522,6 +522,7 @@ export default {
                     })
                 }else{
                     data.metadata.annotations['w7.cc/create-svc'] = 'true';
+                    data.spec.template.spec.enableServiceLinks = false;
                     // 创建子应用
                     if(this.parent){ data.metadata.labels.parent = this.parent; }
                     return k8sproxy.post("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ this.form.kind, data,{loading:false}).then(async res=>{
