@@ -109,6 +109,23 @@
             "key": "gateway-rvproxy-delete",
             "route": "gateway/rvproxy/delete"
         }]
+    },{
+        "title": "AI代理",
+        "key": "gateway-aiproxy",
+        "route": "gateway/aiproxy",
+        "children": [{
+            "title": "新建",
+            "key": "gateway-aiproxy-add",
+            "route": "gateway/aiproxy/add"
+        },{
+            "title": "编辑",
+            "key": "gateway-aiproxy-edit",
+            "route": "gateway/aiproxy/edit"
+        },{
+            "title": "删除",
+            "key": "gateway-aiproxy-delete",
+            "route": "gateway/aiproxy/delete"
+        }]
     }]
 },{
     "title": "存储管理",

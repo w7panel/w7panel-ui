@@ -39,6 +39,29 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     key: 'gateway-rvproxy',
                 },
             },
+            {
+                path: 'aiproxy',
+                name: 'gateway-aiproxy',
+                component: () => import('@/views/app/aiproxy/aiproxy.vue'),
+                meta: {
+                    locale: 'AI代理',
+                    requiresAuth: true,
+                    roles: ['*'],
+                    key: 'gateway-aiproxy',
+                },
+            },
+            {
+                path: 'aiproxy-domain',
+                name: 'gateway-aiproxy-domain',
+                component: () => import('@/views/app/aiproxy/domain.vue'),
+                meta: {
+                    hideInMenu: true,
+                    locale: 'AI代理域名',
+                    requiresAuth: true,
+                    roles: ['*'],
+                    key: 'gateway-aiproxy',
+                },
+            },
         ],
     },
 ];
