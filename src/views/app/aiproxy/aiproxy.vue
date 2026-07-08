@@ -153,15 +153,18 @@ export default {
                     const host = ing?.spec?.rules?.[0]?.host || '';
                     const ssl = ing?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
                     const rule = this.findRule(rules, ing, host);
-                    const providers = this.secrets.filter(s=>s?.metadata?.labels?.[AI_DOMAIN_LABEL] == ing.metadata.name && s?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true');
+                    const providers = rule?.config?.providers || [];
+                    const legacyProviders = this.secrets.filter(s=>s?.metadata?.labels?.[AI_DOMAIN_LABEL] == ing.metadata.name && s?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true');
+                    const providerCount = providers.length || legacyProviders.length;
+                    const enabledProviderCount = providers.length ? providers.filter(i=>i?.enabled !== false).length : legacyProviders.filter(s=>s?.metadata?.annotations?.['w7.cc/enabled'] !== 'false').length;
                     return {
                         name: ing.metadata.name,
                         host,
                         url: (ssl?'https://':'http://') + host,
                         models: rule?.config?.models || [],
                         authEnabled: !!rule?.config?.auth?.enabled,
-                        providers: providers.length,
-                        enabledProviders: providers.filter(s=>s?.metadata?.annotations?.['w7.cc/enabled'] !== 'false').length,
+                        providers: providerCount,
+                        enabledProviders: enabledProviderCount,
                         ingress: ing,
                     }
                 });
@@ -285,7 +288,8 @@ export default {
                     },
                 },
                 spec: {
-                    defaultConfigDisable: true,
+                    defaultConfigDisable: false,
+                    defaultConfig: { providers: [] },
                     failStrategy: 'FAIL_OPEN',
                     phase: 'UNSPECIFIED_PHASE',
                     priority: 20,
