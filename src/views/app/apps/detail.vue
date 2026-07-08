@@ -424,8 +424,8 @@ export default {
                 sync: true,
                 props: props,
                 prefix: this.getMicroRoutePrefix(),
-                plugins: [createWujieRequestCredentialsPlugin(), createWujieRequirePlugin()],
-                fetch: wujieFetch,
+                plugins: this.info.load_mode === 'iframe' ? [createWujieRequestCredentialsPlugin(), createWujieRequirePlugin()] : [],
+                fetch: this.info.load_mode === 'iframe' ? wujieFetch : null,
                 loadError: (url, error)=>{
                     console.log(`appdetail loadError`, url, error);
                 },

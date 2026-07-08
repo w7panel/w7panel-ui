@@ -26,6 +26,7 @@ import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
 import { appendWujieProxyRequestQuery, getWujieProxyBackendUrl } from '@/utils/wujie-proxy-request';
 import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
+import { wujieFetch } from '@/utils/wujie-cors-fetch';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -305,7 +306,8 @@ export default{
                 sync: true,
                 prefix: getWujieRoutePrefix(this.info.frontendUrl),
                 props: props,
-                plugins: [createWujieRequestCredentialsPlugin(), createWujieRequirePlugin()],
+                plugins: this.info.load_mode === 'iframe' ? [createWujieRequestCredentialsPlugin(), createWujieRequirePlugin()] : [],
+                fetch: this.info.load_mode === 'iframe' ? wujieFetch : null,
             }).then(()=>{
                 console.log('app success')
             }).catch(()=>{
