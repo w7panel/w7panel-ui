@@ -12,7 +12,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         locale: '站点管理',
         requiresAuth: true,
         icon: 'icon-archive',
-        order: 3,
+        order: 5,
         menuGroup: 'cloudserver',
         key: 'sitemanage',
         linkIcon: true,

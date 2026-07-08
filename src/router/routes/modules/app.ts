@@ -374,29 +374,6 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     roles: ['*'],
                     key: 'app-cronjob',
                 },
-            },{
-
-                path: 'rvproxy',
-                name: 'app-rvproxy',
-                component: () => import('@/views/app/rvproxy/rvproxy.vue'),
-                meta: {
-                    locale: '反向代理',
-                    requiresAuth: true,
-                    roles: ['*'],
-                    key: 'app-rvproxy',
-                },
-            },
-            {
-                path: 'rvproxy-domain',
-                name: 'app-rvproxy-domain',
-                component: () => import('@/views/app/rvproxy/domain.vue'),
-                meta: {
-                    hideInMenu: true,
-                    locale: '域名管理',
-                    requiresAuth: true,
-                    roles: ['*'],
-                    key: 'app-rvproxy',
-                },
             },
             {
                 path: 'plugin',

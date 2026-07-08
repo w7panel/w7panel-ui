@@ -432,7 +432,7 @@ export default {
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
-        this.inRvproxy = this.$route.name == 'app-rvproxy-domain';
+        this.inRvproxy = this.$route.name == 'gateway-rvproxy-domain';
         this.showDrower = this.show;
         this.activeName = this.hideRewrite? 'header' : 'rewrite';
         this[this.hideRewrite? 'header' : 'rewrite'].show = true;

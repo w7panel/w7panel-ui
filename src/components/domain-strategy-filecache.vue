@@ -53,7 +53,7 @@ export default {
     },
     created() {
         this.namespaceActive = useNamespaceStore().namespace;
-        this.inRvproxy = this.$route.name === 'app-rvproxy-domain';
+        this.inRvproxy = this.$route.name === 'gateway-rvproxy-domain';
         registerWujieEvent("submit", this.submitFileCache);
         registerWujieEvent("close", this.close);
     },

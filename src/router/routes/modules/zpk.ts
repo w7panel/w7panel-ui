@@ -12,7 +12,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         locale: '制品开发',
         requiresAuth: true,
         icon: 'icon-archive',
-        order: 3,
+        order: 4,
         menuGroup: 'cloudserver',
         key: 'zpk',
         linkIcon: true,

@@ -672,7 +672,7 @@ export default {
     },
     async created(){
         this.debug = getUserInfo()?.['w7.cc/debug']=='true';
-        this.inRvproxy = this.$route.name == 'app-rvproxy-domain';
+        this.inRvproxy = this.$route.name == 'gateway-rvproxy-domain';
         this.namespaceActive = useNamespaceStore().namespace;
         await this.getWhiteList();
         this.refreshGroup();

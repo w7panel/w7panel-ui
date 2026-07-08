@@ -10,7 +10,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             locale: '存储管理',
             requiresAuth: true,
             icon: 'icon-storage',
-            order: 2,
+            order: 3,
             menuGroup: 'cloudserver',
             key: 'storage',
         },

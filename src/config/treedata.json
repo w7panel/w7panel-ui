@@ -71,23 +71,6 @@
             "route": "app/cronjob/delete"
         }]
     },{
-        "title": "反向代理",
-        "key": "app-rvproxy",
-        "route": "app/rvproxy",
-        "children": [{
-            "title": "新建",
-            "key": "app-rvproxy-add",
-            "route": "app/rvproxy/add"
-        },{
-            "title": "编辑",
-            "key": "app-rvproxy-edit",
-            "route": "app/rvproxy/edit"
-        },{
-            "title": "删除",
-            "key": "app-rvproxy-delete",
-            "route": "app/rvproxy/delete"
-        }]
-    },{
         "title": "集群数据库",
         "key": "app-dblist",
         "route": "app/database",
@@ -104,6 +87,28 @@
         "title": "AI应用管理",
         "key": "app-gpustack",
         "route": "app/gpustack"
+    }]
+},{
+    "title": "网关管理",
+    "key": "gateway",
+    "route": "gateway",
+    "children": [{
+        "title": "反向代理",
+        "key": "gateway-rvproxy",
+        "route": "gateway/rvproxy",
+        "children": [{
+            "title": "新建",
+            "key": "gateway-rvproxy-add",
+            "route": "gateway/rvproxy/add"
+        },{
+            "title": "编辑",
+            "key": "gateway-rvproxy-edit",
+            "route": "gateway/rvproxy/edit"
+        },{
+            "title": "删除",
+            "key": "gateway-rvproxy-delete",
+            "route": "gateway/rvproxy/delete"
+        }]
     }]
 },{
     "title": "存储管理",

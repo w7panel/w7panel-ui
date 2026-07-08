@@ -157,7 +157,7 @@ export default {
         // }
     },
     created(){
-        this.inRvproxy = this.$route.name == 'app-rvproxy-domain';
+        this.inRvproxy = this.$route.name == 'gateway-rvproxy-domain';
         this.namespaceActive = useNamespaceStore().namespace;
         if(this.inRvproxy){
             this.getAllAgent();

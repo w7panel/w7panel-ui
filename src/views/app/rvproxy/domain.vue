@@ -15,11 +15,11 @@ export default {
             routes: [
                 {name:'root'},
                 {
-                    name: "app",
-                    label: "应用管理",
+                    name: "gateway",
+                    label: "网关管理",
                 },
                 {
-                    name: "app-rvproxy",
+                    name: "gateway-rvproxy",
                     label: "反向代理",
                 },
                 {
