@@ -130,7 +130,9 @@ import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute, normalizeWujieNavigationRoute, joinWujieUrlRoute } from '@/utils/wujie-route';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
-import { createWujieLegacyPlugin } from '@/utils/wujie-legacy-plugin';
+import { appendWujieProxyRequestQuery, getWujieProxyBackendUrl } from '@/utils/wujie-proxy-request';
+import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
+import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 
 const ROLE_NAME = {
@@ -382,8 +384,9 @@ export default {
                     noAlert: true,
                 }).then(res=>res.data);
             };
+            const proxyBackendUrl = getWujieProxyBackendUrl(this.info.backendUrl);
             let props = {
-                url: /^\//.test(this.info.backendUrl)? window.location.origin + this.info.backendUrl : this.info.backendUrl,
+                url: proxyBackendUrl,
                 Authorization: 'Basic '+ btoa(this.info.username+':'+this.info.password),
                 domain: this.domain,
                 isRegister: is_register,
@@ -397,7 +400,16 @@ export default {
             }
             appendWujieModalHandles(props, () => this.$refs.wujieModals);
             console.log(props)
-            const appUrl = this.buildMicroAppUrl(this.menuActive || '');
+            const baseAppUrl = this.buildMicroAppUrl(this.menuActive || '');
+            const appUrl = this.info.load_mode === 'iframe'
+                ? appendWujieProxyRequestQuery(baseAppUrl, {
+                    proxyRequest: this.info.proxy_request,
+                    frontProps,
+                    backendUrl: proxyBackendUrl,
+                    group: this.info.appgroup,
+                    role: getK8sinfo()['w7.cc/role'],
+                })
+                : baseAppUrl;
             startApp({
                 name: APP_DETAIL_MICRO_NAME,
                 url: appUrl,
@@ -406,10 +418,12 @@ export default {
 // url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.menuActive || ''),
                 el: APP_DETAIL_MICRO_EL,
                 // alive: true,
+                degrade: true,
+                degradeAttrs: { style: 'border:0;display:block;' },
                 sync: true,
                 props: props,
                 prefix: this.getMicroRoutePrefix(),
-                plugins: [createWujieLegacyPlugin()],
+                plugins: [createWujieRequestCredentialsPlugin(), createWujieRequirePlugin()],
                 fetch: wujieFetch,
                 loadError: (url, error)=>{
                     console.log(`appdetail loadError`, url, error);
