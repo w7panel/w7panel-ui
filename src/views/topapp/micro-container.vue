@@ -300,7 +300,7 @@ export default{
 // url: 'http://218.23.2.48:9090' + url,
                 exec: true,
                 el: '#appmicro',
-                degrade: true,
+                degrade: this.info.load_mode === 'iframe',
                 degradeAttrs: { style: 'border:0;display:block;' },
                 sync: true,
                 prefix: getWujieRoutePrefix(this.info.frontendUrl),
