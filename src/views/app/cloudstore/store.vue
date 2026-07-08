@@ -73,12 +73,26 @@
 
         <a-modal v-model:visible="w7site.show" title="站点找回" width="960px" :footer="false">
             <div style="max-height: 450px; overflow-y: auto;">
-                
+                <table v-if="w7site.list && w7site.list.length" class="com-table"><tbody>
+                    <tr>
+                        <td>站点</td>
+                        <td>地址</td>
+                        <td>版本</td>
+                        <td>创建时间</td>
+                        <td>操作</td>
+                    </tr>
+                    <tr v-for="(item,index) in w7site.list" :key="item.key || item.id || index">
+                        <td>{{ item.sitename || '-' }}</td>
+                        <td>{{ item.url || '-' }}</td>
+                        <td>{{ item.family_text || '-' }} {{ item.version || '' }}</td>
+                        <td>{{ item.create_time_text || '-' }}</td>
+                        <td>
+                            <span class="c-blue cursor" @click="rebuildSite(item)">找回</span>
+                        </td>
+                    </tr>
+                </tbody></table>
+                <a-empty v-else />
             </div>
-            <template #footer>
-                <a-button @click="adminItem.dialog=false;nextStep(adminItem);">跳过</a-button>
-                <a-button type="primary" @click="selectVerson">确定</a-button>
-            </template>
         </a-modal>
 
         
@@ -190,7 +204,10 @@ export default {
             clusterId: '',
             tpcdtoken: '',
 
-            w7site: {},
+            w7site: {
+                show: false,
+                list: [],
+            },
             deployItems: {
                 show: false,
                 item: null,
@@ -335,9 +352,13 @@ export default {
                 customToken: this.tpcdtoken,
                 loading: true,
             }).then(res=>{
+                let list = res?.data || [];
+                if(!Array.isArray(list)){
+                    list = Object.values(list);
+                }
                 this.w7site = {
                     show: true,
-                    list: res?.data || []
+                    list: list,
                 }
             })
         },
