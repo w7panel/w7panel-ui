@@ -58,6 +58,9 @@
                         <template #columns>
                             <a-table-column title="名称">
                                 <template #cell="{ record }">
+                                    <a-tooltip v-if="!record.isExtra" :content="record.scheduleStatusText">
+                                        <span class="storage-status-point storage-status-point-name" :class="record.scheduleFailed?'is-fail':'is-success'"></span>
+                                    </a-tooltip>
                                     <span>{{record.name}}</span>
                                     <template v-if="!record.isExtra">
                                         <a-tag v-for="(item, index) of record.tags.filter(t=>/^union\d+$/.test(t))" :key="index" size="small" color="blue" class="ml-4" bordered>{{ item }}</a-tag>
@@ -523,9 +526,10 @@ export default {
                 for(let i in disks){
                     diskList.push(disks[i])
                 }
+                diskList = this.withDiskScheduleStatus(diskList);
                 // console.log(diskList)
             }).finally(()=>{
-                let list = configList.concat(diskList);
+                let list = this.withDiskScheduleStatus(configList.concat(diskList));
                 let userInfo = getUserInfo();
                 if(userInfo?.['w7.cc/user-mode']=='cluster'){
                     this.list = list.filter(i=>i.name==userInfo['k3k.io/storageclass']);
@@ -970,6 +974,40 @@ export default {
             b = Number(b.toFixed(2));
             return b;
         },
+        withDiskScheduleStatus(list){
+            const unionMap = {};
+            (list || []).forEach(disk=>{
+                (disk?.detailList || []).forEach(item=>{
+                    const tags = this.diskScheduleLabels(item);
+                    tags.forEach(tag=>{
+                        const key = tag + '/' + item.name;
+                        unionMap[key] = unionMap[key] || [];
+                        unionMap[key].push(item);
+                    });
+                });
+            });
+            return (list || []).map(disk=>{
+                const unionTags = this.diskScheduleLabels(disk);
+                let failedTag = '';
+                for(let i = 0; i < unionTags.length; i++){
+                    const tag = unionTags[i];
+                    const details = unionMap[tag + '/' + disk.name] || [];
+                    if(details.length > 1 && details.every(item=>this.isDiskUnschedulable(item))){
+                        failedTag = tag;
+                        break;
+                    }
+                }
+                disk.scheduleFailed = !!failedTag;
+                disk.scheduleStatusText = failedTag ? `失败：${failedTag} 下所有节点均不可调度` : '成功';
+                return disk;
+            });
+        },
+        diskScheduleLabels(disk){
+            return [...new Set([disk?.name, ...(disk?.tags || [])].filter(Boolean))];
+        },
+        isDiskUnschedulable(item){
+            return item?.allowScheduling === false || item?.status == '不可调度' || item?.status == '禁用';
+        },
     },
     s2j(s){
         let o = [];
@@ -983,6 +1021,10 @@ export default {
 
 <style scoped>
 .cursor.disabled{ opacity:0.8; cursor:not-allowed;}
+.storage-status-point{display:inline-block; width:8px; height:8px; border-radius:50%; vertical-align:middle;}
+.storage-status-point-name{margin-right:12px;}
+.storage-status-point.is-success{background:#00A870;}
+.storage-status-point.is-fail{background:#D00805;}
 </style>
 <style>
 .extratable .arco-table-tr-expand>.arco-table-td{padding:10px; background:var(--color-bg-2);}

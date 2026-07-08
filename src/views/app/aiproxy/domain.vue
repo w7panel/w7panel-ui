@@ -85,9 +85,80 @@
                 <a-form-item label="API Tokens">
                     <a-input-tag v-model="providerForm.tokens" :placeholder="providerForm.isEdit?'留空则保留原 Token':'输入后回车，支持多个 Token'" allow-clear />
                 </a-form-item>
-                <a-form-item v-if="needEndpointUrl(providerForm.type)" label="服务地址" field="endpointUrl">
+                <a-form-item v-if="showEndpointUrl(providerForm.type)" label="服务地址" field="endpointUrl">
                     <a-input v-model="providerForm.endpointUrl" :placeholder="providerEndpointPlaceholder(providerForm.type)" />
                 </a-form-item>
+                <template v-if="providerForm.type == 'qwen'">
+                    <a-form-item label="开启互联网搜索">
+                        <a-switch v-model="providerForm.rawConfigs.qwenEnableSearch" />
+                    </a-form-item>
+                    <a-form-item label="OpenAI 兼容模式">
+                        <a-switch v-model="providerForm.rawConfigs.qwenEnableCompatible" />
+                    </a-form-item>
+                    <a-form-item label="自定义域名" field="rawConfigs.qwenDomain">
+                        <a-input v-model="providerForm.rawConfigs.qwenDomain" placeholder="dashscope.aliyuncs.com" />
+                    </a-form-item>
+                    <a-form-item label="文件 ID">
+                        <a-input-tag v-model="providerForm.rawConfigs.qwenFileIds" placeholder="输入后回车，支持多个文件 ID" allow-clear />
+                    </a-form-item>
+                </template>
+                <template v-if="providerForm.type == 'zhipuai'">
+                    <a-form-item label="自定义域名" field="rawConfigs.zhipuDomain">
+                        <a-input v-model="providerForm.rawConfigs.zhipuDomain" placeholder="open.bigmodel.cn" />
+                    </a-form-item>
+                    <a-form-item label="Code Plan 模式">
+                        <a-switch v-model="providerForm.rawConfigs.zhipuCodePlanMode" />
+                    </a-form-item>
+                </template>
+                <template v-if="providerForm.type == 'claude'">
+                    <a-form-item label="Claude API 版本" field="rawConfigs.claudeVersion">
+                        <a-input v-model="providerForm.rawConfigs.claudeVersion" placeholder="2023-06-01" />
+                    </a-form-item>
+                    <a-form-item label="Claude Code 模式">
+                        <a-switch v-model="providerForm.rawConfigs.claudeCodeMode" />
+                    </a-form-item>
+                </template>
+                <template v-if="providerForm.type == 'ollama'">
+                    <a-form-item label="Ollama 服务主机名" field="rawConfigs.ollamaServerHost">
+                        <a-input v-model="providerForm.rawConfigs.ollamaServerHost" placeholder="127.0.0.1" />
+                    </a-form-item>
+                    <a-form-item label="Ollama 服务端口" field="rawConfigs.ollamaServerPort">
+                        <a-input-number v-model="providerForm.rawConfigs.ollamaServerPort" :min="1" :max="65535" style="width:200px;" />
+                    </a-form-item>
+                </template>
+                <template v-if="providerForm.type == 'vllm'">
+                    <a-form-item label="vLLM BaseURL" field="rawConfigs.vllmCustomUrl">
+                        <a-input v-model="providerForm.rawConfigs.vllmCustomUrl" placeholder="http://127.0.0.1:8000/v1" />
+                    </a-form-item>
+                    <a-form-item label="备用 BaseURL">
+                        <a-input-tag v-model="providerForm.rawConfigs.vllmExtraCustomUrls" placeholder="输入后回车，支持多个备用 BaseURL" allow-clear />
+                    </a-form-item>
+                </template>
+                <template v-if="providerForm.type == 'bedrock'">
+                    <a-form-item label="AWS 区域" field="rawConfigs.awsRegion">
+                        <a-input v-model="providerForm.rawConfigs.awsRegion" placeholder="us-east-1" />
+                    </a-form-item>
+                    <a-form-item label="Access Key" field="rawConfigs.awsAccessKey">
+                        <a-input v-model="providerForm.rawConfigs.awsAccessKey" placeholder="请输入 Access Key" />
+                    </a-form-item>
+                    <a-form-item label="Secret Key" field="rawConfigs.awsSecretKey">
+                        <a-input-password v-model="providerForm.rawConfigs.awsSecretKey" placeholder="请输入 Secret Key" />
+                    </a-form-item>
+                </template>
+                <template v-if="providerForm.type == 'vertex'">
+                    <a-form-item label="Vertex 区域" field="rawConfigs.vertexRegion">
+                        <a-input v-model="providerForm.rawConfigs.vertexRegion" placeholder="global" />
+                    </a-form-item>
+                    <a-form-item label="项目 ID" field="rawConfigs.vertexProjectId">
+                        <a-input v-model="providerForm.rawConfigs.vertexProjectId" placeholder="请输入 Google Cloud 项目 ID" />
+                    </a-form-item>
+                    <a-form-item label="认证 JSON" field="rawConfigs.vertexAuthKey">
+                        <a-textarea v-model="providerForm.rawConfigs.vertexAuthKey" placeholder="请输入服务账号 JSON" :auto-size="{minRows:4,maxRows:8}" />
+                    </a-form-item>
+                    <a-form-item label="令牌刷新提前量">
+                        <a-input-number v-model="providerForm.rawConfigs.vertexTokenRefreshAhead" :min="1" :max="1800" placeholder="留空表示仅过期时刷新" style="width:240px;" />
+                    </a-form-item>
+                </template>
                 <a-form-item label="模型名称">
                     <a-input-tag v-model="providerForm.models" placeholder="输入后回车，支持多个模型" allow-clear />
                 </a-form-item>
@@ -116,22 +187,76 @@ const PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/a
 const MCPBRIDGE_NAME = 'default';
 
 const PROVIDER_TYPES = [
-    { label: 'OpenAI', value: 'openai', endpoint: 'https://api.openai.com/v1' },
-    { label: 'Qwen', value: 'qwen', endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+    { label: 'OpenAI/OpenAI兼容服务', value: 'openai', endpoint: 'https://api.openai.com/v1' },
+    { label: '通义千问', value: 'qwen', endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+    { label: '月之暗面', value: 'moonshot', endpoint: 'https://api.moonshot.cn' },
     { label: 'Azure OpenAI', value: 'azure', endpoint: 'https://example.openai.azure.com/openai/deployments/deployment/chat/completions?api-version=2024-02-15-preview', requiredEndpoint: true },
-    { label: 'Claude', value: 'claude', endpoint: 'https://api.anthropic.com' },
+    { label: 'Anthropic Claude', value: 'claude', endpoint: 'https://api.anthropic.com' },
+    { label: '百川智能', value: 'baichuan', endpoint: 'https://api.baichuan-ai.com' },
+    { label: '零一万物', value: 'yi', endpoint: 'https://api.lingyiwanwu.com' },
+    { label: '智谱AI', value: 'zhipuai', endpoint: 'https://open.bigmodel.cn' },
+    { label: '360智脑', value: 'ai360', endpoint: 'https://api.360.cn' },
+    { label: '文心一言', value: 'baidu', endpoint: 'https://qianfan.baidubce.com' },
+    { label: '阶跃星辰', value: 'stepfun', endpoint: 'https://api.stepfun.com' },
+    { label: '豆包', value: 'doubao', endpoint: 'https://ark.cn-beijing.volces.com' },
+    { label: 'MiniMax', value: 'minimax', endpoint: 'https://api.minimax.chat' },
+    { label: 'Google Gemini', value: 'gemini', endpoint: 'https://generativelanguage.googleapis.com' },
+    { label: 'Cohere', value: 'cohere', endpoint: 'https://api.cohere.com' },
+    { label: '扣子', value: 'coze', endpoint: 'https://api.coze.cn' },
     { label: 'DeepSeek', value: 'deepseek', endpoint: 'https://api.deepseek.com' },
-    { label: 'Moonshot', value: 'moonshot', endpoint: 'https://api.moonshot.cn' },
+    { label: 'GitHub模型', value: 'github', endpoint: 'https://models.inference.ai.azure.com' },
+    { label: 'Groq', value: 'groq', endpoint: 'https://api.groq.com' },
     { label: 'Ollama', value: 'ollama', endpoint: 'http://127.0.0.1:11434', requiredEndpoint: true },
+    { label: 'Mistral', value: 'mistral', endpoint: 'https://api.mistral.ai' },
+    { label: 'AWS Bedrock', value: 'bedrock', endpoint: 'https://bedrock-runtime.us-east-1.amazonaws.com' },
+    { label: 'Google Vertex', value: 'vertex', endpoint: 'https://aiplatform.googleapis.com' },
+    { label: 'OpenRouter', value: 'openrouter', endpoint: 'https://openrouter.ai' },
+    { label: 'Grok', value: 'grok', endpoint: 'https://api.x.ai' },
     { label: 'vLLM', value: 'vllm', endpoint: 'http://127.0.0.1:8000/v1', requiredEndpoint: true },
 ];
 
 const DEFAULT_ENDPOINTS = {
     openai: 'https://api.openai.com/v1',
     qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    claude: 'https://api.anthropic.com',
-    deepseek: 'https://api.deepseek.com',
     moonshot: 'https://api.moonshot.cn',
+    claude: 'https://api.anthropic.com',
+    baichuan: 'https://api.baichuan-ai.com',
+    yi: 'https://api.lingyiwanwu.com',
+    zhipuai: 'https://open.bigmodel.cn',
+    ai360: 'https://api.360.cn',
+    baidu: 'https://qianfan.baidubce.com',
+    stepfun: 'https://api.stepfun.com',
+    doubao: 'https://ark.cn-beijing.volces.com',
+    minimax: 'https://api.minimax.chat',
+    gemini: 'https://generativelanguage.googleapis.com',
+    cohere: 'https://api.cohere.com',
+    coze: 'https://api.coze.cn',
+    deepseek: 'https://api.deepseek.com',
+    github: 'https://models.inference.ai.azure.com',
+    groq: 'https://api.groq.com',
+    mistral: 'https://api.mistral.ai',
+    openrouter: 'https://openrouter.ai',
+    grok: 'https://api.x.ai',
+};
+
+const DEFAULT_PROVIDER_ENDPOINTS = {
+    moonshot: { domain: 'api.moonshot.cn', port: 443, protocol: 'https' },
+    ai360: { domain: 'api.360.cn', port: 443, protocol: 'https' },
+    github: { domain: 'models.inference.ai.azure.com', port: 443, protocol: 'https' },
+    groq: { domain: 'api.groq.com', port: 443, protocol: 'https' },
+    baichuan: { domain: 'api.baichuan-ai.com', port: 443, protocol: 'https' },
+    yi: { domain: 'api.lingyiwanwu.com', port: 443, protocol: 'https' },
+    deepseek: { domain: 'api.deepseek.com', port: 443, protocol: 'https' },
+    baidu: { domain: 'qianfan.baidubce.com', port: 443, protocol: 'https' },
+    stepfun: { domain: 'api.stepfun.com', port: 443, protocol: 'https' },
+    minimax: { domain: 'api.minimax.chat', port: 443, protocol: 'https' },
+    gemini: { domain: 'generativelanguage.googleapis.com', port: 443, protocol: 'https' },
+    mistral: { domain: 'api.mistral.ai', port: 443, protocol: 'https' },
+    cohere: { domain: 'api.cohere.com', port: 443, protocol: 'https' },
+    doubao: { domain: 'ark.cn-beijing.volces.com', port: 443, protocol: 'https' },
+    coze: { domain: 'api.coze.cn', port: 443, protocol: 'https' },
+    openrouter: { domain: 'openrouter.ai', port: 443, protocol: 'https' },
+    grok: { domain: 'api.x.ai', port: 443, protocol: 'https' },
 };
 
 function encode(value) {
@@ -307,7 +432,7 @@ export default {
                     show: true,
                     isEdit: false,
                     originalName: '',
-                    rawConfigs: {},
+                    rawConfigs: this.defaultRawConfigs('openai'),
                     type: 'openai',
                     name: '',
                     protocol: 'openai/v1',
@@ -341,6 +466,11 @@ export default {
                 const name = this.domainToName(this.providerForm.name);
                 if(!/^[a-z0-9](?:[a-z0-9.-]{0,61}[a-z0-9])?$/.test(name)){
                     this.$message.error('名称仅支持字母、数字、点和中划线，且不能以符号开头或结尾');
+                    return;
+                }
+                const providerError = this.validateProviderConfig(this.providerForm);
+                if(providerError){
+                    this.$message.error(providerError);
                     return;
                 }
                 this.providerForm.name = name;
@@ -520,13 +650,14 @@ export default {
             plugin.spec.matchRules.push(rule);
         },
         providerFormToProvider(form){
+            const rawConfigs = this.normalizeProviderRawConfigs(form.type, form.rawConfigs);
             return {
                 name: form.name,
                 type: form.type || 'openai',
                 protocol: form.protocol || 'openai/v1',
                 tokens: compact(form.tokens).length ? compact(form.tokens) : compact(form.oldTokens),
-                endpointUrl: form.endpointUrl,
-                rawConfigs: clone(form.rawConfigs),
+                endpointUrl: this.formEndpointUrl(form, rawConfigs),
+                rawConfigs,
                 models: form.models || [],
                 weight: Number(form.weight) || 0,
                 enabled: form.enabled !== false,
@@ -546,7 +677,7 @@ export default {
         providerConfigToForm(config, routeItem){
             const protocol = config.protocol == 'original' ? 'original' : 'openai/v1';
             return {
-                rawConfigs: clone(config),
+                rawConfigs: { ...this.defaultRawConfigs(config.type || routeItem?.type || 'openai'), ...clone(config) },
                 type: config.type || routeItem?.type || 'openai',
                 protocol,
                 tokens: config.apiTokens || [],
@@ -563,23 +694,42 @@ export default {
                 else delete config.openaiCustomUrl;
                 delete config.openaiExtraCustomUrls;
             }else if(provider.type == 'qwen'){
-                const host = this.urlHost(endpoint || DEFAULT_ENDPOINTS.qwen);
+                const host = this.urlHost(config.qwenDomain) || this.urlHost(endpoint || DEFAULT_ENDPOINTS.qwen);
                 if(host && host != 'dashscope.aliyuncs.com') config.qwenDomain = host;
                 else delete config.qwenDomain;
-                config.qwenEnableCompatible = true;
+                config.qwenEnableCompatible = config.qwenEnableCompatible !== false;
                 config.qwenEnableSearch = !!config.qwenEnableSearch;
+                config.qwenFileIds = compact(config.qwenFileIds);
+                if(!config.qwenFileIds.length) delete config.qwenFileIds;
             }else if(provider.type == 'azure'){
                 config.azureServiceUrl = endpoint;
             }else if(provider.type == 'claude'){
                 if(endpoint && endpoint != DEFAULT_ENDPOINTS.claude) config.claudeCustomUrl = endpoint;
                 else delete config.claudeCustomUrl;
+                if(!config.claudeVersion) config.claudeVersion = '2023-06-01';
+                config.claudeCodeMode = !!config.claudeCodeMode;
             }else if(provider.type == 'ollama'){
                 const url = this.parseUrl(endpoint);
-                config.ollamaServerHost = url?.hostname || endpoint.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
-                config.ollamaServerPort = Number(url?.port || 11434);
+                config.ollamaServerHost = String(config.ollamaServerHost || url?.hostname || endpoint.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:\d+$/, '')).trim();
+                config.ollamaServerPort = Number(config.ollamaServerPort || url?.port || 11434);
             }else if(provider.type == 'vllm'){
-                config.vllmCustomUrl = endpoint;
-                delete config.vllmExtraCustomUrls;
+                config.vllmCustomUrl = String(config.vllmCustomUrl || endpoint || '').trim();
+                config.vllmExtraCustomUrls = compact(config.vllmExtraCustomUrls);
+                if(!config.vllmExtraCustomUrls.length) delete config.vllmExtraCustomUrls;
+            }else if(provider.type == 'zhipuai'){
+                const host = this.urlHost(config.zhipuDomain) || this.urlHost(endpoint || DEFAULT_ENDPOINTS.zhipuai);
+                if(host && host != 'open.bigmodel.cn') config.zhipuDomain = host;
+                else delete config.zhipuDomain;
+                config.zhipuCodePlanMode = config.zhipuCodePlanMode !== false;
+            }else if(provider.type == 'bedrock'){
+                config.awsRegion = String(config.awsRegion || 'us-east-1').trim();
+                config.awsAccessKey = String(config.awsAccessKey || '').trim();
+                config.awsSecretKey = String(config.awsSecretKey || '').trim();
+            }else if(provider.type == 'vertex'){
+                config.vertexRegion = String(config.vertexRegion || 'global').trim().toLowerCase();
+                config.vertexProjectId = String(config.vertexProjectId || '').trim();
+                config.vertexAuthKey = String(config.vertexAuthKey || '').trim();
+                config.vertexAuthServiceName = 'vertex-auth.internal';
             }
         },
         configEndpointUrl(config){
@@ -588,8 +738,46 @@ export default {
             if(config.claudeCustomUrl) return config.claudeCustomUrl;
             if(config.vllmCustomUrl) return config.vllmCustomUrl;
             if(config.ollamaServerHost) return 'http://' + config.ollamaServerHost + ':' + (config.ollamaServerPort || 11434);
-            if(config.qwenDomain) return 'https://' + config.qwenDomain + '/compatible-mode/v1';
+            if(config.type == 'qwen' || config.qwenDomain) return 'https://' + (config.qwenDomain || 'dashscope.aliyuncs.com') + '/' + (config.qwenEnableCompatible === false ? 'api/v1/services/aigc' : 'compatible-mode/v1');
+            if(config.zhipuDomain) return 'https://' + config.zhipuDomain;
+            if(config.awsRegion) return 'https://bedrock-runtime.' + config.awsRegion + '.amazonaws.com';
+            if(config.vertexRegion) return config.vertexRegion == 'global' ? 'https://aiplatform.googleapis.com' : 'https://' + config.vertexRegion + '-aiplatform.googleapis.com';
             return DEFAULT_ENDPOINTS[config.type] || '';
+        },
+        formEndpointUrl(form, rawConfigs){
+            const config = clone(rawConfigs || {});
+            config.type = form.type;
+            const provider = { type: form.type, endpointUrl: form.endpointUrl, rawConfigs: config };
+            this.applyEndpointConfig(config, provider);
+            return this.configEndpointUrl(config);
+        },
+        normalizeProviderRawConfigs(type, rawConfigs){
+            const config = clone(rawConfigs || {});
+            if(type == 'qwen'){
+                config.qwenDomain = this.urlHost(config.qwenDomain);
+                if(!config.qwenDomain) delete config.qwenDomain;
+                config.qwenEnableCompatible = config.qwenEnableCompatible !== false;
+                config.qwenEnableSearch = !!config.qwenEnableSearch;
+                config.qwenFileIds = compact(config.qwenFileIds);
+                if(!config.qwenFileIds.length) delete config.qwenFileIds;
+            }else if(type == 'zhipuai'){
+                config.zhipuDomain = this.urlHost(config.zhipuDomain);
+                if(!config.zhipuDomain) delete config.zhipuDomain;
+                config.zhipuCodePlanMode = config.zhipuCodePlanMode !== false;
+            }else if(type == 'claude'){
+                config.claudeVersion = String(config.claudeVersion || '2023-06-01').trim();
+                config.claudeCodeMode = !!config.claudeCodeMode;
+            }else if(type == 'ollama'){
+                config.ollamaServerHost = String(config.ollamaServerHost || '').trim();
+                config.ollamaServerPort = Number(config.ollamaServerPort || 11434);
+            }else if(type == 'vllm'){
+                config.vllmCustomUrl = String(config.vllmCustomUrl || '').trim();
+                config.vllmExtraCustomUrls = compact(config.vllmExtraCustomUrls);
+                if(!config.vllmExtraCustomUrls.length) delete config.vllmExtraCustomUrls;
+            }else if(type == 'vertex' && !config.vertexTokenRefreshAhead){
+                delete config.vertexTokenRefreshAhead;
+            }
+            return config;
         },
         modelsToModelMapping(models){
             const mapping = {};
@@ -633,10 +821,12 @@ export default {
             mcp.spec = mcp.spec || {};
             mcp.spec.registries = mcp.spec.registries || [];
             mcp.spec.proxies = mcp.spec.proxies || [];
-            const registry = this.providerRegistry(provider);
-            const index = mcp.spec.registries.findIndex(item=>item?.name == registry.name);
-            if(index > -1) mcp.spec.registries.splice(index, 1, registry);
-            else mcp.spec.registries.push(registry);
+            const registries = this.providerRegistries(provider);
+            registries.forEach(registry=>{
+                const index = mcp.spec.registries.findIndex(item=>item?.name == registry.name);
+                if(index > -1) mcp.spec.registries.splice(index, 1, registry);
+                else mcp.spec.registries.push(registry);
+            });
             await k8sproxy.put('/apis/networking.higress.io/v1/namespaces/'+PLUGIN_NAMESPACE+'/mcpbridges/'+MCPBRIDGE_NAME, mcp);
         },
         async removeMcpBridgeRegistry(serviceName){
@@ -646,6 +836,16 @@ export default {
             await k8sproxy.put('/apis/networking.higress.io/v1/namespaces/'+PLUGIN_NAMESPACE+'/mcpbridges/'+MCPBRIDGE_NAME, mcp);
         },
         providerRegistry(provider){
+            const defaultEndpoint = DEFAULT_PROVIDER_ENDPOINTS[provider.type];
+            if(defaultEndpoint && !provider.endpointUrl){
+                return {
+                    name: this.providerServiceName(provider.name),
+                    type: 'dns',
+                    protocol: defaultEndpoint.protocol,
+                    domain: defaultEndpoint.domain,
+                    port: defaultEndpoint.port,
+                };
+            }
             const endpoint = this.providerEndpoint(provider);
             const protocol = endpoint?.protocol?.replace(':','') || 'https';
             const host = endpoint?.hostname || '';
@@ -658,6 +858,19 @@ export default {
                 domain: type == 'static' ? (host + ':' + port) : host,
                 port: type == 'static' ? 80 : port,
             };
+        },
+        providerRegistries(provider){
+            const registries = [this.providerRegistry(provider)];
+            if(provider.type == 'vertex'){
+                registries.push({
+                    name: 'vertex-auth.internal',
+                    type: 'dns',
+                    protocol: 'https',
+                    domain: 'oauth2.googleapis.com',
+                    port: 443,
+                });
+            }
+            return registries;
         },
         async syncIngressDestination(providerList){
             if(!this.ingress) return;
@@ -692,11 +905,66 @@ export default {
         changeProviderType(value){
             this.providerForm.endpointUrl = this.providerEndpointPlaceholder(value);
             this.providerForm.tokens = [];
-            this.providerForm.rawConfigs = {};
+            this.providerForm.rawConfigs = this.defaultRawConfigs(value);
+        },
+        defaultRawConfigs(type){
+            if(type == 'bedrock') return { awsRegion: 'us-east-1', awsAccessKey: '', awsSecretKey: '' };
+            if(type == 'vertex') return { vertexRegion: 'global', vertexProjectId: '', vertexAuthKey: '', vertexTokenRefreshAhead: undefined };
+            if(type == 'zhipuai') return { zhipuDomain: '', zhipuCodePlanMode: true };
+            if(type == 'qwen') return { qwenDomain: '', qwenEnableCompatible: true, qwenEnableSearch: false, qwenFileIds: [] };
+            if(type == 'claude') return { claudeVersion: '2023-06-01', claudeCodeMode: false };
+            if(type == 'ollama') return { ollamaServerHost: '127.0.0.1', ollamaServerPort: 11434 };
+            if(type == 'vllm') return { vllmCustomUrl: 'http://127.0.0.1:8000/v1', vllmExtraCustomUrls: [] };
+            return {};
+        },
+        validateProviderConfig(form){
+            const rawConfigs = form.rawConfigs || {};
+            if(form.type == 'azure'){
+                const endpoint = String(form.endpointUrl || '').trim();
+                if(!endpoint) return 'Azure 服务 URL 不能为空';
+                try {
+                    const url = new URL(endpoint);
+                    if(!url.searchParams.get('api-version')) return 'Azure 服务 URL 必须包含 api-version 查询参数';
+                } catch {
+                    return 'Azure 服务 URL 格式不正确';
+                }
+            }
+            if(form.type == 'ollama'){
+                if(!rawConfigs.ollamaServerHost) return 'Ollama 服务主机名不能为空';
+                if(!rawConfigs.ollamaServerPort) return 'Ollama 服务端口不能为空';
+            }
+            if(form.type == 'vllm'){
+                if(!rawConfigs.vllmCustomUrl) return 'vLLM BaseURL 不能为空';
+                if(!this.parseUrl(rawConfigs.vllmCustomUrl)) return 'vLLM BaseURL 格式不正确';
+                const invalid = compact(rawConfigs.vllmExtraCustomUrls).find(item=>!this.parseUrl(item));
+                if(invalid) return '备用 BaseURL 格式不正确：' + invalid;
+            }
+            if(form.type == 'bedrock'){
+                if(!rawConfigs.awsRegion) return 'AWS 区域不能为空';
+                if(!rawConfigs.awsAccessKey) return 'Access Key 不能为空';
+                if(!rawConfigs.awsSecretKey) return 'Secret Key 不能为空';
+            }
+            if(form.type == 'vertex'){
+                if(!rawConfigs.vertexRegion) return 'Vertex 区域不能为空';
+                if(!rawConfigs.vertexProjectId) return '项目 ID 不能为空';
+                if(!rawConfigs.vertexAuthKey) return '认证 JSON 不能为空';
+                try {
+                    const auth = JSON.parse(rawConfigs.vertexAuthKey);
+                    if(!auth.client_email || !auth.private_key_id || !auth.private_key || !auth.token_uri){
+                        return '认证 JSON 缺少 client_email/private_key_id/private_key/token_uri';
+                    }
+                } catch {
+                    return '认证 JSON 格式不正确';
+                }
+            }
+            return '';
+        },
+        showEndpointUrl(type){
+            return !!this.providerEndpointPlaceholder(type) && !['bedrock', 'vertex', 'qwen', 'zhipuai', 'ollama', 'vllm'].includes(type);
         },
         needEndpointUrl(type){
             const item = PROVIDER_TYPES.find(i=>i.value == type);
-            return !!item?.requiredEndpoint || ['openai', 'azure', 'claude', 'ollama', 'vllm'].includes(type);
+            return !!item?.requiredEndpoint || ['openai', 'azure', 'claude'].includes(type);
         },
         providerEndpointPlaceholder(type){
             return PROVIDER_TYPES.find(i=>i.value == type)?.endpoint || '';
