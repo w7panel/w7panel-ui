@@ -236,6 +236,11 @@ export default {
         getPlugin(){
             return k8sproxy.get('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+PLUGIN_NAME, { noAlert: true }).then(res=>res.data).catch(()=>null);
         },
+        async savePlugin(plugin){
+            const res = await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+PLUGIN_NAME, plugin);
+            this.plugin = res.data;
+            return res.data;
+        },
         ensurePlugin(){
             if(this.plugin) return Promise.resolve(clone(this.plugin));
             const data = {
@@ -458,8 +463,7 @@ export default {
                 },
             };
             plugin.spec.matchRules = rules;
-            await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+PLUGIN_NAME, plugin);
-            this.plugin = plugin;
+            await this.savePlugin(plugin);
             await this.syncIngressDestination(providerList || this.providers);
         },
         async syncProviderResources(form){
@@ -469,8 +473,7 @@ export default {
             this.upsertGlobalProvider(plugin, nextProvider);
             this.upsertProviderServiceRule(plugin, nextProvider);
             await this.upsertMcpBridgeRegistry(nextProvider);
-            await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+PLUGIN_NAME, plugin);
-            this.plugin = plugin;
+            await this.savePlugin(plugin);
             await this.syncRuleProviders(nextProviders);
         },
         async removeProviderResources(providerName, nextProviders){
@@ -482,8 +485,7 @@ export default {
                 return !((rule?.service || []).includes(serviceName + '.dns') || (rule?.service || []).includes(serviceName + '.static'));
             });
             await this.removeMcpBridgeRegistry(serviceName);
-            await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+PLUGIN_NAME, plugin);
-            this.plugin = plugin;
+            await this.savePlugin(plugin);
             await this.syncRuleProviders(nextProviders);
         },
         ensureDefaultConfig(plugin){
