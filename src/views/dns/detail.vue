@@ -124,7 +124,12 @@
 </template>
 
 <script>
-import { panelApi } from '@/utils/api';
+import {
+    createPrivateDNSRecord,
+    deletePrivateDNSRecord,
+    listPrivateDNSRecords,
+    updatePrivateDNSRecord,
+} from '@/api/privatedns';
 import ResolutionHelp from './resolution-help.vue';
 
 const defaultForm = () => ({
@@ -183,8 +188,8 @@ export default {
             return `${name}.${this.domain}`;
         },
         getRecords() {
-            panelApi.get('/dns/zones/' + encodeURIComponent(this.domain) + '/records', { loading: true }).then((res) => {
-                this.records = res?.data || [];
+            listPrivateDNSRecords(this.domain, { loading: true }).then((records) => {
+                this.records = records || [];
             });
         },
         openRecordForm(row) {
@@ -248,10 +253,9 @@ export default {
         },
         submitRecord() {
             if (!this.validateForm()) { return false; }
-            const base = '/dns/zones/' + encodeURIComponent(this.domain) + '/records';
             const request = this.form.id
-                ? panelApi.put(base + '/' + encodeURIComponent(this.form.id), this.recordPayload(), { loading: true })
-                : panelApi.post(base, this.recordPayload(), { loading: true });
+                ? updatePrivateDNSRecord(this.domain, this.form.id, this.recordPayload(), { loading: true })
+                : createPrivateDNSRecord(this.domain, this.recordPayload(), { loading: true });
             return request.then(() => {
                 this.$message.success('操作成功');
                 this.form = defaultForm();
@@ -259,7 +263,7 @@ export default {
             });
         },
         deleteRecord(row) {
-            panelApi.delete('/dns/zones/' + encodeURIComponent(this.domain) + '/records/' + encodeURIComponent(row.id), { loading: true }).then(() => {
+            deletePrivateDNSRecord(this.domain, row.id, { loading: true }).then(() => {
                 this.$message.success('删除成功');
                 this.getRecords();
             });

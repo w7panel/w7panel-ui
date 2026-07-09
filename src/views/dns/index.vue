@@ -1,13 +1,8 @@
 <template>
     <div class="padding-20 dns-page">
         <route-breadcrumb />
-        <div class="mb-20" v-if="dnsInfo.fileFallthroughSupported === false">
-            <a-alert type="warning">
-                {{ dnsInfo.fileFallthroughMessage || unsupportedMessage }}
-            </a-alert>
-        </div>
         <div class="toolbar">
-            <a-button type="primary" :disabled="dnsInfo.fileFallthroughSupported === false" @click="openZoneForm">
+            <a-button type="primary" @click="openZoneForm">
                 <template #icon><icon-plus /></template>
                 新增域名
             </a-button>
@@ -26,6 +21,7 @@
                     <tr>
                         <td>域名</td>
                         <td>记录数</td>
+                        <td>状态</td>
                         <td>更新时间</td>
                         <td style="width:220px;">操作</td>
                     </tr>
@@ -34,6 +30,12 @@
                             <span class="c-blue cursor" @click="toDetail(item.domain)">{{ item.domain }}</span>
                         </td>
                         <td>{{ item.recordNum || 0 }}</td>
+                        <td>
+                            <a-tooltip v-if="item.message" :content="item.message">
+                                <span>{{ item.phase || '-' }}</span>
+                            </a-tooltip>
+                            <span v-else>{{ item.phase || '-' }}</span>
+                        </td>
                         <td>{{ formatTime(item.updateTime) }}</td>
                         <td>
                             <a-tooltip content="解析记录">
@@ -47,7 +49,7 @@
                         </td>
                     </tr>
                     <tr v-if="!zones.length">
-                        <td colspan="4"><a-empty /></td>
+                        <td colspan="5"><a-empty /></td>
                     </tr>
                 </tbody>
             </table>
@@ -65,17 +67,17 @@
 </template>
 
 <script>
-import { panelApi } from '@/utils/api';
+import {
+    createPrivateDNSZone,
+    deletePrivateDNSZone,
+    listPrivateDNSZones,
+    normalizePrivateDNSDomain,
+} from '@/api/privatedns';
 
 export default {
     data() {
         return {
             zones: [],
-            unsupportedMessage: '当前 CoreDNS 的版本低于 v1.12.2，暂不支持该功能，请及时升级版本。',
-            dnsInfo: {
-                fileFallthroughSupported: true,
-                fileFallthroughMessage: '',
-            },
             zoneForm: {
                 show: false,
                 domain: '',
@@ -85,7 +87,6 @@ export default {
     computed: {
     },
     created() {
-        this.getDnsInfo();
         this.getZones();
     },
     methods: {
@@ -94,39 +95,31 @@ export default {
             return window.formatDate ? window.formatDate(value) : value;
         },
         openZoneForm() {
-            if (this.dnsInfo.fileFallthroughSupported === false) {
-                this.$message.warning(this.dnsInfo.fileFallthroughMessage || this.unsupportedMessage);
-                return;
-            }
             this.zoneForm = { show: true, domain: '' };
         },
-        getDnsInfo() {
-            panelApi.get('/dns/info', { noAlert: true }).then((res) => {
-                this.dnsInfo = {
-                    ...this.dnsInfo,
-                    ...(res?.data || {}),
-                };
-            });
-        },
         getZones() {
-            panelApi.get('/dns/zones', { loading: true }).then((res) => {
-                this.zones = res?.data || [];
+            listPrivateDNSZones({ loading: true }).then((zones) => {
+                this.zones = zones || [];
             });
         },
         submitZone() {
-            const domain = (this.zoneForm.domain || '').trim();
+            const domain = normalizePrivateDNSDomain(this.zoneForm.domain);
             if (!domain) {
                 this.$message.error('请输入域名');
                 return false;
             }
-            return panelApi.post('/dns/zones', { domain }, { loading: true }).then(() => {
+            return createPrivateDNSZone(domain, { loading: true }).then(() => {
                 this.$message.success('操作成功');
                 this.zoneForm.show = false;
                 this.getZones();
+            }).catch((err) => {
+                if (err?.message?.includes('already exists')) {
+                    this.$message.error('该域名已存在');
+                }
             });
         },
         deleteZone(row) {
-            panelApi.delete('/dns/zones/' + encodeURIComponent(row.domain), { loading: true }).then(() => {
+            deletePrivateDNSZone(row.domain, { loading: true }).then(() => {
                 this.$message.success('删除成功');
                 this.getZones();
             });
