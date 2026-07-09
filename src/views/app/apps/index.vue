@@ -415,20 +415,7 @@ export default {
                     }));
                     try{
                         domain_apps = JSON.parse(i?.metadata?.annotations?.['w7.cc/domains']);
-                        const dedupeDomains = urls => {
-                            const seen = new Set();
-                            return urls.filter(url => {
-                                const parsed = new URL(url);
-                                // 提取协议后的完整内容
-                                const key = parsed.href.slice(parsed.protocol.length).toLowerCase();
-                                if (!seen.has(key)) {
-                                    seen.add(key);
-                                    return true;
-                                }
-                                return false;
-                            });
-                        };
-                        domain_apps = dedupeDomains(domain_apps);
+                        domain_apps = this.dedupeDomains(domain_apps);
                     }catch(e){}
                     return {
                         title: i?.spec?.title || i.metadata.name,
@@ -453,36 +440,18 @@ export default {
                 this.data = list.filter(i=>!i.deletionTimestamp);
             })
         },
-        getDomains(){
-            return k8sproxy.get('/apis/networking.k8s.io/v1/namespaces/'+this.namespaceActive+'/ingresses?labelSelector=group&limit=500').then(res=>{
-                let list = res?.data?.items || [];
-                let domains = [];
-                list.map(i=>{
-                    let is_auto_ssl = i?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
-                    let domain = i?.spec?.rules?.[0]?.host;
-                    
-                    i?.spec?.rules?.[0]?.http?.paths?.map((p,index)=>{
-                        domains.push({
-                            group: i.metadata.labels.group,
-                            fullDomain: (is_auto_ssl?'https://':'http://') + domain + p.path,
-                        })
-                    })
-                })
-                this.data = this.data.map(i=>{
-                    i.domain_apps = domains.filter(d=>d.group==i.groupName).map(d=>d.fullDomain);
-                    const set = new Set();
-                    // 去重
-                    i.domain_apps = i.domain_apps.filter(item => {
-                        const key = item.replace(/^https?:\/\//, '');
-                        return !set.has(key) && set.add(key);
-                    });
-                    return i;
-                })
-            })
+        dedupeDomains(domains){
+            let set = new Set();
+            return (domains || []).filter(item=>{
+                if(!item){return false}
+                let key = String(item).replace(/^https?:\/\//, '').toLowerCase();
+                if(set.has(key)){return false}
+                set.add(key);
+                return true;
+            });
         },
         async getList(){
             await this.refreshList();
-            this.getDomains();
 
             let {data} = await panelApi.get('/auth/console/info?code=test');
             this.thirdparty_cd_token = data?.thirdparty_cd_token || '';
