@@ -94,8 +94,8 @@
                                                 <a-select v-model="item.divisorAppend" style="width:70px;">
                                                     <a-option v-if="item.value=='limits.cpu'||item.value=='requests.cpu'" value="m" label="毫核"></a-option>
                                                     <a-option v-if="item.value=='limits.cpu'||item.value=='requests.cpu'" value="" label="核"></a-option>
-                                                    <a-option v-if="item.value!='limits.cpu'&&item.value!='requests.cpu'" value="Mi" label="Mi"></a-option>
                                                     <a-option v-if="item.value!='limits.cpu'&&item.value!='requests.cpu'" value="Gi" label="Gi"></a-option>
+                                                    <a-option v-if="item.value!='limits.cpu'&&item.value!='requests.cpu'" value="Mi" label="Mi"></a-option>
                                                 </a-select>
                                             </template>
                                         </a-input>
@@ -165,8 +165,8 @@
                             <a-input type="number" v-model="form.memory" @blur="testLimitCpuMemory(form)" @change="testLimitCpuMemory(form)" size="large" placeholder="内存大小">
                                 <template #append>
                                     <a-select v-model="form.memoryDw" @blur="testLimitCpuMemory(form)" @change="testLimitCpuMemory(form)" style="width:80px;">
-                                        <a-option value="Mi" label="Mi"></a-option>
                                         <a-option value="Gi" label="Gi"></a-option>
+                                        <a-option value="Mi" label="Mi"></a-option>
                                     </a-select>
                                 </template>
                             </a-input>
@@ -368,8 +368,8 @@
                                                 <a-select v-model="item.divisorAppend" style="width:70px;">
                                                     <a-option v-if="item.value=='limits.cpu'||item.value=='requests.cpu'" value="m" label="毫核"></a-option>
                                                     <a-option v-if="item.value=='limits.cpu'||item.value=='requests.cpu'" value="" label="核"></a-option>
-                                                    <a-option v-if="item.value!='limits.cpu'&&item.value!='requests.cpu'" value="Mi" label="Mi"></a-option>
                                                     <a-option v-if="item.value!='limits.cpu'&&item.value!='requests.cpu'" value="Gi" label="Gi"></a-option>
+                                                    <a-option v-if="item.value!='limits.cpu'&&item.value!='requests.cpu'" value="Mi" label="Mi"></a-option>
                                                 </a-select>
                                             </template>
                                         </a-input>
@@ -857,7 +857,7 @@ export default{
             
             let memory = String(containers?.resources?.limits?.memory || '');
             
-            let memoryDw = 'Mi';
+            let memoryDw = 'Gi';
             if(/Mi$/.test(memory)){
                 memoryDw = 'Mi';
                 memory = memory.replace('Mi','');
