@@ -876,7 +876,7 @@ export default {
             if(this.isHelmPage){
                 this.appname = 'helm-'+this.$route.params.group;
             }else{
-                this.appname = this.$route.params.kind + this.$route.params.id;
+                this.appname = (this.$route.params.kind && this.$route.params.id) ? this.$route.params.kind + this.$route.params.id : '';
             }
             await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
             }).then(async res=>{

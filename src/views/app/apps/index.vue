@@ -341,6 +341,8 @@ export default {
         async toDetail(item){
             if(item.deletionTimestamp){return}
             let app = item?.childrenApp?.[0];
+            let group = item.groupName || app?.group;
+            if(!group){return}
             let microApp = null;
             await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps/'+ item.groupName, {noAlert:true}).then(res=>{
                 microApp = res?.data;
@@ -353,7 +355,7 @@ export default {
                 this.$router.push({path:'/app/appgroup/'+item.groupName+'/helm/detail'});
                 return;
             }
-            this.$router.push({name:'app-detail',params:{group:app?.group, id:app?.name, kind:app?.kind}});
+            this.$router.push({name:'app-detail',params:{group, id:app?.name, kind:app?.kind}});
         },
         toAppMenu(item,pathName){
             let app = item?.childrenApp?.[0];
