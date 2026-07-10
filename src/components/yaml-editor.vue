@@ -56,10 +56,22 @@ export default {
             try {
                 const obj = YAML.load(yamlStr);
                 if (!obj || typeof obj !== 'object') return yamlStr;
-                stripFields.forEach((f) => delete obj[f]);
+                let changed = false;
+                stripFields.forEach((f) => {
+                    if (Object.prototype.hasOwnProperty.call(obj, f)) {
+                        delete obj[f];
+                        changed = true;
+                    }
+                });
                 if (obj.metadata) {
-                    stripFields.forEach((f) => delete obj.metadata[f]);
+                    stripFields.forEach((f) => {
+                        if (Object.prototype.hasOwnProperty.call(obj.metadata, f)) {
+                            delete obj.metadata[f];
+                            changed = true;
+                        }
+                    });
                 }
+                if (!changed) return yamlStr;
                 return YAML.dump(obj, { lineWidth: -1, noRefs: true });
             } catch (e) {
                 return yamlStr;
