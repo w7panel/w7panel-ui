@@ -135,22 +135,33 @@ const toInit = ({ errors, values, })=>{
 }
 
 
-panelApi.get('/noauth/site/init-user',{noTokenRequired:true}).then(res=>{
-    let resData = res.data;
-    if(res.data && res.data.code === 200 && res.data.data) {
-        resData = res.data.data;
-    }
-    if(resData.allowConsoleRegister===true || resData.allowConsoleRegister==='true'){
-        canInitUser.allowConsoleRegister = true;
-    }
-    if(resData.canInitUser===true || resData.canInitUser==='true'){
-        canInitUser.init = true;
-    }
-    if(resData.captchaEnabled===false || resData.captchaEnabled==='false'){
-        canInitUser.captchaEnabled = false;
-    }
-    canInitUser.configLoaded = true; // 标记配置已加载
-})
+let loadLoginConfigPromise: Promise<boolean> | null = null;
+const loadLoginConfig = () => {
+    loadLoginConfigPromise = panelApi.get('/noauth/site/init-user',{noTokenRequired:true,noAlert:true}).then(res=>{
+        let resData = res.data;
+        if(res.data && res.data.code === 200 && res.data.data) {
+            resData = res.data.data;
+        }
+        if(resData.allowConsoleRegister===true || resData.allowConsoleRegister==='true'){
+            canInitUser.allowConsoleRegister = true;
+        }
+        if(resData.canInitUser===true || resData.canInitUser==='true'){
+            canInitUser.init = true;
+        }
+        if(resData.captchaEnabled===false || resData.captchaEnabled==='false'){
+            canInitUser.captchaEnabled = false;
+        }
+        canInitUser.configLoaded = true; // 标记配置已加载
+        return true;
+    }).catch(()=>{
+        return false;
+    }).finally(()=>{
+        loadLoginConfigPromise = null;
+    })
+    return loadLoginConfigPromise;
+}
+const waitLoginConfig = () => loadLoginConfigPromise || loadLoginConfig();
+loadLoginConfig();
 
 const consoleLogin = ()=>{
     let policyName = router?.currentRoute?.value?.query?.policyName || '';
@@ -223,12 +234,24 @@ const beforeTest = async ()=>{
     });
 }
 
-const submit = ({ errors, values, })=>{
+const submit = async ({ errors, values, })=>{
     if (loading.value){ return };
     if (errors) { return };
     // 等待配置加载完成
     if(!canInitUser.configLoaded){
-        Message.warning('配置加载中，请稍后...');
+        setLoading(true);
+        let configLoaded = false;
+        try{
+            configLoaded = await waitLoginConfig();
+        }finally{
+            setLoading(false);
+        }
+        if(!configLoaded){
+            Message.warning('配置加载中，请稍后...');
+            return;
+        }
+    }
+    if(canInitUser.init){
         return;
     }
     if(!canInitUser.captchaEnabled){
