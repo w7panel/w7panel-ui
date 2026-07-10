@@ -3,7 +3,7 @@
         <Breadcrumb v-if="$route.name=='group-micro'||$route.name=='group-micro2'" :routes="topbc" />
         <route-breadcrumb v-else class="df-s0" :data="{id:title || ($route.params.group || '')}" />
         <a-layout class="fc">
-            <a-layout-sider :width="160">
+            <a-layout-sider v-if="!hideAppMenu" :width="160">
                 <div class="df df-c menu-absolute-div" style="position:absolute;inset:0;overflow:auto;">
                     <div v-if="roles.length" style="width:100%;">
                         <div v-for="role in roles" :key="role.name">
@@ -58,10 +58,10 @@
                 </div>
             </a-layout-sider>
             
-            <a-layout-content v-if="isMicroPage" class="ml-6 df df-c">
-                <div class="bg-white routerviewbox fc ml-6" >
-                    <div v-show="downOk" id="app-detail-micro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
-                    <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;height:calc(100vh - 146px);">
+            <a-layout-content v-if="isMicroPage" :class="['df df-c', {'ml-6': !hideAppMenu}]">
+                <div :class="['bg-white routerviewbox fc', {'ml-6': !hideAppMenu}]" >
+                    <div v-show="downOk" id="app-detail-micro" :style="microPanelStyle"></div>
+                    <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." :style="{display:'block', height: microPanelHeight}">
                         <div style="height:100%;" class="bg-white"></div>
                     </a-spin>
                 </div>
@@ -198,6 +198,7 @@ export default {
             hasThirdpartyCd: false,
             microApp: null,
             downOk: true,
+            hideAppMenu: false,
         }
     },
     watch: {
@@ -230,6 +231,9 @@ export default {
         title(v){
             this.breadcrumbData = {id:v};
         },
+        '$route.query.showMenu'(){
+            this.hideAppMenu = this.isHideMenu();
+        },
     },
     async created(){
         this.permission = getPermission() || [];
@@ -237,6 +241,8 @@ export default {
         this.selectMenu = [this.$route.meta.routekey]
         this.namespaceActive = useNamespaceStore().namespace;
         this.groupTitle = this.$route.params.group;
+        this.hideAppMenu = this.isHideMenu();
+        bus.$on('changeAppMenu', this.changeAppMenu);
         await this.getData();
         if(!this.isMicroPage && this.hasThirdpartyCd){
             this.getFront(this.microApp);
@@ -244,6 +250,15 @@ export default {
     },
     computed:{
         isMicroPage(){ return this.$route.name == 'group-micro' || this.$route.name == 'group-micro2'; },
+        microPanelHeight(){
+            return this.hideAppMenu ? 'calc(100vh - 86px)' : 'calc(100vh - 146px)';
+        },
+        microPanelStyle(){
+            return {
+                height: this.microPanelHeight,
+                transform: 'translate(0,0)',
+            };
+        },
         modalExcludeWujieEvents(){
             const group = this.$route.params.group || '';
             const identifie = this.extra?.identifie || this.identifie || '';
@@ -269,9 +284,19 @@ export default {
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
+        bus.$off('changeAppMenu', this.changeAppMenu);
 
     },
     methods: {
+        isHideMenu(){
+            const showMenu = Array.isArray(this.$route.query.showMenu)
+                ? this.$route.query.showMenu[0]
+                : this.$route.query.showMenu;
+            return showMenu === false || showMenu === 'false';
+        },
+        changeAppMenu(show){
+            this.hideAppMenu = show === false ? true : this.isHideMenu();
+        },
         buildIframeSrc(path, route){
             const token = getToken();
             const base = joinWujieUrlRoute(path, route);
