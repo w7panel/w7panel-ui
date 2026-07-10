@@ -65,13 +65,14 @@
                                     <table class="com-table">
                                         <tbody>
                                             <tr>
-                                                <td style="width:220px;">说明</td>
                                                 <td>URL</td>
                                                 <td style="width:220px;">Method</td>
                                             </tr>
                                             <tr v-for="group in filteredApiRouteGroups" :key="group.path">
-                                                <td>{{ group.title }}</td>
-                                                <td class="api-path">{{ group.path }}</td>
+                                                <td>
+                                                    <div class="api-path">{{ group.path }}</div>
+                                                    <div class="api-desc">{{ group.title }}</div>
+                                                </td>
                                                 <td>
                                                     <a-select
                                                         :model-value="apiGroupSelectedMethods(group, pmsForm.apiSelectedKeys)"
@@ -592,6 +593,13 @@ export default {
     overflow: auto;
 }
 .api-path {
+    word-break: break-all;
+}
+.api-desc {
+    margin-top: 4px;
+    color: #86909c;
+    font-size: 12px;
+    line-height: 18px;
     word-break: break-all;
 }
 </style>
