@@ -37,12 +37,12 @@
                         <a-empty v-if="!freeList || !freeList.length" class="mt-40" />
                     </div>
                 </a-tab-pane>
-                <!-- <a-tab-pane key="3" title="云端测试应用">
-                    <div class="df df-ww mt-0">
+                <a-tab-pane key="3" title="云端测试应用">
+                    <div class="df df-ww mt-20 list">
                         <store-item v-for="item in testList" :key="item" @install="testItem" :data="item" class="item" />
                         <a-empty v-if="!testList || !testList.length" class="mt-40" />
                     </div>
-                </a-tab-pane> -->
+                </a-tab-pane>
             </a-tabs>
         </div>
         
