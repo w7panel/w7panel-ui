@@ -929,8 +929,8 @@ export default{
             form.capabilities_drop = form.capabilities_drop?.length? form.capabilities_drop : [''];
 
             // 启动用户
-            form.runAsUser = String(ctn?.securityContext?.runAsUser || '');
-            form.runAsGroup = String(ctn?.securityContext?.runAsGroup || '');
+            form.runAsUser = String(ctn?.securityContext?.runAsUser ?? '');
+            form.runAsGroup = String(ctn?.securityContext?.runAsGroup ?? '');
             form.runAsNonRoot = ctn?.securityContext?.runAsNonRoot || false;
             // form.allowPrivilegeEscalation = ctn?.securityContext?.allowPrivilegeEscalation || false;
             // 端口

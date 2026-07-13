@@ -1105,8 +1105,8 @@ export default {
                     // 启动用户
                     runAsNonRoot: ctn?.securityContext?.runAsNonRoot || false,
                     allowPrivilegeEscalation: ctn?.securityContext?.allowPrivilegeEscalation || false,
-                    runAsUser: ctn?.securityContext?.runAsUser || '',
-                    runAsGroup: ctn?.securityContext?.runAsGroup || '',
+                    runAsUser: ctn?.securityContext?.runAsUser ?? '',
+                    runAsGroup: ctn?.securityContext?.runAsGroup ?? '',
                 }
                 
                 ctnForms.push(form);

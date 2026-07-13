@@ -588,26 +588,22 @@ export default {
                 }
 
                 if(this.form.isEdit){
-                    const salt = bcrypt.genSaltSync(10);
-                    const hash = bcrypt.hashSync(this.form.password, salt);
-                    let data = this.list.find(i=>i.name==this.form.username).data;
-                    if(!data){ this.$message.error('操作失败'); return; }
-                    delete data.metadata.resourceVersion;
-                    delete data.metadata.creationTimestamp;
-                    delete data.metadata.uid;
-                    data.spec = data.spec || {};
-                    data.spec.passwordHash = this.form.password? hash : this.form.old_password;
-                    data.spec.maintenance = Boolean(this.form.weihu);
-                    data.spec.demoUser = Boolean(this.form.demouser);
-                    data.spec.version = Number(this.form.version || 0) + 1;
-
-                    if(!this.form.forever){
-                        data.spec.expireTime = this.form.expiretime;
-                    }else{
-                        delete data.spec.expireTime;
+                    let passwordHash = this.form.old_password;
+                    if(this.form.password){
+                        const salt = bcrypt.genSaltSync(10);
+                        passwordHash = bcrypt.hashSync(this.form.password, salt);
                     }
-
-                    k8sproxy.put('/apis/w7panel.w7.com/v1alpha1/users/'+this.form.username,data).then(res=>{
+                    k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/users/'+this.form.username,{
+                        spec: {
+                            passwordHash: passwordHash,
+                            maintenance: Boolean(this.form.weihu),
+                            demoUser: Boolean(this.form.demouser),
+                            version: Number(this.form.version || 0) + 1,
+                            expireTime: this.form.forever ? null : this.form.expiretime,
+                        }
+                    },{
+                        headers: {'Content-Type': 'application/merge-patch+json'},
+                    }).then(res=>{
                         this.$message.success('操作成功');
                         this.form.show = false;
                         this.getList();
