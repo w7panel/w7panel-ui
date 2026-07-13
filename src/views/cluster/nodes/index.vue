@@ -146,7 +146,7 @@
                                             </span>
                                         </a-tooltip>
                                     </a-popconfirm>
-                                    <a-popconfirm content="是否删除节点" @ok="toDelete(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
+                                    <a-popconfirm content="将先清理该节点上的 Longhorn 副本，是否继续" @ok="toDelete(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                         <a-tooltip content="删除">
                                             <span class="opt-icon">
                                                 <icon-delete />
@@ -229,6 +229,41 @@
             <template #footer>
                 <a-button @click="fuu.show=false">取消</a-button>
                 <a-button type="primary" @click="delfuu">确定</a-button>
+            </template>
+        </a-modal>
+
+        <a-modal v-model:visible="nodeDelete.show" title="清理 Longhorn 副本" width="900px" :mask-closable="false" :popup-container="$popupContainer">
+            <div class="mb-12 c-99">节点 {{nodeDelete.node?.name}} 上的副本将在删除节点前清理；Volume 和 PVC 不会被删除。</div>
+            <a-table :data="nodeDelete.replicas" :pagination="false" :loading="nodeDelete.loading" :bordered="false">
+                <template #columns>
+                    <a-table-column title="Volume" data-index="volumeName" />
+                    <a-table-column title="当前节点" data-index="nodeName" />
+                    <a-table-column title="挂载节点" data-index="attachedNode">
+                        <template #cell="{ record }">{{record.attachedNode || '-'}}</template>
+                    </a-table-column>
+                    <a-table-column title="状态">
+                        <template #cell="{ record }">{{record.volumeState}} / {{record.volumeRobustness}}</template>
+                    </a-table-column>
+                    <a-table-column title="健康副本">
+                        <template #cell="{ record }">
+                            <span :class="record.forceRequired ? 'c-red' : ''">{{record.healthyReplicaCount}}</span>
+                        </template>
+                    </a-table-column>
+                    <a-table-column title="结果" :width="110">
+                        <template #cell="{ record }">
+                            <span v-if="record.check" class="c-green">已清理</span>
+                            <span v-else-if="record.forceRequired" class="c-red">需强制确认</span>
+                            <span v-else>待清理</span>
+                        </template>
+                    </a-table-column>
+                </template>
+            </a-table>
+            <a-alert v-if="nodeDelete.hasRisk" type="warning" class="mt-12">该节点包含唯一健康副本。强制删除可能导致对应卷不可用或数据丢失。</a-alert>
+            <a-checkbox v-if="nodeDelete.hasRisk && !nodeDelete.cleaned" v-model="nodeDelete.force" class="mt-12">我确认可能导致卷不可用或数据丢失</a-checkbox>
+            <template #footer>
+                <a-button :disabled="nodeDelete.cleaning" @click="nodeDelete.show=false">取消</a-button>
+                <a-button v-if="!nodeDelete.cleaned" type="primary" status="danger" :loading="nodeDelete.cleaning" @click="cleanLonghornReplicas">执行副本清理</a-button>
+                <a-button v-else type="primary" status="danger" :loading="nodeDelete.deleting" @click="confirmDeleteNode">删除节点</a-button>
             </template>
         </a-modal>
 
@@ -420,6 +455,17 @@ export default {
                 list: [],
                 row: null,
                 start: false,
+            },
+            nodeDelete: {
+                show: false,
+                node: null,
+                replicas: [],
+                loading: false,
+                cleaning: false,
+                deleting: false,
+                cleaned: false,
+                force: false,
+                hasRisk: false,
             },
 
             form: {
@@ -964,10 +1010,52 @@ export default {
             })
         },
         toDelete(item){
-            k8sproxy.delete('/api/v1/nodes/'+item.name).then(res=>{
-                if(!res?.data){return}
-                this.$message.success('操作成功');
+            this.nodeDelete = {
+                show: true,
+                node: item,
+                replicas: [],
+                loading: true,
+                cleaning: false,
+                deleting: false,
+                cleaned: false,
+                force: false,
+                hasRisk: false,
+            };
+            panelApi.get(`/cluster/nodes/${item.name}/longhorn-replicas`, {noAlert:true}).then(res=>{
+                const replicas = res?.data || [];
+                this.nodeDelete.replicas = replicas.map(i=>({...i, check:false}));
+                this.nodeDelete.hasRisk = replicas.some(i=>i.forceRequired);
+				this.nodeDelete.cleaned = replicas.length === 0;
+            }).catch(()=>{
+                this.nodeDelete.show = false;
+            }).finally(()=>{
+                this.nodeDelete.loading = false;
+            });
+        },
+        cleanLonghornReplicas(){
+            if(this.nodeDelete.hasRisk && !this.nodeDelete.force){
+                this.$message.warning('请确认唯一健康副本删除风险');
+                return;
+            }
+            this.nodeDelete.cleaning = true;
+            panelApi.post(`/cluster/nodes/${this.nodeDelete.node.name}/longhorn-replicas/delete`, {
+                force: this.nodeDelete.force,
+            }).then(()=>{
+                this.nodeDelete.replicas.forEach(i=>i.check = true);
+                this.nodeDelete.cleaned = true;
+                this.$message.success('Longhorn 副本已清理');
+            }).finally(()=>{
+                this.nodeDelete.cleaning = false;
+            });
+        },
+        confirmDeleteNode(){
+            this.nodeDelete.deleting = true;
+            panelApi.delete(`/cluster/nodes/${this.nodeDelete.node.name}`).then(()=>{
+                this.nodeDelete.show = false;
+                this.$message.success('节点已删除');
                 this.getList();
+            }).finally(()=>{
+                this.nodeDelete.deleting = false;
             });
         },
         checkReserve(v){
