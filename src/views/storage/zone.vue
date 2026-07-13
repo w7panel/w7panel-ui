@@ -96,15 +96,15 @@
 
                         <a-table-column title="绑定状态">
                             <template #cell="{ record }">
-                                <span v-if="record.bindstatus">{{ record.attachedNodeId }}（{{record.bindstatus}}）</span>
+                                <span v-if="record.bindstatus">{{ record.attachedNodeId || '-' }}（{{record.bindstatus}}）</span>
                                 <span v-else>-</span>
                                 
                                 <a-dropdown>
-                                    <span v-if="record.state=='attached'||record.state=='detached'" class="ml-10 c-blue cursor zone-operation-dropdown" style="white-space:nowrap;">操作<icon-down/></span>
+                                    <span v-if="record.state=='attached'||record.state=='attaching'||record.state=='detached'" class="ml-10 c-blue cursor zone-operation-dropdown" style="white-space:nowrap;">操作<icon-down/></span>
                                     <template #content>
                                         <a-doption v-if="record.state=='attached'&&record.isLock=='true'" @click="detach.volumeName=record.volumeName;detach.force=false;submitDetach();">解锁</a-doption>
                                         <a-doption v-if="record.state=='detached'" @click="openAttach(record)">绑定</a-doption>
-                                        <a-doption v-if="record.state=='attached'" @click="openDetach(record)">分离</a-doption>
+                                        <a-doption v-if="record.state=='attached'||record.state=='attaching'" @click="openDetach(record)">分离</a-doption>
                                     </template>
                                 </a-dropdown>
                             </template>
@@ -407,6 +407,7 @@ export default {
                         let bindstatus = '';
                         if(obj.state=='attached' && obj.isLock=='true'){ bindstatus = '锁定' }
                         else if(obj.state=='attached'){ bindstatus = '自动' }
+                        else if(obj.state=='attaching'){ bindstatus = '绑定中' }
                         // else if(obj.state=='detached'){ bindstatus = '未绑定' }
 
 
