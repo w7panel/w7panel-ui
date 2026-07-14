@@ -22,7 +22,11 @@ const isLogin = () => {
 
 const getToken = () => {
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
-        return (window as any)?.$wujie?.props?.paneltoken;
+        if((window as any)?.$wujie?.props?.closeSubaccountPanel && localStorage.getItem('iframe-w7panel-token')) {
+            return localStorage.getItem('iframe-w7panel-token') || ''
+        }else {
+            return (window as any)?.$wujie?.props?.paneltoken;
+        }
     }
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return (window as any)?.microApp?.getData()?.token;

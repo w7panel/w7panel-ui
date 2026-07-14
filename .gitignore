@@ -13,3 +13,5 @@ dist-ssr
 pnpm-lock.yaml
 package-lock.json
 .gitconfig
+certs/localhost-key.pem
+certs/localhost.pem
