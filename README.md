@@ -28,6 +28,7 @@ w7panel-ui/
 │   └── views/                 # 页面组件
 │       ├── app/               # 应用管理
 │       ├── cluster/           # 集群管理
+│       ├── gateway/           # 网关与网关插件管理
 │       ├── storage/           # 存储管理
 │       └── system/            # 系统管理
 ├── public/                    # 公共资源
@@ -75,6 +76,7 @@ cp -r dist/* $BASE_DIR/dist/kodata/
 | 容器列表 | `/app/appgroup/{id}/pod` | Pod/容器管理 |
 | 存储设备 | `/storage/disk` | Longhorn 存储 |
 | 资源浏览器 | `/cluster/resource` | K8s 资源浏览 |
+| 网关插件 | `/gateway/plugins` | Higress WasmPlugin 安装、启停、全局配置和 MicroApp 配置界面 |
 
 ## UI 组件
 

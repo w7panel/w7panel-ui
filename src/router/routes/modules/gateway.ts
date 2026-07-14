@@ -62,6 +62,17 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     key: 'gateway-aiproxy',
                 },
             },
+            {
+                path: 'plugins',
+                name: 'gateway-plugins',
+                component: () => import('@/views/gateway/plugins/index.vue'),
+                meta: {
+                    locale: '网关插件',
+                    requiresAuth: true,
+                    roles: ['*'],
+                    key: 'gateway-plugins',
+                },
+            },
         ],
     },
 ];

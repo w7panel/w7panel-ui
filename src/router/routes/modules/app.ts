@@ -375,17 +375,6 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     key: 'app-cronjob',
                 },
             },
-            {
-                path: 'plugin',
-                name: 'app-plugin',
-                component: () => import('@/views/app/plugin/index.vue'),
-                meta: {
-                    locale: '插件管理',
-                    hideInMenu: true,
-                    requiresAuth: true,
-                    roles: ['*'],
-                },
-            },
         ],
     },
 ];

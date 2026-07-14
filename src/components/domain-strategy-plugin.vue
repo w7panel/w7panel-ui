@@ -1,457 +1,157 @@
 <template>
     <div>
-        <a-button type="primary" size="small" @click="openForm()">添加插件</a-button>
-        <table class="com-table mt-10"><tbody>
-            <tr>
-                <td>名称</td>
-                <td style="width:150px;">开启状态</td>
-                <td style="width:200px;">操作</td>
-            </tr>
-            <tr v-for="item in plugin.allPlugin" :key="item.name">
-                <td>
-                    <div class="df">
-                        <div>{{item.title}}{{item.version}}</div>
-                        <span class="c-blue cursor ml-10 mr-10" @click="openForm(item)">修改</span>
-                        <a-popconfirm v-if="item.currenturl && item.currenturl!=item.url" @ok="updatePlugin(item)" content="确定更新吗" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                            <span class="c-blue cursor mr-10">更新</span>
-                        </a-popconfirm>
-                    </div>
-                    <div class="fs-12 c-99">{{item.description}}</div>
-                </td>
-                <td>
-                    <a-switch v-model="item.disabled" :checked-value="false" @change="pluginSubmit" :unchecked-value="true"></a-switch>
-                </td>
-                <td>
-                    <!-- <span class="c-blue cursor mr-10" @click="setPluginMatch(item)">配置</span> -->
-                    <span class="c-blue cursor mr-10" @click="openCatchRules(item)">配置</span>
-                </td>
-            </tr>
-        </tbody></table>
-        <!-- <div class="mt-20 df ai-c jc-c">
-            <a-button @click="$emit('close')">取消</a-button>
-            <a-button @click="pluginSubmit" type="primary" class="ml-20">保存</a-button>
-        </div> -->
+        <a-alert class="mb-12">
+            此处仅显示已启用且支持规则配置的网关插件。插件安装、停用和卸载请前往“网关管理 → 网关插件”。
+        </a-alert>
+        <a-table :data="plugins" :bordered="false" :pagination="false" row-key="name">
+            <template #columns>
+                <a-table-column title="插件">
+                    <template #cell="{ record }">
+                        <div class="b">{{record.title}}{{record.version ? `@${record.version}` : ''}}</div>
+                        <div v-if="record.description" class="fs-12 c-99 mt-4">{{record.description}}</div>
+                    </template>
+                </a-table-column>
+                <a-table-column title="规则状态" :width="150">
+                    <template #cell="{ record }">
+                        <a-switch
+                            :model-value="record.ruleEnabled"
+                            @change="value=>toggleRule(record, value)"
+                        />
+                    </template>
+                </a-table-column>
+                <a-table-column title="配置方式" :width="150">
+                    <template #cell="{ record }">
+                        <a-tag v-if="record.hasFrontend" color="arcoblue">操作界面</a-tag>
+                        <a-tag v-else>YAML</a-tag>
+                    </template>
+                </a-table-column>
+                <a-table-column title="操作" :width="120">
+                    <template #cell="{ record }">
+                        <a-link @click="openConfig(record)">配置</a-link>
+                    </template>
+                </a-table-column>
+            </template>
+        </a-table>
 
-        <a-drawer v-model:visible="matchConfig.show" title="配置" width="800px" @ok="pluginWriteMatch" @cancel="matchConfig.show=false;" @open="initEditor()">
-            <div id="matcheditor" style="height:100%;"></div>
-        </a-drawer>
-
-        <domain-strategy-plugin-filecache
-            :show="catchRules.show"
-            :rules="catchRules.rules"
-            :data="catchRules.data"
-            :keyrules="catchRules.keyrules"
-            @submit="catchSubmit"
-            @close="catchRules.show=false;"
-        ></domain-strategy-plugin-filecache>
-        
-        <domain-strategy-plugin-whitelist
-            :show="wlRules.show"
-            :data="wlRules.data"
-            @submit="wlRulesSubmit"
-            @close="wlRules.show=false;"
-        ></domain-strategy-plugin-whitelist>
-
-        <domain-strategy-plugin-ratelimit
-            :show="ratelimit.show"
-            :config="ratelimit.config"
-            @submit="ratelimitSubmit"
-            @close="ratelimit.show=false;"
-        ></domain-strategy-plugin-ratelimit>
-
-
-        <plugin-edit :show="form.show" :id="form.id" @close="closeEditPlugin"></plugin-edit>
+        <gateway-plugin-config
+            :show="config.show"
+            :plugin="config.plugin"
+            :microapp="config.microapp"
+            :ingress="data"
+            scope="rule"
+            @saved="getAllPlugin"
+            @close="closeConfig"
+        />
     </div>
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
-import axios from 'axios';
-import {basicSetup, EditorView} from "codemirror";
-import { yaml } from "@codemirror/lang-yaml";
-import jsyaml from "js-yaml";
-import { useLoadingStore, useNamespaceStore } from '@/store';
-import pluginForm from '@/views/app/plugin/plugin-form.vue';
-import pluginEdit from '@/views/app/plugin/plugin-edit.vue';
-import domainStrategyPluginFilecache from './domain-strategy-plugin-filecache.vue';
-import domainStrategyPluginWhitelist from './domain-strategy-plugin-whitelist.vue';
-import domainStrategyPluginRatelimit from './domain-strategy-plugin-ratelimit.vue';
+import { k8sproxy, panelApi } from '@/utils/api';
+import { useNamespaceStore } from '@/store';
+import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
+import {
+    MICROAPP_API,
+    WASM_PLUGIN_API,
+    getIngressRuleIndex,
+    getPluginDescription,
+    getResolvedMicroappName,
+    getPluginTitle,
+    getPluginVersion,
+    isGatewayPluginEnabled,
+    supportsRuleConfig,
+} from '@/utils/gateway-plugin';
 
 export default {
-    props: ['data','show'],
+    props: ['data', 'show'],
+    emits: ['pluginbadge', 'close'],
+    components: { gatewayPluginConfig },
     data(){
         return {
             namespaceActive: '',
-            plugin: {
-                allPlugin: [],
-            },
-            config: {
-                show: false,
-                editName: '',
-                yaml: '',
-                editor: null,
-                url: '',
-                disabled: true,
-            },
-            matchConfig: {
-                show: false,
-                yaml: '',
-                editName: '',
-                editor: null,
-            },
-            addPlugin: {
-                show: false,
-                cdn: '',
-            },
-            form: {
-                show: false,
-                id: '',
-            },
-
-            catchRules: {
-                show: false,
-                rules: [],
-                keyrules: [],
-                data: {},
-            },
-
-            wlRules: {
-                show: false,
-                name: '',
-                data: {},
-            },
-
-            ratelimit: {
-                show: false,
-                config: null,
-            },
-        }
+            plugins: [],
+            config: { show: false, plugin: null, microapp: null },
+        };
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
     },
     watch: {
-        data: "getAllPlugin",
-        show(v){
-            if(!v){return}
-            this.getAllPlugin();
+        data: 'getAllPlugin',
+        show(value){
+            if(value){ this.getAllPlugin(); }
         },
-    },
-    components: {
-        pluginForm,
-        pluginEdit,
-        domainStrategyPluginFilecache,
-        domainStrategyPluginWhitelist,
-        domainStrategyPluginRatelimit,
     },
     methods: {
-        wlRulesSubmit(data){
-            let item = this.plugin.allPlugin.find(i=>i.name==this.wlRules.name);
-            if(!item){return}
-            
-            let o = {
-                "response_code": data?.errpage?.code,
-                "response_content": data?.errpage?.content,
-                "white_domains": data?.list || [],
-            }
-            
-            item.content.spec.defaultConfig = o;
-            k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(res=>{
-                this.$message.success('操作成功')
-                this.getAllPlugin();
-                this.wlRules.show = false;
-            })
+        async getAllPlugin(){
+            const ingressName = this.data?.metadata?.name;
+            if(!ingressName){ return; }
+            const [pluginRes, microappRes] = await Promise.all([
+                k8sproxy.get(WASM_PLUGIN_API),
+                k8sproxy.get(MICROAPP_API, { noAlert: true }).catch(()=>({ data: { items: [] } })),
+            ]);
+            const resources = (pluginRes?.data?.items || [])
+                .filter(plugin=>isGatewayPluginEnabled(plugin) && supportsRuleConfig(plugin));
+            const microapps = microappRes?.data?.items || [];
+            const names = [...new Set(resources.map(resource=>getResolvedMicroappName(resource, microapps)).filter(Boolean))];
+            const frontendEntries = await Promise.all(names.map(async name=>{
+                const info = await panelApi.get(`/microapp/${encodeURIComponent(name)}/info`, { noAlert: true })
+                    .then(response=>response?.data || null)
+                    .catch(()=>null);
+                return [name, info];
+            }));
+            const frontendMap = Object.fromEntries(frontendEntries);
+            this.plugins = resources.map(resource=>{
+                const ruleIndex = getIngressRuleIndex(resource, this.namespaceActive, ingressName);
+                const rule = ruleIndex >= 0 ? resource?.spec?.matchRules?.[ruleIndex] : null;
+                const microapp = getResolvedMicroappName(resource, microapps);
+                const microappInfo = frontendMap[microapp] || null;
+                const hasFrontend = (microappInfo?.spec?.bindings || []).some(binding=>
+                    binding?.support === 'thirdparty_cd'
+                    && binding?.name === 'normal'
+                    && Array.isArray(binding?.menu)
+                    && binding.menu.length > 0
+                );
+                return {
+                    name: resource.metadata.name,
+                    title: getPluginTitle(resource),
+                    description: getPluginDescription(resource),
+                    version: getPluginVersion(resource),
+                    microapp,
+                    microappInfo,
+                    hasFrontend,
+                    ruleIndex,
+                    ruleEnabled: rule?.configDisable === false,
+                    resource,
+                };
+            });
+            this.$emit('pluginbadge', this.plugins.filter(plugin=>plugin.ruleEnabled).length);
         },
-        openCatchRules(item){
-            if(item.is_ratelimit){
-                let config  = item.content?.spec?.matchRules?.[item.hasname]?.config || {};
-                this.ratelimit = {
-                    show: true,
-                    name: item.name,
-                    config: config,
-                }
-                return;
-            }
-            if(item.is_cdn){
-                let config  = item.content?.spec?.matchRules?.[item.hasname]?.config || null;
-                
-                this.catchRules = {
-                    ...this.catchRules,
-                    show: true,
-                    name: item.name,
-                    rules: item.path_cache_rules,
-                    keyrules: item.path_key_cache_rules,
-                    data: { ...config, },
-                }
-                return;
-            }
-            if(item.is_whitelist){
-                let config = item.content?.spec?.defaultConfig;
-                this.wlRules = {
-                    ...this.wlRules,
-                    show: true,
-                    name: item.name,
-                    data: {
-                        list: config?.white_domains || [],
-                        errpage: {
-                            code: config?.response_code || '404',
-                            content: config?.response_content || '',
-                        }
-                    }
-                }
-                return;
-            }
-            if(item.hasname>-1){
-                let config  = item.content?.spec?.matchRules?.[item.hasname]?.config;
-                let yaml = config? jsyaml.dump(config) : '';
-                this.matchConfig.yaml = yaml;
-            }else{
-                this.matchConfig.yaml = "";
-            }
-            if(this.matchConfig.editor){
-                let txt = this.matchConfig.editor.state.doc.toString();
-                this.matchConfig.editor.dispatch({
-                    changes: {from:0, to:txt.length, insert:this.matchConfig.yaml || ''}
+        toggleRule(record, enabled){
+            const data = JSON.parse(JSON.stringify(record.resource));
+            data.spec = data.spec || {};
+            data.spec.matchRules = data.spec.matchRules || [];
+            let index = getIngressRuleIndex(data, this.namespaceActive, this.data.metadata.name);
+            if(index < 0){
+                data.spec.matchRules.push({
+                    ingress: [`${this.namespaceActive}/${this.data.metadata.name}`],
+                    config: {},
+                    configDisable: !enabled,
                 });
-            }
-            this.matchConfig.editName = item.name;
-            this.matchConfig.show = true;
-
-        },
-        ratelimitSubmit(config){
-            // console.log('cccccccccccconfig',config)
-            let item = this.plugin.allPlugin.find(i=>i.name==this.ratelimit.name);
-            if(!item){return}
-            if(item.hasname>-1){
-                item.content.spec.matchRules[item.hasname].config = config;
-                k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(res=>{
-                    this.$message.success('操作成功')
-                    this.getAllPlugin();
-                    this.ratelimit.show = false;
-                })
             }else{
-                item.content.spec.matchRules = item.content.spec?.matchRules || [];
-                item.content.spec.matchRules.push({
-                    config: config,
-                    configDisable: true,
-                    ingress: [this.namespaceActive + '/' + this.data.metadata.name],
-                });
-                k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(res=>{
-                    this.$message.success('操作成功')
-                    this.getAllPlugin();
-                    this.catchRules.show = false;
-                })
+                data.spec.matchRules[index].configDisable = !enabled;
             }
-        },
-        catchSubmit(data){
-            let item = this.plugin.allPlugin.find(i=>i.name==this.catchRules.name);
-            if(!item){return}
-            let rewrite = this.data.metadata?.annotations?.['higress.io/enable-rewrite']==='true'? this.data?.metadata?.annotations?.['higress.io/upstream-vhost'] : '';
-
-            let pcr = data.path_cache_rules.filter(i=>i.cache_ttl && i.weight).map(i=>{
-                // i.paths = i?.paths? i?.paths?.trim()?.replace(/(^;)|(;$)/,'')?.split(';') : [];
-                return i;
-            })
-            let pkcr = data.path_key_cache_rules.filter(i=>i.weight).map(i=>{
-                // i.paths = i?.paths? i?.paths?.trim()?.replace(/(^;)|(;$)/,'')?.split(';') : [];
-                // i.keys = i?.keys? i?.keys?.trim()?.replace(/(^;)|(;$)/,'')?.split(';') : [];
-                return i;
-            })
-            let o = {
-                access_key: data.access_key,
-                secret_key: data.secret_key,
-                bucket: data.bucket,
-                host: data.host,
-                region: data.region,
-                path_cache_rules: pcr,
-                path_key_cache_rules: pkcr,
-            }
-            if(rewrite){ o.rewrite_host = rewrite;}
-            
-            if(item.hasname>-1){
-                item.content.spec.matchRules[item.hasname].config = o;
-                k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(res=>{
-                    this.$message.success('操作成功')
-                    this.getAllPlugin();
-                    this.catchRules.show = false;
-                })
-            }else{
-                item.content.spec.matchRules = item.content.spec?.matchRules || [];
-                item.content.spec.matchRules.push({
-                    config: o,
-                    configDisable: true,
-                    ingress: [this.namespaceActive + '/' + this.data.metadata.name],
-                });
-                k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(res=>{
-                    this.$message.success('操作成功')
-                    this.getAllPlugin();
-                    this.catchRules.show = false;
-                })
-            }
-        },
-        openForm(row){
-            this.form.show = true;
-            this.form.id = row?.name || '';
-        },
-        closeEditPlugin(v){
-            this.form.show = false;
-            if(v){ this.getAllPlugin(); }
-        },
-        // closeAddPlugin(v){
-        //     this.addPlugin.show = false;
-        //     if(v){ this.getAllPlugin(); }
-        // },
-        async pluginSubmit(){
-            useLoadingStore().loading = true;
-            for(let i=0; i<this.plugin.allPlugin.length; i++){
-                let item = this.plugin.allPlugin[i];
-                if(item.is_whitelist){
-                    item.content.spec.defaultConfigDisable = item.disabled;
-                    await k8sproxy.patch('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, {
-                        spec: {
-                            defaultConfigDisable: item.disabled
-                        }
-                    },{
-                        headers: {'Content-Type': 'application/merge-patch+json'}
-                    }).then(()=>{}).catch(()=>{});
-                    continue;
-                }
-                if(item.disabled){
-                    if(item.hasname>-1 && !item.content.spec?.matchRules?.[item.hasname]?.configDisable){
-                        item.content.spec.matchRules[item.hasname].configDisable = true;
-                        await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(()=>{}).catch(()=>{});
-                    }
-                    continue
-                }
-                if(item.hasname>-1){
-                    // configDisable 可能 undefinde
-                    if(item.content.spec?.matchRules?.[item.hasname]?.configDisable!==false){
-                        item.content.spec.matchRules[item.hasname].configDisable = false;
-                        await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(()=>{}).catch(()=>{});
-                    }
-                }else{
-                    item.content.spec.matchRules = item.content.spec?.matchRules || [];
-                    item.content.spec.matchRules.push({
-                        config: {},
-                        configDisable: false,
-                        ingress: [this.namespaceActive + '/' + this.data.metadata.name],
-                    });
-                    await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(()=>{}).catch(()=>{});
-                }
-            }
-            useLoadingStore().loading = false;
-            this.$message.success('操作成功');
-            this.getAllPlugin();
-        },
-        // 更新
-        updatePlugin(item){
-            let currenturl = item.currenturl;
-            if(!currenturl){return}
-            item.content.spec.url = currenturl;
-            k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(res=>{
-                this.$message.success('操作成功');
+            return k8sproxy.put(`${WASM_PLUGIN_API}/${record.name}`, data, { loading: true }).then(()=>{
+                this.$message.success(enabled ? '规则已启用' : '规则已停用');
                 this.getAllPlugin();
             });
         },
-        // 提交配置
-        pluginWriteMatch(){
-            let yaml = this.matchConfig.editor.state.doc.toString();
-
-            let item = this.plugin.allPlugin.find(i=>i.name==this.matchConfig.editName);
-            if(item.hasname>-1){
-                item.content.spec.matchRules[item.hasname].config = jsyaml.load(yaml);
-            }else{
-                item.content.spec.matchRules = item.content.spec?.matchRules || [];
-                item.content.spec.matchRules.push({
-                    config: jsyaml.load(yaml),
-                    configDisable: true,
-                    ingress: [this.namespaceActive + '/' + this.data.metadata.name],
-                })
-            }
-            k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+item.name, item.content).then(res=>{
-                this.$message.success('操作成功')
-                this.getAllPlugin();
-                this.matchConfig.show = false;
-            })
+        openConfig(record){
+            this.config = { show: true, plugin: record.resource, microapp: record.microappInfo };
         },
-        // editor
-        initEditor(){
-            this.$nextTick(()=>{
-                let o = this.matchConfig;
-                if(!o.editor){
-                    let height = document.getElementById('matcheditor').offsetHeight;
-                    let myTheme = EditorView.theme({"&": { height: height + "px"}}, {dark: false});
-                    o.editor = new EditorView({
-                        doc: "",
-                        extensions: [
-                            basicSetup,
-                            myTheme,
-                            yaml(),
-                        ],
-                        parent: document.getElementById('matcheditor'),
-                    });
-                    let txt = o.editor.state.doc.toString();
-                    o.editor.dispatch({
-                        changes: {from:0, to:txt.length, insert:o.yaml || ''}
-                    });
-                }
-            });
+        closeConfig(saved){
+            this.config.show = false;
+            if(saved){ this.getAllPlugin(); }
         },
-        // 插件列表
-        getAllPlugin(){
-            if(!this.data || !this.data.metadata || !this.data.metadata.name){return}
-            k8sproxy.get('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins').then(res=>{
-                let list = res?.data?.items || [];
-                this.plugin.allPlugin = list.map(i=>{
-                    let hasname = i?.spec?.matchRules?.findIndex(m=>{
-                        return m?.ingress?.includes(this.namespaceActive + '/' + this.data?.metadata?.name);
-                    })
-
-                    let is_whitelist = i.metadata?.labels?.['higress.io/wasm-plugin-name'] == 'w7-white-domain';
-                    let disabled = true;
-                    if(i?.spec?.matchRules?.[hasname]?.configDisable === false){ disabled = false; }
-                    if(is_whitelist){
-                        disabled = i?.spec?.defaultConfigDisable===false? false : true;
-                    }
-                    // let version = i?.spec?.url?.match(/(?<=:)[^:]+$/)?.[0];
-                    let version = i?.metadata?.labels?.['higress.io/wasm-plugin-version'];
-                    version = version? '@'+version : '';
-                    return {
-                        name: i.metadata.name,
-                        title: i.metadata?.annotations?.['higress.io/wasm-plugin-title'] || i.metadata.name,
-                        description: i.metadata?.annotations?.['higress.io/wasm-plugin-description'] || '',
-                        currenturl: i.metadata?.annotations?.['w7.cc/plugin-url'] || '',
-                        is_cdn: i.metadata?.labels?.['higress.io/wasm-plugin-name'] == 'w7-cdn-proxy',
-                        is_ratelimit: i.metadata?.labels?.['higress.io/wasm-plugin-name'] == 'cluster-key-rate-limit',
-                        is_whitelist: is_whitelist,
-
-                        url: i.spec?.url || '',
-                        version: version,
-                        hasname: hasname,
-                        disabled: disabled,
-                        content: i,
-                        config: i?.spec?.defaultConfig,
-                        path_cache_rules: i?.spec?.matchRules?.[hasname]?.config?.path_cache_rules || [],
-                        path_key_cache_rules: i?.spec?.matchRules?.[hasname]?.config?.path_key_cache_rules || [],
-                    }
-                });
-                let enable = this.plugin.allPlugin.filter(i=>!i.disabled).length;
-                this.$emit('pluginbadge',enable)
-            })
-        },
-        createName(length){
-            let len = length || 8;
-            let s = 'abcdefghijklmnopqrstuvwxyz';
-            let p = '';
-            for(var i=0; i<len; i++){
-                p = p + s[parseInt(Math.random()*s.length)]
-            }
-            return p;
-        },
-    }
-}
+    },
+};
 </script>
-
-<style>
-
-</style>

@@ -126,6 +126,23 @@
             "key": "gateway-aiproxy-delete",
             "route": "gateway/aiproxy/delete"
         }]
+    },{
+        "title": "网关插件",
+        "key": "gateway-plugins",
+        "route": "gateway/plugins",
+        "children": [{
+            "title": "新建",
+            "key": "gateway-plugins-add",
+            "route": "gateway/plugins/add"
+        },{
+            "title": "编辑",
+            "key": "gateway-plugins-edit",
+            "route": "gateway/plugins/edit"
+        },{
+            "title": "删除",
+            "key": "gateway-plugins-delete",
+            "route": "gateway/plugins/delete"
+        }]
     }]
 },{
     "title": "存储管理",
