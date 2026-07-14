@@ -1,7 +1,7 @@
 <template>
     <div class="padding-20">
         <route-breadcrumb />
-        <div class="df jc-sb ai-c">
+        <div class="df jc-sb ai-c" style="gap:12px;">
             <a-button v-if="permission.includes('gateway/plugins/add')" type="primary" @click="openForm()">
                 <template #icon><icon-plus /></template>
                 添加插件
@@ -17,7 +17,7 @@
         <div class="bg-white padding-20 mt-20">
             <a-table :data="filteredList" :bordered="false" :pagination="false" row-key="name">
                 <template #columns>
-                    <a-table-column title="插件">
+                    <a-table-column title="插件" :width="360">
                         <template #cell="{ record }">
                             <div class="b">{{record.title}}</div>
                             <div class="fs-12 c-99 mt-4">{{record.name}}{{record.version ? `@${record.version}` : ''}}</div>
@@ -51,6 +51,8 @@
                             <a-popconfirm
                                 v-if="permission.includes('gateway/plugins/edit')"
                                 :content="record.enabled ? '停用后插件的全局配置和所有规则都会停止生效，是否继续？' : '是否重新启用该插件？'"
+                                position="lt"
+                                :content-style="{maxWidth:'360px'}"
                                 type="warning"
                                 @ok="togglePlugin(record)"
                             >
@@ -59,6 +61,8 @@
                             <a-popconfirm
                                 v-if="permission.includes('gateway/plugins/delete')"
                                 content="卸载后插件及其全部规则配置将被删除，是否继续？"
+                                position="lt"
+                                :content-style="{maxWidth:'360px'}"
                                 type="warning"
                                 :ok-button-props="{status:'danger'}"
                                 @ok="removePlugin(record)"
