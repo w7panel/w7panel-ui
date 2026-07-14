@@ -55,7 +55,6 @@ export default {
     watch: {
         route(){ this.restart(); },
         microapp: { deep: true, handler(){ this.restart(); } },
-        contextProps: { deep: true, handler(){ this.restart(); } },
     },
     beforeUnmount(){
         if(this.restartTimer){ clearTimeout(this.restartTimer); }
