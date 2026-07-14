@@ -33,12 +33,6 @@
                             </a-space>
                         </template>
                     </a-table-column>
-                    <a-table-column title="前端包" :width="180">
-                        <template #cell="{ record }">
-                            <span v-if="record.hasFrontend">{{record.microapp}}</span>
-                            <span v-else class="c-99">YAML 配置</span>
-                        </template>
-                    </a-table-column>
                     <a-table-column title="状态" :width="100">
                         <template #cell="{ record }">
                             <a-tag :color="record.enabled ? 'green' : 'gray'">
@@ -186,19 +180,12 @@ export default {
             return this.resources.map(resource=>{
                 const microappName = getResolvedMicroappName(resource, this.microapps);
                 const microappInfo = this.microappInfoMap[microappName] || null;
-                const hasFrontend = (microappInfo?.spec?.bindings || []).some(binding=>
-                    binding?.support === 'thirdparty_cd'
-                    && Array.isArray(binding?.menu)
-                    && binding.menu.length > 0
-                );
                 return {
                     name: resource?.metadata?.name || '',
                     title: getPluginTitle(resource),
                     description: getPluginDescription(resource),
                     version: getPluginVersion(resource),
-                    microapp: microappName,
                     microappInfo,
-                    hasFrontend,
                     enabled: isGatewayPluginEnabled(resource),
                     supportGlobal: supportsGlobalConfig(resource),
                     supportRule: supportsRuleConfig(resource),
