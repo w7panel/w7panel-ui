@@ -79,6 +79,34 @@
         });
       };
 
+      const findMenuItem = (
+        routes: RouteRecordRaw[],
+        key: string
+      ): RouteRecordRaw | undefined => {
+        for (const item of routes) {
+          if (String(item.name) === key) {
+            return item;
+          }
+          const child = item.children?.length
+            ? findMenuItem(item.children, key)
+            : undefined;
+          if (child) {
+            return child;
+          }
+        }
+        return undefined;
+      };
+
+      const handleMenuItemClick = (key: string) => {
+        const item = findMenuItem(
+          menuTree.value as RouteRecordRaw[],
+          String(key)
+        );
+        if (item) {
+          goto(item);
+        }
+      };
+
       const setCollapse = (val: boolean) => {
         if (appStore.device === 'desktop') {
           appStore.updateSettings({ menuCollapse: val });
@@ -145,7 +173,6 @@
                   <a-menu-item
                     key={element?.name}
                     v-slots={{ icon }}
-                    onClick={() => goto(element)}
                   >
                     <span>{getMenuTitle(element)}</span>
                     {element?.meta?.linkIcon ? (
@@ -189,6 +216,7 @@
             level-indent={34}
             style="flex:1;min-height:0;width:100%;"
             onCollapse={setCollapse}
+            onMenuItemClick={handleMenuItemClick}
           >
             {renderSubMenu()}
           </a-menu>
