@@ -32,8 +32,6 @@
                 <a-tab-pane title="单机限流" key="routelimit">
                     <div class="c-99 fs-14 lh-14">支持针对路由级别的单机限流策略，在设定的时间周期内，限制每个网关副本匹配在某个路由上的请求数量不大于阈值。</div>
                 </a-tab-pane> -->
-                <!-- <a-tab-pane v-if="!isMicroComponents" title="文件缓存" key="fileCache"></a-tab-pane> -->
-                <!-- <a-tab-pane v-if="!isMicroComponents" title="镜像缓存" key="imageCache"></a-tab-pane> -->
                 <a-tab-pane v-if="!isMicroComponents" title="更多" key="plugin">
                     <template #title>
                         <a-badge v-if="plugin.badge>0" :count="plugin.badge"><span style="padding:0 16px;">更多</span></a-badge>
@@ -288,22 +286,6 @@
                 </div>
             </div>
 
-            <!-- <domain-strategy-filecache
-                v-show="fileCache.show"
-                :activeName="activeName"
-                :data="data"
-                @submit="v=>submit(v)"
-                @cancel="close"
-            ></domain-strategy-filecache> -->
-
-            <!-- <domain-strategy-imagecache
-                v-show="imageCache.show"
-                :activeName="activeName"
-                :data="data"
-                @submit="v=>$emit('refresh')"
-                @cancel="close"
-            ></domain-strategy-imagecache> -->
-
             <domain-strategy-plugin
                 v-show="plugin.show"
                 :show="plugin.show"
@@ -322,8 +304,6 @@ import { useNamespaceStore } from '@/store';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 import domainStrategyPlugin from './domain-strategy-plugin.vue';
 import axios from 'axios';
-// import domainStrategyFilecache from './domain-strategy-filecache.vue';
-// import domainStrategyImagecache from './domain-strategy-imagecache.vue';
 
 export default {
     props: ['title', 'show', 'data', 'hideRewrite','multiple','isMicroComponents'],
@@ -422,12 +402,6 @@ export default {
                  "503",
                  "504",
             ],
-            fileCache: {
-                show: false,
-            },
-            imageCache: {
-                show: false,
-            },
         }
     },
     created(){
@@ -439,8 +413,6 @@ export default {
     },
     components: {
         domainStrategyPlugin,
-        // domainStrategyFilecache,
-        // domainStrategyImagecache,
     },
     watch: {
         activeName(){
@@ -452,8 +424,6 @@ export default {
             // this.redirect.show = false;
             // this.iplist.show = false;
             // this.routelimit.show = false;
-            this.fileCache.show = false;
-            this.imageCache.show = false;
             this.requests.show = false;
             this[this.activeName].show = true;
         },
