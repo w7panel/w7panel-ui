@@ -1,6 +1,6 @@
 <template>
     <div>
-        <a-alert class="mb-12">
+        <a-alert style="margin-bottom:12px;">
             此处仅显示已启用且支持规则配置的网关插件。插件安装、停用和卸载请前往“网关管理 → 网关插件”。
         </a-alert>
         <a-table :data="plugins" :bordered="false" :pagination="false" row-key="name">
