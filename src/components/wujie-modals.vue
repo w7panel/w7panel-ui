@@ -111,6 +111,74 @@
         @close="buildContainerImage.show=false;"
     ></build-image-status>
 
+    <buy-service-dialog
+        :show="buyServiceDialog.show"
+        :data="buyServiceDialog.data"
+        @update:show="buyServiceDialog.show = $event"
+        @success="handleBuyServiceSuccess"
+        @close="handleBuyServiceClose"
+    />
+
+    <a-modal
+        v-model:visible="payDialog.show"
+        title="确认支付"
+        :width="860"
+        :footer="false"
+        :mask-closable="false"
+        :popup-container="$popupContainer"
+        modal-class="wujie-pay-dialog"
+        @close="handlePayClose"
+    >
+        <a-spin :loading="payDialog.loading" class="wujie-pay-dialog__spin">
+            <iframe
+                v-if="payDialog.show && payDialog.url"
+                ref="payIframe"
+                :src="payDialog.url"
+                frameborder="0"
+                class="wujie-pay-dialog__iframe"
+                @load="payDialog.loading = false"
+            />
+        </a-spin>
+    </a-modal>
+
+    <a-modal
+        v-model:visible="moduleVersion.show"
+        title="版本列表"
+        :width="760"
+        :footer="false"
+        :popup-container="$popupContainer"
+        modal-class="module-version-dialog"
+    >
+        <a-spin :loading="moduleVersion.loading" class="module-version-dialog__spin">
+            <a-empty v-if="!moduleVersion.loading && !moduleVersion.list.length" description="暂无版本记录" />
+            <div v-else class="module-version-list">
+                <div
+                    v-for="item in moduleVersion.list.slice(0, moduleVersion.showLength)"
+                    :key="item.id || `${item.version}-${item.createtime}`"
+                    class="module-version-list__item"
+                >
+                    <div class="module-version-list__date">
+                        <div class="module-version-list__day">{{ item.t.date }}</div>
+                        <div>{{ `${item.t.year}-${item.t.month}` }}</div>
+                    </div>
+                    <div class="module-version-list__line"><div class="module-version-list__point" /></div>
+                    <div class="module-version-list__content">
+                        <div class="module-version-list__header">
+                            <span>版本号：{{ item.version }} - {{ item.version_status }}</span>
+                            <span>{{ `${item.t.hour}:${item.t.minute}` }}</span>
+                        </div>
+                        <div class="module-version-list__description" v-html="item.description" />
+                    </div>
+                </div>
+                <div
+                    v-if="moduleVersion.showLength < moduleVersion.list.length"
+                    class="module-version-list__more"
+                    @click="moduleVersion.showLength += 10"
+                >点击显示更多</div>
+            </div>
+        </a-spin>
+    </a-modal>
+
 </template>
 
 <script>
@@ -120,6 +188,8 @@ import { getRefreshToken, getToken } from '@/utils/auth';
 import axios from 'axios';
 import { compressFiles } from '@/api/cluster';
 import { registerWujieEvent, unregisterWujieEvent } from '@/hooks/use-wujie-events';
+import { legacyConsoleRequestConfig } from '@/utils/legacy-console-request';
+import { getThirdpartyPayIframeUrl } from '@/utils/thirdparty-pay';
 
 import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue';
@@ -130,6 +200,7 @@ import domainMicroEdit from '@/components/domain-micro-edit.vue';
 import domainStrategy from '@/components/domain-strategy.vue';
 import containerPlugin from '@/components/container-plugin.vue';
 import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';
+import buyServiceDialog from '@/components/buy-service-dialog.vue';
 
 export default {
     name: 'WujieModals',
@@ -199,6 +270,23 @@ export default {
                 data: {},
                 serverInfo: {},
             },
+            buyServiceDialog: {
+                show: false,
+                data: {},
+            },
+            buyServiceCallback: null,
+            payDialog: {
+                show: false,
+                loading: false,
+                url: '',
+            },
+            payCallback: null,
+            moduleVersion: {
+                show: false,
+                loading: false,
+                list: [],
+                showLength: 5,
+            },
             wujieEventHandlers: [],
         };
     },
@@ -234,6 +322,7 @@ export default {
         domainStrategy,
         containerPlugin,
         buildImageStatus,
+        buyServiceDialog,
     },
     methods: {
         registerHostWujieEvents() {
@@ -278,6 +367,13 @@ export default {
                 let path = e.data.payload?.path + '?order_sn=' + e.data.payload?.orderSn;
                 path = encodeURIComponent(path);
                 this.toStoreInstall(path)
+            }
+            if(
+                e?.data?.type === 'payCallback'
+                && this.payDialog.show
+                && e.source === this.$refs.payIframe?.contentWindow
+            ){
+                this.handlePaySuccess(e.data);
             }
         },
         getRole(callback){
@@ -402,6 +498,101 @@ export default {
             let data = v[0].value;
             this.strategy.data = data;
             this.strategy.callback && this.strategy.callback(data);
+        },
+
+        // ========== 购买应用/服务 ==========
+        openBuyServiceDialog(data = {}, callback) {
+            const mode = data.mode || 'branch_package';
+            if (mode !== 'service_fee' && !['module_service', 'module_plugin'].includes(data.type)) {
+                console.warn(`[wujie-modals] unsupported module purchase type: ${data.type || ''}`);
+                return;
+            }
+            this.buyServiceCallback = typeof callback === 'function' ? callback : null;
+            this.buyServiceDialog = {
+                show: true,
+                data: {
+                    ...data,
+                    mode,
+                    type: data.type || 'module_service',
+                    site_key: data.site_key || this.$route.params.siteKey || '',
+                },
+            };
+        },
+        handleBuyServiceSuccess(payload) {
+            const callback = this.buyServiceCallback;
+            this.buyServiceCallback = null;
+            callback?.(payload?.response ?? payload);
+        },
+        handleBuyServiceClose() {
+            if (!this.buyServiceDialog.show) {
+                this.buyServiceCallback = null;
+            }
+        },
+
+        // ========== 支付 ==========
+        openPay(ticket, callback) {
+            if (!ticket) {
+                this.$message.warning('缺少支付票据');
+                return;
+            }
+            this.payCallback = typeof callback === 'function' ? callback : null;
+            this.payDialog = {
+                show: true,
+                loading: true,
+                url: getThirdpartyPayIframeUrl(ticket),
+            };
+        },
+        handlePaySuccess(result) {
+            const callback = this.payCallback;
+            this.payCallback = null;
+            this.payDialog.show = false;
+            callback?.(result);
+        },
+        handlePayClose() {
+            this.payDialog.loading = false;
+            this.payCallback = null;
+        },
+
+        // ========== 模块版本 ==========
+        async getModuleVersion(data = {}) {
+            if (!data.module_name) {
+                this.$message.warning('缺少模块标识');
+                return [];
+            }
+            this.moduleVersion = {
+                show: true,
+                loading: true,
+                list: [],
+                showLength: 5,
+            };
+            try {
+                const res = await axios.get(
+                    '/api/console2/module-version',
+                    legacyConsoleRequestConfig({
+                        baseURL: '/v1',
+                        params: { module_name: data.module_name },
+                    })
+                );
+                const list = Array.isArray(res?.data) ? res.data : [];
+                this.moduleVersion.list = list.map((item) => ({
+                    ...item,
+                    t: this.formatModuleVersionDate(item.createtime),
+                }));
+                return this.moduleVersion.list;
+            } finally {
+                this.moduleVersion.loading = false;
+            }
+        },
+        formatModuleVersionDate(timestamp) {
+            const date = new Date((Number(timestamp) || 0) * 1000);
+            const pad = (value) => String(value).padStart(2, '0');
+            return {
+                year: date.getFullYear(),
+                month: pad(date.getMonth() + 1),
+                date: pad(date.getDate()),
+                hour: pad(date.getHours()),
+                minute: pad(date.getMinutes()),
+            };
         },
 
         // ========== 应用弹窗 ==========
@@ -634,4 +825,27 @@ export default {
 .micro-iframe-modal .model-title{position:relative; height:44px;}
 .micro-iframe-modal .model-title .btns{position:absolute; right:0; top:0; height:100%;}
 .micro-iframe-modal .arco-modal-fullscreen .arco-modal-body{height:calc(100vh - 48px);}
+.wujie-pay-dialog .arco-modal-body{padding:0;}
+.wujie-pay-dialog__spin{display:block;width:100%;height:700px;}
+.wujie-pay-dialog__spin > .arco-spin-children{height:100%;}
+.wujie-pay-dialog__iframe{display:block;width:100%;height:700px;}
+.module-version-dialog .arco-modal-body{padding:0;}
+.module-version-dialog__spin{display:block;min-height:180px;}
+.module-version-list{height:560px;overflow:auto;padding:0 20px;}
+.module-version-list__item{position:relative;display:flex;padding:20px 0;}
+.module-version-list__date{display:flex;flex:0 0 100px;flex-direction:column;align-items:center;justify-content:center;margin-right:50px;color:var(--color-text-2);}
+.module-version-list__day{font-size:24px;color:rgb(var(--primary-6));}
+.module-version-list__line{position:absolute;top:0;bottom:0;left:100px;width:50px;}
+.module-version-list__line::before,.module-version-list__line::after{content:" ";position:absolute;left:25px;width:1px;background:var(--color-border-1);}
+.module-version-list__line::before{top:0;bottom:50%;}
+.module-version-list__line::after{top:50%;bottom:0;}
+.module-version-list__item:first-child .module-version-list__line::before{display:none;}
+.module-version-list__item:last-child .module-version-list__line::after{display:none;}
+.module-version-list__point{position:absolute;top:50%;left:50%;z-index:1;width:13px;height:13px;border-radius:50%;background:rgb(var(--primary-6));transform:translate(-6px,-50%);}
+.module-version-list__content{flex:1;min-width:0;border:1px solid var(--color-border-2);border-radius:5px;overflow:hidden;}
+.module-version-list__header{display:flex;align-items:center;justify-content:space-between;min-height:40px;padding:0 20px;background:var(--color-fill-2);color:rgb(var(--primary-6));font-size:14px;}
+.module-version-list__header span:first-child{font-size:16px;}
+.module-version-list__description{padding:20px;color:var(--color-text-2);}
+.module-version-list__more{height:40px;padding-bottom:20px;line-height:40px;text-align:center;color:var(--color-text-3);cursor:pointer;}
+.module-version-list__more:hover{color:rgb(var(--primary-6));}
 </style>
