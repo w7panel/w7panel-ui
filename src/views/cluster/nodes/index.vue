@@ -78,11 +78,6 @@
                                     </div>
                                     <div v-else >
                                         <span>-</span>
-                                        <a-tooltip content="获取IP">
-                                            <span class="opt-icon ml-4" @click="refreshPublicIp(record)">
-                                                <icon-sync />
-                                            </span>
-                                        </a-tooltip>
                                     </div>
                                 </div>
                             </template>
@@ -705,20 +700,6 @@ export default {
                 this.$message.success('操作成功');
                 this.getList();
                 this.editPublicIp.show = false;
-            });
-        },
-        refreshPublicIp(row){
-            k8sproxy.patch('/api/v1/nodes/'+row.name,[{
-                op: 'replace',
-                path: '/metadata/labels/w7.cc~1load-public-ip',
-                value: 'true'
-            }],{
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(res=>{
-                this.$message.success('操作成功');
-                setTimeout(()=>{
-                    this.getList();
-                },3600);
             });
         },
         getConfig(){
