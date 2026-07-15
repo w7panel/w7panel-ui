@@ -27,7 +27,7 @@
             :data="data"
             :isPlugin="true"
             :kind="kind"
-            :isTemplate="true"
+            :isTemplate="propsData?.isTemplate"
             :pluginData="pluginData"
             @submit="v=>{volumes=v.volumes;volumeClaimTemplates=v.volumeClaimTemplates;}"
         ></app-form-volumes>
@@ -41,6 +41,7 @@
             :volumeClaimTemplates="volumeClaimTemplates"
             :mirror="mirror"
             :isPlugin="true"
+            :isTemplate="propsData?.isTemplate"
             :pluginData="pluginData"
             @getMirror="getMirror"
             @editMirror="v=>{createImage.name=v;createImage.show=true;}"

@@ -19,10 +19,10 @@
                 >
                     <a-input v-if="!selectAppContainer.show" v-model="form.customName" placeholder='最长63个字符，只能包含小写字母、数字及分隔符(-)，且不能以分隔符开头或结尾' style="width:500px;" @change="form.name = (testName(form.customName)?form.customName:form.name)"></a-input>
                     
-                    <select-container v-if="selectAppContainer.show" @complete="(v)=>selectAppContainer[index]=v" ></select-container>
+                    <select-container v-if="selectAppContainer.show && !isTemplate" @complete="(v)=>selectAppContainer[index]=v" ></select-container>
 
-                    <span v-if="!selectAppContainer.show"  class="ml-20 cursor c-blue" @click="selectAppContainer.show=true;selectAppContainer[index]=null;">复用已创建应用</span>
-                    <div v-else class="df ai-c ml-20">
+                    <span v-if="!selectAppContainer.show && !isTemplate" class="ml-20 cursor c-blue" @click="selectAppContainer.show=true;selectAppContainer[index]=null;">复用已创建应用</span>
+                    <div v-else-if="!isTemplate" class="df ai-c ml-20">
                         <a-button type="primary" @click="selectAppContainer[index]?handleSelectContainer(selectAppContainer[index],index):$message.warning('请选择应用容器');">确定</a-button>
                         <a-button @click="selectAppContainer.show=false;" class="ml-10">取消</a-button>
                     </div>
@@ -220,7 +220,7 @@
                 <a-form-item label="应用镜像" field="image" row-class="ac-form-item">
                     <a-input type="text" size="large" v-model="form.image" @input="testImage(index)" :spellcheck="false" style="width:500px;" placeholder="应用镜像"></a-input>
                     
-                    <span class="ml-20 cursor c-blue" @click="openBuildImage(form)">代码包构建</span>
+                    <span v-if="!isTemplate" class="ml-20 cursor c-blue" @click="openBuildImage(form)">代码包构建</span>
                 </a-form-item>
 
                 <a-form-item label="镜像仓库" row-class="ac-form-item">
@@ -561,6 +561,7 @@
         </a-modal>
 
         <build-image-drawer
+            v-if="!isTemplate"
             :show="biModal.show"
             @close="v=>{biModal.show=false;biModal.callback(v)}"
         ></build-image-drawer>
@@ -579,7 +580,7 @@ import buildImageDrawer from '@/components/build-image-drawer.vue'
 import selectContainer from '@/components/select-container.vue'
 
 export default{
-    props: ['data','volumes','volumeClaimTemplates','mirror','isPlugin','pluginData','layout'],
+    props: ['data','volumes','volumeClaimTemplates','mirror','isPlugin','isTemplate','pluginData','layout'],
     data(){
         return {
             namespaceActive: 'default',
@@ -655,6 +656,7 @@ export default{
     },
     methods: {
         handleSelectContainer(data,index){
+            if(this.isTemplate){return}
             this.selectAppContainer.show = false;
             if(!data.containerObj){return}
             let oldForm = this.fl[index];
@@ -680,6 +682,7 @@ export default{
 
         },
         openBuildImage(form){
+            if(this.isTemplate){return}
             k8sproxy.get(`/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/buildimages?labelSelector=w7.cc/build-finish=false,w7.cc/build-from=image-manager`).then(res=>{
                 let runningTaskExist = (res?.data?.items || [])?.length>0;
                 if(runningTaskExist){
