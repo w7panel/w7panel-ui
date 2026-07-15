@@ -83,6 +83,12 @@ const ROLE_TITLE = {
     normal: '普通用户',
 };
 
+const ROLE_ORDER = {
+    founder: 0,
+    found: 0,
+    normal: 1,
+};
+
 export default {
     props: {
         show: { type: Boolean, default: false },
@@ -214,7 +220,8 @@ export default {
                     title: ROLE_TITLE[binding.name] || binding.name,
                     menus: this.flattenMenus(binding.menu || []),
                 }))
-                .filter(role=>role.menus.length);
+                .filter(role=>role.menus.length)
+                .sort((a,b)=>(ROLE_ORDER[a.name] ?? 99) - (ROLE_ORDER[b.name] ?? 99));
 
             if(this.scope === 'rule'){
                 const normal = roles.find(role=>role.name === 'normal');
