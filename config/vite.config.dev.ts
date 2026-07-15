@@ -91,6 +91,11 @@ export default mergeConfig(
         '/api/v1/proxy': proxyUrl,
         '/api/v1/zpk': proxyUrl,
         '/api/v1/helm/releases':proxyUrl,
+        '/v1': {
+          target: proxyUrl,
+          changeOrigin: true,
+          ws: true,
+        },
         '/api': {
           target: proxyUrl,
           changeOrigin: true,

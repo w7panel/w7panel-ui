@@ -18,6 +18,11 @@ export default mergeConfig(
           changeOrigin: true,
           ws: true,
         },
+        '/v1': {
+          target: proxyUrl,
+          changeOrigin: true,
+          ws: true,
+        },
         '/api': {
           target: proxyUrl,
           changeOrigin: true,
