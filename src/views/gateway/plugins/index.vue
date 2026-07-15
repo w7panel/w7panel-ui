@@ -44,7 +44,6 @@
                         <template #cell="{ record }">
                             <a-link
                                 v-if="record.supportGlobal && permission.includes('gateway/plugins/edit')"
-                                :disabled="!record.enabled"
                                 @click="openConfig(record)"
                             >全局配置</a-link>
                             <a-link v-if="permission.includes('gateway/plugins/edit')" @click="openForm(record)">编辑</a-link>
@@ -335,7 +334,6 @@ export default {
             });
         },
         openConfig(row){
-            if(!row.enabled){ return; }
             this.config = { show: true, plugin: row.resource, microapp: row.microappInfo };
         },
         closeConfig(saved){
