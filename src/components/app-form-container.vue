@@ -116,11 +116,7 @@
                             <div class="df ai-c mb-10" style="height:32px;">
                                 <span class="mr-10">简易模式</span>
                                 
-                                <a-popover v-if="!testEasyCmd(form).pass" position="top">
-                                    <a-switch :disabled="true"></a-switch>
-                                    <template #content>{{testEasyCmd(form).reason}}</template>
-                                </a-popover>
-                                <a-switch v-else v-model="form.easyCmd" @change="v=>toggleEasyCmd(form,v)"></a-switch>
+                                <a-switch :model-value="form.easyCmd" @change="v=>toggleEasyCmd(form,v)"></a-switch>
                             </div>
                             <div v-if="form.easyCmd">
                                 <a-textarea v-model="form.command[2]" placeholder="请输入命令" style="height:80px;width:760px;" :spellcheck="false" allow-clear/>
@@ -427,11 +423,7 @@
                             <div class="df ai-c mb-10" style="height:32px;">
                                 <span class="mr-10">简易模式</span>
                                 
-                                <a-popover v-if="!testEasyCmd(form).pass" position="top">
-                                    <a-switch :disabled="true"></a-switch>
-                                    <template #content>{{testEasyCmd(form).reason}}</template>
-                                </a-popover>
-                                <a-switch v-else v-model="form.easyCmd" @change="v=>toggleEasyCmd(form,v)"></a-switch>
+                                <a-switch :model-value="form.easyCmd" @change="v=>toggleEasyCmd(form,v)"></a-switch>
                             </div>
                             <div v-if="form.easyCmd">
                                 <a-textarea v-model="form.command[2]" placeholder="请输入命令" style="height:80px;width:760px;" :spellcheck="false" allow-clear/>
@@ -746,14 +738,6 @@ export default{
                 this.gpuSupport = res.data?.gpuEnabled;
             });
         },
-        testEasyCmd(form){
-            let easyCmd = this.normalizeEasyCmd(form);
-            if(easyCmd.pass){return {pass:true}}
-            return {
-                pass: false,
-                reason: easyCmd.commandPass?'运行参数不为空，请删减后开启！':'运行命令大于1个，请删减后开启！',
-            }
-        },
         normalizeEasyCmd(form){
             let command = Array.isArray(form?.command) ? form.command : [];
             let args = Array.isArray(form?.args) ? form.args : [];
@@ -778,14 +762,45 @@ export default{
                 args: [''],
             }
         },
+        shellQuote(value){
+            value = String(value);
+            if(/^[A-Za-z0-9_@%+=:,./-]+$/.test(value)){
+                return value;
+            }
+            return "'" + value.replace(/'/g, "'\"'\"'") + "'";
+        },
+        mergeEasyCmd(form){
+            let command = Array.isArray(form?.command) ? form.command : [];
+            let args = Array.isArray(form?.args) ? form.args : [];
+            return [...command, ...args]
+                .filter(i=>i !== '' && i !== null && i !== undefined)
+                .map(i=>this.shellQuote(i))
+                .join(' ');
+        },
+        enableEasyCmd(form, command){
+            form.command = ['sh', '-c', command];
+            form.args = [''];
+            form.easyCmd = true;
+        },
         toggleEasyCmd(form, checked){
             if(checked){
                 let easyCmd = this.normalizeEasyCmd(form);
                 if(easyCmd.pass){
-                    form.command = easyCmd.command;
-                    form.args = easyCmd.args;
+                    this.enableEasyCmd(form, easyCmd.command[2]);
+                    return;
                 }
+
+                this.$modal.confirm({
+                    title: '转换运行命令',
+                    content: '当前运行命令或参数包含多项。开启简易模式会将其合并为一条 sh -c 命令，可能改变原有执行方式。是否继续？',
+                    okText: '继续转换',
+                    cancelText: '取消',
+                    onOk: ()=>{
+                        this.enableEasyCmd(form, this.mergeEasyCmd(form));
+                    },
+                });
             }else{
+                form.easyCmd = false;
                 if(form.command?.length==3 && form.command[0]=='sh' && form.command[1]=='-c'){
                     form.command = [form.command[2] || ''];
                 }
@@ -841,7 +856,7 @@ export default{
                 pre_stop: [''],
                 
                 easyCmd: true,
-                command: [''],
+                command: ['sh', '-c', ''],
                 args: [''],
             })
         },
