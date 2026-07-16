@@ -30,7 +30,8 @@
                             <template #cell="{ record }">
                                 <div class="df ai-c">
                                     <!-- 状态图标 -->
-                                    <div v-if="record.status=='Lost'||record.status=='Released'" class="point c-red df-s0" ></div>
+                                    <icon-loading v-if="record.state=='attaching'" class="zone-status-loading df-s0" />
+                                    <div v-else-if="record.status=='Lost'||record.status=='Released'" class="point c-red df-s0" ></div>
                                     <div v-else-if="record.status=='Bound'" class="point c-green df-s0"></div>
                                     <div v-else class="point df-s0"></div>
                                     <div>
@@ -775,6 +776,7 @@ export default {
 .point.c-green{background:#00A870;}
 .point.c-blue{color:rgb(var(--primary-6));}
 .point.c-brown{color:#C37937;}
+.zone-status-loading{font-size:14px; color:rgb(var(--primary-6)); margin-right:6px;}
 
 /* custom-progress styles to match a-progress */
 .custom-progress {
