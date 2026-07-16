@@ -24,7 +24,7 @@
                     <td>{{ item.authEnabled ? '已启用' : '未启用' }}</td>
                     <td>{{ item.enabledProviders }}/{{ item.providers }}</td>
                     <td>
-                        <span class="cursor c-blue" @click="toDomain(item)">服务提供者</span>
+                        <span class="cursor c-blue" @click="toDomain(item)">编辑</span>
                         <span v-if="debug" class="ml-16 cursor c-blue" @click="openYaml(item)">YAML</span>
                         <a-popconfirm v-if="permission.includes('gateway/aiproxy/delete')" :content="'确认要删除吗'" @ok="toDelete(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                             <span class="ml-16 cursor c-blue">删除</span>
