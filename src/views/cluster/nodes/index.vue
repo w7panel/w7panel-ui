@@ -54,12 +54,12 @@
                                             </span>
                                         </a-tooltip>
                                     </div>
-                                    <div v-if="record.publicIp">
-                                        <div v-if="editPublicIp.show && editPublicIp.name==record.name">
-                                            <a-input v-model="editPublicIp.ip" placeholder="请输入ip" style="width:200px;" size="small"></a-input>
-                                            <a-button type="primary" class="ml-4" size="small" @click="toEditPublicIp">确定</a-button>
-                                        </div>
-                                        <div v-else class="df ai-c">
+                                    <div v-if="editPublicIp.show && editPublicIp.name==record.name">
+                                        <a-input v-model="editPublicIp.ip" placeholder="请输入ip" style="width:200px;" size="small"></a-input>
+                                        <a-button type="primary" class="ml-4" size="small" @click="toEditPublicIp">确定</a-button>
+                                    </div>
+                                    <div v-else-if="record.publicIp">
+                                        <div class="df ai-c">
                                             <span class="va-middle">{{record.publicIp}}（公网）</span>
                                             <!-- <span class="opt-icon" @click="onekeyCopy(record.publicIp)"><icon-copy /></span> -->
                                             
@@ -68,16 +68,20 @@
                                                     <icon-copy />
                                                 </span>
                                             </a-tooltip>
-                                            <a-tooltip content="获取IP">
+                                            <a-tooltip content="修改IP">
                                                 <span class="opt-icon" style="margin-left:0;" @click="editPublicIp={show:true,name:record.name,ip:record.publicIp}">
                                                     <icon-pen />
                                                 </span>
                                             </a-tooltip>
                                         </div>
-    
                                     </div>
                                     <div v-else >
                                         <span>-</span>
+                                        <a-tooltip content="修改IP">
+                                            <span class="opt-icon ml-4" @click="editPublicIp={show:true,name:record.name,ip:''}">
+                                                <icon-pen />
+                                            </span>
+                                        </a-tooltip>
                                     </div>
                                 </div>
                             </template>
@@ -691,7 +695,7 @@ export default {
         },
         toEditPublicIp(){
             k8sproxy.patch('/api/v1/nodes/'+this.editPublicIp.name,[{
-                op: 'replace',
+                op: 'add',
                 path: '/metadata/labels/w7.public-ip',
                 value: this.editPublicIp.ip
             }],{
