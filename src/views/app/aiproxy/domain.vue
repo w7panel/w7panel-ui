@@ -8,23 +8,23 @@
                     <span>{{ host || '-' }}</span>
                 </a-form-item>
                 <a-form-item label="模型名称">
-                    <a-input-tag v-model="routeForm.models" placeholder="输入后回车，支持多个模型" allow-clear />
+                    <a-input-tag v-model="routeForm.models" :disabled="!permission.includes('gateway/aiproxy/edit')" placeholder="输入后回车，支持多个模型；留空表示不限制" allow-clear />
                 </a-form-item>
                 <a-form-item label="认证">
-                    <a-switch v-model="routeForm.authEnabled" />
+                    <a-switch v-model="routeForm.authEnabled" :disabled="!permission.includes('gateway/aiproxy/edit')" />
                 </a-form-item>
                 <a-form-item v-if="routeForm.authEnabled" label="消费者">
                     <div class="df df-c" style="flex:1;">
                         <div v-for="(item,index) in consumers" :key="index" class="df ai-c mb-10">
-                            <a-input v-model="item.name" placeholder="消费者名称" style="width:220px;" />
-                            <a-input v-model="item.key" placeholder="留空保留原 Key，新增留空自动生成" class="ml-10" style="width:360px;" />
-                            <span class="ml-10 cursor c-blue" @click="consumers.splice(index,1)">删除</span>
+                            <a-input v-model="item.name" :disabled="!permission.includes('gateway/aiproxy/edit')" placeholder="消费者名称" style="width:220px;" />
+                            <a-input v-model="item.key" :disabled="!permission.includes('gateway/aiproxy/edit')" placeholder="留空保留原 Key，新增留空自动生成" class="ml-10" style="width:360px;" />
+                            <span v-if="permission.includes('gateway/aiproxy/edit')" class="ml-10 cursor c-blue" @click="consumers.splice(index,1)">删除</span>
                         </div>
-                        <span class="cursor c-blue" @click="consumers.push({name:'', key:''})">添加消费者</span>
+                        <span v-if="permission.includes('gateway/aiproxy/edit')" class="cursor c-blue" @click="consumers.push({name:'', key:''})">添加消费者</span>
                     </div>
                 </a-form-item>
                 <a-form-item>
-                    <a-button type="primary" @click="saveRoute">保存配置</a-button>
+                    <a-button v-if="permission.includes('gateway/aiproxy/edit')" type="primary" @click="saveRoute">保存配置</a-button>
                 </a-form-item>
             </a-form>
         </div>
@@ -38,7 +38,6 @@
                     <td>名称</td>
                     <td>类型</td>
                     <td>服务地址</td>
-                    <td>模型</td>
                     <td>权重</td>
                     <td>状态</td>
                     <td style="width:240px;">操作</td>
@@ -47,10 +46,9 @@
                     <td>{{ item.name }}</td>
                     <td>{{ providerTypeLabel(item.type) }}</td>
                     <td>{{ item.endpointUrl || '-' }}</td>
-                    <td>{{ item.models.join(', ') || '-' }}</td>
                     <td>{{ item.weight }}</td>
                     <td>
-                        <a-switch v-model="item.enabled" @change="toggleProvider(item)" />
+                        <a-switch v-model="item.enabled" :disabled="!permission.includes('gateway/aiproxy/edit')" @change="toggleProvider(item)" />
                     </td>
                     <td>
                         <span v-if="permission.includes('gateway/aiproxy/edit')" class="cursor c-blue" @click="openProvider(item)">编辑</span>
@@ -60,7 +58,7 @@
                     </td>
                 </tr>
                 <tr v-if="!providers.length">
-                    <td colspan="7"><a-empty /></td>
+                    <td colspan="6"><a-empty /></td>
                 </tr>
             </tbody></table>
         </div>
@@ -83,7 +81,13 @@
                     </a-select>
                 </a-form-item>
                 <a-form-item label="API Tokens">
-                    <a-input-tag v-model="providerForm.tokens" :placeholder="providerForm.isEdit?'留空则保留原 Token':'输入后回车，支持多个 Token'" allow-clear />
+                    <a-input-tag
+                        v-model="providerForm.tokens"
+                        v-model:input-value="providerForm.tokenInput"
+                        :retain-input-value="{blur:true,create:false}"
+                        :placeholder="providerForm.isEdit?'留空则保留原 Token':'输入后回车，支持多个 Token'"
+                        allow-clear
+                    />
                 </a-form-item>
                 <a-form-item v-if="showEndpointUrl(providerForm.type)" label="服务地址" field="endpointUrl">
                     <a-input v-model="providerForm.endpointUrl" :placeholder="providerEndpointPlaceholder(providerForm.type)" />
@@ -159,9 +163,6 @@
                         <a-input-number v-model="providerForm.rawConfigs.vertexTokenRefreshAhead" :min="1" :max="1800" placeholder="留空表示仅过期时刷新" style="width:240px;" />
                     </a-form-item>
                 </template>
-                <a-form-item label="模型名称">
-                    <a-input-tag v-model="providerForm.models" placeholder="输入后回车，支持多个模型" allow-clear />
-                </a-form-item>
                 <a-form-item label="权重">
                     <a-input-number v-model="providerForm.weight" :min="0" style="width:200px;" />
                 </a-form-item>
@@ -177,13 +178,33 @@
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import { getPermission } from '@/utils/auth';
+import {
+    AI_LABEL,
+    AI_DOMAIN_LABEL,
+    AI_CONSUMER_LABEL,
+    AI_MODELS_ANNOTATION,
+    AI_AUTH_ANNOTATION,
+    AI_PROVIDERS_ANNOTATION,
+    consumerResourceId,
+    consumerSecretName,
+    domainResourcePrefix,
+    providerResourceId,
+    providerServiceName,
+    readRouteProviders,
+    readStringArray,
+    resourceName,
+    validateProviderWeights,
+} from '@/utils/ai-proxy';
 
-const AI_LABEL = 'w7.cc/gateway-ai-proxy';
-const AI_DOMAIN_LABEL = 'w7.cc/gateway-ai-domain';
-const AI_CONSUMER_LABEL = 'w7.cc/gateway-ai-consumer';
-const PLUGIN_NAME = 'w7-ai-proxy';
+const PLUGIN_NAME = 'ai-proxy.internal';
 const PLUGIN_NAMESPACE = 'higress-system';
-const PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/ai-proxy:latest';
+const PLUGIN_VERSION = '2.0.0';
+const PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/ai-proxy:2.0.0';
+const BUILTIN_PLUGIN_VERSION = '2.0.0';
+const KEY_AUTH_PLUGIN_NAME = 'key-auth.internal';
+const KEY_AUTH_PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/key-auth:2.0.0';
+const MODEL_VALIDATION_PLUGIN_NAME = 'request-validation.internal';
+const MODEL_VALIDATION_PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/request-validation:2.0.0';
 const MCPBRIDGE_NAME = 'default';
 
 const PROVIDER_TYPES = [
@@ -299,8 +320,8 @@ export default {
                 name: '',
                 protocol: 'openai/v1',
                 tokens: [],
+                tokenInput: '',
                 endpointUrl: DEFAULT_ENDPOINTS.openai,
-                models: [],
                 weight: 100,
                 enabled: true,
             },
@@ -342,11 +363,14 @@ export default {
                 this.host = this.ingress?.spec?.rules?.[0]?.host || '';
                 this.plugin = plugin;
                 const rule = this.currentRule();
-                this.routeForm.models = rule?.config?.models || [];
-                this.routeForm.authEnabled = !!rule?.config?.auth?.enabled;
+                const annotations = this.ingress?.metadata?.annotations || {};
+                this.routeForm.models = readStringArray(annotations[AI_MODELS_ANNOTATION] || rule?.config?.models);
+                this.routeForm.authEnabled = annotations[AI_AUTH_ANNOTATION] === 'true' || !!rule?.config?.auth?.enabled;
                 const secrets = secretRes?.data?.items || [];
                 const legacyProviders = secrets.filter(s=>s?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true').map(s=>this.secretToProvider(s));
-                const routeProviders = this.routeProviders(rule, plugin);
+                const storedProviders = readRouteProviders(annotations[AI_PROVIDERS_ANNOTATION]);
+                const providerRefs = storedProviders.length ? storedProviders : (rule?.config?.providers || []);
+                const routeProviders = this.routeProviders(providerRefs, plugin);
                 this.providers = routeProviders.length ? routeProviders : legacyProviders;
                 this.consumers = secrets.filter(s=>s?.metadata?.labels?.[AI_CONSUMER_LABEL] == 'true').map(s=>({
                     secretName: s.metadata.name,
@@ -367,7 +391,18 @@ export default {
             return res.data;
         },
         ensurePlugin(){
-            if(this.plugin) return Promise.resolve(clone(this.plugin));
+            if(this.plugin){
+                const plugin = clone(this.plugin);
+                plugin.metadata = plugin.metadata || {};
+                plugin.metadata.labels = plugin.metadata.labels || {};
+                plugin.spec = plugin.spec || {};
+                plugin.spec.url = PLUGIN_URL;
+                plugin.metadata.labels['higress.io/resource-definer'] = 'higress';
+                plugin.metadata.labels['higress.io/wasm-plugin-name'] = 'ai-proxy';
+                plugin.metadata.labels['higress.io/wasm-plugin-version'] = PLUGIN_VERSION;
+                plugin.metadata.labels['higress.io/wasm-plugin-built-in'] = 'true';
+                return Promise.resolve(plugin);
+            }
             const data = {
                 apiVersion: 'extensions.higress.io/v1alpha1',
                 kind: 'WasmPlugin',
@@ -376,7 +411,10 @@ export default {
                     namespace: PLUGIN_NAMESPACE,
                     labels: {
                         [AI_LABEL]: 'true',
+                        'higress.io/resource-definer': 'higress',
                         'higress.io/wasm-plugin-name': 'ai-proxy',
+                        'higress.io/wasm-plugin-version': PLUGIN_VERSION,
+                        'higress.io/wasm-plugin-built-in': 'true',
                     },
                     annotations: {
                         'higress.io/wasm-plugin-title': 'AI代理',
@@ -408,23 +446,21 @@ export default {
             });
             return map;
         },
-        routeProviders(rule, plugin){
+        routeProviders(providerRefs, plugin){
             const providerMap = this.globalProviderMap(plugin);
-            return (rule?.config?.providers || []).map(item=>{
-                const name = item.provider || item.name;
-                const config = providerMap[name] || {};
+            return (providerRefs || []).map(item=>{
+                const legacyId = item.id || item.provider || item.name;
+                const name = item.name || legacyId;
+                const id = providerResourceId(this.ingress?.metadata?.name || '', name);
+                const config = providerMap[id] || providerMap[legacyId] || {};
                 return {
                     ...this.providerConfigToForm(config, item),
+                    id,
                     name,
-                    models: item.models || this.modelMappingToModels(item.modelMapping) || [],
                     weight: Number(item.weight) || 0,
                     enabled: item.enabled !== false,
                 };
-            }).filter(item=>item.name);
-        },
-        modelMappingToModels(modelMapping){
-            if(!modelMapping) return [];
-            return Object.keys(modelMapping).filter(key=>key && key != '*');
+            }).filter(item=>item.id && item.name);
         },
         openProvider(row){
             if(!row){
@@ -432,13 +468,14 @@ export default {
                     show: true,
                     isEdit: false,
                     originalName: '',
+                    originalId: '',
                     rawConfigs: this.defaultRawConfigs('openai'),
                     type: 'openai',
                     name: '',
                     protocol: 'openai/v1',
                     tokens: [],
+                    tokenInput: '',
                     endpointUrl: DEFAULT_ENDPOINTS.openai,
-                    models: [],
                     weight: 100,
                     enabled: true,
                 };
@@ -448,14 +485,15 @@ export default {
                 show: true,
                 isEdit: true,
                 originalName: row.name,
+                originalId: row.id,
                 rawConfigs: clone(row.rawConfigs),
                 type: row.type || 'openai',
                 name: row.name,
                 protocol: row.protocol || 'openai/v1',
                 tokens: [],
+                tokenInput: '',
                 oldTokens: [...(row.tokens || [])],
                 endpointUrl: row.endpointUrl || this.providerEndpointPlaceholder(row.type),
-                models: [...row.models],
                 weight: Number(row.weight) || 0,
                 enabled: row.enabled,
             };
@@ -473,21 +511,39 @@ export default {
                     this.$message.error(providerError);
                     return;
                 }
+                if(!this.providerForm.isEdit && this.providers.some(item=>item.name == name)){
+                    this.$message.error('该域名下已存在同名服务提供者');
+                    return;
+                }
                 this.providerForm.name = name;
+                const pendingToken = String(this.providerForm.tokenInput || '').trim();
+                if(pendingToken && !this.providerForm.tokens.includes(pendingToken)){
+                    this.providerForm.tokens.push(pendingToken);
+                }
+                this.providerForm.tokenInput = '';
+                const candidate = this.providerFormToProvider(this.providerForm);
+                const nextProviders = this.providers
+                    .filter(item=>item.id != candidate.id && item.id != this.providerForm.originalId)
+                    .concat([candidate]);
+                const weightError = validateProviderWeights(nextProviders);
+                if(weightError){
+                    this.$message.error(weightError);
+                    return;
+                }
                 useLoadingStore().loading = true;
                 try {
-                    await this.syncProviderResources(this.providerForm);
+                    await this.syncProviderResources(this.providerForm, nextProviders);
                     this.providerForm.show = false;
                     await this.getData();
                     this.$message.success('操作成功');
+                } catch(error) {
+                    this.$message.error(error?.message || '服务提供者保存失败');
                 } finally {
                     useLoadingStore().loading = false;
                 }
             })
         },
         secretToProvider(secret){
-            let models = [];
-            try { models = JSON.parse(secret?.metadata?.annotations?.['w7.cc/models'] || '[]'); } catch {}
             const baseUrl = decode(secret?.data?.baseUrl);
             const apiKey = decode(secret?.data?.apiKey);
             return {
@@ -498,12 +554,17 @@ export default {
                 tokens: apiKey ? [apiKey] : [],
                 rawConfigs: baseUrl ? { openaiCustomUrl: baseUrl } : {},
                 endpointUrl: baseUrl,
-                models,
                 weight: Number(secret?.metadata?.annotations?.['w7.cc/weight'] || 0),
                 enabled: secret?.metadata?.annotations?.['w7.cc/enabled'] !== 'false',
             };
         },
         async toggleProvider(row){
+            const error = validateProviderWeights(this.providers);
+            if(error){
+                row.enabled = !row.enabled;
+                this.$message.error(error);
+                return;
+            }
             await this.syncRuleProviders(this.providers);
             await this.getData();
         },
@@ -519,13 +580,36 @@ export default {
             }
         },
         async saveRoute(){
-            await this.saveConsumers();
-            await this.syncRuleProviders();
-            await this.getData();
-            this.$message.success('操作成功');
+            const models = compact(this.routeForm.models);
+            const consumerNames = this.consumers.map(i=>String(i.name || '').trim()).filter(Boolean);
+            if(this.routeForm.authEnabled && !consumerNames.length){
+                this.$message.error('启用认证时至少需要配置一个消费者');
+                return;
+            }
+            if(new Set(consumerNames.map(resourceName)).size != consumerNames.length){
+                this.$message.error('消费者名称不能重复');
+                return;
+            }
+            const weightError = validateProviderWeights(this.providers);
+            if(weightError){
+                this.$message.error(weightError);
+                return;
+            }
+            useLoadingStore().loading = true;
+            try {
+                this.routeForm.models = models;
+                await this.saveConsumers();
+                await this.syncKeyAuthPlugin();
+                await this.syncModelValidationPlugin();
+                await this.syncRuleProviders();
+                await this.getData();
+                this.$message.success('操作成功');
+            } finally {
+                useLoadingStore().loading = false;
+            }
         },
         async saveConsumers(){
-            const existing = this.consumers.filter(i=>i.secretName).map(i=>i.secretName);
+            const existing = this.consumers.filter(i=>i.name && i.secretName).map(i=>i.secretName);
             const secretRes = await k8sproxy.get('/api/v1/namespaces/'+this.namespaceActive+'/secrets?labelSelector='+AI_LABEL+'=true,'+AI_DOMAIN_LABEL+'='+this.ingress.metadata.name+','+AI_CONSUMER_LABEL+'=true', { noAlert: true });
             const oldSecrets = secretRes?.data?.items || [];
             for(const old of oldSecrets){
@@ -534,8 +618,9 @@ export default {
                 }
             }
             for(const consumer of this.consumers.filter(i=>i.name)){
+                const generated = !consumer.key && !consumer.oldKey;
                 const key = consumer.key || consumer.oldKey || this.createToken();
-                const name = consumer.secretName || 'ai-consumer-' + this.ingress.metadata.name.replace(/^ai-/, '') + '-' + this.domainToName(consumer.name);
+                const name = consumer.secretName || consumerSecretName(this.ingress.metadata.name, consumer.name);
                 const data = {
                     apiVersion: 'v1',
                     kind: 'Secret',
@@ -558,59 +643,197 @@ export default {
                     await k8sproxy.put('/api/v1/namespaces/'+this.namespaceActive+'/secrets/'+consumer.secretName, data);
                 }else{
                     await k8sproxy.post('/api/v1/namespaces/'+this.namespaceActive+'/secrets', data);
+                    consumer.secretName = name;
                 }
+                consumer.oldKey = key;
+                consumer.key = '';
+                if(generated) this.$message.info('消费者 '+consumer.name+' 的 Key：'+key);
             }
         },
-        async syncRuleProviders(providerList){
-            const plugin = await this.ensurePlugin();
-            const rules = plugin.spec.matchRules || [];
-            let rule = rules.find(rule=>{
-                return (rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress?.metadata?.name);
-            });
-            if(!rule){
-                rule = { ingress: [this.ingress.metadata.name], domain: [this.host], config: {} };
-                rules.push(rule);
-            }
-            rule.config = {
-                ...(rule.config || {}),
-                managedBy: 'w7panel',
-                domain: this.host,
-                models: this.routeForm.models || [],
-                providers: (providerList || this.providers).map(i=>({
-                    provider: i.name,
-                    models: i.models || [],
-                    weight: Number(i.weight) || 0,
-                    enabled: i.enabled !== false,
-                    modelMapping: this.modelsToModelMapping(i.models || []),
-                })),
-                auth: {
-                    enabled: !!this.routeForm.authEnabled,
-                    type: 'key-auth',
-                    consumers: this.routeForm.authEnabled ? this.consumers.filter(i=>i.name).map(i=>({
-                        name: i.name,
-                        keySecret: i.secretName || ('ai-consumer-' + this.ingress.metadata.name.replace(/^ai-/, '') + '-' + this.domainToName(i.name)),
-                    })) : [],
+        getManagedPlugin(name){
+            return k8sproxy.get('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+name, { noAlert: true }).then(res=>res.data).catch(()=>null);
+        },
+        async ensureManagedPlugin(name, url, title, defaultConfig, defaultConfigDisable, priority){
+            const old = await this.getManagedPlugin(name);
+            if(old) return old;
+            const pluginName = name.replace(/\.internal$/, '');
+            const data = {
+                apiVersion: 'extensions.higress.io/v1alpha1',
+                kind: 'WasmPlugin',
+                metadata: {
+                    name,
+                    namespace: PLUGIN_NAMESPACE,
+                    labels: {
+                        [AI_LABEL]: 'true',
+                        'higress.io/resource-definer': 'higress',
+                        'higress.io/wasm-plugin-name': pluginName,
+                        'higress.io/wasm-plugin-version': BUILTIN_PLUGIN_VERSION,
+                        'higress.io/wasm-plugin-built-in': 'true',
+                    },
+                    annotations: {
+                        'higress.io/wasm-plugin-title': title,
+                        'higress.io/wasm-plugin-description': title,
+                    },
+                },
+                spec: {
+                    url,
+                    failStrategy: 'FAIL_OPEN',
+                    phase: 'AUTHN',
+                    priority,
+                    defaultConfigDisable,
+                    defaultConfig,
+                    matchRules: [],
                 },
             };
-            plugin.spec.matchRules = rules;
-            await this.savePlugin(plugin);
-            await this.syncIngressDestination(providerList || this.providers);
+            return k8sproxy.post('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins', data).then(res=>res.data);
         },
-        async syncProviderResources(form){
-            const nextProvider = this.providerFormToProvider(form);
-            const nextProviders = this.providers.filter(item=>item.name != nextProvider.name && item.name != form.originalName).concat([nextProvider]);
+        normalizeManagedPlugin(plugin, name, url, priority){
+            const result = plugin || {};
+            const pluginName = name.replace(/\.internal$/, '');
+            result.metadata = result.metadata || {};
+            result.metadata.labels = result.metadata.labels || {};
+            result.metadata.labels['higress.io/resource-definer'] = 'higress';
+            result.metadata.labels['higress.io/wasm-plugin-name'] = pluginName;
+            result.metadata.labels['higress.io/wasm-plugin-version'] = BUILTIN_PLUGIN_VERSION;
+            result.metadata.labels['higress.io/wasm-plugin-built-in'] = 'true';
+            result.spec = result.spec || {};
+            result.spec.url = url;
+            result.spec.failStrategy = 'FAIL_OPEN';
+            result.spec.phase = 'AUTHN';
+            result.spec.priority = priority;
+            return result;
+        },
+        async syncKeyAuthPlugin(){
+            const currentConsumers = this.consumers.filter(i=>i.name).map(item=>({
+                name: consumerResourceId(this.ingress.metadata.name, item.name),
+                credential: item.oldKey || item.key,
+            }));
+            let plugin = await this.getManagedPlugin(KEY_AUTH_PLUGIN_NAME);
+            if(!plugin && !this.routeForm.authEnabled) return;
+            if(!plugin){
+                plugin = await this.ensureManagedPlugin(
+                    KEY_AUTH_PLUGIN_NAME,
+                    KEY_AUTH_PLUGIN_URL,
+                    'AI代理 Key Auth',
+                    { global_auth: false, consumers: currentConsumers, keys: ['x-api-key', 'apikey'], in_header: true, in_query: true },
+                    false,
+                    310,
+                );
+            }
+            plugin = this.normalizeManagedPlugin(plugin, KEY_AUTH_PLUGIN_NAME, KEY_AUTH_PLUGIN_URL, 310);
+            plugin.spec = plugin.spec || {};
+            plugin.spec.defaultConfigDisable = false;
+            plugin.spec.defaultConfig = plugin.spec.defaultConfig || {};
+            plugin.spec.defaultConfig.global_auth = false;
+            plugin.spec.defaultConfig.keys = ['x-api-key', 'apikey'];
+            plugin.spec.defaultConfig.in_header = true;
+            plugin.spec.defaultConfig.in_query = true;
+            const prefix = domainResourcePrefix(this.ingress.metadata.name);
+            const otherConsumers = (plugin.spec.defaultConfig.consumers || []).filter(item=>!String(item?.name || '').startsWith(prefix));
+            const otherCredentials = new Set(otherConsumers.flatMap(item=>item?.credentials || [item?.credential]).filter(Boolean));
+            const duplicate = currentConsumers.find(item=>otherCredentials.has(item.credential));
+            if(duplicate) throw new Error('消费者 Key 已被其他域名使用，请更换 Key');
+            if(new Set(currentConsumers.map(item=>item.credential)).size != currentConsumers.length){
+                throw new Error('同一域名下的消费者 Key 不能重复');
+            }
+            plugin.spec.defaultConfig.consumers = otherConsumers.concat(currentConsumers);
+            plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>!((rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress.metadata.name)));
+            if(this.routeForm.authEnabled){
+                plugin.spec.matchRules.push({
+                    domain: [this.host],
+                    config: { allow: currentConsumers.map(item=>item.name) },
+                    configDisable: false,
+                });
+            }
+            await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+KEY_AUTH_PLUGIN_NAME, plugin);
+        },
+        async syncModelValidationPlugin(){
+            const models = compact(this.routeForm.models);
+            let plugin = await this.getManagedPlugin(MODEL_VALIDATION_PLUGIN_NAME);
+            if(!plugin && !models.length) return;
+            if(!plugin){
+                plugin = await this.ensureManagedPlugin(
+                    MODEL_VALIDATION_PLUGIN_NAME,
+                    MODEL_VALIDATION_PLUGIN_URL,
+                    'AI代理模型白名单',
+                    { body_schema: { type: 'object' } },
+                    true,
+                    220,
+                );
+            }
+            plugin = this.normalizeManagedPlugin(plugin, MODEL_VALIDATION_PLUGIN_NAME, MODEL_VALIDATION_PLUGIN_URL, 220);
+            plugin.spec = plugin.spec || {};
+            plugin.spec.defaultConfigDisable = true;
+            if(!plugin.spec.defaultConfig || !Object.keys(plugin.spec.defaultConfig).length){
+                plugin.spec.defaultConfig = { body_schema: { type: 'object' } };
+            }
+            plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>!((rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress.metadata.name)));
+            if(models.length){
+                plugin.spec.matchRules.push({
+                    domain: [this.host],
+                    config: {
+                        body_schema: {
+                            type: 'object',
+                            required: ['model'],
+                            properties: { model: { type: 'string', enum: models } },
+                        },
+                        rejected_code: 403,
+                        rejected_msg: '请求使用的模型不在该域名允许列表中',
+                    },
+                    configDisable: false,
+                });
+            }
+            await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+MODEL_VALIDATION_PLUGIN_NAME, plugin);
+        },
+        async syncRuleProviders(providerList){
+            const providers = (providerList || this.providers).map(item=>({
+                ...item,
+                id: providerResourceId(this.ingress.metadata.name, item.name),
+            }));
+            const weightError = validateProviderWeights(providers);
+            if(weightError) throw new Error(weightError);
             const plugin = await this.ensurePlugin();
-            this.upsertGlobalProvider(plugin, nextProvider);
-            this.upsertProviderServiceRule(plugin, nextProvider);
-            await this.upsertMcpBridgeRegistry(nextProvider);
+            const oldRules = plugin.spec.matchRules || [];
+            const legacyRule = oldRules.find(rule=>(rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress?.metadata?.name));
+            const legacyIds = (legacyRule?.config?.providers || []).map(item=>item?.provider || item?.name).filter(Boolean);
+            const otherReferencedIds = new Set(oldRules.filter(rule=>rule !== legacyRule).flatMap(rule=>(rule?.config?.providers || []).map(item=>item?.provider || item?.name)).filter(Boolean));
+            const currentIds = new Set(providers.map(item=>item.id));
+            const staleLegacyIds = legacyIds.filter(id=>!currentIds.has(id) && !otherReferencedIds.has(id));
+            plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>!((rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress?.metadata?.name)));
+            if(staleLegacyIds.length){
+                const defaultConfig = this.ensureDefaultConfig(plugin);
+                defaultConfig.providers = (defaultConfig.providers || []).filter(item=>!staleLegacyIds.includes(item?.id));
+                plugin.spec.matchRules = plugin.spec.matchRules.filter(rule=>!staleLegacyIds.some(id=>(rule?.service || []).includes(this.providerServiceName(id)+'.dns') || (rule?.service || []).includes(this.providerServiceName(id)+'.static')));
+                for(const id of staleLegacyIds){
+                    await this.removeMcpBridgeRegistry(this.providerServiceName(id));
+                }
+            }
+            providers.forEach(provider=>{
+                this.upsertGlobalProvider(plugin, provider);
+                this.upsertProviderServiceRule(plugin, provider);
+            });
+            const orphanProviderIds = this.pruneOrphanManagedProviderRules(plugin);
+            for(const id of orphanProviderIds){
+                await this.removeMcpBridgeRegistry(this.providerServiceName(id));
+            }
+            for(const provider of providers){
+                await this.upsertMcpBridgeRegistry(provider);
+            }
             await this.savePlugin(plugin);
+            this.providers = providers;
+            await this.syncIngressRouteState(providers);
+        },
+        async syncProviderResources(form, providerList){
+            const nextProvider = this.providerFormToProvider(form);
+            const nextProviders = providerList || this.providers.filter(item=>item.id != nextProvider.id && item.id != form.originalId).concat([nextProvider]);
             await this.syncRuleProviders(nextProviders);
         },
         async removeProviderResources(providerName, nextProviders){
             const plugin = await this.ensurePlugin();
             const defaultConfig = this.ensureDefaultConfig(plugin);
-            defaultConfig.providers = (defaultConfig.providers || []).filter(item=>item?.id != providerName);
-            const serviceName = this.providerServiceName(providerName);
+            const providerId = this.providers.find(item=>item.name == providerName)?.id || providerResourceId(this.ingress.metadata.name, providerName);
+            defaultConfig.providers = (defaultConfig.providers || []).filter(item=>item?.id != providerId);
+            const serviceName = this.providerServiceName(providerId);
             plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>{
                 return !((rule?.service || []).includes(serviceName + '.dns') || (rule?.service || []).includes(serviceName + '.static'));
             });
@@ -626,10 +849,21 @@ export default {
             plugin.spec.matchRules = plugin.spec.matchRules || [];
             return plugin.spec.defaultConfig;
         },
+        pruneOrphanManagedProviderRules(plugin){
+            const providerIds = new Set((plugin?.spec?.defaultConfig?.providers || []).map(item=>item?.id).filter(Boolean));
+            const orphanIds = new Set();
+            plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>{
+                const activeProviderId = String(rule?.config?.activeProviderId || '');
+                if(!activeProviderId.startsWith('ai-scope-') || providerIds.has(activeProviderId)) return true;
+                orphanIds.add(activeProviderId);
+                return false;
+            });
+            return [...orphanIds];
+        },
         upsertGlobalProvider(plugin, provider){
             const defaultConfig = this.ensureDefaultConfig(plugin);
             const providers = defaultConfig.providers;
-            const index = providers.findIndex(item=>item?.id == provider.name);
+            const index = providers.findIndex(item=>item?.id == provider.id);
             const config = this.providerToPluginConfig(provider);
             if(index > -1) providers.splice(index, 1, config);
             else providers.push(config);
@@ -637,14 +871,14 @@ export default {
         upsertProviderServiceRule(plugin, provider){
             plugin.spec.matchRules = plugin.spec.matchRules || [];
             const serviceName = this.providerUpstreamService(provider);
-            const serviceBaseName = this.providerServiceName(provider.name);
+            const serviceBaseName = this.providerServiceName(provider.id);
             plugin.spec.matchRules = plugin.spec.matchRules.filter(rule=>{
                 const services = rule?.service || [];
                 return !services.includes(serviceBaseName + '.dns') && !services.includes(serviceBaseName + '.static');
             });
             const rule = {
                 service: [serviceName],
-                config: { activeProviderId: provider.name },
+                config: { activeProviderId: provider.id },
                 configDisable: false,
             };
             plugin.spec.matchRules.push(rule);
@@ -652,25 +886,26 @@ export default {
         providerFormToProvider(form){
             const rawConfigs = this.normalizeProviderRawConfigs(form.type, form.rawConfigs);
             return {
+                id: providerResourceId(this.ingress.metadata.name, form.name),
                 name: form.name,
                 type: form.type || 'openai',
                 protocol: form.protocol || 'openai/v1',
                 tokens: compact(form.tokens).length ? compact(form.tokens) : compact(form.oldTokens),
                 endpointUrl: this.formEndpointUrl(form, rawConfigs),
                 rawConfigs,
-                models: form.models || [],
                 weight: Number(form.weight) || 0,
                 enabled: form.enabled !== false,
             };
         },
         providerToPluginConfig(provider){
             const config = clone(provider.rawConfigs);
-            config.id = provider.name;
+            config.id = provider.id;
             config.type = provider.type;
             config.protocol = this.pluginProtocol(provider.protocol);
             const tokens = compact(provider.tokens);
             if(tokens.length) config.apiTokens = tokens;
             else delete config.apiTokens;
+            delete config.modelMapping;
             this.applyEndpointConfig(config, provider);
             return config;
         },
@@ -694,8 +929,8 @@ export default {
                 else delete config.openaiCustomUrl;
                 delete config.openaiExtraCustomUrls;
             }else if(provider.type == 'qwen'){
-                const host = this.urlHost(config.qwenDomain) || this.urlHost(endpoint || DEFAULT_ENDPOINTS.qwen);
-                if(host && host != 'dashscope.aliyuncs.com') config.qwenDomain = host;
+                const host = this.urlHost(config.qwenDomain);
+                if(host) config.qwenDomain = host;
                 else delete config.qwenDomain;
                 config.qwenEnableCompatible = config.qwenEnableCompatible !== false;
                 config.qwenEnableSearch = !!config.qwenEnableSearch;
@@ -779,18 +1014,11 @@ export default {
             }
             return config;
         },
-        modelsToModelMapping(models){
-            const mapping = {};
-            (models || []).forEach(model=>{
-                if(model) mapping[model] = model;
-            });
-            return mapping;
-        },
         providerServiceName(providerName){
-            return 'llm-' + providerName + '.internal';
+            return providerServiceName(providerName);
         },
         providerUpstreamService(provider){
-            return this.providerServiceName(provider.name) + '.' + this.providerRegistryType(provider);
+            return this.providerServiceName(provider.id) + '.' + this.providerRegistryType(provider);
         },
         providerRegistryType(provider){
             const endpoint = this.providerEndpoint(provider);
@@ -839,7 +1067,7 @@ export default {
             const defaultEndpoint = DEFAULT_PROVIDER_ENDPOINTS[provider.type];
             if(defaultEndpoint && !provider.endpointUrl){
                 return {
-                    name: this.providerServiceName(provider.name),
+                    name: this.providerServiceName(provider.id),
                     type: 'dns',
                     protocol: defaultEndpoint.protocol,
                     domain: defaultEndpoint.domain,
@@ -852,7 +1080,7 @@ export default {
             const port = Number(endpoint?.port || (protocol == 'http' ? 80 : 443));
             const type = this.providerRegistryType(provider);
             return {
-                name: this.providerServiceName(provider.name),
+                name: this.providerServiceName(provider.id),
                 type,
                 protocol,
                 domain: type == 'static' ? (host + ':' + port) : host,
@@ -872,11 +1100,19 @@ export default {
             }
             return registries;
         },
-        async syncIngressDestination(providerList){
+        async syncIngressRouteState(providerList){
             if(!this.ingress) return;
             const ingress = clone(this.ingress);
             ingress.metadata = ingress.metadata || {};
             ingress.metadata.annotations = ingress.metadata.annotations || {};
+            ingress.metadata.annotations[AI_MODELS_ANNOTATION] = JSON.stringify(compact(this.routeForm.models));
+            ingress.metadata.annotations[AI_AUTH_ANNOTATION] = String(!!this.routeForm.authEnabled);
+            ingress.metadata.annotations[AI_PROVIDERS_ANNOTATION] = JSON.stringify((providerList || []).map(item=>({
+                id: item.id,
+                name: item.name,
+                weight: Number(item.weight) || 0,
+                enabled: item.enabled !== false,
+            })));
             const destination = this.providerDestination(providerList);
             if(destination) ingress.metadata.annotations['higress.io/destination'] = destination;
             else delete ingress.metadata.annotations['higress.io/destination'];
@@ -905,6 +1141,7 @@ export default {
         changeProviderType(value){
             this.providerForm.endpointUrl = this.providerEndpointPlaceholder(value);
             this.providerForm.tokens = [];
+            this.providerForm.tokenInput = '';
             this.providerForm.rawConfigs = this.defaultRawConfigs(value);
         },
         defaultRawConfigs(type){
@@ -919,6 +1156,15 @@ export default {
         },
         validateProviderConfig(form){
             const rawConfigs = form.rawConfigs || {};
+            if(form.type == 'qwen' && String(rawConfigs.qwenDomain || '').trim()){
+                const rawDomain = String(rawConfigs.qwenDomain).trim();
+                try {
+                    const url = new URL(rawDomain.includes('://') ? rawDomain : 'https://' + rawDomain);
+                    if(!url.hostname) return 'Qwen 自定义域名格式不正确';
+                } catch {
+                    return 'Qwen 自定义域名格式不正确';
+                }
+            }
             if(form.type == 'azure'){
                 const endpoint = String(form.endpointUrl || '').trim();
                 if(!endpoint) return 'Azure 服务 URL 不能为空';

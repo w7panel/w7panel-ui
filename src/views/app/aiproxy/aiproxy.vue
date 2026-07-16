@@ -53,20 +53,6 @@
                         <a-checkbox v-model="form.autoSsl" class="ml-16 df-s0">https证书</a-checkbox>
                     </div>
                 </a-form-item>
-                <a-form-item label="模型名称">
-                    <a-input-tag v-model="form.models" placeholder="输入后回车，支持多个模型" allow-clear />
-                </a-form-item>
-                <a-form-item label="认证">
-                    <a-switch v-model="form.authEnabled" />
-                </a-form-item>
-                <template v-if="form.authEnabled">
-                    <a-form-item label="消费者">
-                        <a-input v-model="form.consumerName" placeholder="请输入消费者名称" />
-                    </a-form-item>
-                    <a-form-item label="Key">
-                        <a-input v-model="form.consumerKey" placeholder="留空自动生成" />
-                    </a-form-item>
-                </template>
             </a-form>
         </a-drawer>
 
@@ -79,22 +65,27 @@ import { k8sproxy } from '@/utils/api';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import { getPermission, getUserInfo } from '@/utils/auth';
+import {
+    AI_LABEL,
+    AI_DOMAIN_LABEL,
+    AI_CONSUMER_LABEL,
+    AI_AUTH_ANNOTATION,
+    AI_MODELS_ANNOTATION,
+    AI_PROVIDERS_ANNOTATION,
+    domainResourcePrefix,
+    providerServiceName,
+    readRouteProviders,
+    readStringArray,
+    scopedName,
+} from '@/utils/ai-proxy';
 
-const AI_LABEL = 'w7.cc/gateway-ai-proxy';
-const AI_DOMAIN_LABEL = 'w7.cc/gateway-ai-domain';
-const AI_CONSUMER_LABEL = 'w7.cc/gateway-ai-consumer';
-const PLUGIN_NAME = 'w7-ai-proxy';
+const PLUGIN_NAME = 'ai-proxy.internal';
 const PLUGIN_NAMESPACE = 'higress-system';
-const PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/ai-proxy:latest';
-
-function encode(value) {
-    return btoa(unescape(encodeURIComponent(value || '')));
-}
-
-function decode(value) {
-    if (!value) return '';
-    try { return decodeURIComponent(escape(atob(value))); } catch { return ''; }
-}
+const PLUGIN_VERSION = '2.0.0';
+const PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/ai-proxy:2.0.0';
+const KEY_AUTH_PLUGIN_NAME = 'key-auth.internal';
+const MODEL_VALIDATION_PLUGIN_NAME = 'request-validation.internal';
+const MCPBRIDGE_NAME = 'default';
 
 export default {
     components: { yamlDrawer },
@@ -113,10 +104,6 @@ export default {
                 domain: '',
                 whiteDomain: -1,
                 autoSsl: false,
-                models: [],
-                authEnabled: false,
-                consumerName: 'default',
-                consumerKey: '',
             },
             rules: {
                 domain: [{ required: true, message: '域名不能为空' }],
@@ -151,18 +138,21 @@ export default {
                 const rules = plugin?.spec?.matchRules || [];
                 this.list = this.ingresses.map(ing=>{
                     const host = ing?.spec?.rules?.[0]?.host || '';
+                    const annotations = ing?.metadata?.annotations || {};
                     const ssl = ing?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
                     const rule = this.findRule(rules, ing, host);
-                    const providers = rule?.config?.providers || [];
+                    const providers = readRouteProviders(annotations[AI_PROVIDERS_ANNOTATION]);
+                    const legacyRouteProviders = rule?.config?.providers || [];
                     const legacyProviders = this.secrets.filter(s=>s?.metadata?.labels?.[AI_DOMAIN_LABEL] == ing.metadata.name && s?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true');
-                    const providerCount = providers.length || legacyProviders.length;
-                    const enabledProviderCount = providers.length ? providers.filter(i=>i?.enabled !== false).length : legacyProviders.filter(s=>s?.metadata?.annotations?.['w7.cc/enabled'] !== 'false').length;
+                    const effectiveProviders = providers.length ? providers : legacyRouteProviders;
+                    const providerCount = effectiveProviders.length || legacyProviders.length;
+                    const enabledProviderCount = effectiveProviders.length ? effectiveProviders.filter(i=>i?.enabled !== false).length : legacyProviders.filter(s=>s?.metadata?.annotations?.['w7.cc/enabled'] !== 'false').length;
                     return {
                         name: ing.metadata.name,
                         host,
                         url: (ssl?'https://':'http://') + host,
-                        models: rule?.config?.models || [],
-                        authEnabled: !!rule?.config?.auth?.enabled,
+                        models: readStringArray(annotations[AI_MODELS_ANNOTATION] || rule?.config?.models),
+                        authEnabled: annotations[AI_AUTH_ANNOTATION] === 'true' || !!rule?.config?.auth?.enabled,
                         providers: providerCount,
                         enabledProviders: enabledProviderCount,
                         ingress: ing,
@@ -186,10 +176,6 @@ export default {
                 domain: '',
                 whiteDomain: this.whiteList.length ? 0 : -1,
                 autoSsl: false,
-                models: [],
-                authEnabled: false,
-                consumerName: 'default',
-                consumerKey: '',
             };
         },
         fullDomain(){
@@ -203,22 +189,16 @@ export default {
             this.$refs.form.validate(async err=>{
                 if(err) return;
                 useLoadingStore().loading = true;
+                let ingress = null;
                 try {
                     const domain = this.fullDomain();
-                    const ingress = await this.createIngress(domain, this.form.autoSsl);
-                    const plugin = await this.ensurePlugin();
-                    const rules = plugin.spec.matchRules || [];
-                    const consumers = [];
-                    if(this.form.authEnabled){
-                        const key = this.form.consumerKey || this.createToken();
-                        const consumerName = this.form.consumerName || 'default';
-                        await this.saveConsumerSecret(ingress.metadata.name, this.form.consumerName || 'default', key);
-                        consumers.push({ name: consumerName, keySecret: this.consumerSecretName(ingress.metadata.name, consumerName) });
-                        this.$message.info('消费者 Key：' + key);
+                    ingress = await this.createIngress(domain, this.form.autoSsl);
+                    try {
+                        await this.ensurePlugin();
+                    } catch (error) {
+                        await k8sproxy.delete('/apis/networking.k8s.io/v1/namespaces/'+this.namespaceActive+'/ingresses/'+ingress.metadata.name, { noAlert: true }).catch(()=>{});
+                        throw error;
                     }
-                    rules.push(this.buildRule(ingress, domain, this.form.models, this.form.authEnabled, consumers));
-                    plugin.spec.matchRules = rules;
-                    await this.savePlugin(plugin);
                     this.$message.success('操作成功');
                     this.form.show = false;
                     this.getData();
@@ -232,11 +212,14 @@ export default {
                 apiVersion: 'networking.k8s.io/v1',
                 kind: 'Ingress',
                 metadata: {
-                    name: 'ai-' + this.domainToName(domain),
+                    name: scopedName('ai', domain),
                     namespace: this.namespaceActive,
                     annotations: {
                         'kubernetes.io/ingress.class': 'higress',
                         'higress.io/resource-definer': 'higress',
+                        [AI_MODELS_ANNOTATION]: '[]',
+                        [AI_AUTH_ANNOTATION]: 'false',
+                        [AI_PROVIDERS_ANNOTATION]: '[]',
                     },
                     labels: {
                         'higress.io/resource-definer': 'higress',
@@ -266,12 +249,32 @@ export default {
                 data.metadata.annotations['cert-manager.io/cluster-issuer'] = 'w7-letsencrypt-prod';
                 data.metadata.annotations['cert-manager.io/renew-before'] = '30m';
                 data.metadata.annotations['higress.io/ssl-redirect'] = 'false';
-                data.spec.tls = [{ hosts: [domain], secretName: this.domainToName(domain) + '-tls-secret' }];
+                data.spec.tls = [{ hosts: [domain], secretName: scopedName(domain, 'tls-secret') }];
             }
             return k8sproxy.post('/apis/networking.k8s.io/v1/namespaces/'+this.namespaceActive+'/ingresses', data).then(res=>res.data);
         },
         ensurePlugin(){
-            if(this.plugin) return Promise.resolve(JSON.parse(JSON.stringify(this.plugin)));
+            if(this.plugin){
+                const plugin = JSON.parse(JSON.stringify(this.plugin));
+                plugin.metadata = plugin.metadata || {};
+                plugin.metadata.labels = plugin.metadata.labels || {};
+                plugin.spec = plugin.spec || {};
+                const labels = plugin.metadata.labels;
+                const needsUpdate = plugin.spec.url != PLUGIN_URL
+                    || labels['higress.io/resource-definer'] != 'higress'
+                    || labels['higress.io/wasm-plugin-name'] != 'ai-proxy'
+                    || labels['higress.io/wasm-plugin-version'] != PLUGIN_VERSION
+                    || labels['higress.io/wasm-plugin-built-in'] != 'true';
+                plugin.spec.url = PLUGIN_URL;
+                labels['higress.io/resource-definer'] = 'higress';
+                labels['higress.io/wasm-plugin-name'] = 'ai-proxy';
+                labels['higress.io/wasm-plugin-version'] = PLUGIN_VERSION;
+                labels['higress.io/wasm-plugin-built-in'] = 'true';
+                if(needsUpdate){
+                    return this.savePlugin(plugin).then(res=>res.data || plugin);
+                }
+                return Promise.resolve(plugin);
+            }
             const data = {
                 apiVersion: 'extensions.higress.io/v1alpha1',
                 kind: 'WasmPlugin',
@@ -280,7 +283,10 @@ export default {
                     namespace: PLUGIN_NAMESPACE,
                     labels: {
                         [AI_LABEL]: 'true',
+                        'higress.io/resource-definer': 'higress',
                         'higress.io/wasm-plugin-name': 'ai-proxy',
+                        'higress.io/wasm-plugin-version': PLUGIN_VERSION,
+                        'higress.io/wasm-plugin-built-in': 'true',
                     },
                     annotations: {
                         'higress.io/wasm-plugin-title': 'AI代理',
@@ -302,57 +308,26 @@ export default {
         savePlugin(plugin){
             return k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+PLUGIN_NAME, plugin);
         },
-        buildRule(ingress, domain, models, authEnabled, consumers){
-            return {
-                ingress: [ingress.metadata.name],
-                domain: [domain],
-                config: {
-                    managedBy: 'w7panel',
-                    domain,
-                    models: models || [],
-                    providers: [],
-                    auth: {
-                        enabled: !!authEnabled,
-                        type: 'key-auth',
-                        consumers: consumers || [],
-                    },
-                },
-            };
-        },
-        saveConsumerSecret(domainName, consumerName, key){
-            const name = this.consumerSecretName(domainName, consumerName);
-            const data = {
-                apiVersion: 'v1',
-                kind: 'Secret',
-                metadata: {
-                    name,
-                    namespace: this.namespaceActive,
-                    labels: {
-                        [AI_LABEL]: 'true',
-                        [AI_DOMAIN_LABEL]: domainName,
-                        [AI_CONSUMER_LABEL]: 'true',
-                    },
-                    annotations: {
-                        'w7.cc/consumer-name': consumerName,
-                    },
-                },
-                type: 'Opaque',
-                data: { key: encode(key) },
-            };
-            return k8sproxy.post('/api/v1/namespaces/'+this.namespaceActive+'/secrets', data);
-        },
-        consumerSecretName(domainName, consumerName){
-            return 'ai-consumer-' + domainName.replace(/^ai-/, '') + '-' + this.domainToName(consumerName);
-        },
         async toDelete(row){
             useLoadingStore().loading = true;
             try {
                 const plugin = await this.getPlugin();
                 if(plugin){
-                    const host = row.host;
-                    plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>!((rule?.domain || []).includes(host) || (rule?.ingress || []).includes(row.name)));
+                    const annotationProviders = readRouteProviders(row.ingress?.metadata?.annotations?.[AI_PROVIDERS_ANNOTATION]);
+                    const legacyRule = this.findRule(plugin.spec.matchRules || [], row.ingress, row.host);
+                    const providerIds = annotationProviders.map(i=>i.id).concat((legacyRule?.config?.providers || []).map(i=>i.provider || i.name)).filter(Boolean);
+                    plugin.spec.defaultConfig = plugin.spec.defaultConfig || {};
+                    plugin.spec.defaultConfig.providers = (plugin.spec.defaultConfig.providers || []).filter(item=>!providerIds.includes(item?.id));
+                    plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>{
+                        const matchedDomain = (rule?.domain || []).includes(row.host) || (rule?.ingress || []).includes(row.name);
+                        const matchedService = providerIds.some(id=>(rule?.service || []).includes(providerServiceName(id)+'.dns') || (rule?.service || []).includes(providerServiceName(id)+'.static'));
+                        return !matchedDomain && !matchedService;
+                    });
                     await this.savePlugin(plugin);
+                    await this.removeMcpRegistries(providerIds);
                 }
+                await this.removeDomainPluginConfig(KEY_AUTH_PLUGIN_NAME, row, true);
+                await this.removeDomainPluginConfig(MODEL_VALIDATION_PLUGIN_NAME, row, false);
                 const secrets = this.secrets.filter(s=>s?.metadata?.labels?.[AI_DOMAIN_LABEL] == row.name);
                 for(const secret of secrets){
                     await k8sproxy.delete('/api/v1/namespaces/'+this.namespaceActive+'/secrets/'+secret.metadata.name, { noAlert: true });
@@ -363,6 +338,33 @@ export default {
             } finally {
                 useLoadingStore().loading = false;
             }
+        },
+        async removeMcpRegistries(providerIds){
+            if(!providerIds.length) return;
+            const url = '/apis/networking.higress.io/v1/namespaces/'+PLUGIN_NAMESPACE+'/mcpbridges/'+MCPBRIDGE_NAME;
+            const mcp = await k8sproxy.get(url, { noAlert: true }).then(res=>res.data).catch(()=>null);
+            if(!mcp?.spec?.registries) return;
+            const names = providerIds.map(providerServiceName);
+            mcp.spec.registries = mcp.spec.registries.filter(item=>!names.includes(item?.name));
+            await k8sproxy.put(url, mcp);
+        },
+        async removeDomainPluginConfig(pluginName, row, removeConsumers){
+            const url = '/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+pluginName;
+            const plugin = await k8sproxy.get(url, { noAlert: true }).then(res=>res.data).catch(()=>null);
+            if(!plugin) return;
+            plugin.spec = plugin.spec || {};
+            const matchedRules = (plugin.spec.matchRules || []).filter(rule=>(rule?.domain || []).includes(row.host) || (rule?.ingress || []).includes(row.name));
+            const matchedConsumers = new Set(matchedRules.flatMap(rule=>rule?.config?.allow || []));
+            plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>!((rule?.domain || []).includes(row.host) || (rule?.ingress || []).includes(row.name)));
+            if(removeConsumers){
+                const prefix = domainResourcePrefix(row.name);
+                plugin.spec.defaultConfig = plugin.spec.defaultConfig || {};
+                plugin.spec.defaultConfig.consumers = (plugin.spec.defaultConfig.consumers || []).filter(item=>{
+                    const name = String(item?.name || '');
+                    return !name.startsWith(prefix) && !matchedConsumers.has(name);
+                });
+            }
+            await k8sproxy.put(url, plugin);
         },
         toDomain(row){
             this.$router.push('/gateway/aiproxy-domain?name='+row.name);
@@ -378,12 +380,6 @@ export default {
                     this.getData();
                 }),
             };
-        },
-        domainToName(str){
-            return String(str || '').replace(/\*/g,'x').replace(/(\.|\/|_|:)/g,'-').toLowerCase();
-        },
-        createToken(){
-            return Array.from(crypto.getRandomValues(new Uint8Array(24))).map(i=>('0'+i.toString(16)).slice(-2)).join('');
         },
     },
 }
