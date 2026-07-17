@@ -40,7 +40,7 @@
                     
                     <a-table-column title="操作" :width="200" fixed="right">
                         <template #cell="{ record,rowIndex }">
-                            <a-tooltip v-if="debug&&!isFounderUser(record)" content="yaml">
+                            <a-tooltip v-if="debug" content="yaml">
                                 <i class="opt-icon" @click="openYaml(record.name)"><icon-code /></i>
                             </a-tooltip>
                             <a-tooltip v-if="!isFounderUser(record)" content="修改">
@@ -84,7 +84,7 @@
             </a-form>
         </a-drawer>
         <!-- yaml -->
-        <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
+        <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" :disabled="yamlData.disabled" :nofooter="yamlData.nofooter" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
         
         <a-modal title="到期时间" :visible="expiretimeModal.show" width="600px" @ok="submitExpiretime" @cancel="expiretimeModal.show=false;">
             <a-form ref="expiretimeModal" :rules="expiretimeModalRules" :model="expiretimeModal" auto-label-width>
@@ -196,6 +196,8 @@ export default {
                 show: false,
                 data: {},
                 title: "",
+                disabled: false,
+                nofooter: false,
                 submit: ()=>{},
             },
             rules: {
@@ -411,15 +413,15 @@ export default {
         openYaml(name){
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/users/'+name, {loading:true}).then(res=>{
                 if(!res?.data){return}
-                if(this.isFounderUser(res?.data)){
-                    this.$message.warning('创始人权限不允许编辑');
-                    return;
-                }
+                let isFounder = this.isFounderUser(res?.data);
+                let title = res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name;
                 this.yamlData = {
                     show: true,
                     data: res?.data,
-                    title: res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
-                    submit: (data)=>{
+                    title: title + (isFounder?'（只读）':''),
+                    disabled: isFounder,
+                    nofooter: isFounder,
+                    submit: isFounder?()=>{}:(data)=>{
                         return k8sproxy.put('/apis/w7panel.w7.com/v1alpha1/users/' + data?.metadata?.name, data).then(res=>{
                             this.$message.success("修改成功");
                             this.yamlData = {...this.yamlData, show:false,};
