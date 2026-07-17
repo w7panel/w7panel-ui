@@ -286,9 +286,6 @@ export default {
                     gpuNames[i.id] = i.type + '('+ i.nodeName +')';
                 })
             }
-            let userMode = this.userInfo?.['w7.cc/user-mode'];
-            
-            // userMode!='cluster' this.userInfo['w7.cc/is-cvm-req']!=='true'
             if((this.userInfo['w7.cc/is-cvm-req']!=='true'&&(chartType=='cpu'||chartType=='memory'))||chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
                 let data = null;
                 try{
@@ -328,6 +325,42 @@ export default {
                         smooth: true,
                     })
                 }
+            }else if(this.userInfo['w7.cc/is-cvm-req']=='true'&&(chartType=='cpu'||chartType=='memory')){
+                const podName = this.userInfo?.['w7.cc/server-pod-name'];
+                if(!podName){
+                    c.loading = false;
+                    this.renderChart(chartType);
+                    return;
+                }
+
+                let data = null;
+                try{
+                    let res = await this.getChart(podName, chartType);
+                    if(!res?.data?.result?.length){
+                        c.loading = false;
+                        return;
+                    }
+                    data = res?.data;
+                }catch{
+                    c.loading = false;
+                    return;
+                }
+
+                c.x = {
+                    type: 'category',
+                    data: data.result[0].values?.map(item=>window.formatDate(item[0]*1000)),
+                };
+                c.y.push({
+                    name: podName,
+                    type: 'line',
+                    data: data.result[0].values?.map(item=>{
+                        if(chartType=='cpu'){
+                            return (item[1]/1).toFixed(4);
+                        }
+                        return (item[1] / 1024 / 1024).toFixed(2);
+                    }),
+                    smooth: true,
+                })
             }else if(this.list?.length){
                 let nodes = this.list;
                 if(this.userInfo?.["k3k.io/cluster-mode"]=='shared'){
