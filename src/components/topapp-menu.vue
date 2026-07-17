@@ -24,13 +24,13 @@
                 v-model:selected-keys="selectMenu"
                 @menu-item-click="handelMicroMenu"
             >
-                <template v-for="role in roles" :key="role.name">
+                <template v-for="role in topMenuRoles" :key="role.name">
                     <div v-if="role.menus && role.menus.length" class="role-header c-aa">
                         <IconUserGroup />
                         <span v-if="!collapsed" class="role-title">{{ role.title }}端</span>
                     </div>
                     <template v-if="role.menus && role.menus.length">
-                        <template v-for="(menu,index) in role.menus" :key="menu.do">
+                        <template v-for="menu in role.menus" :key="menu.do">
                             <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
                                 <template #icon>
                                     <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
@@ -39,7 +39,7 @@
                                 </template>
                                 <span>{{menu.title}}</span>
                             </a-menu-item>
-                            <a-sub-menu v-else :key="index">
+                            <a-sub-menu v-else :key="menu.do">
                                 <template #icon>
                                     <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                                     <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
@@ -50,6 +50,26 @@
                             </a-sub-menu>
                         </template>
                     </template>
+                </template>
+                <a-divider v-if="topMenuRoles.length && bottomMenus.length" class="menu-location-divider" />
+                <template v-for="menu in bottomMenus" :key="menu.do">
+                    <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
+                        <template #icon>
+                            <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
+                            <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
+                            <IconMenu v-else />
+                        </template>
+                        <span>{{menu.title}}</span>
+                    </a-menu-item>
+                    <a-sub-menu v-else :key="menu.do">
+                        <template #icon>
+                            <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
+                            <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
+                            <IconMenu v-else />
+                        </template>
+                        <template #title>{{menu.title}}</template>
+                        <a-menu-item v-for="submenu in menu.children" :key="submenu.do">{{submenu.title}}</a-menu-item>
+                    </a-sub-menu>
                 </template>
             </a-menu>
         </div>
@@ -74,13 +94,13 @@
             v-model:selected-keys="selectMenu"
             @menu-item-click="handelMicroMenu"
         >
-            <template v-for="role in roles" :key="role.name">
+            <template v-for="role in topMenuRoles" :key="role.name">
                 <div class="role-header c-aa">
                     <IconUserGroup />
                     <span class="role-title">{{ role.title }}端</span>
                 </div>
                 <template v-if="role.menus && role.menus.length">
-                    <template v-for="(menu,index) in role.menus" :key="menu.do">
+                    <template v-for="menu in role.menus" :key="menu.do">
                         <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
                             <template #icon>
                                 <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
@@ -89,7 +109,7 @@
                             </template>
                             <span>{{menu.title}}</span>
                         </a-menu-item>
-                        <a-sub-menu v-else :key="index">
+                        <a-sub-menu v-else :key="menu.do">
                             <template #icon>
                                 <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                                 <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
@@ -101,6 +121,26 @@
                     </template>
                 </template>
             </template>
+            <a-divider v-if="topMenuRoles.length && bottomMenus.length" class="menu-location-divider" />
+            <template v-for="menu in bottomMenus" :key="menu.do">
+                <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
+                    <template #icon>
+                        <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
+                        <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
+                        <IconMenu v-else />
+                    </template>
+                    <span>{{menu.title}}</span>
+                </a-menu-item>
+                <a-sub-menu v-else :key="menu.do">
+                    <template #icon>
+                        <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
+                        <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
+                        <IconMenu v-else />
+                    </template>
+                    <template #title>{{menu.title}}</template>
+                    <a-menu-item v-for="submenu in menu.children" :key="submenu.do">{{submenu.title}}</a-menu-item>
+                </a-sub-menu>
+            </template>
         </a-menu>
     </a-drawer>
 </template>
@@ -110,6 +150,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import useResponsive from '@/hooks/responsive';
 import { useRoute } from 'vue-router'
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 
 const props = defineProps([
     'roles',
@@ -179,6 +220,9 @@ const filterMenu = ()=>{
 
 filterMenu();
 watch(()=>props.roles,filterMenu)
+const menuLocationGroups = computed(() => splitMicroAppMenuRoles(roles.value));
+const topMenuRoles = computed(() => menuLocationGroups.value.topRoles);
+const bottomMenus = computed(() => menuLocationGroups.value.bottomMenus);
 // watch(()=>props.identifieList,()=>{
 //     showMenu.value = props.identifieList?.length>1 || roles.value?.length>1 || roles.value?.[0]?.menus?.length>1;
 // })
@@ -359,6 +403,12 @@ const setCollapse = (val) => {
 
 .role-title {
     margin-left: 10px;
+}
+
+.menu-location-divider {
+    width: auto;
+    min-width: auto;
+    margin: 10px;
 }
 
 .layout-sider {
