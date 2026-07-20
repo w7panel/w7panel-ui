@@ -65,7 +65,34 @@ export function toPermissionPaths(values: string[] = []) {
 }
 
 export function toTreeKeys(values: string[] = []) {
-  return Array.from(new Set(values.map((item) => permissionPathToKey(item))));
+  const treeKeys = new Set<string>();
+  const knownEntries = Object.entries(KEY_TO_ROUTE);
+
+  values.forEach((value) => {
+    const normalized = normalizePermissionPath(value);
+    if (!normalized) return;
+
+    const routePath = normalizePermissionPath(keyToPermissionPath(normalized));
+    if (normalized === '*' || routePath === '*') {
+      knownEntries.forEach(([key]) => treeKeys.add(key));
+      return;
+    }
+
+    const wildcardBase = routePath.endsWith('/*') ? routePath.slice(0, -2) : '';
+    if (wildcardBase) {
+      knownEntries.forEach(([key, route]) => {
+        const currentRoute = normalizePermissionPath(route);
+        if (currentRoute === wildcardBase || currentRoute.startsWith(`${wildcardBase}/`)) {
+          treeKeys.add(key);
+        }
+      });
+      return;
+    }
+
+    treeKeys.add(permissionPathToKey(routePath));
+  });
+
+  return Array.from(treeKeys);
 }
 
 export function expandPermissionValues(values: string[] = []) {

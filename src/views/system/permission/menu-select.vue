@@ -45,10 +45,10 @@ export default {
     methods: {
         init(){
             // this.expandKeys = [];
-            if(this.permission?.length){
+            if(Array.isArray(this.permission)){
                 this.checkedKeys = JSON.parse(JSON.stringify(this.permission));
             }else{
-                this.checkedKeys = this.allowedKeys ? [] : this.getAllKeys(this.sourceTreeData);
+                this.checkedKeys = [];
             }
             this.checkedKeys = this.filterAllowedKeys(this.checkedKeys);
             this.sourceTreeData = JSON.parse(JSON.stringify(this.sourceTreeData));
