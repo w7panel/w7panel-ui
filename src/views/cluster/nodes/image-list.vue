@@ -28,7 +28,7 @@
             <a-table :data="list" :pagination="false" class="mt-20 nodeimagelisttable" :bordered="false">
                 <template #columns>
                          
-                    <a-table-column title="名称" :width="420">
+                    <a-table-column title="名称" :width="600">
                         <template #cell="{ record }">
                             <div>
                                 <div class="df ai-c">
@@ -44,14 +44,14 @@
                             </div>
                         </template>
                     </a-table-column>
-                    <a-table-column title="标签">
+                    <a-table-column title="标签" :width="240">
                         <template #cell="{ record }">
                             <div>
                                 <div v-for="(value,key) in record.Labels" :key="key">{{ key + ':' + value }}</div>
                             </div>
                         </template>
                     </a-table-column>
-                    <a-table-column title="创建时间">
+                    <a-table-column title="创建时间" :width="180">
                         <template #cell="{ record }">{{record.created}}</template>
                     </a-table-column>
                     <a-table-column title="操作">
