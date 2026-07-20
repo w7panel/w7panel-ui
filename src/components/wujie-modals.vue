@@ -393,6 +393,9 @@ export default {
                 client_id: data?.client_id || 'default',
                 redirect_uri: data?.redirect_uri || 'http://127.0.0.1:3000/callback',
                 scope: data?.scope || 'openid',
+                state: data?.state,
+                code_challenge: data?.code_challenge,
+                code_challenge_method: data?.code_challenge_method,
             }).then(res=>{
                 callback?.(res.data.code);
             }).catch(()=>{
