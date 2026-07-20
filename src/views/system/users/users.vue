@@ -473,7 +473,7 @@ export default {
                     
                     return {
                         name: i.metadata.name,
-                        nickname: spec.CloudNickname || i.metadata.name,
+                        nickname: spec.cloudNickname || i.metadata.name,
                         expiretime: spec.expireTime,
                         is_expired: is_expired,
                         'w7.cc/pause': spec.pause,
