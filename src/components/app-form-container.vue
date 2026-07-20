@@ -380,6 +380,41 @@
                             </div>
                         </div>
                     </a-form-item>
+
+                    <a-form-item v-if="layout!='cronjob' && !isPlugin" label="环境变量来源" row-class="ac-form-item">
+                        <div style="flex:1;">
+                            <table class="com-table ftable"><tbody>
+                                <tr class="thead"><td>类型</td><td>资源名称</td><td>变量前缀</td><td>可选引用</td><td>操作</td></tr>
+                                <tr><td colspan="5" style="box-sizing:border-box; cursor:pointer;background:var(--color-neutral-1);" @click="form.envFrom.push({type:'configmap',name:'',prefix:'',optional:false})">
+                                    <div class="df ai-c jc-c">
+                                        <icon-plus :size="14" class="c-99" />
+                                        <span class="c-99 lh-1" style="margin-left:6px;">添加环境变量来源</span>
+                                    </div>
+                                </td></tr>
+                                <tr v-for="(item,index) in form.envFrom" :key="index" style="background:var(--color-neutral-1);">
+                                    <td>
+                                        <a-select v-model="item.type" size="large" style="width:140px;" @change="item.name=''">
+                                            <a-option label="ConfigMap" value="configmap"></a-option>
+                                            <a-option label="Secret" value="secret"></a-option>
+                                        </a-select>
+                                    </td>
+                                    <td>
+                                        <a-select
+                                            v-model="item.name"
+                                            :options="getEnvFromOptions(item)"
+                                            allow-search
+                                            size="large"
+                                            style="width:240px;"
+                                            placeholder="请选择资源"
+                                        ></a-select>
+                                    </td>
+                                    <td><a-input v-model="item.prefix" size="large" style="width:180px;" placeholder="选填，如 APP_" /></td>
+                                    <td><a-switch v-model="item.optional" /></td>
+                                    <td><span class="c-blue cursor" @click="form.envFrom.splice(index,1)">删除</span></td>
+                                </tr>
+                            </tbody></table>
+                        </div>
+                    </a-form-item>
                     
                     <a-form-item  label="暴露端口" prop="ports" row-class="ac-form-item">
                         <div style="flex:1;">
@@ -594,6 +629,8 @@ export default{
                 "status.podIPs",
                 "spec.nodeName",
             ],
+            envFromConfigMaps: [],
+            envFromSecrets: [],
             
             envedit:{ show: false, values: '', },
             createImage: {show: false, name: '', submit: ()=>{ this.$emit('getMirror') } },
@@ -628,6 +665,9 @@ export default{
         this.namespaceActive = useNamespaceStore().namespace;
         this.userInfo = getUserInfo();
         this.init();
+        if(this.layout!='cronjob' && !this.isPlugin){
+            this.getEnvFromResources();
+        }
     },
     watch: {
         data: 'init',
@@ -647,6 +687,34 @@ export default{
         }
     },
     methods: {
+        getEnvFromOptions(item){
+            let options = item?.type=='secret'?this.envFromSecrets:this.envFromConfigMaps;
+            if(item?.name && !options.some(i=>i.value==item.name)){
+                return [{label:item.name,value:item.name}, ...options];
+            }
+            return options;
+        },
+        getEnvFromResources(){
+            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps',{
+                customToken: this.token,
+                noAlert: true,
+            }).then(res=>{
+                this.envFromConfigMaps = (res?.data?.items || []).map(i=>({
+                    label: i?.metadata?.name,
+                    value: i?.metadata?.name,
+                }));
+            }).catch(()=>{});
+
+            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/secrets',{
+                customToken: this.token,
+                noAlert: true,
+            }).then(res=>{
+                this.envFromSecrets = (res?.data?.items || []).map(i=>({
+                    label: i?.metadata?.name,
+                    value: i?.metadata?.name,
+                }));
+            }).catch(()=>{});
+        },
         handleSelectContainer(data,index){
             if(this.isTemplate){return}
             this.selectAppContainer.show = false;
@@ -848,6 +916,7 @@ export default{
                 headless: this.data?.metadata?.annotations?.['w7.cc/create-headless-svc'] == 'true',
                 ports: [],
                 env: [],
+                envFrom: [],
                 image: '',
                 healthProbeInit: null,
                 imagePullPolicy: 'Always',
@@ -996,6 +1065,23 @@ export default{
                 return o;
             })
 
+            let envFrom = (ctn?.envFrom || []).map(v=>{
+                if(v?.secretRef){
+                    return {
+                        type: 'secret',
+                        name: v.secretRef.name || '',
+                        prefix: v.prefix || '',
+                        optional: v.secretRef.optional === true,
+                    };
+                }
+                return {
+                    type: 'configmap',
+                    name: v?.configMapRef?.name || '',
+                    prefix: v?.prefix || '',
+                    optional: v?.configMapRef?.optional === true,
+                };
+            });
+
             let volumeMounts = ctn?.volumeMounts || [];
             volumeMounts = volumeMounts.map(i=>{
                 i.readOnly = i.readOnly || false;
@@ -1033,6 +1119,7 @@ export default{
                 headless: this.data?.metadata?.annotations?.['w7.cc/create-headless-svc'] == 'true',
                 ports: ports,
                 env: env,
+                envFrom: envFrom,
                 image: ctn?.image,
                 defaultHealthProbeInit: healthProbeInit,
                 healthProbeInit: healthProbeInit,
@@ -1116,6 +1203,17 @@ export default{
                     return o;
                 })
 
+                let envFrom = (form.envFrom || []).filter(v=>v.name).map(v=>{
+                    let ref = {
+                        name: v.name,
+                        optional: v.optional === true,
+                    };
+                    return {
+                        ...(v.prefix?{prefix:v.prefix}:{}),
+                        ...(v.type=='secret'?{secretRef:ref}:{configMapRef:ref}),
+                    };
+                });
+
                 let resources = {
                     limits: {
                         memory: (Number(form.memory) || 0) + form.memoryDw,
@@ -1196,6 +1294,7 @@ export default{
                     imagePullPolicy: form.imagePullPolicy,
                     ports: ports,
                     env: env,
+                    envFrom: envFrom,
                     resources: resources,
                     volumeMounts: volumeMounts,
                     ...(form.isInitContainers?{}:{

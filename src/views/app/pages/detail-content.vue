@@ -108,6 +108,23 @@
                             </tbody></table>
                         </div>
                     </a-form-item>
+
+                    <a-form-item label="环境变量来源">
+                        <div class="df df-c">
+                            <table class="com-table" style="width:800px;"><tbody>
+                                <tr class="thead"><td>类型</td><td>资源名称</td><td>变量前缀</td><td>可选引用</td></tr>
+                                <tr v-for="(item,index) in form.envFrom" :key="index" style="background:var(--color-neutral-1);">
+                                    <td>{{item.type}}</td>
+                                    <td>{{item.name}}</td>
+                                    <td>{{item.prefix||'-'}}</td>
+                                    <td>{{item.optional?'是':'否'}}</td>
+                                </tr>
+                                <tr v-if="!form.envFrom || !form.envFrom.length" style="background:var(--color-neutral-1);">
+                                    <td colspan="4" class="txt-c c-99">暂无数据</td>
+                                </tr>
+                            </tbody></table>
+                        </div>
+                    </a-form-item>
                     
                     <a-form-item label="端口">
                         <div class="df df-c">
@@ -1066,6 +1083,23 @@ export default {
                     return o;
                 })
 
+                let envFrom = (ctn?.envFrom || []).map(v=>{
+                    if(v?.secretRef){
+                        return {
+                            type: 'Secret',
+                            name: v.secretRef.name || '',
+                            prefix: v.prefix || '',
+                            optional: v.secretRef.optional === true,
+                        };
+                    }
+                    return {
+                        type: 'ConfigMap',
+                        name: v?.configMapRef?.name || '',
+                        prefix: v?.prefix || '',
+                        optional: v?.configMapRef?.optional === true,
+                    };
+                });
+
                 let volumeMounts = ctn?.volumeMounts || [];
                 volumeMounts = volumeMounts.map(i=>{
                     i.readOnly = i.readOnly || false;
@@ -1092,6 +1126,7 @@ export default {
                     headless: this.data?.metadata?.annotations?.['w7.cc/create-headless-svc'] == 'true',
                     ports: ports,
                     env: env,
+                    envFrom: envFrom,
                     image: ctn?.image,
                     healthProbeInit: healthProbeInit,
                     imagePullPolicy: ctn?.imagePullPolicy,
