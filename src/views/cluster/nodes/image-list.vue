@@ -28,7 +28,7 @@
             <a-table :data="list" :pagination="false" class="mt-20 nodeimagelisttable" :bordered="false">
                 <template #columns>
                          
-                    <a-table-column title="名称" :width="600">
+                    <a-table-column title="名称">
                         <template #cell="{ record }">
                             <div>
                                 <div class="df ai-c">
@@ -44,7 +44,7 @@
                             </div>
                         </template>
                     </a-table-column>
-                    <a-table-column title="标签" :width="240">
+                    <a-table-column title="标签" :width="320">
                         <template #cell="{ record }">
                             <div>
                                 <div v-for="(value,key) in record.Labels" :key="key">{{ key + ':' + value }}</div>
@@ -54,7 +54,7 @@
                     <a-table-column title="创建时间" :width="180">
                         <template #cell="{ record }">{{record.created}}</template>
                     </a-table-column>
-                    <a-table-column title="操作">
+                    <a-table-column title="操作" :width="100">
                         <template #cell="{ record }">
                             <a-popconfirm content="确定要删除吗" @ok="deleteImage(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                 <span class="df-s0 ml-10 c-blue cursor" @click.stop>删除</span>
