@@ -36,6 +36,7 @@ export default {
         },
         allowedKeys(){
             this.checkedKeys = this.filterAllowedKeys(this.checkedKeys);
+            this.halfCheckedKeys = this.filterAllowedKeys(this.halfCheckedKeys);
             this.initTreeData();
         },
         checkedKeys(v){
@@ -70,10 +71,7 @@ export default {
                         node.children = traverseAndDisable(node.children, currentKeyPath, disabled);
                     }
                     const nodeAllowed = !allowed || allowed.has(node.key) || allowed.has(node.route);
-                    if (allowed && !nodeAllowed && (!node.children || node.children.length === 0)) {
-                        return;
-                    }
-                    if (keys.includes(node.key) || disabled) {
+                    if ((allowed && !nodeAllowed) || keys.includes(node.key) || disabled) {
                         node.disabled = true;
                     }
                     result.push(node);
