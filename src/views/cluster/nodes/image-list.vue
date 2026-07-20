@@ -30,14 +30,17 @@
                          
                     <a-table-column title="名称" :width="420">
                         <template #cell="{ record }">
-                            <div class="df ai-c">
-                                <span>{{record.Name}}</span>
-                                <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
-                                    <icon-lock class="fs-16 ml-6 df-s0 cursor" @click="setDefault(record)" :class="{'default-text':!record.isDefault,'c-orange':record.isDefault,'c-99':!record.isDefault}" />
-                                </a-tooltip>
-                                <a-tooltip content="修改名称">
-                                    <icon-edit class="c-blue fs-16 ml-6 cursor df-s0 default-text" @click="openChangeName(record)"></icon-edit>
-                                </a-tooltip>
+                            <div>
+                                <div class="df ai-c">
+                                    <span>{{record.Name}}</span>
+                                    <a-tooltip :content="'设置为PINNED后，镜像文件不会受到GC影响被自动删除'">
+                                        <icon-lock class="fs-16 ml-6 df-s0 cursor" @click="setDefault(record)" :class="{'default-text':!record.isDefault,'c-orange':record.isDefault,'c-99':!record.isDefault}" />
+                                    </a-tooltip>
+                                    <a-tooltip content="修改名称">
+                                        <icon-edit class="c-blue fs-16 ml-6 cursor df-s0 default-text" @click="openChangeName(record)"></icon-edit>
+                                    </a-tooltip>
+                                </div>
+                                <div class="fs-12 c-99 mt-4">{{record.Target.digest}}</div>
                             </div>
                         </template>
                     </a-table-column>
@@ -47,9 +50,6 @@
                                 <div v-for="(value,key) in record.Labels" :key="key">{{ key + ':' + value }}</div>
                             </div>
                         </template>
-                    </a-table-column>
-                    <a-table-column title="镜像id" :width="360">
-                        <template #cell="{ record }">{{record.Target.digest}}</template>
                     </a-table-column>
                     <a-table-column title="创建时间">
                         <template #cell="{ record }">{{record.created}}</template>
