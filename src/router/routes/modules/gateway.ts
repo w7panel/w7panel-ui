@@ -63,6 +63,31 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 },
             },
             {
+                path: 'dns',
+                alias: '/cluster/dns',
+                name: 'gateway-dns',
+                component: () => import('@/views/dns/index.vue'),
+                meta: {
+                    locale: '私有DNS',
+                    requiresAuth: true,
+                    roles: ['*'],
+                    key: 'dns',
+                },
+            },
+            {
+                path: 'dns/:domain',
+                alias: '/cluster/dns/:domain',
+                name: 'dns-records',
+                component: () => import('@/views/dns/detail.vue'),
+                meta: {
+                    locale: { key: 'domain' },
+                    hideInMenu: true,
+                    requiresAuth: true,
+                    roles: ['*'],
+                    key: 'dns',
+                },
+            },
+            {
                 path: 'plugins',
                 name: 'gateway-plugins',
                 component: () => import('@/views/gateway/plugins/index.vue'),

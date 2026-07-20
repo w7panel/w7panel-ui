@@ -16,6 +16,10 @@ const LEGACY_ROUTE_OVERRIDES: Record<string, string> = {
   'person-cost-center': 'person/cost-center',
 };
 
+const LEGACY_ROUTE_ALIASES: Record<string, string> = {
+  'cluster/dns': 'dns',
+};
+
 const KEY_TO_ROUTE: Record<string, string> = {};
 const ROUTE_TO_KEY: Record<string, string> = {};
 
@@ -38,6 +42,9 @@ function collectMenuRoutes(nodes: MenuNode[] = []) {
 
 collectMenuRoutes(treeData as MenuNode[]);
 Object.entries(LEGACY_ROUTE_OVERRIDES).forEach(([key, route]) => addMapping(key, route));
+Object.entries(LEGACY_ROUTE_ALIASES).forEach(([route, key]) => {
+  ROUTE_TO_KEY[normalizePermissionPath(route)] = normalizePermissionPath(key);
+});
 
 export function normalizePermissionPath(path?: string) {
   return String(path || '').replace(/^\/+/, '').replace(/\/+$/, '');
@@ -74,6 +81,7 @@ export function expandPermissionValues(values: string[] = []) {
     expanded.add(normalized);
     expanded.add(routePath);
     expanded.add(legacyKey);
+    expanded.add(keyToPermissionPath(legacyKey));
 
     if (normalized === '*' || routePath === '*') {
       expanded.add('*');
@@ -91,6 +99,10 @@ export function expandPermissionValues(values: string[] = []) {
       }
     });
   });
+
+  if (expanded.has('dns') || expanded.has('gateway/dns') || expanded.has('cluster/dns')) {
+    expanded.add('gateway');
+  }
 
   return Array.from(expanded);
 }

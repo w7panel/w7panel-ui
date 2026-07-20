@@ -63,29 +63,6 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             },
         },
         {
-            path: 'dns',
-            name: 'cluster-dns',
-            component: () => import('@/views/dns/index.vue'),
-            meta: {
-                locale: '私有DNS解析',
-                requiresAuth: true,
-                roles: ['*'],
-                key: 'dns',
-            },
-        },
-        {
-            path: 'dns/:domain',
-            name: 'dns-records',
-            component: () => import('@/views/dns/detail.vue'),
-            meta: {
-                locale: { key: 'domain' },
-                hideInMenu: true,
-                requiresAuth: true,
-                roles: ['*'],
-                key: 'dns',
-            },
-        },
-        {
             path: 'build-image-list',
             name: 'build-image-list',
             component: () => import('@/views/cluster/nodes/build-image.vue'),
