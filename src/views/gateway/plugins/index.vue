@@ -26,17 +26,20 @@
                                     v-if="record.upgrade?.canUpgrade"
                                     position="bottom"
                                     trigger="click"
-                                    :content-style="{padding:'12px 16px'}"
+                                    :content-style="{padding:'6px 10px 16px'}"
                                 >
-                                    <a-tag color="red" size="small" class="cursor">新版本</a-tag>
+                                    <div class="cursor" style="color:rgb(var(--red-7));">
+                                        <icon-exclamation-circle-fill />
+                                        <span class="ml-2">新版本</span>
+                                    </div>
                                     <template #content>
-                                        <div class="plugin-upgrade-popover">
+                                        <div>
                                             <div class="df ai-c" style="color:rgb(var(--red-7));">
                                                 <icon-exclamation-circle-fill />
-                                                <span class="ml-4">发现新版本 {{record.upgrade.version}}</span>
+                                                <span class="ml-4 fs-16 b">新版本</span>
                                             </div>
-                                            <div class="mt-10 c-00-6">更新将升级该插件所属的整个应用制品。</div>
-                                            <div class="mt-12 df ai-c jc-a">
+                                            <div class="mt-10 c-00-6 txt-c">更新将升级该插件所属的整个应用制品。</div>
+                                            <div class="mt-10 df ai-c jc-a">
                                                 <a-button size="small" @click="showUpgradeDetail(record)">查看更新说明</a-button>
                                                 <a-button size="small" type="primary" @click="toUpgrade(record)">立即更新</a-button>
                                             </div>
@@ -457,7 +460,3 @@ export default {
     },
 };
 </script>
-
-<style scoped>
-.plugin-upgrade-popover{width:300px;}
-</style>

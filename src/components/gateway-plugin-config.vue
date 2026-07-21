@@ -8,13 +8,28 @@
     >
         <template #title>{{ title }}</template>
 
+        <a-alert type="info" show-icon class="plugin-config-scope-alert">
+            <template v-if="scope === 'rule'">
+                当前配置仅作用于
+                <strong>{{ domain || '当前域名' }}</strong>
+                对应的网关规则
+                <span v-if="ingressName">（Ingress：{{ ingressName }}）</span>，不影响插件的全局配置。
+            </template>
+            <template v-else>
+                当前配置作用于整个集群的网关请求，不绑定具体域名或 Ingress；域名级差异策略请使用规则配置。
+            </template>
+        </a-alert>
+
         <a-spin class="plugin-config-spin" :loading="loading">
             <template v-if="showFrontend">
                 <div class="plugin-config-actions">
                     <a-button @click="openYaml">YAML 详情</a-button>
                 </div>
-                <div class="plugin-config-layout" :class="{'is-rule':scope === 'rule'}">
-                    <template v-if="scope === 'global'">
+                <div
+                    class="plugin-config-layout"
+                    :class="{'is-rule':scope === 'rule','without-menu':!showMenuNavigation}"
+                >
+                    <template v-if="scope === 'global' && showMenuNavigation">
                         <aside class="plugin-config-menu">
                             <template v-for="role in menuRoles" :key="role.name">
                                 <div class="plugin-config-role">{{role.title}}端</div>
@@ -31,7 +46,7 @@
                     </template>
                     <div class="plugin-config-content">
                         <a-tabs
-                            v-if="scope === 'rule' && flatMenus.length"
+                            v-if="scope === 'rule' && showMenuNavigation"
                             :active-key="activeRoute"
                             @change="changeRoute"
                         >
@@ -84,7 +99,6 @@
 <script>
 import jsyaml from 'js-yaml';
 import { panelApi, k8sproxy } from '@/utils/api';
-import { getK8sinfo } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';
 import yamlInput from '@/components/yaml-input.vue';
 import gatewayPluginMicroapp from '@/components/gateway-plugin-microapp.vue';
@@ -99,12 +113,6 @@ const ROLE_TITLE = {
     founder: '创始人',
     found: '创始人',
     normal: '普通用户',
-};
-
-const ROLE_ORDER = {
-    founder: 0,
-    found: 0,
-    normal: 1,
 };
 
 export default {
@@ -146,8 +154,14 @@ export default {
         flatMenus(){
             return this.menuRoles.flatMap(role=>role.menus || []);
         },
+        showMenuNavigation(){
+            return this.flatMenus.length > 1;
+        },
         ingressName(){
             return this.ingress?.metadata?.name || '';
+        },
+        domain(){
+            return this.ingress?.spec?.rules?.[0]?.host || '';
         },
         instanceName(){
             return `${this.localPlugin?.metadata?.name || 'plugin'}-${this.scope}-${this.ingressName || 'global'}`;
@@ -162,13 +176,13 @@ export default {
                 pluginId: this.localPlugin?.metadata?.name || '',
                 namespace: this.scope === 'rule' ? this.namespaceActive : '',
                 ingressName: this.scope === 'rule' ? this.ingressName : '',
-                domain: this.scope === 'rule' ? this.ingress?.spec?.rules?.[0]?.host || '' : '',
+                domain: this.scope === 'rule' ? this.domain : '',
                 path: this.scope === 'rule' ? this.ingress?.spec?.rules?.[0]?.http?.paths?.[0]?.path || '' : '',
                 pluginConfig: config.config,
                 pluginEnabled: config.enabled,
                 // 兼容已接入旧字段名的插件前端。
                 pluginConfigEnabled: config.enabled,
-                microappRole: this.scope === 'rule' ? 'normal' : '',
+                microappRole: this.menuRoles[0]?.name || (this.scope === 'rule' ? 'normal' : 'founder'),
                 savePluginConfig: (value, enabled)=>this.saveMicroConfig(value, enabled),
             };
         },
@@ -251,19 +265,15 @@ export default {
                     title: ROLE_TITLE[binding.name] || binding.name,
                     menus: this.flattenMenus(binding.menu || []),
                 }))
-                .filter(role=>role.menus.length)
-                .sort((a,b)=>(ROLE_ORDER[a.name] ?? 99) - (ROLE_ORDER[b.name] ?? 99));
+                .filter(role=>role.menus.length);
 
             if(this.scope === 'rule'){
                 const normal = roles.find(role=>role.name === 'normal');
                 return normal ? [normal] : [];
             }
-            const userRole = getK8sinfo()?.['w7.cc/role'];
-            if(userRole === 'founder' || userRole === 'found'){
-                return roles.filter(role=>['founder', 'found', 'normal'].includes(role.name));
-            }
-            const current = roles.find(role=>role.name === userRole);
-            return current ? [current] : roles.filter(role=>role.name === 'normal');
+            const founder = roles.find(role=>role.name === 'founder')
+                || roles.find(role=>role.name === 'found');
+            return founder ? [founder] : [];
         },
         changeRoute(route){
             this.activeRoute = route;
@@ -380,11 +390,13 @@ export default {
 </script>
 
 <style scoped>
+.plugin-config-scope-alert{margin-bottom:12px;}
 .plugin-config-actions{display:flex;justify-content:flex-end;margin-bottom:12px;}
 .plugin-config-layout{display:flex;height:calc(100vh - 164px);min-height:520px;}
 .plugin-config-menu{width:220px;flex:0 0 220px;border-right:1px solid var(--color-border-2);overflow:auto;padding-right:12px;}
 .plugin-config-role{padding:12px 16px 6px;color:var(--color-text-3);font-size:12px;}
 .plugin-config-content{flex:1;min-width:0;height:100%;padding-left:16px;}
+.plugin-config-layout.without-menu .plugin-config-content{padding-left:0;}
 .plugin-config-layout.is-rule{display:block;height:calc(100vh - 150px);}
 .plugin-config-layout.is-rule .plugin-config-content{padding-left:0;}
 .plugin-config-spin{display:block;width:100%;height:100%;}
