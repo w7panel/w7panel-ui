@@ -77,7 +77,7 @@ cp -r dist/* $BASE_DIR/dist/kodata/
 | 存储设备 | `/storage/disk` | Longhorn 存储 |
 | 资源浏览器 | `/cluster/resource` | K8s 资源浏览 |
 | 网关插件 | `/gateway/plugins` | Higress WasmPlugin 安装、官方应用保护、AppGroup 制品更新、状态开关、统一插件信息层级、全局配置、MicroApp 配置界面和 YAML 预览编辑 |
-| AI 代理 | `/gateway/aiproxy` | AI 域名、服务提供者、权重、Key Auth 和模型白名单管理 |
+| AI 代理 | `/gateway/aiproxy` | AI 域名、Higress 供应商专属配置、模型候选、Token 故障转移、权重、Key Auth 消费者、模型白名单和关联资源删除检测 |
 
 AI 代理复用 Higress 内置 `ai-proxy.internal`、`key-auth.internal` 和 `request-validation.internal` WasmPlugin；域名仍以业务命名空间的 Ingress 为数据源，不依赖默认关闭的 Higress Console。
 
