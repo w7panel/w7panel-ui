@@ -201,6 +201,9 @@ export default{
 
             if(!this.downOk){
                 this.info.frontendUrl = data.proxyUrl;
+                if (this.info.frontendUrl) {
+                    this.info.frontendUrl = this.info.frontendUrl.replace(/\/index\.html$/, '/')
+                }
                 this.downOk = true;
                 panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
                 // this.extra.setTimeout = setTimeout(()=>{
