@@ -189,4 +189,5 @@ export default {
   'GET /panel-api/v1/metrics/usage/cvm/:namespace/name/:name/disk': '获取 CVM 磁盘使用率',
   'GET /panel-api/v1/metrics/installed': '检查监控组件安装状态',
   'GET /panel-api/v1/metrics/state': '获取监控状态',
+  'GET /panel-api/v1/metrics/query-range': '查询监控时序数据',
 };
