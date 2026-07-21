@@ -2,59 +2,77 @@
     <a-drawer
         :visible="visible"
         :width="scope === 'global' ? 1200 : 1000"
-        :footer="hasFrontend ? false : true"
+        :footer="false"
         unmount-on-close
-        @ok="submitYaml"
         @cancel="close"
     >
         <template #title>{{ title }}</template>
 
         <a-spin class="plugin-config-spin" :loading="loading">
-            <div v-if="hasFrontend" class="plugin-config-layout" :class="{'is-rule':scope === 'rule'}">
-                <template v-if="scope === 'global'">
-                    <aside class="plugin-config-menu">
-                        <template v-for="role in menuRoles" :key="role.name">
-                            <div class="plugin-config-role">{{role.title}}端</div>
-                            <a-menu
-                                :selected-keys="[activeRoute]"
-                                @menu-item-click="changeRoute"
-                            >
-                                <a-menu-item v-for="menu in role.menus" :key="menu.do">
-                                    {{menu.title}}
-                                </a-menu-item>
-                            </a-menu>
-                        </template>
-                    </aside>
-                </template>
-                <div class="plugin-config-content">
-                    <a-tabs
-                        v-if="scope === 'rule' && flatMenus.length"
-                        :active-key="activeRoute"
-                        @change="changeRoute"
-                    >
-                        <a-tab-pane v-for="menu in flatMenus" :key="menu.do" :title="menu.title" />
-                    </a-tabs>
-                    <gateway-plugin-microapp
-                        v-if="microappInfo"
-                        :microapp="microappInfo"
-                        :route="activeRoute"
-                        :instance-name="instanceName"
-                        :context-props="microContextProps"
-                        @error="fallbackToYaml"
-                    />
+            <template v-if="showFrontend">
+                <div class="plugin-config-actions">
+                    <a-button @click="openYaml">YAML 详情</a-button>
                 </div>
-            </div>
+                <div class="plugin-config-layout" :class="{'is-rule':scope === 'rule'}">
+                    <template v-if="scope === 'global'">
+                        <aside class="plugin-config-menu">
+                            <template v-for="role in menuRoles" :key="role.name">
+                                <div class="plugin-config-role">{{role.title}}端</div>
+                                <a-menu
+                                    :selected-keys="[activeRoute]"
+                                    @menu-item-click="changeRoute"
+                                >
+                                    <a-menu-item v-for="menu in role.menus" :key="menu.do">
+                                        {{menu.title}}
+                                    </a-menu-item>
+                                </a-menu>
+                            </template>
+                        </aside>
+                    </template>
+                    <div class="plugin-config-content">
+                        <a-tabs
+                            v-if="scope === 'rule' && flatMenus.length"
+                            :active-key="activeRoute"
+                            @change="changeRoute"
+                        >
+                            <a-tab-pane v-for="menu in flatMenus" :key="menu.do" :title="menu.title" />
+                        </a-tabs>
+                        <gateway-plugin-microapp
+                            v-if="microappInfo"
+                            :microapp="microappInfo"
+                            :route="activeRoute"
+                            :instance-name="instanceName"
+                            :context-props="microContextProps"
+                            @error="fallbackToYaml"
+                        />
+                    </div>
+                </div>
+            </template>
 
             <div v-else-if="!loading" class="plugin-yaml-config">
-                <div class="plugin-yaml-config__switch">
-                    <span>开启状态</span>
-                    <a-switch v-model="form.enabled" />
+                <div class="plugin-yaml-config__toolbar">
+                    <div class="plugin-yaml-config__switch">
+                        <span>开启状态</span>
+                        <a-switch v-model="form.enabled" :disabled="!yamlEditing" />
+                    </div>
+                    <a-space>
+                        <template v-if="yamlEditing">
+                            <a-button type="primary" @click="submitYaml">保存</a-button>
+                            <a-button @click="cancelYamlEdit">取消</a-button>
+                        </template>
+                        <template v-else>
+                            <a-button type="primary" @click="startYamlEdit">编辑</a-button>
+                            <a-button @click="cancelYamlView">取消</a-button>
+                        </template>
+                    </a-space>
                 </div>
                 <div class="plugin-yaml-config__label">YAML 配置</div>
                 <div class="plugin-yaml-config__editor">
                     <yaml-input
+                        :key="`${editorId}-${yamlEditing ? 'edit' : 'preview'}`"
                         :domid="editorId"
                         :value="form.yaml"
+                        :readonly="!yamlEditing"
                         @submit="value=>form.yaml=value"
                     />
                 </div>
@@ -109,6 +127,9 @@ export default {
             menuRoles: [],
             activeRoute: '',
             forceYaml: false,
+            yamlVisible: false,
+            yamlEditing: false,
+            yamlSnapshot: { enabled: false, yaml: '' },
             form: { enabled: false, yaml: '' },
         };
     },
@@ -118,6 +139,9 @@ export default {
         },
         hasFrontend(){
             return Boolean(this.microappInfo && !this.forceYaml);
+        },
+        showFrontend(){
+            return this.hasFrontend && !this.yamlVisible;
         },
         flatMenus(){
             return this.menuRoles.flatMap(role=>role.menus || []);
@@ -166,6 +190,8 @@ export default {
             if(!this.plugin){ return; }
             this.loading = true;
             this.forceYaml = false;
+            this.yamlVisible = false;
+            this.yamlEditing = false;
             this.microappInfo = null;
             this.menuRoles = [];
             this.activeRoute = '';
@@ -193,6 +219,11 @@ export default {
                         || this.flatMenus[0]?.do
                         || '';
                 }
+            }
+            if(!this.hasFrontend){
+                this.yamlVisible = true;
+                this.yamlEditing = false;
+                this.rememberYamlSnapshot();
             }
             this.loading = false;
         },
@@ -239,6 +270,41 @@ export default {
         },
         fallbackToYaml(){
             this.forceYaml = true;
+            this.yamlVisible = true;
+            this.yamlEditing = false;
+            this.syncYamlForm();
+            this.rememberYamlSnapshot();
+        },
+        syncYamlForm(){
+            const current = this.getCurrentConfig();
+            this.form = {
+                enabled: current.enabled,
+                yaml: jsyaml.dump(current.config || {}, { lineWidth: -1, noRefs: true }),
+            };
+        },
+        rememberYamlSnapshot(){
+            this.yamlSnapshot = { ...this.form };
+        },
+        openYaml(){
+            this.syncYamlForm();
+            this.rememberYamlSnapshot();
+            this.yamlVisible = true;
+            this.yamlEditing = false;
+        },
+        startYamlEdit(){
+            this.rememberYamlSnapshot();
+            this.yamlEditing = true;
+        },
+        cancelYamlEdit(){
+            this.form = { ...this.yamlSnapshot };
+            this.yamlEditing = false;
+        },
+        cancelYamlView(){
+            if(this.hasFrontend){
+                this.yamlVisible = false;
+                return;
+            }
+            this.close();
         },
         getCurrentConfig(){
             const plugin = this.localPlugin || {};
@@ -299,7 +365,11 @@ export default {
                 this.$message.error(error?.message || 'YAML 格式错误');
                 return;
             }
-            this.persist(this.applyConfig(config, this.form.enabled)).then(()=>this.close(true));
+            this.persist(this.applyConfig(config, this.form.enabled)).then(()=>{
+                this.syncYamlForm();
+                this.rememberYamlSnapshot();
+                this.yamlEditing = false;
+            });
         },
         close(saved){
             this.visible = false;
@@ -310,7 +380,8 @@ export default {
 </script>
 
 <style scoped>
-.plugin-config-layout{display:flex;height:calc(100vh - 120px);min-height:560px;}
+.plugin-config-actions{display:flex;justify-content:flex-end;margin-bottom:12px;}
+.plugin-config-layout{display:flex;height:calc(100vh - 164px);min-height:520px;}
 .plugin-config-menu{width:220px;flex:0 0 220px;border-right:1px solid var(--color-border-2);overflow:auto;padding-right:12px;}
 .plugin-config-role{padding:12px 16px 6px;color:var(--color-text-3);font-size:12px;}
 .plugin-config-content{flex:1;min-width:0;height:100%;padding-left:16px;}
@@ -319,7 +390,8 @@ export default {
 .plugin-config-spin{display:block;width:100%;height:100%;}
 .plugin-config-spin :deep(.arco-spin-children){height:100%;}
 .plugin-yaml-config{height:calc(100vh - 180px);min-height:480px;}
-.plugin-yaml-config__switch{display:flex;align-items:center;gap:16px;height:32px;}
+.plugin-yaml-config__toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;height:32px;}
+.plugin-yaml-config__switch{display:flex;align-items:center;gap:16px;}
 .plugin-yaml-config__label{margin:18px 0 8px;color:var(--color-text-2);}
 .plugin-yaml-config__editor{height:calc(100% - 80px);min-height:380px;}
 .plugin-yaml-config__editor :deep(.yaml-input){width:100%;height:100%;border:1px solid var(--color-border-2);}
