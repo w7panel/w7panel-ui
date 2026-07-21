@@ -7,7 +7,11 @@
             <template #columns>
                 <a-table-column title="插件">
                     <template #cell="{ record }">
-                        <div class="b">{{record.title}}{{record.version ? `@${record.version}` : ''}}</div>
+                        <div class="df ai-c" style="gap:8px;">
+                            <span>{{record.title}}</span>
+                            <a-tag v-if="record.officialApp" color="arcoblue" size="small">官方</a-tag>
+                        </div>
+                        <div class="fs-12 c-99 mt-4">{{record.name}}{{record.version ? `@${record.version}` : ''}}</div>
                         <div v-if="record.description" class="fs-12 c-99 mt-4">{{record.description}}</div>
                     </template>
                 </a-table-column>
@@ -50,10 +54,13 @@ import { k8sproxy, panelApi } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
 import {
+    APPGROUP_API,
     MICROAPP_API,
+    OFFICIAL_APP_ANNOTATION,
     WASM_PLUGIN_API,
     getIngressRuleIndex,
     getPluginDescription,
+    getResourceGroupName,
     getResolvedMicroappName,
     getPluginTitle,
     getPluginVersion,
@@ -85,13 +92,17 @@ export default {
         async getAllPlugin(){
             const ingressName = this.data?.metadata?.name;
             if(!ingressName){ return; }
-            const [pluginRes, microappRes] = await Promise.all([
+            const [pluginRes, microappRes, appGroupRes] = await Promise.all([
                 k8sproxy.get(WASM_PLUGIN_API),
                 k8sproxy.get(MICROAPP_API, { noAlert: true }).catch(()=>({ data: { items: [] } })),
+                k8sproxy.get(APPGROUP_API),
             ]);
             const resources = (pluginRes?.data?.items || [])
                 .filter(plugin=>isGatewayPluginEnabled(plugin) && supportsRuleConfig(plugin));
             const microapps = microappRes?.data?.items || [];
+            const officialAppGroups = new Set((appGroupRes?.data?.items || [])
+                .filter(group=>group?.metadata?.annotations?.[OFFICIAL_APP_ANNOTATION] === 'true')
+                .map(group=>group?.metadata?.name));
             const names = [...new Set(resources.map(resource=>getResolvedMicroappName(resource, microapps)).filter(Boolean))];
             const frontendEntries = await Promise.all(names.map(async name=>{
                 const info = await panelApi.get(`/microapp/${encodeURIComponent(name)}/info`, { noAlert: true })
@@ -118,6 +129,7 @@ export default {
                     version: getPluginVersion(resource),
                     microapp,
                     microappInfo,
+                    officialApp: officialAppGroups.has(getResourceGroupName(resource)),
                     hasFrontend,
                     ruleIndex,
                     ruleEnabled: rule?.configDisable === false,

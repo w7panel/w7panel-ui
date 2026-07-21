@@ -19,7 +19,31 @@
                 <template #columns>
                     <a-table-column title="插件" :width="360">
                         <template #cell="{ record }">
-                            <div class="b">{{record.title}}</div>
+                            <div class="df ai-c" style="gap:8px;">
+                                <span>{{record.title}}</span>
+                                <a-tag v-if="record.officialApp" color="arcoblue" size="small">官方</a-tag>
+                                <a-popover
+                                    v-if="record.upgrade?.canUpgrade"
+                                    position="bottom"
+                                    trigger="click"
+                                    :content-style="{padding:'12px 16px'}"
+                                >
+                                    <a-tag color="red" size="small" class="cursor">新版本</a-tag>
+                                    <template #content>
+                                        <div class="plugin-upgrade-popover">
+                                            <div class="df ai-c" style="color:rgb(var(--red-7));">
+                                                <icon-exclamation-circle-fill />
+                                                <span class="ml-4">发现新版本 {{record.upgrade.version}}</span>
+                                            </div>
+                                            <div class="mt-10 c-00-6">更新将升级该插件所属的整个应用制品。</div>
+                                            <div class="mt-12 df ai-c jc-a">
+                                                <a-button size="small" @click="showUpgradeDetail(record)">查看更新说明</a-button>
+                                                <a-button size="small" type="primary" @click="toUpgrade(record)">立即更新</a-button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </a-popover>
+                            </div>
                             <div class="fs-12 c-99 mt-4">{{record.name}}{{record.version ? `@${record.version}` : ''}}</div>
                             <div v-if="record.description" class="fs-12 c-99 mt-4">{{record.description}}</div>
                         </template>
@@ -33,32 +57,28 @@
                             </a-space>
                         </template>
                     </a-table-column>
-                    <a-table-column title="状态" :width="100">
+                    <a-table-column title="状态" :width="110">
                         <template #cell="{ record }">
-                            <a-tag :color="record.enabled ? 'green' : 'gray'">
-                                {{record.enabled ? '已启用' : '已停用'}}
-                            </a-tag>
+                            <a-switch
+                                :model-value="record.enabled"
+                                :loading="togglingNames.includes(record.name)"
+                                :disabled="!permission.includes('gateway/plugins/edit')"
+                                @change="enabled=>togglePlugin(record, enabled)"
+                            />
                         </template>
                     </a-table-column>
-                    <a-table-column title="操作" :width="270">
+                    <a-table-column title="操作" :width="210">
                         <template #cell="{ record }">
                             <a-link
                                 v-if="record.supportGlobal && permission.includes('gateway/plugins/edit')"
                                 @click="openConfig(record)"
                             >全局配置</a-link>
-                            <a-link v-if="permission.includes('gateway/plugins/edit')" @click="openForm(record)">编辑</a-link>
+                            <a-link
+                                v-if="permission.includes('gateway/plugins/edit') && !record.officialApp"
+                                @click="openForm(record)"
+                            >编辑</a-link>
                             <a-popconfirm
-                                v-if="permission.includes('gateway/plugins/edit')"
-                                :content="record.enabled ? '停用后插件的全局配置和所有规则都会停止生效，是否继续？' : '是否重新启用该插件？'"
-                                position="lt"
-                                :content-style="{maxWidth:'360px'}"
-                                type="warning"
-                                @ok="togglePlugin(record)"
-                            >
-                                <a-link>{{record.enabled ? '停用' : '启用'}}</a-link>
-                            </a-popconfirm>
-                            <a-popconfirm
-                                v-if="permission.includes('gateway/plugins/delete')"
+                                v-if="permission.includes('gateway/plugins/delete') && !record.officialApp"
                                 content="卸载后插件及其全部规则配置将被删除，是否继续？"
                                 position="lt"
                                 :content-style="{maxWidth:'360px'}"
@@ -132,6 +152,21 @@
             @saved="onConfigSaved"
             @close="closeConfig"
         />
+
+        <a-modal
+            v-model:visible="upgradeDetail.show"
+            title="版本说明"
+            hide-cancel
+            @ok="upgradeDetail.show=false"
+        >
+            <div class="df ai-c jc-b">
+                <a-tag color="red">新版本</a-tag>
+                <span class="c-99">版本：{{upgradeDetail.version}}</span>
+            </div>
+            <div class="mt-20 c-00-6" style="line-height:22px;white-space:pre-wrap;">
+                {{upgradeDetail.description || '暂无更新说明'}}
+            </div>
+        </a-modal>
     </div>
 </template>
 
@@ -140,11 +175,14 @@ import { k8sproxy, panelApi } from '@/utils/api';
 import { getPermission } from '@/utils/auth';
 import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
 import {
+    APPGROUP_API,
     MICROAPP_API,
+    OFFICIAL_APP_ANNOTATION,
     WASM_PLUGIN_API,
     GATEWAY_PLUGIN_ANNOTATIONS,
     getPluginDescription,
     getPluginMicroapp,
+    getResourceGroupName,
     getPluginTitle,
     getPluginVersion,
     isGatewayPluginEnabled,
@@ -164,6 +202,11 @@ export default {
             resources: [],
             microapps: [],
             microappInfoMap: {},
+            appGroupMap: {},
+            upgradeInfoMap: {},
+            consoleInfo: {},
+            upgradeDetail: { show: false, version: '', description: '' },
+            togglingNames: [],
             form: this.emptyForm(),
             config: { show: false, plugin: null, microapp: null },
             rules: {
@@ -183,12 +226,18 @@ export default {
             return this.resources.map(resource=>{
                 const microappName = getResolvedMicroappName(resource, this.microapps);
                 const microappInfo = this.microappInfoMap[microappName] || null;
+                const groupName = getResourceGroupName(resource);
+                const appGroup = this.appGroupMap[groupName] || null;
                 return {
                     name: resource?.metadata?.name || '',
                     title: getPluginTitle(resource),
                     description: getPluginDescription(resource),
                     version: getPluginVersion(resource),
                     microappInfo,
+                    groupName,
+                    appGroup,
+                    officialApp: appGroup?.metadata?.annotations?.[OFFICIAL_APP_ANNOTATION] === 'true',
+                    upgrade: this.upgradeInfoMap[groupName] || null,
                     enabled: isGatewayPluginEnabled(resource),
                     supportGlobal: supportsGlobalConfig(resource),
                     supportRule: supportsRuleConfig(resource),
@@ -223,13 +272,39 @@ export default {
             };
         },
         async getList(){
-            const [pluginRes, microappRes] = await Promise.all([
+            const [pluginRes, microappRes, appGroupRes, consoleRes] = await Promise.all([
                 k8sproxy.get(WASM_PLUGIN_API, { loading: true }),
                 k8sproxy.get(MICROAPP_API, { noAlert: true }).catch(()=>({ data: { items: [] } })),
+                k8sproxy.get(APPGROUP_API),
+                panelApi.get('/auth/console/info', { noAlert: true }).catch(()=>({ data: {} })),
             ]);
             this.resources = pluginRes?.data?.items || [];
             this.microapps = microappRes?.data?.items || [];
-            return this.loadMicroappFrontendStatus();
+            this.appGroupMap = Object.fromEntries((appGroupRes?.data?.items || [])
+                .map(group=>[group?.metadata?.name, group]));
+            this.consoleInfo = consoleRes?.data || {};
+            await Promise.all([
+                this.loadMicroappFrontendStatus(),
+                this.loadUpgradeInfo(),
+            ]);
+        },
+        async loadUpgradeInfo(){
+            const groupNames = [...new Set(this.resources
+                .map(resource=>getResourceGroupName(resource))
+                .filter(groupName=>groupName && this.appGroupMap[groupName]))];
+            const entries = await Promise.all(groupNames.map(async groupName=>{
+                const group = this.appGroupMap[groupName];
+                const info = await panelApi.get('/zpk/upgrade-info', {
+                    noAlert: true,
+                    params: {
+                        namespace: group?.metadata?.namespace || 'default',
+                        releaseName: groupName,
+                        thirdpartyCDToken: this.consoleInfo?.thirdparty_cd_token || '',
+                    },
+                }).then(res=>res?.data || null).catch(()=>null);
+                return [groupName, info];
+            }));
+            this.upgradeInfoMap = Object.fromEntries(entries.filter(([, info])=>info));
         },
         async loadMicroappFrontendStatus(){
             const names = [...new Set(this.resources.map(resource=>getResolvedMicroappName(resource, this.microapps)).filter(Boolean))];
@@ -244,6 +319,10 @@ export default {
         openForm(row){
             if(!row){
                 this.form = { ...this.emptyForm(), show: true };
+                return;
+            }
+            if(row.officialApp){
+                this.$message.warning('官方应用提供的插件不允许编辑');
                 return;
             }
             const resource = row.resource;
@@ -261,6 +340,30 @@ export default {
                 supportRule: row.supportRule,
                 microapp: getPluginMicroapp(resource),
             };
+        },
+        showUpgradeDetail(row){
+            this.upgradeDetail = {
+                show: true,
+                version: row?.upgrade?.version || '',
+                description: row?.upgrade?.description || '',
+            };
+        },
+        toUpgrade(row){
+            const groupName = row?.groupName;
+            const zpkUrl = row?.upgrade?.zpkUrl || row?.appGroup?.spec?.zpkUrl || '';
+            if(!groupName || !zpkUrl){
+                this.$message.error('缺少应用制品更新信息');
+                return;
+            }
+            this.$router.push({
+                path: '/app/store-install',
+                query: {
+                    path: zpkUrl,
+                    releasename: groupName,
+                    thirdpartyCDToken: this.consoleInfo?.thirdparty_cd_token || '',
+                    insClusterId: this.consoleInfo?.cluster_id || '',
+                },
+            });
         },
         buildResource(){
             const data = this.form.edit
@@ -320,14 +423,22 @@ export default {
                 });
             });
         },
-        togglePlugin(row){
-            const data = setGatewayPluginEnabled(row.resource, !row.enabled);
+        togglePlugin(row, enabled){
+            if(this.togglingNames.includes(row.name)){ return; }
+            this.togglingNames.push(row.name);
+            const data = setGatewayPluginEnabled(row.resource, enabled);
             return k8sproxy.put(`${WASM_PLUGIN_API}/${row.name}`, data, { loading: true }).then(()=>{
-                this.$message.success(row.enabled ? '插件已停用' : '插件已启用');
-                this.getList();
+                this.$message.success(enabled ? '插件已启用' : '插件已停用');
+                return this.getList();
+            }).finally(()=>{
+                this.togglingNames = this.togglingNames.filter(name=>name !== row.name);
             });
         },
         removePlugin(row){
+            if(row.officialApp){
+                this.$message.warning('官方应用提供的插件不允许卸载');
+                return;
+            }
             return k8sproxy.delete(`${WASM_PLUGIN_API}/${row.name}`, { loading: true }).then(()=>{
                 this.$message.success('插件已卸载');
                 this.getList();
@@ -346,3 +457,7 @@ export default {
     },
 };
 </script>
+
+<style scoped>
+.plugin-upgrade-popover{width:300px;}
+</style>
