@@ -74,11 +74,11 @@
                 <div class="df ai-s jc-b">
                     <div class="title fs-16">系统信息</div>
                     <div class="df ai-c">
-                        <a-button :href="'/order-base?expand=true'+cvmInfo.expandQuery" target="_blank" v-if="!inMicro&&((userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canExpandBuy && !cvmInfo.isExpired)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-expand']=='true'))" size="small" type="primary">扩容</a-button>
+                        <a-button :href="'/order-base?expand=true'+cvmInfo.expandQuery" target="_blank" v-if="!inMicro&&((isCkmRequest&&cvmInfo.canExpandBuy && !cvmInfo.isExpired)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-expand']=='true'))" size="small" type="primary">扩容</a-button>
                         <!-- <a-button size="small" type="primary" @click="submitExpand">扩容</a-button> -->
                     </div>
                 </div>
-                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || userInfo['w7.cc/is-cvm-req']=='true'" :model="quotsInfo" class="mt-20" label-align="left" auto-label-width>
+                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || isCkmRequest" :model="quotsInfo" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="CPU" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.cpu}}</span>
                     </a-form-item>
@@ -97,7 +97,7 @@
                     </a-form-item>
                     <a-form-item v-if="quotsInfo.expiretime" label="到期时间" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.expiretime}}</span>
-                        <a v-if="!inMicro&&((userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'))" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>                    </a-form-item>
+                        <a v-if="!inMicro&&((isCkmRequest&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'))" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>                    </a-form-item>
                 </a-form>
                 <a-form v-else :model="info" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="集群版本" style="margin-bottom:0;">
@@ -706,6 +706,10 @@ export default {
         olCharts,
     },
     computed:{
+        isCkmRequest(){
+            return this.userInfo?.['w7.cc/is-ckm-req']=='true'
+                || this.userInfo?.['w7.cc/is-cvm-req']=='true';
+        },
     },
     watch:{
         'dark.isDark'(){
@@ -790,9 +794,12 @@ export default {
                 this.userInfo = res?.data;
                 this.clusterMode = this.userInfo?.["k3k.io/cluster-mode"];
 
-                if(res?.data?.['w7.cc/is-ckm-req']=='true'){
-                    let name = res?.data?.['w7.cc/ckm-name'];
-                    let namespace = res?.data?.['w7.cc/ckm-namespace'];
+                if(this.isCkmRequest){
+                    let name = res?.data?.['w7.cc/ckm-name'] || res?.data?.['w7.cc/cvm-name'];
+                    let namespace = res?.data?.['w7.cc/ckm-namespace']
+                        || res?.data?.['ckm-namespace']
+                        || res?.data?.['w7.cc/cvm-namespace']
+                        || res?.data?.['w7.cc/k3k-namespace'];
                     panelApi.get(`/k3k/ckm/v1/${namespace}/info/${name}`).then(res=>{
                         let effectiveResource = res?.data?.status?.effectiveResource;
                         this.quotsInfo = {

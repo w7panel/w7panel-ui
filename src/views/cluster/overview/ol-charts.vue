@@ -157,6 +157,10 @@ export default {
             }
             return this[chartType];
         },
+        isCkmRequest(){
+            return this.userInfo?.['w7.cc/is-ckm-req']=='true'
+                || this.userInfo?.['w7.cc/is-cvm-req']=='true';
+        },
         async init(){
             // if(!this.list?.length && !this.node){return}
             if(!this.activeType){return}
@@ -185,7 +189,7 @@ export default {
             const nodeResourceJob = 'default/w7panel-metrics-node-resource';
             let jobArg = 'w7panel-metrics-node-exporter';
             const metricQuery = {
-                ...(this.userInfo['w7.cc/is-cvm-req']=='true'?{
+                ...(this.isCkmRequest()?{
                     'cpu': 'rate(pod_cpu_usage_seconds_total{pod="' + Name + '"})',
                     'memory': 'pod_memory_working_set_bytes{pod="' + Name + '"}',
                 }:{
@@ -254,7 +258,9 @@ export default {
                     gpuNames[i.id] = i.type + '('+ i.nodeName +')';
                 })
             }
-            if((this.userInfo['w7.cc/is-cvm-req']!=='true'&&(chartType=='cpu'||chartType=='memory'))||chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
+            const isCkmRequest = this.isCkmRequest();
+            const server0PodName = this.userInfo?.['w7.cc/server0-pod-name'];
+            if((!isCkmRequest&&(chartType=='cpu'||chartType=='memory'))||chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
                 let data = null;
                 try{
                     let res = await this.getChart('', chartType);
@@ -293,9 +299,11 @@ export default {
                         smooth: true,
                     })
                 }
-            }else if(this.list?.length){
+            }else if((isCkmRequest && server0PodName) || (!isCkmRequest && this.list?.length)){
                 let nodes = this.list;
-                if(this.userInfo?.["k3k.io/cluster-mode"]=='shared'){
+                if(isCkmRequest){
+                    nodes = [{name:server0PodName}];
+                }else if(this.userInfo?.["k3k.io/cluster-mode"]=='shared'){
                     nodes = [{name:this.userInfo?.['w7.cc/k3k-namespace']+'-server-0'}];
                 }
                 for(let i=0; i<nodes?.length; i++){
