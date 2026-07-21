@@ -1,12 +1,22 @@
 <template>
     <a-drawer
+        class="gateway-plugin-config-drawer"
         :visible="visible"
         :width="scope === 'global' ? 1200 : 1000"
         :footer="false"
         unmount-on-close
         @cancel="close"
     >
-        <template #title>{{ title }}</template>
+        <template #title>
+            <div class="plugin-config-title">
+                <span>{{ title }}</span>
+                <a-button
+                    v-if="hasFrontend && !yamlEditing"
+                    type="outline"
+                    @click.stop="toggleYamlView"
+                >{{ yamlVisible ? '返回可视化配置' : '预览 YAML' }}</a-button>
+            </div>
+        </template>
 
         <a-alert type="info" show-icon class="plugin-config-scope-alert">
             <template v-if="scope === 'rule'">
@@ -22,9 +32,6 @@
 
         <a-spin class="plugin-config-spin" :loading="loading">
             <template v-if="showFrontend">
-                <div class="plugin-config-actions">
-                    <a-button @click="openYaml">YAML 详情</a-button>
-                </div>
                 <div
                     class="plugin-config-layout"
                     :class="{'is-rule':scope === 'rule','without-menu':!showMenuNavigation}"
@@ -77,7 +84,7 @@
                         </template>
                         <template v-else>
                             <a-button type="primary" @click="startYamlEdit">编辑</a-button>
-                            <a-button @click="cancelYamlView">取消</a-button>
+                            <a-button v-if="!hasFrontend" @click="cancelYamlView">取消</a-button>
                         </template>
                     </a-space>
                 </div>
@@ -301,6 +308,13 @@ export default {
             this.yamlVisible = true;
             this.yamlEditing = false;
         },
+        toggleYamlView(){
+            if(this.yamlVisible){
+                this.cancelYamlView();
+                return;
+            }
+            this.openYaml();
+        },
         startYamlEdit(){
             this.rememberYamlSnapshot();
             this.yamlEditing = true;
@@ -390,8 +404,9 @@ export default {
 </script>
 
 <style scoped>
+:global(.gateway-plugin-config-drawer .arco-drawer-title){flex:1;min-width:0;}
+.plugin-config-title{display:flex;align-items:center;justify-content:space-between;width:100%;padding-right:8px;}
 .plugin-config-scope-alert{margin-bottom:12px;}
-.plugin-config-actions{display:flex;justify-content:flex-end;margin-bottom:12px;}
 .plugin-config-layout{display:flex;height:calc(100vh - 164px);min-height:520px;}
 .plugin-config-menu{width:220px;flex:0 0 220px;border-right:1px solid var(--color-border-2);overflow:auto;padding-right:12px;}
 .plugin-config-role{padding:12px 16px 6px;color:var(--color-text-3);font-size:12px;}

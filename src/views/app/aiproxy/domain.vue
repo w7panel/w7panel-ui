@@ -334,6 +334,12 @@
                         </a-select>
                     </a-form-item>
                 </template>
+                <a-form-item label="代理服务器">
+                    <a-select v-model="providerForm.proxyName" allow-clear placeholder="不使用代理服务器">
+                        <a-option v-for="item in proxyServerOptions" :key="item.value" :label="item.label" :value="item.value" />
+                    </a-select>
+                    <template #extra>使用 Higress McpBridge 中已配置的代理服务器访问上游服务。</template>
+                </a-form-item>
                 <a-form-item label="权重">
                     <a-input-number v-model="providerForm.weight" :min="0" style="width:200px;" />
                 </a-form-item>
@@ -558,6 +564,7 @@ export default {
             geminiSafetyCategories: GEMINI_SAFETY_CATEGORIES,
             geminiSafetyThresholds: GEMINI_SAFETY_THRESHOLDS,
             providerServiceOptions: [],
+            proxyServerOptions: [],
             routeForm: {
                 models: [],
                 authEnabled: false,
@@ -575,6 +582,7 @@ export default {
                 failoverEnabled: false,
                 failover: clone(DEFAULT_FAILOVER_CONFIG),
                 safetySettings: [],
+                proxyName: '',
                 endpointUrl: DEFAULT_ENDPOINTS.openai,
                 weight: 100,
                 enabled: true,
@@ -624,11 +632,12 @@ export default {
             useLoadingStore().loading = true;
             try {
                 const name = this.$route.query.name;
-                const [ingRes, plugin, secretRes, keyAuthPlugin] = await Promise.all([
+                const [ingRes, plugin, secretRes, keyAuthPlugin, mcpBridge] = await Promise.all([
                     k8sproxy.get('/apis/networking.k8s.io/v1/namespaces/'+this.namespaceActive+'/ingresses/'+name),
                     this.getPlugin(),
                     k8sproxy.get('/api/v1/namespaces/'+this.namespaceActive+'/secrets?labelSelector='+AI_LABEL+'=true,'+AI_DOMAIN_LABEL+'='+name, { noAlert: true }),
                     this.getManagedPlugin(KEY_AUTH_PLUGIN_NAME),
+                    this.getMcpBridge(),
                 ]);
                 this.ingress = ingRes.data;
                 this.host = this.ingress?.spec?.rules?.[0]?.host || '';
@@ -641,8 +650,12 @@ export default {
                 const legacyProviders = secrets.filter(s=>s?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true').map(s=>this.secretToProvider(s));
                 const storedProviders = readRouteProviders(annotations[AI_PROVIDERS_ANNOTATION]);
                 const providerRefs = storedProviders.length ? storedProviders : (rule?.config?.providers || []);
-                const routeProviders = this.routeProviders(providerRefs, plugin);
+                const routeProviders = this.routeProviders(providerRefs, plugin, mcpBridge);
                 this.providers = routeProviders.length ? routeProviders : legacyProviders;
+                this.proxyServerOptions = (mcpBridge?.spec?.proxies || []).map(item=>({
+                    value: item.name,
+                    label: item.name + (item.serverAddress ? ' (' + item.serverAddress + ':' + item.serverPort + ')' : ''),
+                })).filter(item=>item.value);
                 this.consumers = secrets
                     .filter(s=>s?.metadata?.labels?.[AI_CONSUMER_LABEL] == 'true')
                     .map(s=>this.secretToConsumer(s, keyAuthPlugin));
@@ -714,8 +727,12 @@ export default {
             });
             return map;
         },
-        routeProviders(providerRefs, plugin){
+        routeProviders(providerRefs, plugin, mcpBridge){
             const providerMap = this.globalProviderMap(plugin);
+            const registryMap = {};
+            (mcpBridge?.spec?.registries || []).forEach(item=>{
+                if(item?.name) registryMap[item.name] = item;
+            });
             return (providerRefs || []).map(item=>{
                 const legacyId = item.id || item.provider || item.name;
                 const name = item.name || legacyId;
@@ -725,6 +742,7 @@ export default {
                     ...this.providerConfigToForm(config, item),
                     id,
                     name,
+                    proxyName: registryMap[providerServiceName(id)]?.proxyName || '',
                     weight: Number(item.weight) || 0,
                     enabled: item.enabled !== false,
                 };
@@ -747,6 +765,7 @@ export default {
                     failoverEnabled: false,
                     failover: this.defaultFailoverConfig(),
                     safetySettings: [],
+                    proxyName: '',
                     endpointUrl: DEFAULT_ENDPOINTS.openai,
                     weight: 100,
                     enabled: true,
@@ -755,7 +774,7 @@ export default {
             }
             const rawConfigs = clone(row.rawConfigs);
             const failover = { ...this.defaultFailoverConfig(), ...clone(rawConfigs.failover) };
-            const safetySettings = Object.entries(rawConfigs.geminiSafetySettings || {}).map(([category, threshold])=>({ category, threshold }));
+            const safetySettings = Object.entries(rawConfigs.geminiSafetySetting || rawConfigs.geminiSafetySettings || {}).map(([category, threshold])=>({ category, threshold }));
             let serverType = 'official';
             if(row.type == 'openai' && rawConfigs.openaiCustomUrl) serverType = 'custom';
             if(row.type == 'qwen' && rawConfigs.qwenDomain) serverType = 'custom';
@@ -787,6 +806,7 @@ export default {
                 failoverEnabled: !!failover.enabled,
                 failover,
                 safetySettings,
+                proxyName: row.proxyName || '',
                 endpointUrl: row.endpointUrl || this.providerEndpointPlaceholder(row.type),
                 weight: Number(row.weight) || 0,
                 enabled: row.enabled,
@@ -1341,6 +1361,7 @@ export default {
                 tokens: compact(form.tokens).length ? compact(form.tokens) : compact(form.oldTokens),
                 endpointUrl: this.configEndpointUrl({ ...rawConfigs, type: form.type }) || this.providerEndpointPlaceholder(form.type),
                 rawConfigs,
+                proxyName: form.proxyName || '',
                 weight: Number(form.weight) || 0,
                 enabled: form.enabled !== false,
             };
@@ -1354,6 +1375,7 @@ export default {
             if(tokens.length) config.apiTokens = tokens;
             else delete config.apiTokens;
             delete config.modelMapping;
+            delete config.proxyName;
             this.applyEndpointConfig(config, provider);
             return config;
         },
@@ -1500,11 +1522,12 @@ export default {
                 delete config.vertexTokenRefreshAhead;
             }
             if(type == 'vertex'){
+                delete config.geminiSafetySetting;
                 delete config.geminiSafetySettings;
                 (form.safetySettings || []).forEach(item=>{
                     if(!item.category || !item.threshold) return;
-                    config.geminiSafetySettings = config.geminiSafetySettings || {};
-                    config.geminiSafetySettings[item.category] = item.threshold;
+                    config.geminiSafetySetting = config.geminiSafetySetting || {};
+                    config.geminiSafetySetting[item.category] = item.threshold;
                 });
             }
             if(config.firstByteTimeout === undefined || config.firstByteTimeout === null || config.firstByteTimeout === '') delete config.firstByteTimeout;
@@ -1585,13 +1608,15 @@ export default {
         providerRegistry(provider){
             const defaultEndpoint = DEFAULT_PROVIDER_ENDPOINTS[provider.type];
             if(defaultEndpoint && !provider.endpointUrl){
-                return {
+                const registry = {
                     name: this.providerServiceName(provider.id),
                     type: 'dns',
                     protocol: defaultEndpoint.protocol,
                     domain: defaultEndpoint.domain,
                     port: defaultEndpoint.port,
                 };
+                if(provider.proxyName) registry.proxyName = provider.proxyName;
+                return registry;
             }
             const endpoints = this.providerEndpoints(provider);
             const endpoint = endpoints[0];
@@ -1604,13 +1629,15 @@ export default {
                 const itemPort = Number(item.port || (itemProtocol == 'http' ? 80 : 443));
                 return item.hostname + ':' + itemPort;
             });
-            return {
+            const registry = {
                 name: this.providerServiceName(provider.id),
                 type,
                 protocol,
                 domain: type == 'static' ? staticDomains.join(',') : host,
                 port: type == 'static' ? 80 : port,
             };
+            if(provider.proxyName) registry.proxyName = provider.proxyName;
+            return registry;
         },
         providerRegistries(provider){
             const registries = [this.providerRegistry(provider)];
