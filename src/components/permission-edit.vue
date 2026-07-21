@@ -427,6 +427,7 @@ export default {
             });
         },
         apiRouteVerb(method){
+            let normalizedMethod = String(method || '').toUpperCase();
             return {
                 GET: 'get',
                 HEAD: 'get',
@@ -434,7 +435,7 @@ export default {
                 PUT: 'update',
                 PATCH: 'patch',
                 DELETE: 'delete',
-            }[String(method || '').toUpperCase()] || '';
+            }[normalizedMethod] || normalizedMethod.toLowerCase();
         },
         methodOrder(method){
             return {

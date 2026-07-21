@@ -21,18 +21,17 @@
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { panelApi } from '@/utils/api';
 import axios from 'axios'
 import * as echarts from 'echarts'
 
 import { useDarkStore } from '@/store'
 import { getUserInfo } from '@/utils/auth';
 import dayjs from 'dayjs'
-import { getMetricsService, DEFAULT_METRICS_SERVICE } from '@/utils/metrics-service';
 import { markRaw } from 'vue'
 
 export default {
-    props: ['list','node','activeType','noMonitor','pickerValue','step','virtualDiskFilterCache','metricsServices'],
+    props: ['list','node','activeType','noMonitor','pickerValue','step','virtualDiskFilterCache'],
     data(){
         return {
             // activeType: 'cpu',
@@ -111,7 +110,6 @@ export default {
             },
             chart: null,
             userInfo: {},
-            currentMetricsService: DEFAULT_METRICS_SERVICE,
         }
     },
     created(){
@@ -119,12 +117,6 @@ export default {
             this._virtualDiskFilterCache = this.virtualDiskFilterCache;
         }
         this.userInfo = getUserInfo();
-        this.currentMetricsService = this.metricsServices || DEFAULT_METRICS_SERVICE;
-        if(!this.metricsServices){
-            getMetricsService().then(service=>{
-                this.currentMetricsService = service;
-            });
-        }
     },
     mounted(){
         this.init();
@@ -136,9 +128,6 @@ export default {
     watch: {
         virtualDiskFilterCache(v){
             this._virtualDiskFilterCache = v;
-        },
-        metricsServices(v){
-            this.currentMetricsService = v || DEFAULT_METRICS_SERVICE;
         },
         node(){this.init();},
         list(){this.init();},
@@ -158,9 +147,6 @@ export default {
         }
     },
     methods: {
-        async ensureMetricsService(){
-            this.currentMetricsService = this.metricsServices || await getMetricsService();
-        },
         getChartState(chartType){
             if(!this[chartType]){
                 this[chartType] = {
@@ -171,10 +157,13 @@ export default {
             }
             return this[chartType];
         },
+        isCkmRequest(){
+            return this.userInfo?.['w7.cc/is-ckm-req']=='true'
+                || this.userInfo?.['w7.cc/is-cvm-req']=='true';
+        },
         async init(){
             // if(!this.list?.length && !this.node){return}
             if(!this.activeType){return}
-            await this.ensureMetricsService();
             this.$nextTick(()=>{
                 this.chartInit(this.activeType);
             })
@@ -193,30 +182,14 @@ export default {
                 step = this.step;
             }
 
-            let agent = '/k8s-proxy/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy';
-            let userMode = this.userInfo?.['w7.cc/user-mode'];
-
-            if(this.userInfo?.["k3k.io/cluster-mode"]=='virtual'){
-                agent = '/k8s-proxy/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy';
-            }
-            if(this.userInfo?.["k3k.io/cluster-mode"]=='shared'){
-                agent = '/k8s-proxy/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy-root'
-            }
-            let path = agent + '/prometheus/api/v1/query_range';
-            // this.noMonitor? '/k8s-proxy/metrics/node' : path
-
             let filter = '';
             if(filterArr?.length){
                 filter = `,device!~"${filterArr.join('|')}"`
             }
-            const nodeResourceJob = this.currentMetricsService === DEFAULT_METRICS_SERVICE
-                ? 'default/w7panel-metrics-node-resource'
-                : 'default/w7panel-metrics-k8s-offline-metrics-node-resource';
-
-            let jobArg = (this.currentMetricsService==DEFAULT_METRICS_SERVICE)?'w7panel-metrics-node-exporter' : 'w7panel-metrics-k8s-offline-metrics-node-exporter';
+            const nodeResourceJob = 'default/w7panel-metrics-node-resource';
+            let jobArg = 'w7panel-metrics-node-exporter';
             const metricQuery = {
-                // ...(userMode=='cluster'?{
-                ...(this.userInfo['w7.cc/is-cvm-req']=='true'?{
+                ...(this.isCkmRequest()?{
                     'cpu': 'rate(pod_cpu_usage_seconds_total{pod="' + Name + '"})',
                     'memory': 'pod_memory_working_set_bytes{pod="' + Name + '"}',
                 }:{
@@ -243,7 +216,7 @@ export default {
                 return Promise.resolve({data:{result:[]}});
             }
             
-            return axios.get(path,{params:{
+            return panelApi.get('/metrics/query-range',{params:{
                 query: metricQuery,
                 start: startTime,
                 end: endTime,
@@ -271,7 +244,6 @@ export default {
         },
 
         async chartInit(chartType){
-            await this.ensureMetricsService();
             let c = this.getChartState(chartType);
             if(c.loading){return}
             c.loading = true;
@@ -286,10 +258,9 @@ export default {
                     gpuNames[i.id] = i.type + '('+ i.nodeName +')';
                 })
             }
-            let userMode = this.userInfo?.['w7.cc/user-mode'];
-            
-            // userMode!='cluster' this.userInfo['w7.cc/is-cvm-req']!=='true'
-            if((this.userInfo['w7.cc/is-cvm-req']!=='true'&&(chartType=='cpu'||chartType=='memory'))||chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
+            const isCkmRequest = this.isCkmRequest();
+            const server0PodName = this.userInfo?.['w7.cc/server0-pod-name'];
+            if((!isCkmRequest&&(chartType=='cpu'||chartType=='memory'))||chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
                 let data = null;
                 try{
                     let res = await this.getChart('', chartType);
@@ -328,9 +299,11 @@ export default {
                         smooth: true,
                     })
                 }
-            }else if(this.list?.length){
+            }else if((isCkmRequest && server0PodName) || (!isCkmRequest && this.list?.length)){
                 let nodes = this.list;
-                if(this.userInfo?.["k3k.io/cluster-mode"]=='shared'){
+                if(isCkmRequest){
+                    nodes = [{name:server0PodName}];
+                }else if(this.userInfo?.["k3k.io/cluster-mode"]=='shared'){
                     nodes = [{name:this.userInfo?.['w7.cc/k3k-namespace']+'-server-0'}];
                 }
                 for(let i=0; i<nodes?.length; i++){
@@ -393,9 +366,10 @@ export default {
                 let filterArr = [];
                 if(needFilter){
                     if(!this._virtualDiskFilterCache){
-                        this._virtualDiskFilterCache = await k8sproxy.get('/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy/prometheus/api/v1/query_range',{
+                        this._virtualDiskFilterCache = await panelApi.get('/metrics/query-range',{
                             params: {
-                                query: '(node_disk_info{model="VIRTUAL-DISK"})'
+                                query: '(node_disk_info{model="VIRTUAL-DISK"})',
+                                local: 1,
                             }
                         }).then(res=>{
                             return res?.data?.data?.result?.map(i=>i.metric?.device) || [];

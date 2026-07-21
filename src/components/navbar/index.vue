@@ -73,7 +73,7 @@
                         <a-avatar :size="32">
                             <icon-user style="font-size:24; stroke-width: 5;" class="df ai-c jc-c" />
                         </a-avatar>
-                        <span class="ml-8">{{ userInfo && userInfo['w7.cc/username'] }}</span>
+                        <span class="ml-8">{{ displayUsername }}</span>
                     </div>
                     <template #content>
                         <div class="user-popover-card">
@@ -82,7 +82,7 @@
                                     <icon-user />
                                 </div>
                                 <div class="user-popover-card__info">
-                                    <div class="user-popover-card__name">{{ userInfo && userInfo['w7.cc/username'] }}</div>
+                                    <div class="user-popover-card__name">{{ displayUsername }}</div>
                                     <div class="user-popover-card__status" :class="{ 'is-bound': isRegister }">
                                         <icon-exclamation-circle-fill />
                                         <span>{{ isRegister ? '已绑定账号' : '未绑定账号' }}</span>
@@ -170,6 +170,7 @@ const router = useRouter();
 
 const webshell = ref(getWebshell());
 const userInfo = ref(getUserInfo());
+const displayUsername = computed(() => userInfo.value?.['w7.cc/nickname'] || userInfo.value?.['w7.cc/username'] || '');
 const isRegister = ref(false);
 const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png');
 const isMicroAppDirect = Boolean((window as any)?.w7_microapp?.name);

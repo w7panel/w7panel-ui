@@ -74,11 +74,11 @@
                 <div class="df ai-s jc-b">
                     <div class="title fs-16">系统信息</div>
                     <div class="df ai-c">
-                        <a-button :href="'/order-base?expand=true'+cvmInfo.expandQuery" target="_blank" v-if="!inMicro&&((userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canExpandBuy && !cvmInfo.isExpired)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-expand']=='true'))" size="small" type="primary">扩容</a-button>
+                        <a-button :href="'/order-base?expand=true'+cvmInfo.expandQuery" target="_blank" v-if="!inMicro&&((isCkmRequest&&cvmInfo.canExpandBuy && !cvmInfo.isExpired)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-expand']=='true'))" size="small" type="primary">扩容</a-button>
                         <!-- <a-button size="small" type="primary" @click="submitExpand">扩容</a-button> -->
                     </div>
                 </div>
-                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || userInfo['w7.cc/is-cvm-req']=='true'" :model="quotsInfo" class="mt-20" label-align="left" auto-label-width>
+                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || isCkmRequest" :model="quotsInfo" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="CPU" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.cpu}}</span>
                     </a-form-item>
@@ -97,7 +97,7 @@
                     </a-form-item>
                     <a-form-item v-if="quotsInfo.expiretime" label="到期时间" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.expiretime}}</span>
-                        <a v-if="!inMicro&&((userInfo['w7.cc/is-cvm-req']=='true'&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'))" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>                    </a-form-item>
+                        <a v-if="!inMicro&&((isCkmRequest&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'))" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>                    </a-form-item>
                 </a-form>
                 <a-form v-else :model="info" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="集群版本" style="margin-bottom:0;">
@@ -267,16 +267,16 @@
             <div class="mt-20" >
                 <a-tabs v-model:active-key="tabActive">
                     <a-tab-pane :key="1" title="CPU使用">
-                        <ol-charts :metricsServices="metricsServices" v-if="tabActive==1&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" :list="nodelist" activeType="cpu"></ol-charts>
+                        <ol-charts v-if="tabActive==1&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" :list="nodelist" activeType="cpu"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane :key="2" title="内存使用">
-                        <ol-charts :metricsServices="metricsServices" v-if="tabActive==2&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" :list="nodelist" activeType="memory"></ol-charts>
+                        <ol-charts v-if="tabActive==2&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" :list="nodelist" activeType="memory"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane v-if="gpuIsOpen" :key="3" title="GPU显存使用">
-                        <ol-charts :metricsServices="metricsServices" v-if="tabActive==3&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="HostGPUMemoryUsage"></ol-charts>
+                        <ol-charts v-if="tabActive==3&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="HostGPUMemoryUsage"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane v-if="gpuIsOpen" :key="4" title="GPU算力使用率">
-                        <ol-charts :metricsServices="metricsServices" v-if="tabActive==4&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="HostCoreUtilization"></ol-charts>
+                        <ol-charts v-if="tabActive==4&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="HostCoreUtilization"></ol-charts>
                     </a-tab-pane>
                 </a-tabs>
             </div>
@@ -325,22 +325,22 @@
                     <a-button v-for="item in nodelist" :key="item.name" :type="chartNodeActive==item.name?'primary':'outline'" @click="chartNodeActive=item.name">{{item.name}}</a-button>
                 </a-button-group>
                 <div v-if="!noMonitor" class="mt-20">
-                    <ol-charts :metricsServices="metricsServices" v-if="chartActive==1&&chartNodeActive" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" :list="nodelist" activeType="load"></ol-charts>
+                    <ol-charts v-if="chartActive==1&&chartNodeActive" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" :list="nodelist" activeType="load"></ol-charts>
                     <div v-if="chartActive==2&&chartNodeActive" class="df">
-                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read" class="fc"></ol-charts>
-                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-write" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-write" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==3&&chartNodeActive" class="df">
-                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-in" class="fc"></ol-charts>
-                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-out" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-in" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-out" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==4&&chartNodeActive" class="df">
-                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read-bytes" class="fc"></ol-charts>
-                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-written-bytes" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read-bytes" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-written-bytes" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==5&&chartNodeActive" class="df">
-                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-receive-bytes" class="fc"></ol-charts>
-                        <ol-charts :metricsServices="metricsServices" :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-transmit-bytes" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-receive-bytes" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-transmit-bytes" class="ml-20 fc"></ol-charts>
                     </div>
                 </div>
             </div>
@@ -439,7 +439,6 @@ import { useDarkStore } from '@/store'
 import dayjs from 'dayjs'
 import { getToken } from '@/utils/auth';
 import { getWebshell } from '@/utils/auth';
-import { getMetricsServiceByVersion, DEFAULT_METRICS_SERVICE, LEGACY_METRICS_SERVICE } from '@/utils/metrics-service';
 
 export default {
     data(){
@@ -617,8 +616,6 @@ export default {
                 renewQuery: '',
                 expandQuery: '',
             },
-            oldVersion: false,
-            metricsServices: DEFAULT_METRICS_SERVICE,
         }
     },
     async created(){
@@ -642,39 +639,33 @@ export default {
         // }).catch(()=>{
         //     this.noMonitor = true;
         // })
-        await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/default/appgroups/w7panel-metrics',{noAlert:true}).then(res=>{
-            this.noMonitor = false;
-            
-            this.clusterMonitor.pickerValue = [
-                dayjs().subtract(1, 'hour'),
-                dayjs(),
-            ]
-            if(this.clusterMode!='virtual' && this.clusterMode!='shared'){
+        await panelApi.get('/metrics/state').then(async res=>{
+            this.metricsState = res.data;
+            if(this.metricsState?.canShowClusterMetrics){
+                this.clusterMonitor.pickerValue = [
+                    dayjs().subtract(1, 'hour'),
+                    dayjs(),
+                ];
+            }
+            if(this.metricsState?.canShowNodeMetrics){
+                this.noMonitor = false;
                 this.hostMonitor.pickerValue = [
                     dayjs().subtract(1, 'hour'),
                     dayjs(),
-                ]
-            }
-            this.metricsServices = getMetricsServiceByVersion(res?.data?.spec?.version || '');
-            if(this.metricsServices === LEGACY_METRICS_SERVICE){
-                this.oldVersion = true;
-            }
-        }).catch(()=>{
-            this.noMonitor = true;
-        })
-
-        await panelApi.get('/metrics/state').then(async res=>{
-            this.metricsState = res.data;
-            if(this.metricsState?.canShowNodeMetrics){
-
-                this.virtualDiskFilterCache = await k8sproxy.get('/api/v1/namespaces/default/services/'+ this.metricsServices +'/proxy/prometheus/api/v1/query_range',{
+                ];
+                this.virtualDiskFilterCache = await panelApi.get('/metrics/query-range',{
                     params: {
-                        query: '(node_disk_info{model="VIRTUAL-DISK"})'
+                        query: '(node_disk_info{model="VIRTUAL-DISK"})',
+                        local: 1,
                     }
                 }).then(res=>{
                     return res?.data?.data?.result?.map(i=>i.metric?.device) || [];
                 }).catch(()=>[]);
+            }else{
+                this.noMonitor = true;
             }
+        }).catch(()=>{
+            this.noMonitor = true;
         })
 
         // await panelApi.get('/metrics/installed').then(res=>{
@@ -715,6 +706,10 @@ export default {
         olCharts,
     },
     computed:{
+        isCkmRequest(){
+            return this.userInfo?.['w7.cc/is-ckm-req']=='true'
+                || this.userInfo?.['w7.cc/is-cvm-req']=='true';
+        },
     },
     watch:{
         'dark.isDark'(){
@@ -799,9 +794,12 @@ export default {
                 this.userInfo = res?.data;
                 this.clusterMode = this.userInfo?.["k3k.io/cluster-mode"];
 
-                if(res?.data?.['w7.cc/is-ckm-req']=='true'){
-                    let name = res?.data?.['w7.cc/ckm-name'];
-                    let namespace = res?.data?.['w7.cc/ckm-namespace'];
+                if(this.isCkmRequest){
+                    let name = res?.data?.['w7.cc/ckm-name'] || res?.data?.['w7.cc/cvm-name'];
+                    let namespace = res?.data?.['w7.cc/ckm-namespace']
+                        || res?.data?.['ckm-namespace']
+                        || res?.data?.['w7.cc/cvm-namespace']
+                        || res?.data?.['w7.cc/k3k-namespace'];
                     panelApi.get(`/k3k/ckm/v1/${namespace}/info/${name}`).then(res=>{
                         let effectiveResource = res?.data?.status?.effectiveResource;
                         this.quotsInfo = {

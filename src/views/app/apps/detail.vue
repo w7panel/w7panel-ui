@@ -5,8 +5,8 @@
         <a-layout class="fc">
             <a-layout-sider v-if="!hideAppMenu" :width="160">
                 <div class="df df-c menu-absolute-div" style="position:absolute;inset:0;overflow:auto;">
-                    <div v-if="roles.length" style="width:100%;">
-                        <div v-for="role in roles" :key="role.name">
+                    <div v-if="topMenuRoles.length" style="width:100%;">
+                        <div v-for="role in topMenuRoles" :key="role.name">
                             <!-- <div v-if="roles.length>1" class="c-99 ml-16" style="padding:10px 0;">{{ role.title }}</div> -->
                             <div v-if="role.menus && role.menus.length" class="c-aa ml-20" style="padding:10px 0;">
                                 <IconUserGroup />
@@ -36,8 +36,31 @@
                         </div>
                     </div>
                     
+                    <a-divider v-if="topMenuRoles.length && (bottomMenus.length || $route.name!='group-micro2')" style="margin:10px;width:auto;min-width:auto;" />
+                    <a-menu v-if="bottomMenus.length" style="width:100%;" :level-indent="34" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
+                        <template v-for="menu in bottomMenus" :key="menu.do">
+                            <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
+                                <template #icon>
+                                    <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
+                                    <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
+                                    <IconMenu v-else />
+                                </template>
+                                <span>{{menu.title}}</span>
+                            </a-menu-item>
+                            <a-sub-menu v-else :key="menu.do">
+                                <template #icon>
+                                    <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
+                                    <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
+                                    <IconMenu v-else />
+                                </template>
+                                <template #title>{{menu.title}}</template>
+                                <a-menu-item v-for="submenu in menu.children" :key="submenu.do">{{submenu.title}}</a-menu-item>
+                            </a-sub-menu>
+                        </template>
+                    </a-menu>
+
                     <div v-if="$route.name!='group-micro2'">
-                        <a-divider v-if="menus.length || roles.length" style="margin:10px;width:auto;min-width:auto;" />
+                        <a-divider v-if="bottomMenus.length" style="margin:10px;width:auto;min-width:auto;" />
                         <div v-if="$route.name!=''">
                             <a-menu v-if="isHelmPage || (isMicroPage&&isHelmApp)" v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
                                 <a-menu-item key="group-helm-detail" ><icon-apps />应用详情</a-menu-item>
@@ -135,6 +158,7 @@ import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
+import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -250,6 +274,15 @@ export default {
     },
     computed:{
         isMicroPage(){ return this.$route.name == 'group-micro' || this.$route.name == 'group-micro2'; },
+        menuLocationGroups(){
+            return splitMicroAppMenuRoles(this.roles);
+        },
+        topMenuRoles(){
+            return this.menuLocationGroups.topRoles;
+        },
+        bottomMenus(){
+            return this.menuLocationGroups.bottomMenus;
+        },
         microPanelHeight(){
             return this.hideAppMenu ? 'calc(100vh - 86px)' : 'calc(100vh - 146px)';
         },

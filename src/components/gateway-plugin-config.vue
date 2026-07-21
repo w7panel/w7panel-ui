@@ -1,60 +1,100 @@
 <template>
     <a-drawer
+        class="gateway-plugin-config-drawer"
         :visible="visible"
         :width="scope === 'global' ? 1200 : 1000"
-        :footer="hasFrontend ? false : true"
+        :footer="false"
         unmount-on-close
-        @ok="submitYaml"
         @cancel="close"
     >
-        <template #title>{{ title }}</template>
+        <template #title>
+            <div class="plugin-config-title">
+                <span>{{ title }}</span>
+                <a-button
+                    v-if="hasFrontend && !yamlEditing"
+                    type="outline"
+                    @click.stop="toggleYamlView"
+                >{{ yamlVisible ? '返回可视化配置' : '预览 YAML' }}</a-button>
+            </div>
+        </template>
+
+        <a-alert type="info" show-icon class="plugin-config-scope-alert">
+            <template v-if="scope === 'rule'">
+                当前配置仅作用于
+                <strong>{{ domain || '当前域名' }}</strong>
+                对应的网关规则
+                <span v-if="ingressName">（Ingress：{{ ingressName }}）</span>，不影响插件的全局配置。
+            </template>
+            <template v-else>
+                当前配置作用于整个集群的网关请求，不绑定具体域名或 Ingress；域名级差异策略请使用规则配置。
+            </template>
+        </a-alert>
 
         <a-spin class="plugin-config-spin" :loading="loading">
-            <div v-if="hasFrontend" class="plugin-config-layout" :class="{'is-rule':scope === 'rule'}">
-                <template v-if="scope === 'global'">
-                    <aside class="plugin-config-menu">
-                        <template v-for="role in menuRoles" :key="role.name">
-                            <div class="plugin-config-role">{{role.title}}端</div>
-                            <a-menu
-                                :selected-keys="[activeRoute]"
-                                @menu-item-click="changeRoute"
-                            >
-                                <a-menu-item v-for="menu in role.menus" :key="menu.do">
-                                    {{menu.title}}
-                                </a-menu-item>
-                            </a-menu>
-                        </template>
-                    </aside>
-                </template>
-                <div class="plugin-config-content">
-                    <a-tabs
-                        v-if="scope === 'rule' && flatMenus.length"
-                        :active-key="activeRoute"
-                        @change="changeRoute"
-                    >
-                        <a-tab-pane v-for="menu in flatMenus" :key="menu.do" :title="menu.title" />
-                    </a-tabs>
-                    <gateway-plugin-microapp
-                        v-if="microappInfo"
-                        :microapp="microappInfo"
-                        :route="activeRoute"
-                        :instance-name="instanceName"
-                        :context-props="microContextProps"
-                        @error="fallbackToYaml"
-                    />
+            <template v-if="showFrontend">
+                <div
+                    class="plugin-config-layout"
+                    :class="{'is-rule':scope === 'rule','without-menu':!showMenuNavigation}"
+                >
+                    <template v-if="scope === 'global' && showMenuNavigation">
+                        <aside class="plugin-config-menu">
+                            <template v-for="role in menuRoles" :key="role.name">
+                                <div class="plugin-config-role">{{role.title}}端</div>
+                                <a-menu
+                                    :selected-keys="[activeRoute]"
+                                    @menu-item-click="changeRoute"
+                                >
+                                    <a-menu-item v-for="menu in role.menus" :key="menu.do">
+                                        {{menu.title}}
+                                    </a-menu-item>
+                                </a-menu>
+                            </template>
+                        </aside>
+                    </template>
+                    <div class="plugin-config-content">
+                        <a-tabs
+                            v-if="scope === 'rule' && showMenuNavigation"
+                            :active-key="activeRoute"
+                            @change="changeRoute"
+                        >
+                            <a-tab-pane v-for="menu in flatMenus" :key="menu.do" :title="menu.title" />
+                        </a-tabs>
+                        <gateway-plugin-microapp
+                            v-if="microappInfo"
+                            :microapp="microappInfo"
+                            :route="activeRoute"
+                            :instance-name="instanceName"
+                            :context-props="microContextProps"
+                            @error="fallbackToYaml"
+                        />
+                    </div>
                 </div>
-            </div>
+            </template>
 
             <div v-else-if="!loading" class="plugin-yaml-config">
-                <div class="plugin-yaml-config__switch">
-                    <span>开启状态</span>
-                    <a-switch v-model="form.enabled" />
+                <div class="plugin-yaml-config__toolbar">
+                    <div class="plugin-yaml-config__switch">
+                        <span>开启状态</span>
+                        <a-switch v-model="form.enabled" :disabled="!yamlEditing" />
+                    </div>
+                    <a-space>
+                        <template v-if="yamlEditing">
+                            <a-button type="primary" @click="submitYaml">保存</a-button>
+                            <a-button @click="cancelYamlEdit">取消</a-button>
+                        </template>
+                        <template v-else>
+                            <a-button type="primary" @click="startYamlEdit">编辑</a-button>
+                            <a-button v-if="!hasFrontend" @click="cancelYamlView">取消</a-button>
+                        </template>
+                    </a-space>
                 </div>
                 <div class="plugin-yaml-config__label">YAML 配置</div>
                 <div class="plugin-yaml-config__editor">
                     <yaml-input
+                        :key="`${editorId}-${yamlEditing ? 'edit' : 'preview'}`"
                         :domid="editorId"
                         :value="form.yaml"
+                        :readonly="!yamlEditing"
                         @submit="value=>form.yaml=value"
                     />
                 </div>
@@ -66,7 +106,6 @@
 <script>
 import jsyaml from 'js-yaml';
 import { panelApi, k8sproxy } from '@/utils/api';
-import { getK8sinfo } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';
 import yamlInput from '@/components/yaml-input.vue';
 import gatewayPluginMicroapp from '@/components/gateway-plugin-microapp.vue';
@@ -81,12 +120,6 @@ const ROLE_TITLE = {
     founder: '创始人',
     found: '创始人',
     normal: '普通用户',
-};
-
-const ROLE_ORDER = {
-    founder: 0,
-    found: 0,
-    normal: 1,
 };
 
 export default {
@@ -109,6 +142,9 @@ export default {
             menuRoles: [],
             activeRoute: '',
             forceYaml: false,
+            yamlVisible: false,
+            yamlEditing: false,
+            yamlSnapshot: { enabled: false, yaml: '' },
             form: { enabled: false, yaml: '' },
         };
     },
@@ -119,11 +155,20 @@ export default {
         hasFrontend(){
             return Boolean(this.microappInfo && !this.forceYaml);
         },
+        showFrontend(){
+            return this.hasFrontend && !this.yamlVisible;
+        },
         flatMenus(){
             return this.menuRoles.flatMap(role=>role.menus || []);
         },
+        showMenuNavigation(){
+            return this.flatMenus.length > 1;
+        },
         ingressName(){
             return this.ingress?.metadata?.name || '';
+        },
+        domain(){
+            return this.ingress?.spec?.rules?.[0]?.host || '';
         },
         instanceName(){
             return `${this.localPlugin?.metadata?.name || 'plugin'}-${this.scope}-${this.ingressName || 'global'}`;
@@ -138,13 +183,13 @@ export default {
                 pluginId: this.localPlugin?.metadata?.name || '',
                 namespace: this.scope === 'rule' ? this.namespaceActive : '',
                 ingressName: this.scope === 'rule' ? this.ingressName : '',
-                domain: this.scope === 'rule' ? this.ingress?.spec?.rules?.[0]?.host || '' : '',
+                domain: this.scope === 'rule' ? this.domain : '',
                 path: this.scope === 'rule' ? this.ingress?.spec?.rules?.[0]?.http?.paths?.[0]?.path || '' : '',
                 pluginConfig: config.config,
                 pluginEnabled: config.enabled,
                 // 兼容已接入旧字段名的插件前端。
                 pluginConfigEnabled: config.enabled,
-                microappRole: this.scope === 'rule' ? 'normal' : '',
+                microappRole: this.menuRoles[0]?.name || (this.scope === 'rule' ? 'normal' : 'founder'),
                 savePluginConfig: (value, enabled)=>this.saveMicroConfig(value, enabled),
             };
         },
@@ -166,6 +211,8 @@ export default {
             if(!this.plugin){ return; }
             this.loading = true;
             this.forceYaml = false;
+            this.yamlVisible = false;
+            this.yamlEditing = false;
             this.microappInfo = null;
             this.menuRoles = [];
             this.activeRoute = '';
@@ -194,6 +241,11 @@ export default {
                         || '';
                 }
             }
+            if(!this.hasFrontend){
+                this.yamlVisible = true;
+                this.yamlEditing = false;
+                this.rememberYamlSnapshot();
+            }
             this.loading = false;
         },
         flattenMenus(menus){
@@ -220,25 +272,63 @@ export default {
                     title: ROLE_TITLE[binding.name] || binding.name,
                     menus: this.flattenMenus(binding.menu || []),
                 }))
-                .filter(role=>role.menus.length)
-                .sort((a,b)=>(ROLE_ORDER[a.name] ?? 99) - (ROLE_ORDER[b.name] ?? 99));
+                .filter(role=>role.menus.length);
 
             if(this.scope === 'rule'){
                 const normal = roles.find(role=>role.name === 'normal');
                 return normal ? [normal] : [];
             }
-            const userRole = getK8sinfo()?.['w7.cc/role'];
-            if(userRole === 'founder' || userRole === 'found'){
-                return roles.filter(role=>['founder', 'found', 'normal'].includes(role.name));
-            }
-            const current = roles.find(role=>role.name === userRole);
-            return current ? [current] : roles.filter(role=>role.name === 'normal');
+            const founder = roles.find(role=>role.name === 'founder')
+                || roles.find(role=>role.name === 'found');
+            return founder ? [founder] : [];
         },
         changeRoute(route){
             this.activeRoute = route;
         },
         fallbackToYaml(){
             this.forceYaml = true;
+            this.yamlVisible = true;
+            this.yamlEditing = false;
+            this.syncYamlForm();
+            this.rememberYamlSnapshot();
+        },
+        syncYamlForm(){
+            const current = this.getCurrentConfig();
+            this.form = {
+                enabled: current.enabled,
+                yaml: jsyaml.dump(current.config || {}, { lineWidth: -1, noRefs: true }),
+            };
+        },
+        rememberYamlSnapshot(){
+            this.yamlSnapshot = { ...this.form };
+        },
+        openYaml(){
+            this.syncYamlForm();
+            this.rememberYamlSnapshot();
+            this.yamlVisible = true;
+            this.yamlEditing = false;
+        },
+        toggleYamlView(){
+            if(this.yamlVisible){
+                this.cancelYamlView();
+                return;
+            }
+            this.openYaml();
+        },
+        startYamlEdit(){
+            this.rememberYamlSnapshot();
+            this.yamlEditing = true;
+        },
+        cancelYamlEdit(){
+            this.form = { ...this.yamlSnapshot };
+            this.yamlEditing = false;
+        },
+        cancelYamlView(){
+            if(this.hasFrontend){
+                this.yamlVisible = false;
+                return;
+            }
+            this.close();
         },
         getCurrentConfig(){
             const plugin = this.localPlugin || {};
@@ -299,7 +389,11 @@ export default {
                 this.$message.error(error?.message || 'YAML 格式错误');
                 return;
             }
-            this.persist(this.applyConfig(config, this.form.enabled)).then(()=>this.close(true));
+            this.persist(this.applyConfig(config, this.form.enabled)).then(()=>{
+                this.syncYamlForm();
+                this.rememberYamlSnapshot();
+                this.yamlEditing = false;
+            });
         },
         close(saved){
             this.visible = false;
@@ -310,16 +404,21 @@ export default {
 </script>
 
 <style scoped>
-.plugin-config-layout{display:flex;height:calc(100vh - 120px);min-height:560px;}
+:global(.gateway-plugin-config-drawer .arco-drawer-title){flex:1;min-width:0;}
+.plugin-config-title{display:flex;align-items:center;justify-content:space-between;width:100%;padding-right:8px;}
+.plugin-config-scope-alert{margin-bottom:12px;}
+.plugin-config-layout{display:flex;height:calc(100vh - 164px);min-height:520px;}
 .plugin-config-menu{width:220px;flex:0 0 220px;border-right:1px solid var(--color-border-2);overflow:auto;padding-right:12px;}
 .plugin-config-role{padding:12px 16px 6px;color:var(--color-text-3);font-size:12px;}
 .plugin-config-content{flex:1;min-width:0;height:100%;padding-left:16px;}
+.plugin-config-layout.without-menu .plugin-config-content{padding-left:0;}
 .plugin-config-layout.is-rule{display:block;height:calc(100vh - 150px);}
 .plugin-config-layout.is-rule .plugin-config-content{padding-left:0;}
 .plugin-config-spin{display:block;width:100%;height:100%;}
 .plugin-config-spin :deep(.arco-spin-children){height:100%;}
 .plugin-yaml-config{height:calc(100vh - 180px);min-height:480px;}
-.plugin-yaml-config__switch{display:flex;align-items:center;gap:16px;height:32px;}
+.plugin-yaml-config__toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;height:32px;}
+.plugin-yaml-config__switch{display:flex;align-items:center;gap:16px;}
 .plugin-yaml-config__label{margin:18px 0 8px;color:var(--color-text-2);}
 .plugin-yaml-config__editor{height:calc(100% - 80px);min-height:380px;}
 .plugin-yaml-config__editor :deep(.yaml-input){width:100%;height:100%;border:1px solid var(--color-border-2);}

@@ -88,8 +88,8 @@
                         <a-radio value="permanent">永久 token</a-radio>
                     </a-radio-group>
                 </a-form-item>
-                <a-form-item v-if="form.data.tokenType === 'temporary'" label="有效分钟数" field="temporaryTokenMinutes" :rules="[{ required: true, message: '请输入有效分钟数' }]">
-                    <a-input-number v-model="form.data.temporaryTokenMinutes" :min="1" :max="1440" :precision="0" placeholder="请输入有效分钟数" />
+                <a-form-item v-if="form.data.tokenType === 'temporary'" label="有效分钟数" field="temporaryTokenMinutes" :rules="[{ required: true, message: '请输入有效分钟数' }, { type: 'number', min: 10, message: '有效分钟数不能小于10' }]">
+                    <a-input-number v-model="form.data.temporaryTokenMinutes" :min="10" :max="1440" :precision="0" placeholder="请输入有效分钟数" />
                 </a-form-item>
             </a-form>
         </a-drawer>
@@ -130,7 +130,7 @@ function buildSpec(data) {
         tokenType: data.tokenType || 'temporary',
     };
     if (spec.tokenType === 'temporary') {
-        spec.temporaryTokenMinutes = Number(data.temporaryTokenMinutes) || 10;
+        spec.temporaryTokenMinutes = Math.max(10, Number(data.temporaryTokenMinutes) || 10);
     }
     return spec;
 }

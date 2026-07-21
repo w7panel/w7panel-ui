@@ -153,8 +153,8 @@ export default {
             helpFocus: 'name',
             topbc: [
                 {name:'root'},
-                {name: "cluster", label: "集群管理"},
-                {name: "cluster-dns", label: "私有DNS解析"},
+                {name: "gateway", label: "网关管理"},
+                {name: "gateway-dns", label: "私有DNS"},
                 {name: "dns-records", label: this.$route.params.domain},
             ],
         };

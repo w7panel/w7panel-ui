@@ -24,10 +24,6 @@
             "route": "cluster/nodes-image-list"
         }]
     },{
-        "title": "私有DNS解析",
-        "key": "dns",
-        "route": "cluster/dns"
-    },{
         "title": "资源对象浏览器",
         "key": "cluster-resource",
         "route": "cluster/resource"
@@ -126,6 +122,10 @@
             "key": "gateway-aiproxy-delete",
             "route": "gateway/aiproxy/delete"
         }]
+    },{
+        "title": "私有DNS",
+        "key": "dns",
+        "route": "gateway/dns"
     },{
         "title": "网关插件",
         "key": "gateway-plugins",

@@ -19,17 +19,16 @@
 </template>
 
 <script>
-import axios from 'axios';
 import * as echarts from 'echarts';
 import { useNamespaceStore } from '@/store';
 import { useDarkStore } from '@/store';
 import CryptoJS  from 'crypto-js';
 import { getUserInfo } from '@/utils/auth';
+import { panelApi } from '@/utils/api';
 import dayjs from 'dayjs';
-import { getMetricsService, DEFAULT_METRICS_SERVICE } from '@/utils/metrics-service';
 
 export default {
-    props: ['list', 'type','noTitle', 'pickerValue', 'step', 'metricsServices'],
+    props: ['list', 'type','noTitle', 'pickerValue', 'step'],
     data() {
         return {
             titles: {
@@ -56,7 +55,6 @@ export default {
                 y: [],
             },
             userInfo: {},
-            currentMetricsService: DEFAULT_METRICS_SERVICE,
         };
     },
     created() {
@@ -65,12 +63,6 @@ export default {
         }
         this.userInfo = getUserInfo();
         this.namespaceActive = useNamespaceStore().namespace;
-        this.currentMetricsService = this.metricsServices || DEFAULT_METRICS_SERVICE;
-        if(!this.metricsServices){
-            getMetricsService().then(service=>{
-                this.currentMetricsService = service;
-            });
-        }
     },
     
     mounted() {
@@ -97,9 +89,6 @@ export default {
         step(){
             this.chartInit(this.activeType);
         },
-        metricsServices(v){
-            this.currentMetricsService = v || DEFAULT_METRICS_SERVICE;
-        },
     },
     methods: {
         translateToHostName(name, namespace, clusterName) {
@@ -118,12 +107,8 @@ export default {
             return validChar;
         },
         resize() {},
-        async ensureMetricsService(){
-            this.currentMetricsService = this.metricsServices || await getMetricsService();
-        },
-        async init() {
+        init() {
             if (!this.list?.length) { return; }
-            await this.ensureMetricsService();
             this.$nextTick(() => {
                 this.chartInit(this.activeType);
             });
@@ -142,26 +127,17 @@ export default {
                 step = this.step;
             }
 
-            let agent = '/k8s-proxy/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy';
-
-            if(this.userInfo?.["k3k.io/cluster-mode"]=='virtual'){
-                agent = '/k8s-proxy/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy';
-            }
-            if(this.userInfo?.["k3k.io/cluster-mode"]=='shared'){
-                agent = '/k8s-proxy/api/v1/namespaces/default/services/'+ this.currentMetricsService +'/proxy-root'
-            }
-            let path = agent + '/prometheus/api/v1/query_range';
-            return axios.get(path,{
-                params: {
-                    query:
-                        MetricName == 'cpu'
+            const params = {
+                query:
+                    MetricName == 'cpu'
                         ? 'rate(pod_cpu_usage_seconds_total{pod="' + Name + '"})'
                         : 'pod_memory_working_set_bytes{pod="' + Name + '"}',
-                    start: startTime,
-                    end: endTime,
-                    step: step,
-                },
-            }).then((res) => {
+                start: startTime,
+                end: endTime,
+                step: step,
+            };
+            params.local = 1;
+            return panelApi.get('/metrics/query-range', { params }).then((res) => {
                 return res?.data;
             });
             // return axios.get(`/api/v1/dashboard/namespaces/${this.namespaceActive}/pod-list/${Name}/metrics/${MetricName}/minute`).then(res=>{
@@ -169,7 +145,6 @@ export default {
             // })
         },
         async chartInit(chartType) {
-            await this.ensureMetricsService();
             let c = this[chartType];
             c.loading = true;
             // let chart = null;

@@ -1,5 +1,5 @@
 <template>
-    <div :id="domid" class="bg-white yaml-input"></div>
+    <div :id="domid" class="bg-white yaml-input" :class="{'yaml-input--readonly':readonly}"></div>
 </template>
 
 <script>
@@ -7,7 +7,11 @@ import {basicSetup, EditorView} from "codemirror"
 import { yaml } from "@codemirror/lang-yaml";
 
 export default {
-    props: ['domid', 'value'],
+    props: {
+        domid: { type: String, required: true },
+        value: { type: String, default: '' },
+        readonly: { type: Boolean, default: false },
+    },
     emits: ['submit'],
     data(){
         return {
@@ -36,9 +40,11 @@ export default {
     },
     watch: {
         value(val){
-            this.txt = val;
+            this.txt = val || '';
+            if(!this.editor){ return; }
             let tl = this.editor.state.doc.toString();
-            this.editor.dispatch({ changes: {from: 0, to:tl.length, insert:val}});
+            if(tl === this.txt){ return; }
+            this.editor.dispatch({ changes: {from: 0, to:tl.length, insert:this.txt}});
         }
     },
     methods: {
@@ -47,8 +53,12 @@ export default {
             if(this.timeout){ clearTimeout(this.timeout); }
             this.timeout = setTimeout(()=>{
                 this.timeout = null;
+                if(!this.editor){ return; }
+                this.editor.destroy();
                 this.editor = null;
-                document.getElementById(this.domid).innerHTML = "";
+                const element = document.getElementById(this.domid);
+                if(!element){ return; }
+                element.innerHTML = "";
                 this.$nextTick(()=>{
                     this.init();
                 })
@@ -60,26 +70,29 @@ export default {
             this.$emit('submit', txt);
         },
         init(){
-            let height = document.getElementById(this.domid).offsetHeight;
+            const element = document.getElementById(this.domid);
+            if(!element){ return; }
+            let height = element.offsetHeight;
             // console.log(height)
             let myTheme = EditorView.theme({
                 "&": {height: height-2 + "px"},
             }, {dark: false});
             
-            document.getElementById(this.domid).innerHTML = "";
+            element.innerHTML = "";
             this.editor = new EditorView({
                 doc: "",
                 extensions: [
                     basicSetup,
                     myTheme,
                     yaml(),
+                    EditorView.editable.of(!this.readonly),
                     
                     EditorView.updateListener.of((v) => {
                         if (!v.docChanged) {return}
                         this.submit();
                     }),
                 ],
-                parent: document.getElementById(this.domid),
+                parent: element,
             });
             
             if(this.txt){
@@ -93,4 +106,5 @@ export default {
 
 <style>
 .yaml-input .cm-focused{outline:none!important;}
+.yaml-input--readonly .cm-editor{background:var(--color-fill-1);}
 </style>

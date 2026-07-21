@@ -21,7 +21,10 @@
                 <template #columns>
                     <a-table-column title="用户名" data-index="name">
                         <template #cell="{ record }">
-                            <div>{{record.name}}</div>
+                            <div>
+                                <span>{{record.nickname}}</span>
+                                <span v-if="record.nickname!=record.name" class="fs-12 c-99 ml-4">（{{record.name}}）</span>
+                            </div>
                         </template>
                     </a-table-column>
 
@@ -470,6 +473,7 @@ export default {
                     
                     return {
                         name: i.metadata.name,
+                        nickname: spec.cloudNickname || i.metadata.name,
                         expiretime: spec.expireTime,
                         is_expired: is_expired,
                         'w7.cc/pause': spec.pause,
@@ -505,7 +509,7 @@ export default {
                     list = list.filter(i=>i.is_expired==(this.search.expiretime=='expired'))
                 }
                 if(this.search.username){
-                    list = list.filter(i=>new RegExp(this.search.username).test(i.name));
+                    list = list.filter(i=>i.name.includes(this.search.username) || i.nickname.includes(this.search.username));
                 }
                 list.sort((a, b) => b.createTime - a.createTime);
                 this.list = list;
