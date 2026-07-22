@@ -29,6 +29,7 @@ import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-crede
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
+import { createK8sProxy, createMicroappProxy } from '@/utils/microapp-proxy';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -286,6 +287,8 @@ export default{
                 loginCloud,
                 runningFirstPod,
                 podShell,
+                microappProxy: createMicroappProxy(proxyBackendUrl),
+                k8sproxy: createK8sProxy(),
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
             }

@@ -19,6 +19,7 @@ import { joinWujieUrlRoute, getWujieRoutePrefix } from '@/utils/wujie-route';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
+import { createK8sProxy, createMicroappProxy } from '@/utils/microapp-proxy';
 
 // wujie-modals 会间接引用 domain-strategy-plugin。使用异步组件打断
 // domain-strategy-plugin -> gateway-plugin-config -> gateway-plugin-microapp
@@ -164,6 +165,8 @@ export default {
                     savePluginConfig: this.contextProps?.savePluginConfig,
                     runningFirstPod,
                     podShell,
+                    microappProxy: createMicroappProxy(proxyBackendUrl),
+                    k8sproxy: createK8sProxy(),
                 };
                 appendWujieModalHandles(props, () => this.$refs.wujieModals);
                 await startApp({

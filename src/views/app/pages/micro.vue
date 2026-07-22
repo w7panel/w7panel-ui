@@ -19,6 +19,7 @@ import axios from 'axios'
 import { useNamespaceStore } from '@/store';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
+import { createK8sProxy } from '@/utils/microapp-proxy';
 
 export default {
     props: ['data','url'],
@@ -38,6 +39,7 @@ export default {
                     },
                     runningFirstPod,
                     podShell,
+                    k8sproxy: createK8sProxy(),
                     shell:(command,pod_name)=>{
                         return this.command(command,pod_name);
                     },
