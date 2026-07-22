@@ -162,20 +162,6 @@ export default {
                     savePluginConfig: this.contextProps?.savePluginConfig,
                 };
                 appendWujieModalHandles(props, () => this.$refs.wujieModals);
-                console.info('[gateway-plugin-microapp] MicroApp props', {
-                    configScope: props.configScope,
-                    pluginId: props.pluginId,
-                    namespace: props.namespace,
-                    ingressName: props.ingressName,
-                    domain: props.domain,
-                    path: props.path,
-                    pluginConfig: props.pluginConfig,
-                    pluginEnabled: props.pluginEnabled,
-                    pluginConfigEnabled: props.pluginConfigEnabled,
-                    microappRole: props.microappRole,
-                    savePluginConfig: props.savePluginConfig,
-                });
-
                 await startApp({
                     name: this.appName,
                     url,

@@ -129,7 +129,6 @@ export default {
                     officialApp: officialAppGroups.has(getResourceGroupName(resource)),
                     hasFrontend,
                     ruleIndex,
-                    ruleScope: ruleMatch.scope,
                     ruleEnabled: Boolean(rule) && rule?.configDisable !== true,
                     resource,
                 };

@@ -79,80 +79,37 @@ export function getPluginVersion(plugin: any) {
 export type GatewayPluginRuleContext = {
   namespace: string;
   ingressName: string;
-  domains: string[];
-  services: string[];
 };
 
 function uniqueStrings(values: any[]) {
   return [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))];
 }
 
-function parseChildHosts(ingress: any) {
-  const value = ingress?.metadata?.annotations?.['w7.cc/child-hosts'];
-  if (!value) return [];
-  try {
-    const items = JSON.parse(value);
-    return Array.isArray(items) ? items.map(item => item?.host) : [];
-  } catch {
-    return [];
-  }
-}
-
 /**
- * 将 Ingress 转成 Higress matchRules 可识别的匹配上下文。
- * service 同时保留常见的短名称、namespace/name 和集群域名形式，兼容原生资源。
+ * 通用网关插件的域名规则统一使用 Higress 标准的 namespace/ingressName 目标。
+ * AI 代理自行维护的 domain/service 规则不通过这里识别或修改。
  */
 export function getGatewayPluginRuleContext(ingress: any, namespace = ''): GatewayPluginRuleContext {
-  const resolvedNamespace = namespace || ingress?.metadata?.namespace || '';
-  const rules = ingress?.spec?.rules || [];
-  const serviceNames = rules.flatMap((rule: any) => rule?.http?.paths || [])
-    .map((path: any) => path?.backend?.service?.name)
-    .concat([ingress?.spec?.defaultBackend?.service?.name]);
-  const services = uniqueStrings(serviceNames).flatMap(name => uniqueStrings([
-    name,
-    resolvedNamespace ? `${resolvedNamespace}/${name}` : '',
-    resolvedNamespace ? `${name}.${resolvedNamespace}` : '',
-    resolvedNamespace ? `${name}.${resolvedNamespace}.svc` : '',
-    resolvedNamespace ? `${name}.${resolvedNamespace}.svc.cluster.local` : '',
-  ]));
   return {
-    namespace: resolvedNamespace,
+    namespace: namespace || ingress?.metadata?.namespace || '',
     ingressName: ingress?.metadata?.name || '',
-    domains: uniqueStrings(rules.map((rule: any) => rule?.host).concat(parseChildHosts(ingress))),
-    services: uniqueStrings(services),
   };
 }
 
 export function getGatewayPluginRuleMatch(plugin: any, context: GatewayPluginRuleContext) {
   const rules = plugin?.spec?.matchRules || [];
-  const ingressTargets = uniqueStrings([
-    context.namespace && context.ingressName ? `${context.namespace}/${context.ingressName}` : '',
-    context.ingressName,
-  ]);
-  const selectors = [
-    { scope: 'ingress', targets: ingressTargets },
-    { scope: 'domain', targets: uniqueStrings(context.domains || []) },
-    { scope: 'service', targets: uniqueStrings(context.services || []) },
-  ];
-  for (const selector of selectors) {
-    if (!selector.targets.length) continue;
-    const index = rules.findIndex((rule: any) =>
-      (rule?.[selector.scope] || []).some((value: string) => selector.targets.includes(value)),
-    );
-    if (index >= 0) {
-      return {
-        index,
-        scope: selector.scope,
-        values: (rules[index]?.[selector.scope] || []).filter((value: string) => selector.targets.includes(value)),
-      };
-    }
-  }
+  const target = context.namespace && context.ingressName
+    ? `${context.namespace}/${context.ingressName}`
+    : '';
+  if (!target) return { index: -1, scope: 'ingress', values: [] as string[] };
+  const index = rules.findIndex((rule: any) => (rule?.ingress || []).includes(target));
+  if (index >= 0) return { index, scope: 'ingress', values: [target] };
   return { index: -1, scope: 'ingress', values: [] as string[] };
 }
 
 /**
- * 获取当前作用域的独立规则。原规则同时匹配多个 ingress/domain/service 时，
- * 会保留其他匹配目标，并为当前匹配目标复制一条配置相同的规则。
+ * 获取当前 Ingress 的独立规则。共享规则包含多个目标时保留其他目标，
+ * 并为 namespace/ingressName 复制一条配置相同的规则。
  */
 export function ensureGatewayPluginRule(plugin: any, context: GatewayPluginRuleContext) {
   plugin.spec = plugin.spec || {};
@@ -168,17 +125,16 @@ export function ensureGatewayPluginRule(plugin: any, context: GatewayPluginRuleC
   }
 
   const rule = plugin.spec.matchRules[match.index];
-  const scope = match.scope;
   const matchedValues = uniqueStrings(match.values);
-  const remainingValues = (rule?.[scope] || []).filter((value: string) => !matchedValues.includes(value));
+  const remainingValues = (rule?.ingress || []).filter((value: string) => !matchedValues.includes(value));
   const hasOtherTargets = remainingValues.length > 0
-    || ['ingress', 'domain', 'service'].some(key => key !== scope && (rule?.[key] || []).length > 0);
+    || ['domain', 'service'].some(key => (rule?.[key] || []).length > 0);
   if (!hasOtherTargets) return match.index;
 
-  if (remainingValues.length) rule[scope] = remainingValues;
-  else delete rule[scope];
+  if (remainingValues.length) rule.ingress = remainingValues;
+  else delete rule.ingress;
   const isolatedRule = {
-    [scope]: matchedValues,
+    ingress: matchedValues,
     config: JSON.parse(JSON.stringify(rule?.config || {})),
     configDisable: rule?.configDisable === true,
   };
