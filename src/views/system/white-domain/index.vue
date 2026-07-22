@@ -85,7 +85,7 @@ export default{
                 if(!data){return}
 
                 this.data = data;
-                this.configDisable = data?.spec?.defaultConfigDisable,
+                this.configDisable = data?.spec?.defaultConfigDisable ?? false;
                 this.list = data?.spec?.defaultConfig?.white_domains || [];
                 this.errpage = {
                     code: data?.spec?.defaultConfig?.response_code,

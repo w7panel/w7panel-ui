@@ -111,7 +111,9 @@ import yamlInput from '@/components/yaml-input.vue';
 import gatewayPluginMicroapp from '@/components/gateway-plugin-microapp.vue';
 import {
     WASM_PLUGIN_API,
-    getIngressRuleIndex,
+    ensureGatewayPluginRule,
+    getGatewayPluginRuleContext,
+    getGatewayPluginRuleMatch,
     getPluginMicroapp,
     getPluginTitle,
 } from '@/utils/gateway-plugin';
@@ -335,14 +337,15 @@ export default {
             if(this.scope === 'global'){
                 return {
                     config: plugin?.spec?.defaultConfig || {},
-                    enabled: plugin?.spec?.defaultConfigDisable === false,
+                    enabled: plugin?.spec?.defaultConfigDisable !== true,
                 };
             }
-            const index = getIngressRuleIndex(plugin, this.namespaceActive, this.ingressName);
+            const context = getGatewayPluginRuleContext(this.ingress, this.namespaceActive);
+            const index = getGatewayPluginRuleMatch(plugin, context).index;
             const rule = index >= 0 ? plugin?.spec?.matchRules?.[index] : null;
             return {
                 config: rule?.config || {},
-                enabled: rule?.configDisable === false,
+                enabled: Boolean(rule) && rule?.configDisable !== true,
             };
         },
         applyConfig(config, enabled){
@@ -352,16 +355,8 @@ export default {
                 data.spec.defaultConfig = config || {};
                 data.spec.defaultConfigDisable = enabled !== true;
             }else{
-                data.spec.matchRules = data.spec.matchRules || [];
-                let index = getIngressRuleIndex(data, this.namespaceActive, this.ingressName);
-                if(index < 0){
-                    data.spec.matchRules.push({
-                        ingress: [`${this.namespaceActive}/${this.ingressName}`],
-                        config: {},
-                        configDisable: true,
-                    });
-                    index = data.spec.matchRules.length - 1;
-                }
+                const context = getGatewayPluginRuleContext(this.ingress, this.namespaceActive);
+                const index = ensureGatewayPluginRule(data, context);
                 data.spec.matchRules[index].config = config || {};
                 data.spec.matchRules[index].configDisable = enabled !== true;
             }

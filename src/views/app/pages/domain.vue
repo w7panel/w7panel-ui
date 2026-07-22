@@ -568,6 +568,7 @@ import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
 import domainCert from '@/components/domain-cert.vue';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
+import { cleanupIngressPluginRules } from '@/utils/gateway-plugin';
 
 const type3Backend = {
     service: {
@@ -699,6 +700,9 @@ export default {
         },
     },
     methods: {
+        async cleanupIngressPluginRules(ingressNames){
+            return cleanupIngressPluginRules(k8sproxy, this.namespaceActive, ingressNames);
+        },
         chengeFormOriginType(v){
             if(v==3){ this.getMenutop(); }
             if(v==2){
@@ -753,6 +757,7 @@ export default {
                     }
                 })
             })
+            await this.cleanupIngressPluginRules(arr.filter(item=>!item.is_root).map(item=>item.name));
             for(let i in arr){
                 if(arr[i].is_root){ continue }
                 await k8sproxy.delete("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+arr[i].name).then(()=>{}).catch(()=>{});
@@ -1539,7 +1544,7 @@ export default {
             });
         },
         delPath(part,noMessage){
-            return k8sproxy.delete("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+part.name).then(res=>{
+            return this.cleanupIngressPluginRules([part.name]).then(()=>k8sproxy.delete("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+part.name)).then(res=>{
                 if(!res?.data){return}
                 if(!noMessage){
                     this.$message.success('删除成功');
@@ -2112,34 +2117,6 @@ export default {
 
                     setAnn(data)
                     
-                    // 修改重写，同步策略
-                    useLoadingStore().loading = true;
-                    let nowRewrite = this.domain.rewrite? this.domain.rewrite_host : '';
-                    await k8sproxy.get('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins').then(res=>{
-                        let list = res?.data?.items || [];
-                        return list;
-                    }).then(async list=>{
-                        let name = this.namespaceActive + '/' + data.metadata.name;
-                        for(let i=0; i<list.length; i++){
-                            let item = list[i];
-                            let mr = item.spec?.matchRules || [];
-                            let index = mr.findIndex(m=>m?.ingress?.includes(name));
-                            if(index == -1){continue}
-                            
-                            item.spec?.matchRules.map(m=>{
-                                if(!m.ingress?.includes(name)){return}
-                                m.config = m?.config || {};
-                                if(nowRewrite){
-                                    m.config.rewrite_host = nowRewrite;
-                                }else{
-                                    delete m.config.rewrite_host;
-                                }
-                            })
-                            await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/'+ item.metadata.name, item);
-                        }
-                    }).finally(()=>{
-                        useLoadingStore().loading = false;
-                    });
                     return k8sproxy.put("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.domain.parent, data, {loading:true}).then(res=>{
                         this.domain.show = false;
                         if(!eve.noMessage){
@@ -2219,6 +2196,7 @@ export default {
                     await this.delPath(row.part[i], true);
                 }
             }
+            await this.cleanupIngressPluginRules([row.name]);
             return k8sproxy.delete("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+ row.name).then(res=>{
                 if(!res?.data){return}
                 if(!opt?.noMessage){ this.$message.success('删除成功'); }

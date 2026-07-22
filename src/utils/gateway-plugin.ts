@@ -7,19 +7,17 @@ export const RESOURCE_GROUP_LABEL = 'w7.cc/group-name';
 export const OFFICIAL_APP_ANNOTATION = 'w7.cc/official-app';
 
 export const GATEWAY_PLUGIN_ANNOTATIONS = {
-  enabled: 'w7.cc/plugin-enabled',
   supportGlobal: 'w7.cc/plugin-support-global',
   supportRule: 'w7.cc/plugin-support-rule',
   microapp: 'w7.cc/plugin-microapp',
-  disabledState: 'w7.cc/plugin-disabled-state',
 } as const;
 
 export function getPluginAnnotations(plugin: any) {
   return plugin?.metadata?.annotations || {};
 }
 
-export function isGatewayPluginEnabled(plugin: any) {
-  return getPluginAnnotations(plugin)[GATEWAY_PLUGIN_ANNOTATIONS.enabled] !== 'false';
+export function isGlobalPluginEnabled(plugin: any) {
+  return plugin?.spec?.defaultConfigDisable !== true;
 }
 
 export function supportsGlobalConfig(plugin: any) {
@@ -78,48 +76,155 @@ export function getPluginVersion(plugin: any) {
   return plugin?.metadata?.labels?.['higress.io/wasm-plugin-version'] || '';
 }
 
-export function getIngressRuleIndex(plugin: any, namespace: string, ingressName: string) {
-  const target = `${namespace}/${ingressName}`;
-  return (plugin?.spec?.matchRules || []).findIndex((rule: any) => rule?.ingress?.includes(target));
+export type GatewayPluginRuleContext = {
+  namespace: string;
+  ingressName: string;
+  domains: string[];
+  services: string[];
+};
+
+function uniqueStrings(values: any[]) {
+  return [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))];
 }
 
-export function setGatewayPluginEnabled(plugin: any, enabled: boolean) {
+function parseChildHosts(ingress: any) {
+  const value = ingress?.metadata?.annotations?.['w7.cc/child-hosts'];
+  if (!value) return [];
+  try {
+    const items = JSON.parse(value);
+    return Array.isArray(items) ? items.map(item => item?.host) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 将 Ingress 转成 Higress matchRules 可识别的匹配上下文。
+ * service 同时保留常见的短名称、namespace/name 和集群域名形式，兼容原生资源。
+ */
+export function getGatewayPluginRuleContext(ingress: any, namespace = ''): GatewayPluginRuleContext {
+  const resolvedNamespace = namespace || ingress?.metadata?.namespace || '';
+  const rules = ingress?.spec?.rules || [];
+  const serviceNames = rules.flatMap((rule: any) => rule?.http?.paths || [])
+    .map((path: any) => path?.backend?.service?.name)
+    .concat([ingress?.spec?.defaultBackend?.service?.name]);
+  const services = uniqueStrings(serviceNames).flatMap(name => uniqueStrings([
+    name,
+    resolvedNamespace ? `${resolvedNamespace}/${name}` : '',
+    resolvedNamespace ? `${name}.${resolvedNamespace}` : '',
+    resolvedNamespace ? `${name}.${resolvedNamespace}.svc` : '',
+    resolvedNamespace ? `${name}.${resolvedNamespace}.svc.cluster.local` : '',
+  ]));
+  return {
+    namespace: resolvedNamespace,
+    ingressName: ingress?.metadata?.name || '',
+    domains: uniqueStrings(rules.map((rule: any) => rule?.host).concat(parseChildHosts(ingress))),
+    services: uniqueStrings(services),
+  };
+}
+
+export function getGatewayPluginRuleMatch(plugin: any, context: GatewayPluginRuleContext) {
+  const rules = plugin?.spec?.matchRules || [];
+  const ingressTargets = uniqueStrings([
+    context.namespace && context.ingressName ? `${context.namespace}/${context.ingressName}` : '',
+    context.ingressName,
+  ]);
+  const selectors = [
+    { scope: 'ingress', targets: ingressTargets },
+    { scope: 'domain', targets: uniqueStrings(context.domains || []) },
+    { scope: 'service', targets: uniqueStrings(context.services || []) },
+  ];
+  for (const selector of selectors) {
+    if (!selector.targets.length) continue;
+    const index = rules.findIndex((rule: any) =>
+      (rule?.[selector.scope] || []).some((value: string) => selector.targets.includes(value)),
+    );
+    if (index >= 0) {
+      return {
+        index,
+        scope: selector.scope,
+        values: (rules[index]?.[selector.scope] || []).filter((value: string) => selector.targets.includes(value)),
+      };
+    }
+  }
+  return { index: -1, scope: 'ingress', values: [] as string[] };
+}
+
+/**
+ * 获取当前作用域的独立规则。原规则同时匹配多个 ingress/domain/service 时，
+ * 会保留其他匹配目标，并为当前匹配目标复制一条配置相同的规则。
+ */
+export function ensureGatewayPluginRule(plugin: any, context: GatewayPluginRuleContext) {
+  plugin.spec = plugin.spec || {};
+  plugin.spec.matchRules = plugin.spec.matchRules || [];
+  const match = getGatewayPluginRuleMatch(plugin, context);
+  if (match.index < 0) {
+    plugin.spec.matchRules.push({
+      ingress: [`${context.namespace}/${context.ingressName}`],
+      config: {},
+      configDisable: true,
+    });
+    return plugin.spec.matchRules.length - 1;
+  }
+
+  const rule = plugin.spec.matchRules[match.index];
+  const scope = match.scope;
+  const matchedValues = uniqueStrings(match.values);
+  const remainingValues = (rule?.[scope] || []).filter((value: string) => !matchedValues.includes(value));
+  const hasOtherTargets = remainingValues.length > 0
+    || ['ingress', 'domain', 'service'].some(key => key !== scope && (rule?.[key] || []).length > 0);
+  if (!hasOtherTargets) return match.index;
+
+  if (remainingValues.length) rule[scope] = remainingValues;
+  else delete rule[scope];
+  const isolatedRule = {
+    [scope]: matchedValues,
+    config: JSON.parse(JSON.stringify(rule?.config || {})),
+    configDisable: rule?.configDisable === true,
+  };
+  plugin.spec.matchRules.splice(match.index + 1, 0, isolatedRule);
+  return match.index + 1;
+}
+
+/** 删除已不存在 Ingress 的匹配目标，共享规则中的其他目标保持不变。 */
+export function removeIngressTargetsFromPlugin(plugin: any, namespace: string, ingressNames: string[]) {
+  const names = uniqueStrings(ingressNames);
+  const targets = new Set(names.map(name => namespace ? `${namespace}/${name}` : name));
+  const data = JSON.parse(JSON.stringify(plugin));
+  data.spec = data.spec || {};
+  const rules = data.spec.matchRules || [];
+  let changed = false;
+  data.spec.matchRules = rules.filter((rule: any) => {
+    const ingress = rule?.ingress || [];
+    const remaining = ingress.filter((value: string) => !targets.has(value));
+    if (remaining.length === ingress.length) return true;
+    changed = true;
+    if (remaining.length) rule.ingress = remaining;
+    else delete rule.ingress;
+    return ['ingress', 'domain', 'service'].some(key => (rule?.[key] || []).length > 0);
+  });
+  return { data, changed };
+}
+
+export async function cleanupIngressPluginRules(k8sClient: any, namespace: string, ingressNames: string[]) {
+  const names = uniqueStrings(ingressNames);
+  if (!names.length) return;
+  const response = await k8sClient.get(WASM_PLUGIN_API, { noAlert: true });
+  for (const plugin of response?.data?.items || []) {
+    const result = removeIngressTargetsFromPlugin(plugin, namespace, names);
+    if (!result.changed) continue;
+    await k8sClient.put(`${WASM_PLUGIN_API}/${plugin.metadata.name}`, result.data, { noAlert: true });
+  }
+}
+
+export function setGlobalPluginEnabled(plugin: any, enabled: boolean) {
   const data = JSON.parse(JSON.stringify(plugin));
   data.metadata = data.metadata || {};
   data.metadata.annotations = data.metadata.annotations || {};
   data.spec = data.spec || {};
-  data.spec.matchRules = data.spec.matchRules || [];
-
-  const annotations = data.metadata.annotations;
-  if (!enabled) {
-    annotations[GATEWAY_PLUGIN_ANNOTATIONS.disabledState] = JSON.stringify({
-      defaultConfigDisable: data.spec.defaultConfigDisable !== false,
-      matchRules: data.spec.matchRules.map((rule: any) => rule?.configDisable !== false),
-    });
-    data.spec.defaultConfigDisable = true;
-    data.spec.matchRules.forEach((rule: any) => {
-      rule.configDisable = true;
-    });
-  } else {
-    try {
-      const state = JSON.parse(annotations[GATEWAY_PLUGIN_ANNOTATIONS.disabledState] || '{}');
-      if (typeof state.defaultConfigDisable === 'boolean') {
-        data.spec.defaultConfigDisable = state.defaultConfigDisable;
-      }
-      if (Array.isArray(state.matchRules)) {
-        data.spec.matchRules.forEach((rule: any, index: number) => {
-          if (typeof state.matchRules[index] === 'boolean') {
-            rule.configDisable = state.matchRules[index];
-          }
-        });
-      }
-    } catch {
-      // 旧资源没有停用快照时，仅恢复插件级状态，不猜测配置开关。
-    }
-    delete annotations[GATEWAY_PLUGIN_ANNOTATIONS.disabledState];
-  }
-
-  annotations[GATEWAY_PLUGIN_ANNOTATIONS.enabled] = String(enabled);
+  data.spec.defaultConfigDisable = !enabled;
+  delete data.metadata.annotations['w7.cc/plugin-enabled'];
+  delete data.metadata.annotations['w7.cc/plugin-disabled-state'];
   return data;
 }
 

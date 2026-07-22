@@ -15,6 +15,9 @@
         </div>
 
         <div class="bg-white padding-20 mt-20">
+            <a-alert style="margin-bottom:16px;">
+                全局状态仅控制插件的全局配置，不影响域名规则；域名规则请在应用域名管理的“更多”中独立配置。
+            </a-alert>
             <a-table :data="filteredList" :bordered="false" :pagination="false" row-key="name">
                 <template #columns>
                     <a-table-column title="插件" :width="360">
@@ -60,14 +63,16 @@
                             </a-space>
                         </template>
                     </a-table-column>
-                    <a-table-column title="状态" :width="110">
+                    <a-table-column title="全局状态" :width="110">
                         <template #cell="{ record }">
                             <a-switch
+                                v-if="record.supportGlobal"
                                 :model-value="record.enabled"
                                 :loading="togglingNames.includes(record.name)"
                                 :disabled="!permission.includes('gateway/plugins/edit')"
                                 @change="enabled=>togglePlugin(record, enabled)"
                             />
+                            <span v-else class="c-99">--</span>
                         </template>
                     </a-table-column>
                     <a-table-column title="操作" :width="210">
@@ -138,7 +143,7 @@
                 <a-form-item label="支持范围" field="scopes">
                     <a-checkbox v-model="form.supportGlobal">支持全局配置</a-checkbox>
                     <a-checkbox v-model="form.supportRule" class="ml-20">支持规则配置</a-checkbox>
-                    <template #extra>全局配置默认开启；勾选规则配置后，插件会出现在应用域名管理的“更多”中。</template>
+                    <template #extra>全局配置默认开启；勾选规则配置后，插件会出现在应用域名管理的“更多”中。取消勾选会停用已有规则。</template>
                 </a-form-item>
                 <a-form-item v-if="!form.edit" label="配置前端包">
                     <a-input v-model="form.microapp" placeholder="可选，填写 MicroApp 名称" allow-clear />
@@ -174,6 +179,7 @@
 </template>
 
 <script>
+import { Modal } from '@arco-design/web-vue';
 import { k8sproxy, panelApi } from '@/utils/api';
 import { getPermission } from '@/utils/auth';
 import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
@@ -188,10 +194,10 @@ import {
     getResourceGroupName,
     getPluginTitle,
     getPluginVersion,
-    isGatewayPluginEnabled,
+    isGlobalPluginEnabled,
     normalizePluginName,
     getResolvedMicroappName,
-    setGatewayPluginEnabled,
+    setGlobalPluginEnabled,
     supportsGlobalConfig,
     supportsRuleConfig,
 } from '@/utils/gateway-plugin';
@@ -241,7 +247,7 @@ export default {
                     appGroup,
                     officialApp: appGroup?.metadata?.annotations?.[OFFICIAL_APP_ANNOTATION] === 'true',
                     upgrade: this.upgradeInfoMap[groupName] || null,
-                    enabled: isGatewayPluginEnabled(resource),
+                    enabled: isGlobalPluginEnabled(resource),
                     supportGlobal: supportsGlobalConfig(resource),
                     supportRule: supportsRuleConfig(resource),
                     resource,
@@ -387,7 +393,6 @@ export default {
             const annotations = data.metadata.annotations;
             annotations['higress.io/wasm-plugin-title'] = this.form.title;
             annotations['higress.io/wasm-plugin-description'] = this.form.description || '';
-            annotations[GATEWAY_PLUGIN_ANNOTATIONS.enabled] = annotations[GATEWAY_PLUGIN_ANNOTATIONS.enabled] || 'true';
             annotations[GATEWAY_PLUGIN_ANNOTATIONS.supportGlobal] = String(this.form.supportGlobal);
             annotations[GATEWAY_PLUGIN_ANNOTATIONS.supportRule] = String(this.form.supportRule);
             if(this.form.microapp){
@@ -413,8 +418,28 @@ export default {
                 return;
             }
             this.form.name = normalizePluginName(this.form.name);
-            this.$refs.pluginForm.validate(errors=>{
+            this.$refs.pluginForm.validate(async errors=>{
                 if(errors){ return; }
+                const activeRuleCount = (this.form.resource?.spec?.matchRules || [])
+                    .filter(rule=>rule?.configDisable !== true).length;
+                const disablingRuleSupport = this.form.edit
+                    && supportsRuleConfig(this.form.resource)
+                    && !this.form.supportRule
+                    && activeRuleCount > 0;
+                if(disablingRuleSupport){
+                    const confirmed = await new Promise(resolve=>{
+                        Modal.confirm({
+                            title: '关闭规则配置支持？',
+                            content: `关闭后，该插件将不再出现在域名“更多”中，现有 ${activeRuleCount} 条已启用规则将全部停用，重新开启规则配置支持时不会自动恢复。是否继续？`,
+                            okText: '确认关闭',
+                            cancelText: '取消',
+                            okButtonProps: { status: 'danger' },
+                            onOk: ()=>resolve(true),
+                            onCancel: ()=>resolve(false),
+                        });
+                    });
+                    if(!confirmed){ return; }
+                }
                 const data = this.buildResource();
                 const request = this.form.edit
                     ? k8sproxy.put(`${WASM_PLUGIN_API}/${data.metadata.name}`, data, { loading: true })
@@ -429,9 +454,9 @@ export default {
         togglePlugin(row, enabled){
             if(this.togglingNames.includes(row.name)){ return; }
             this.togglingNames.push(row.name);
-            const data = setGatewayPluginEnabled(row.resource, enabled);
+            const data = setGlobalPluginEnabled(row.resource, enabled);
             return k8sproxy.put(`${WASM_PLUGIN_API}/${row.name}`, data, { loading: true }).then(()=>{
-                this.$message.success(enabled ? '插件已启用' : '插件已停用');
+                this.$message.success(enabled ? '全局配置已启用' : '全局配置已停用');
                 return this.getList();
             }).finally(()=>{
                 this.togglingNames = this.togglingNames.filter(name=>name !== row.name);

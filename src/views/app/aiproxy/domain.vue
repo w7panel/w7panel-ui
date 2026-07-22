@@ -380,8 +380,10 @@ const PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/a
 const BUILTIN_PLUGIN_VERSION = '2.0.0';
 const KEY_AUTH_PLUGIN_NAME = 'key-auth.internal';
 const KEY_AUTH_PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/key-auth:2.0.0';
+const KEY_AUTH_PLUGIN_TITLE = 'Key Auth 认证';
 const MODEL_VALIDATION_PLUGIN_NAME = 'request-validation.internal';
 const MODEL_VALIDATION_PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/request-validation:2.0.0';
+const MODEL_VALIDATION_PLUGIN_TITLE = '请求校验';
 const MCPBRIDGE_NAME = 'default';
 
 const PROVIDER_TYPES = [
@@ -1132,15 +1134,18 @@ export default {
             };
             return k8sproxy.post('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins', data).then(res=>res.data);
         },
-        normalizeManagedPlugin(plugin, name, url, priority){
+        normalizeManagedPlugin(plugin, name, url, title, priority){
             const result = plugin || {};
             const pluginName = name.replace(/\.internal$/, '');
             result.metadata = result.metadata || {};
             result.metadata.labels = result.metadata.labels || {};
+            result.metadata.annotations = result.metadata.annotations || {};
             result.metadata.labels['higress.io/resource-definer'] = 'higress';
             result.metadata.labels['higress.io/wasm-plugin-name'] = pluginName;
             result.metadata.labels['higress.io/wasm-plugin-version'] = BUILTIN_PLUGIN_VERSION;
             result.metadata.labels['higress.io/wasm-plugin-built-in'] = 'true';
+            result.metadata.annotations['higress.io/wasm-plugin-title'] = title;
+            result.metadata.annotations['higress.io/wasm-plugin-description'] = title;
             result.spec = result.spec || {};
             result.spec.url = url;
             result.spec.failStrategy = 'FAIL_OPEN';
@@ -1156,13 +1161,13 @@ export default {
                 plugin = await this.ensureManagedPlugin(
                     KEY_AUTH_PLUGIN_NAME,
                     KEY_AUTH_PLUGIN_URL,
-                    'AI代理 Key Auth',
+                    KEY_AUTH_PLUGIN_TITLE,
                     { global_auth: false, consumers: currentConsumers, keys: ['x-higress-dummy-key'] },
                     false,
                     310,
                 );
             }
-            plugin = this.normalizeManagedPlugin(plugin, KEY_AUTH_PLUGIN_NAME, KEY_AUTH_PLUGIN_URL, 310);
+            plugin = this.normalizeManagedPlugin(plugin, KEY_AUTH_PLUGIN_NAME, KEY_AUTH_PLUGIN_URL, KEY_AUTH_PLUGIN_TITLE, 310);
             plugin.spec = plugin.spec || {};
             plugin.spec.defaultConfigDisable = false;
             plugin.spec.defaultConfig = plugin.spec.defaultConfig || {};
@@ -1223,13 +1228,13 @@ export default {
                 plugin = await this.ensureManagedPlugin(
                     MODEL_VALIDATION_PLUGIN_NAME,
                     MODEL_VALIDATION_PLUGIN_URL,
-                    'AI代理模型白名单',
+                    MODEL_VALIDATION_PLUGIN_TITLE,
                     { body_schema: { type: 'object' } },
                     true,
                     220,
                 );
             }
-            plugin = this.normalizeManagedPlugin(plugin, MODEL_VALIDATION_PLUGIN_NAME, MODEL_VALIDATION_PLUGIN_URL, 220);
+            plugin = this.normalizeManagedPlugin(plugin, MODEL_VALIDATION_PLUGIN_NAME, MODEL_VALIDATION_PLUGIN_URL, MODEL_VALIDATION_PLUGIN_TITLE, 220);
             plugin.spec = plugin.spec || {};
             plugin.spec.defaultConfigDisable = true;
             if(!plugin.spec.defaultConfig || !Object.keys(plugin.spec.defaultConfig).length){

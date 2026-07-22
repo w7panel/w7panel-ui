@@ -1,7 +1,7 @@
 <template>
     <div>
         <a-alert style="margin-bottom:12px;">
-            此处仅显示已启用且支持规则配置的网关插件。插件安装、停用和卸载请前往“网关管理 → 网关插件”。
+            此处仅显示已安装且支持规则配置的网关插件。规则状态仅控制当前域名，不影响插件的全局配置或其他域名。
         </a-alert>
         <a-table :data="plugins" :bordered="false" :pagination="false" row-key="name">
             <template #columns>
@@ -21,12 +21,6 @@
                             :model-value="record.ruleEnabled"
                             @change="value=>toggleRule(record, value)"
                         />
-                    </template>
-                </a-table-column>
-                <a-table-column title="配置方式" :width="150">
-                    <template #cell="{ record }">
-                        <a-tag v-if="record.hasFrontend" color="arcoblue">操作界面</a-tag>
-                        <a-tag v-else>YAML</a-tag>
                     </template>
                 </a-table-column>
                 <a-table-column title="操作" :width="120">
@@ -58,13 +52,14 @@ import {
     MICROAPP_API,
     OFFICIAL_APP_ANNOTATION,
     WASM_PLUGIN_API,
-    getIngressRuleIndex,
+    ensureGatewayPluginRule,
+    getGatewayPluginRuleContext,
+    getGatewayPluginRuleMatch,
     getPluginDescription,
     getResourceGroupName,
     getResolvedMicroappName,
     getPluginTitle,
     getPluginVersion,
-    isGatewayPluginEnabled,
     supportsRuleConfig,
 } from '@/utils/gateway-plugin';
 
@@ -98,7 +93,7 @@ export default {
                 k8sproxy.get(APPGROUP_API),
             ]);
             const resources = (pluginRes?.data?.items || [])
-                .filter(plugin=>isGatewayPluginEnabled(plugin) && supportsRuleConfig(plugin));
+                .filter(plugin=>supportsRuleConfig(plugin));
             const microapps = microappRes?.data?.items || [];
             const officialAppGroups = new Set((appGroupRes?.data?.items || [])
                 .filter(group=>group?.metadata?.annotations?.[OFFICIAL_APP_ANNOTATION] === 'true')
@@ -111,8 +106,10 @@ export default {
                 return [name, info];
             }));
             const frontendMap = Object.fromEntries(frontendEntries);
+            const ruleContext = getGatewayPluginRuleContext(this.data, this.namespaceActive);
             this.plugins = resources.map(resource=>{
-                const ruleIndex = getIngressRuleIndex(resource, this.namespaceActive, ingressName);
+                const ruleMatch = getGatewayPluginRuleMatch(resource, ruleContext);
+                const ruleIndex = ruleMatch.index;
                 const rule = ruleIndex >= 0 ? resource?.spec?.matchRules?.[ruleIndex] : null;
                 const microapp = getResolvedMicroappName(resource, microapps);
                 const microappInfo = frontendMap[microapp] || null;
@@ -132,7 +129,8 @@ export default {
                     officialApp: officialAppGroups.has(getResourceGroupName(resource)),
                     hasFrontend,
                     ruleIndex,
-                    ruleEnabled: rule?.configDisable === false,
+                    ruleScope: ruleMatch.scope,
+                    ruleEnabled: Boolean(rule) && rule?.configDisable !== true,
                     resource,
                 };
             });
@@ -140,18 +138,9 @@ export default {
         },
         toggleRule(record, enabled){
             const data = JSON.parse(JSON.stringify(record.resource));
-            data.spec = data.spec || {};
-            data.spec.matchRules = data.spec.matchRules || [];
-            let index = getIngressRuleIndex(data, this.namespaceActive, this.data.metadata.name);
-            if(index < 0){
-                data.spec.matchRules.push({
-                    ingress: [`${this.namespaceActive}/${this.data.metadata.name}`],
-                    config: {},
-                    configDisable: !enabled,
-                });
-            }else{
-                data.spec.matchRules[index].configDisable = !enabled;
-            }
+            const context = getGatewayPluginRuleContext(this.data, this.namespaceActive);
+            const index = ensureGatewayPluginRule(data, context);
+            data.spec.matchRules[index].configDisable = !enabled;
             return k8sproxy.put(`${WASM_PLUGIN_API}/${record.name}`, data, { loading: true }).then(()=>{
                 this.$message.success(enabled ? '规则已启用' : '规则已停用');
                 this.getAllPlugin();

@@ -115,6 +115,7 @@ import { k8sproxy } from '@/utils/api';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import { getPermission, getUserInfo } from '@/utils/auth';
+import { cleanupIngressPluginRules } from '@/utils/gateway-plugin';
 import {
     AI_LABEL,
     AI_DOMAIN_LABEL,
@@ -178,6 +179,9 @@ export default {
         this.getData();
     },
     methods: {
+        async cleanupIngressPluginRules(ingressNames){
+            return cleanupIngressPluginRules(k8sproxy, this.namespaceActive, ingressNames);
+        },
         async getWhiteList(){
             let wl = getUserInfo()?.['w7.cc/domain-white-list'] || '[]';
             try { wl = JSON.parse(wl); } catch { wl = []; }
@@ -532,6 +536,7 @@ export default {
             await this.removeDomainPluginConfig(MODEL_VALIDATION_PLUGIN_NAME, row, false);
             const ingress = await this.getIngress(row.name);
             if(ingress){
+                await this.cleanupIngressPluginRules([row.name]);
                 await k8sproxy.delete('/apis/networking.k8s.io/v1/namespaces/'+this.namespaceActive+'/ingresses/'+row.name, { noAlert: true });
             }
         },
