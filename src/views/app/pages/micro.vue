@@ -17,6 +17,8 @@ import { k8sproxy } from '@/utils/api';
 import microApp from '@micro-zoe/micro-app'
 import axios from 'axios'
 import { useNamespaceStore } from '@/store';
+import { runningFirstPod } from '@/utils/running-first-pod';
+import { podShell } from '@/utils/pod-shell';
 
 export default {
     props: ['data','url'],
@@ -34,6 +36,8 @@ export default {
                     getPod:()=>{
                         return this.getPod();
                     },
+                    runningFirstPod,
+                    podShell,
                     shell:(command,pod_name)=>{
                         return this.command(command,pod_name);
                     },

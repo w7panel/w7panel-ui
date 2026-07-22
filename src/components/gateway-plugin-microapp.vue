@@ -17,6 +17,8 @@ import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
 import { joinWujieUrlRoute, getWujieRoutePrefix } from '@/utils/wujie-route';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
+import { runningFirstPod } from '@/utils/running-first-pod';
+import { podShell } from '@/utils/pod-shell';
 
 // wujie-modals 会间接引用 domain-strategy-plugin。使用异步组件打断
 // domain-strategy-plugin -> gateway-plugin-config -> gateway-plugin-microapp
@@ -160,6 +162,8 @@ export default {
                     pluginEnabled: Boolean(pluginEnabled),
                     configScope,
                     savePluginConfig: this.contextProps?.savePluginConfig,
+                    runningFirstPod,
+                    podShell,
                 };
                 appendWujieModalHandles(props, () => this.$refs.wujieModals);
                 console.info('[gateway-plugin-microapp] MicroApp props', {

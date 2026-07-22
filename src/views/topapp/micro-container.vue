@@ -27,6 +27,8 @@ import { appendWujieProxyRequestQuery, getWujieProxyBackendUrl } from '@/utils/w
 import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
+import { runningFirstPod } from '@/utils/running-first-pod';
+import { podShell } from '@/utils/pod-shell';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -282,6 +284,8 @@ export default{
                 ...this.info,
                 ...frontProps,
                 loginCloud,
+                runningFirstPod,
+                podShell,
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
             }
