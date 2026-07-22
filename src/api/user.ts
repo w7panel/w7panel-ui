@@ -2,7 +2,7 @@ import axios from 'axios';
 import { buildApiPath } from '@/config/api';
 
 export function login(data: any) {
-    return axios.post(buildApiPath('AUTH_LOGIN'), data);
+    return axios.post(buildApiPath('AUTH_LOGIN'), data, { timeout: 10000 });
 }
 
 export function getUserInfo() {

@@ -7,7 +7,7 @@ const PERMISSION_CACHE_KEY = `${CachePresets.PERMISSION}:timestamp`;
 const PERMISSION_CACHE_DURATION = 5 * 60 * 1000;
 
 export default async function useK3kinfo(){
-    let { data } = await axios.get('/panel-api/v1/k3k/info').then(res=>{
+    let { data } = await axios.get('/panel-api/v1/k3k/info', { timeout: 10000 }).then(res=>{
         let rData = res?.data;
         if(rData && rData.code === 200 && rData.data) {
             rData = rData.data;
@@ -50,7 +50,10 @@ export default async function useK3kinfo(){
             });
         }
 
-        await axios.get("/panel-api/v1/auth/console/info?code=test", { noAlert: true } as any).then(res => {
+        await axios.get("/panel-api/v1/auth/console/info?code=test", {
+            noAlert: true,
+            timeout: 3000,
+        } as any).then(res => {
             let cData = res.data;
             if(cData && cData.code === 200 && cData.data) {
                 cData = cData.data;

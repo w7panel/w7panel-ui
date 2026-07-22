@@ -77,6 +77,7 @@ const errorMessage = ref(null);
 const slidecapt = ref(null);
 const { loading, setLoading } = useLoading();
 const userStore = useUserStore();
+const LOGIN_REQUEST_TIMEOUT = 10000;
 
 const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png')
 const microLogin = (window as any)?.w7_microapp?.site?.login || {};
@@ -137,7 +138,11 @@ const toInit = ({ errors, values, })=>{
 
 let loadLoginConfigPromise: Promise<boolean> | null = null;
 const loadLoginConfig = () => {
-    loadLoginConfigPromise = panelApi.get('/noauth/site/init-user',{noTokenRequired:true,noAlert:true}).then(res=>{
+    loadLoginConfigPromise = panelApi.get('/noauth/site/init-user',{
+        noTokenRequired: true,
+        noAlert: true,
+        timeout: LOGIN_REQUEST_TIMEOUT,
+    }).then(res=>{
         let resData = res.data;
         if(res.data && res.data.code === 200 && res.data.data) {
             resData = res.data.data;
@@ -189,6 +194,8 @@ const drawer = reactive({
         panelApi.post('/verify-captcha',{
             point: data.point,
             key: data.key,
+        }, {
+            timeout: LOGIN_REQUEST_TIMEOUT,
         }).then(res=>{
             if(res.data?.ok){
                 userInfo.point = data.point;
@@ -199,6 +206,8 @@ const drawer = reactive({
                 console.log(slidecapt)
                 slidecapt.value.wrong();
             }
+        }).catch(()=>{
+            slidecapt.value?.wrong();
         })
     }
 });
@@ -209,7 +218,10 @@ const testWeihu = async ()=>{
     let data = getK8sinfo();
     if(data['w7.cc/weihu']=='true'){ return true; }
     try{
-        await k8sproxy.get('/version',{noAlert:true})
+        await k8sproxy.get('/version',{
+            noAlert: true,
+            timeout: LOGIN_REQUEST_TIMEOUT,
+        })
     }catch{
         return true;
     }
@@ -217,7 +229,10 @@ const testWeihu = async ()=>{
 }
 const beforeTest = async ()=>{
     await useNamespaceStore().setNamespaceList().catch(()=>{})
-    k8sproxy.get("/api/v1/namespaces/"+ namespaceActive +"/services/kubernetes", {loading:true, noAlert:true}).then(async res=>{
+    await k8sproxy.get("/api/v1/namespaces/"+ namespaceActive +"/services/kubernetes", {
+        noAlert: true,
+        timeout: LOGIN_REQUEST_TIMEOUT,
+    }).then(async ()=>{
         let boo = await testWeihu()
         if(boo){
             router.push('/init-cluster')
@@ -263,6 +278,7 @@ const submit = async ({ errors, values, })=>{
 
 const handleSubmit = async (am?:any) => {
     setLoading(true);
+    errorMessage.value = null;
     try {
         let loginData:any = {};
         if(!am?.passLogin){
@@ -278,11 +294,12 @@ const handleSubmit = async (am?:any) => {
         const authRequestID = router?.currentRoute?.value?.query?.authRequestID
         if(authRequestID){
             
-            panelApi.post('/callback-url',{
+            const res = await panelApi.post('/callback-url',{
                 authRequestID: authRequestID,
-            }).then(res=>{
-                window.location.href = res.data.callbackUrl;
+            }, {
+                timeout: LOGIN_REQUEST_TIMEOUT,
             });
+            window.location.href = res.data.callbackUrl;
 
             return;
         }
@@ -320,7 +337,10 @@ const handleSubmit = async (am?:any) => {
         loginConfig.value.username = rememberPassword ? username : '';
         loginConfig.value.password = rememberPassword ? password : '';
     } catch (err) {
-        errorMessage.value = err?.response?.data?.error || err?.response?.data?.message;
+        const requestError = err as any;
+        errorMessage.value = requestError?.code === 'ECONNABORTED'
+            ? '登录请求超时，请检查网络后重试'
+            : requestError?.response?.data?.error || requestError?.response?.data?.message || '登录失败，请稍后重试';
         // errorMessage.value = (err as Error).message;
     } finally {
         setLoading(false);
