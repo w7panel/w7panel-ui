@@ -160,6 +160,8 @@ import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 import { createK8sProxy, createMicroappProxy } from '@/utils/microapp-proxy';
+import { runningFirstPod } from '@/utils/running-first-pod';
+import { podShell } from '@/utils/pod-shell';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -455,6 +457,8 @@ export default {
                 ...this.info,
                 ...frontProps,
                 loginCloud,
+                runningFirstPod,
+                podShell,
                 microappProxy: createMicroappProxy(proxyBackendUrl),
                 k8sproxy: createK8sProxy(),
                 navigateMicro: (payload) => this.navigateMicro(payload),
