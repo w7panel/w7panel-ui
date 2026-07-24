@@ -89,7 +89,7 @@
             </a-layout-sider>
             
             <a-layout-content v-if="activeExternalService" :class="['df df-c', {'ml-6': !hideAppMenu}]">
-                <div class="bg-white fc">
+                <div class="bg-white external-service-box fc">
                     <productMarketOrder  :remote-url="activeExternalService.url"/>
                 </div>
             </a-layout-content>
