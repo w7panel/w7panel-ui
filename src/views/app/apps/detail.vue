@@ -59,8 +59,15 @@
                         </template>
                     </a-menu>
 
+                    <a-divider v-if="externalServices.length && (topMenuRoles.length || bottomMenus.length)" style="margin:10px;width:auto;min-width:auto;" />
+                    <a-menu v-if="externalServices.length" style="width:100%;" :selected-keys="externalServiceSelection" @menu-item-click="openExternalService">
+                        <a-menu-item v-for="service in externalServices" :key="service.key">
+                            <icon-link />{{ service.title }}
+                        </a-menu-item>
+                    </a-menu>
+
                     <div v-if="$route.name!='group-micro2'">
-                        <a-divider v-if="bottomMenus.length" style="margin:10px;width:auto;min-width:auto;" />
+                        <a-divider v-if="bottomMenus.length || externalServices.length" style="margin:10px;width:auto;min-width:auto;" />
                         <div v-if="$route.name!=''">
                             <a-menu v-if="isHelmPage || (isMicroPage&&isHelmApp)" v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
                                 <a-menu-item key="group-helm-detail" ><icon-apps />应用详情</a-menu-item>
@@ -81,7 +88,18 @@
                 </div>
             </a-layout-sider>
             
-            <a-layout-content v-if="isMicroPage" :class="['df df-c', {'ml-6': !hideAppMenu}]">
+            <a-layout-content v-if="activeExternalService" :class="['df df-c', {'ml-6': !hideAppMenu}]">
+                <div class="bg-white external-service-box fc">
+                    <iframe
+                        class="external-service-frame"
+                        :src="activeExternalService.url"
+                        :title="activeExternalService.title"
+                        sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+                        referrerpolicy="no-referrer"
+                    ></iframe>
+                </div>
+            </a-layout-content>
+            <a-layout-content v-else-if="isMicroPage" :class="['df df-c', {'ml-6': !hideAppMenu}]">
                 <div :class="['bg-white routerviewbox fc', {'ml-6': !hideAppMenu}]" >
                     <div v-show="downOk" id="app-detail-micro" :style="microPanelStyle"></div>
                     <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." :style="{display:'block', height: microPanelHeight}">
@@ -226,6 +244,7 @@ export default {
             microApp: null,
             downOk: true,
             hideAppMenu: false,
+            externalServices: [],
         }
     },
     watch: {
@@ -261,6 +280,15 @@ export default {
         '$route.query.showMenu'(){
             this.hideAppMenu = this.isHideMenu();
         },
+        '$route.query.externalService'(value, oldValue){
+            if(value){
+                try{ destroyApp(APP_DETAIL_MICRO_NAME); }catch{}
+                return;
+            }
+            if(oldValue && this.isMicroPage && this.hasThirdpartyCd){
+                this.$nextTick(()=>this.wujieInit());
+            }
+        },
     },
     async created(){
         this.permission = getPermission() || [];
@@ -285,6 +313,15 @@ export default {
         },
         bottomMenus(){
             return this.menuLocationGroups.bottomMenus;
+        },
+        activeExternalService(){
+            const key = Array.isArray(this.$route.query.externalService)
+                ? this.$route.query.externalService[0]
+                : this.$route.query.externalService;
+            return this.externalServices.find(item=>item.key === key && item.openMode === 'iframe') || null;
+        },
+        externalServiceSelection(){
+            return this.activeExternalService ? [this.activeExternalService.key] : [];
         },
         microPanelHeight(){
             return this.hideAppMenu ? 'calc(100vh - 86px)' : 'calc(100vh - 146px)';
@@ -324,6 +361,41 @@ export default {
 
     },
     methods: {
+        normalizeExternalServices(services){
+            if(!Array.isArray(services)){ return []; }
+            const keys = new Set();
+            return services.reduce((result, item)=>{
+                const key = typeof item?.key === 'string' ? item.key.trim() : '';
+                const title = typeof item?.title === 'string' ? item.title.trim() : '';
+                const rawUrl = typeof item?.url === 'string' ? item.url.trim() : '';
+                if(!key || !title || !rawUrl || keys.has(key)){ return result; }
+                let url;
+                try{
+                    url = new URL(rawUrl);
+                }catch{
+                    return result;
+                }
+                if(!['http:', 'https:'].includes(url.protocol)){ return result; }
+                const openMode = item.openMode || 'iframe';
+                if(openMode !== 'iframe'){ return result; }
+                keys.add(key);
+                result.push({key, title, url: url.toString(), openMode});
+                return result;
+            }, []);
+        },
+        openExternalService(key){
+            const service = this.externalServices.find(item=>item.key === key);
+            if(!service){ return; }
+            this.$router.replace({
+                query: {...this.$route.query, externalService: service.key},
+            });
+        },
+        clearExternalService(){
+            if(!this.$route.query.externalService){ return Promise.resolve(); }
+            const query = {...this.$route.query};
+            delete query.externalService;
+            return this.$router.replace({query});
+        },
         isHideMenu(){
             const showMenu = Array.isArray(this.$route.query.showMenu)
                 ? this.$route.query.showMenu[0]
@@ -519,6 +591,7 @@ export default {
 // },3000)
         },
         handelMicroMenu(v){
+            this.clearExternalService();
             this.menuActive = v;
             this.selectMenu = [this.menuActive];
             if(this.isMicroPage){
@@ -623,6 +696,7 @@ export default {
             // console.log(bindings,roles,'xxxxxxxxxxx')
         },
         noMicroJump(){
+            if(this.activeExternalService){return}
             if(!this.isMicroPage){return}
             if(this.isHelmApp){
                 this.$router.push({path:'/app/appgroup/'+ this.$route.params.group+'/helm/detail'}).then(()=>{
@@ -921,6 +995,7 @@ export default {
             await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
             }).then(async res=>{
                 this.groupTitle = res?.data?.metadata?.annotations?.title || this.groupTitle;
+                this.externalServices = this.normalizeExternalServices(res?.data?.spec?.externalServices);
                 let {helmTab,list} = this.arrangeList(res?.data);
                 this.identifie = res?.data?.metadata?.annotations?.['w7.cc/identifie'];
                 this.isHelmApp = Boolean(helmTab?.length);
@@ -962,7 +1037,7 @@ export default {
                 }
 
                 this.applist = helmTab.concat(list);
-                if(this.isMicroPage){
+                if(this.isMicroPage && !this.activeExternalService){
                     if(this.hasThirdpartyCd){
                         this.getFront(this.microApp);
                     }else{
@@ -1188,6 +1263,8 @@ export default {
 .point.green{background:#00A870;}
 
 .routerviewbox{border:1px solid var(--color-neutral-3);border-top:0;}
+.external-service-box{height:100%;border:1px solid var(--color-neutral-3);}
+.external-service-frame{display:block;width:100%;height:100%;border:0;}
 .app-detail-page{height:100%;}
 .content{height:100%;}
 /* .appheader{height:50px; background:var(--color-bg-2); border-bottom:1px solid var(--color-border-1); padding:0 20px;} */
