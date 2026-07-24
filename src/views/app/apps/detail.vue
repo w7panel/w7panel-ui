@@ -89,14 +89,8 @@
             </a-layout-sider>
             
             <a-layout-content v-if="activeExternalService" :class="['df df-c', {'ml-6': !hideAppMenu}]">
-                <div class="bg-white external-service-box fc">
-                    <iframe
-                        class="external-service-frame"
-                        :src="activeExternalService.url"
-                        :title="activeExternalService.title"
-                        sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
-                        referrerpolicy="no-referrer"
-                    ></iframe>
+                <div class="bg-white fc">
+                    <productMarketOrder  :remote-url="activeExternalService.url"/>
                 </div>
             </a-layout-content>
             <a-layout-content v-else-if="isMicroPage" :class="['df df-c', {'ml-6': !hideAppMenu}]">
@@ -180,6 +174,7 @@ import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 import { createK8sProxy, createMicroappProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
+import productMarketOrder from '../product-market/order.vue'
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -344,6 +339,7 @@ export default {
     components: {
         formDrawer,
         wujieModals,
+        productMarketOrder
     },
     beforeUnmount(){
         if(this.watchInterval){
