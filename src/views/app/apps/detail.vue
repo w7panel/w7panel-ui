@@ -36,7 +36,7 @@
                         </div>
                     </div>
                     
-                    <a-divider v-if="topMenuRoles.length && (bottomMenus.length || $route.name!='group-micro2')" style="margin:10px;width:auto;min-width:auto;" />
+                    <a-divider v-if="topMenuRoles.length && (bottomMenus.length || (!externalServices.length && $route.name!='group-micro2'))" style="margin:10px;width:auto;min-width:auto;" />
                     <a-menu v-if="bottomMenus.length" style="width:100%;" :level-indent="34" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
                         <template v-for="menu in bottomMenus" :key="menu.do">
                             <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
@@ -1263,7 +1263,7 @@ export default {
 .point.green{background:#00A870;}
 
 .routerviewbox{border:1px solid var(--color-neutral-3);border-top:0;}
-.external-service-box{height:100%;border:1px solid var(--color-neutral-3);}
+.external-service-box{height:100%;padding:20px;box-sizing:border-box;border:1px solid var(--color-neutral-3);}
 .external-service-frame{display:block;width:100%;height:100%;border:0;}
 .app-detail-page{height:100%;}
 .content{height:100%;}
