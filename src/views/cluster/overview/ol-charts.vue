@@ -16,6 +16,16 @@
             <div v-else-if="activeType=='disk-written-bytes'" id="diskwrittenbytesChart" class="chart"></div>
             <div v-else-if="activeType=='network-receive-bytes'" id="networkreceivebytesChart" class="chart"></div>
             <div v-else-if="activeType=='network-transmit-bytes'" id="networktransmitbytesChart" class="chart"></div>
+            <a-empty
+                v-else-if="isCiliumChart(activeType) && !getChartState(activeType).loading && !getChartState(activeType).y.length"
+                class="empty-chart"
+                description="暂无 Cilium 指标数据，请确认 Cilium 已开启 Prometheus 指标"
+            />
+            <div v-else-if="activeType=='cilium-drop-count'" id="ciliumdropcountChart" class="chart"></div>
+            <div v-else-if="activeType=='cilium-drop-bytes'" id="ciliumdropbytesChart" class="chart"></div>
+            <div v-else-if="activeType=='cilium-endpoint'" id="ciliumendpointChart" class="chart"></div>
+            <div v-else-if="activeType=='cilium-unreachable'" id="ciliumunreachableChart" class="chart"></div>
+            <div v-else-if="activeType=='cilium-bpf-map-pressure'" id="ciliumbpfmappressureChart" class="chart"></div>
         </div>
     </div>
 </template>
@@ -108,6 +118,31 @@ export default {
                 x: [],
                 y: [],
             },
+            'cilium-drop-count': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'cilium-drop-bytes': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'cilium-endpoint': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'cilium-unreachable': {
+                loading: false,
+                x: [],
+                y: [],
+            },
+            'cilium-bpf-map-pressure': {
+                loading: false,
+                x: [],
+                y: [],
+            },
             chart: null,
             userInfo: {},
         }
@@ -156,6 +191,29 @@ export default {
                 };
             }
             return this[chartType];
+        },
+        isCiliumChart(chartType){
+            return [
+                'cilium-drop-count',
+                'cilium-drop-bytes',
+                'cilium-endpoint',
+                'cilium-unreachable',
+                'cilium-bpf-map-pressure',
+            ].includes(chartType);
+        },
+        getCiliumSeriesName(chartType, metric){
+            const node = metric.node || '集群';
+            if(chartType=='cilium-drop-count'||chartType=='cilium-drop-bytes'){
+                const direction = metric.direction=='INGRESS' ? '入站' : (metric.direction=='EGRESS' ? '出站' : metric.direction);
+                return [node, direction, metric.reason].filter(Boolean).join(' / ');
+            }
+            if(chartType=='cilium-unreachable'){
+                return [node, metric.resource].filter(Boolean).join(' / ');
+            }
+            if(chartType=='cilium-bpf-map-pressure'){
+                return [node, metric.map_name].filter(Boolean).join(' / ');
+            }
+            return node;
         },
         isCkmRequest(){
             return this.userInfo?.['w7.cc/is-ckm-req']=='true'
@@ -210,6 +268,12 @@ export default {
 
                 'network-receive-bytes': 'irate(node_network_receive_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"}[1m0s])*8',
                 'network-transmit-bytes': 'irate(node_network_transmit_bytes_total{"instance"="'+Name+'",job="default/'+ jobArg +'"}[1m0s])*8',
+
+                'cilium-drop-count': 'sum by (node, direction, reason) (rate(cilium_drop_count_total[5m]))',
+                'cilium-drop-bytes': 'sum by (node, direction, reason) (rate(cilium_drop_bytes_total[5m]))',
+                'cilium-endpoint': 'sum by (node) (cilium_endpoint)',
+                'cilium-unreachable': 'label_replace(sum by (node) (cilium_unreachable_nodes), "resource", "节点", "node", ".*") or label_replace(sum by (node) (cilium_unreachable_health_endpoints), "resource", "Endpoint", "node", ".*")',
+                'cilium-bpf-map-pressure': 'max by (node, map_name) (cilium_bpf_map_pressure) * 100',
             }[MetricName];
 
             if(!metricQuery){
@@ -251,6 +315,38 @@ export default {
             // if(chart){ chart.dispose();}
             c.x = {};
             c.y = [];
+            if(this.isCiliumChart(chartType)){
+                try{
+                    const { data } = await this.getChart('', chartType);
+                    const result = data?.result || [];
+                    if(result.length){
+                        c.x = {
+                            type: 'category',
+                            data: result[0].values?.map(item=>window.formatDate(item[0]*1000)),
+                        };
+                        result.forEach(item=>{
+                            c.y.push({
+                                name: this.getCiliumSeriesName(chartType, item.metric || {}),
+                                type: 'line',
+                                data: item.values?.map(value=>{
+                                    let metricValue = Number(value[1]);
+                                    if(chartType=='cilium-drop-bytes'){
+                                        metricValue = metricValue / 1024;
+                                    }
+                                    return metricValue.toFixed(2);
+                                }),
+                                smooth: true,
+                            });
+                        });
+                    }
+                }catch{
+                    c.x = {};
+                    c.y = [];
+                }
+                c.loading = false;
+                this.$nextTick(()=>this.renderChart(chartType));
+                return;
+            }
             let gpuNames = {};
             if(chartType=='HostGPUMemoryUsage'||chartType=='HostCoreUtilization'){
                 let { data } = await axios('/panel-api/v1/gpu/node/devices');
@@ -482,6 +578,11 @@ export default {
                 case 'disk-written-bytes': dw = 'MB/s'; break;
                 case 'network-receive-bytes': dw = 'Mb/s'; break;
                 case 'network-transmit-bytes': dw = 'Mb/s'; break;
+                case 'cilium-drop-count': dw = '包/s'; break;
+                case 'cilium-drop-bytes': dw = 'KB/s'; break;
+                case 'cilium-endpoint': dw = '个'; break;
+                case 'cilium-unreachable': dw = '个'; break;
+                case 'cilium-bpf-map-pressure': dw = '%'; break;
             }
 
             let option = {
@@ -520,6 +621,9 @@ export default {
             if(chartType=='HostCoreUtilization'){
                 option.yAxis.max = 100;
             }
+            if(chartType=='cilium-bpf-map-pressure'){
+                option.yAxis.max = 100;
+            }
 
             if(useDarkStore().isDark){
                 option.backgroundColor = '#232324';
@@ -556,4 +660,5 @@ export default {
 <style scoped>
 .chartbox .title{padding:16px;}
 .chart{height:100%;}
+.empty-chart{height:100%;display:flex;flex-direction:column;justify-content:center;}
 </style>

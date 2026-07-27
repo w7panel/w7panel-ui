@@ -281,7 +281,7 @@
                 </a-tabs>
             </div>
         </div>
-        
+
         <div v-if="metricsState.canShowNodeMetrics" class="mt-20 bg-white padding-20">
             <div class="df ai-c jc-b">
                 <div class="title fs-16">主机指标</div>
@@ -343,6 +343,29 @@
                         <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-transmit-bytes" class="ml-20 fc"></ol-charts>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div v-if="metricsState.canShowClusterMetrics" class="mt-20 bg-white padding-20">
+            <div class="title fs-16">Cilium 监控</div>
+            <div class="mt-20">
+                <a-tabs v-model:active-key="ciliumTabActive">
+                    <a-tab-pane :key="1" title="Cilium丢包">
+                        <ol-charts v-if="ciliumTabActive==1&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="cilium-drop-count"></ol-charts>
+                    </a-tab-pane>
+                    <a-tab-pane :key="2" title="Cilium丢包流量">
+                        <ol-charts v-if="ciliumTabActive==2&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="cilium-drop-bytes"></ol-charts>
+                    </a-tab-pane>
+                    <a-tab-pane :key="3" title="Cilium Endpoint">
+                        <ol-charts v-if="ciliumTabActive==3&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="cilium-endpoint"></ol-charts>
+                    </a-tab-pane>
+                    <a-tab-pane :key="4" title="Cilium连通性">
+                        <ol-charts v-if="ciliumTabActive==4&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="cilium-unreachable"></ol-charts>
+                    </a-tab-pane>
+                    <a-tab-pane :key="5" title="Cilium BPF Map">
+                        <ol-charts v-if="ciliumTabActive==5&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="cilium-bpf-map-pressure"></ol-charts>
+                    </a-tab-pane>
+                </a-tabs>
             </div>
         </div>
 
@@ -446,6 +469,7 @@ export default {
             namespaceActive: '',
             nodelist: [],
             tabActive: 1,
+            ciliumTabActive: 1,
             chartActive: 1,
             chartNodeActive: '',
             dark: useDarkStore(),
