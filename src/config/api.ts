@@ -54,6 +54,12 @@ export const API_PATHS = {
   METRICS_USAGE_DISK: '/metrics/usage/disk',
   METRICS_NODE: '/metrics/node',
   METRICS_POD: '/metrics/pod',
+  TRAFFIC_HEALTH: '/traffic/health',
+  TRAFFIC_SUMMARY: '/traffic/summary',
+  TRAFFIC_SERIES: '/traffic/series',
+  TRAFFIC_PODS: '/traffic/pods',
+  TRAFFIC_DOMAINS: '/traffic/domains',
+  TRAFFIC_URLS: '/traffic/urls',
   
   // 工具 API
   UTILS_PINYIN: '/pinyin',

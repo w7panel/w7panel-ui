@@ -29,6 +29,18 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             },
         },
         {
+            path: 'traffic',
+            name: 'cluster-traffic',
+            component: () => import('@/views/cluster/traffic/index.vue'),
+            meta: {
+                locale: '流量监控',
+                requiresAuth: true,
+                hideInMenu: false,
+                roles: ['*'],
+                key: 'cluster-traffic',
+            },
+        },
+        {
             path: 'overview',
             name: 'cluster-overview',
             component: () => import('@/views/cluster/overview/index.vue'),
