@@ -1,5 +1,23 @@
 <template>
     <div class="df df-c ai-c">
+		<a-modal v-model:visible="installConflict.show" title="制品安装冲突" :footer="false" :mask-closable="false">
+			<div v-if="installConflict.reason==='domain_mismatch'">
+				<div>当前域名与订单原绑定域名不一致。</div>
+				<div class="mt-10">原绑定域名：<strong>{{ installConflict.domain || '未知' }}</strong></div>
+				<div class="mt-20 txt-r"><a-button type="primary" @click="installConflict.show=false">知道了</a-button></div>
+			</div>
+			<div v-else-if="installConflict.reason==='app_identify_exists'">
+				<a-alert type="warning">该订单已有应用安装记录，请先卸载原应用，或强制清除旧记录后重新安装。</a-alert>
+				<div class="mt-10">原面板地址：<strong>{{ installConflict.panelUrl || '未知' }}</strong></div>
+				<div class="mt-20 df jc-e">
+					<a-button class="mr-10" @click="installConflict.show=false">取消</a-button>
+					<a-button class="mr-10" :disabled="!installConflict.panelUrl" @click="openOriginalPanel">前往原面板卸载</a-button>
+					<a-popconfirm content="强制清除会覆盖旧应用的安装记录，可能导致老应用状态丢失、无法继续升级。确定继续吗？" type="warning" position="bottom" @ok="forceReinstall">
+						<a-button status="danger">强制清除并安装</a-button>
+					</a-popconfirm>
+				</div>
+			</div>
+		</a-modal>
         <div class="toptitle df jc-c" :style="{width:is_component?'800px':'1000px'}">
             <img v-if="info.icon" :src="info.icon" alt="" class="icon" @error="info.icon=''" />
             <icon-common v-else class="icon"  />
@@ -348,6 +366,13 @@ export default {
             },
 
             thirdparty_cd_token: '',
+			installConflict: {
+				show: false,
+				reason: '',
+				domain: '',
+				panelUrl: '',
+				params: null,
+			},
         }
     },
     async created(){
@@ -1079,7 +1104,7 @@ export default {
                 params.zipUrl = decodeURIComponent(this.$route.query.zipUrl);
             }
 
-            panelApi.put('/zpk/install',params,{loading:true}).then(res=>{
+            panelApi.put('/zpk/install',params,{loading:true,noAlert:true}).then(res=>{
                 this.step = 3;
 
                 let { releaseName } = res?.data || {};
@@ -1095,8 +1120,44 @@ export default {
                         this.getStatus(releaseName);
                     });
                 }
-            });
+            }).catch(error=>{
+				let conflict = error?.response?.data?.data;
+				if(error?.response?.status===409 && ['domain_mismatch','app_identify_exists'].includes(conflict?.conflict_reason)){
+					this.installConflict = {
+						show: true,
+						reason: conflict.conflict_reason,
+						domain: conflict.domain || '',
+						panelUrl: conflict.panel_url || '',
+						params: {...params},
+					};
+					return;
+				}
+				this.$message.error(error?.response?.data?.error || error?.message || '安装失败');
+			});
         },
+		openOriginalPanel(){
+			if(!this.installConflict.panelUrl){return}
+			window.open(this.installConflict.panelUrl, '_blank', 'noopener,noreferrer');
+			this.installConflict.show = false;
+		},
+		forceReinstall(){
+			let params = this.installConflict.params;
+			if(!params){return}
+			this.installConflict.show = false;
+			panelApi.put('/zpk/install', {...params, reinstall:true}, {loading:true,noAlert:true}).then(res=>{
+				this.step = 3;
+				let { releaseName } = res?.data || {};
+				this.releaseName = releaseName;
+				if(this.is_component){
+					this.$emit('installed', this.identifie);
+					this.getStatus(releaseName);
+				}else{
+					this.$router.push({query:{...this.$route.query,completeName:releaseName}}).then(()=>this.getStatus(releaseName));
+				}
+			}).catch(error=>{
+				this.$message.error(error?.response?.data?.error || error?.message || '强制安装失败');
+			});
+		},
         // 安装状态
         getStatus(name){
             this.appGroup = name;
