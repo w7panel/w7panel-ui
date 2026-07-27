@@ -4,7 +4,7 @@
             <div>未安装监控</div>
             <a-button class="mt-20" type="primary" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">去安装</a-button>
         </div>
-        <div v-else class="df df-c" style="height:100%;">
+        <div v-else class="df df-c monitor-content" style="height:100%;">
             <div class="df ai-c jc-e">
                 <a-range-picker
                     showTime
@@ -32,6 +32,14 @@
                     <pods-charts :list="list" type="memory" :step="memoryMonitor.step" :pickerValue="memoryMonitor.pickerValue"></pods-charts>
                 </div>
             </div>
+            <div class="cilium-box mt-20">
+                <pods-cilium-charts
+                    :list="list"
+                    :namespace="namespaceActive"
+                    :step="memoryMonitor.step"
+                    :pickerValue="memoryMonitor.pickerValue"
+                />
+            </div>
         </div>
     </div>
 </template>
@@ -40,6 +48,7 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import podsCharts from '@/components/pods-charts.vue'
+import podsCiliumCharts from '@/components/pods-cilium-charts.vue'
 import { useNamespaceStore } from '@/store';
 import axios from 'axios'
 import { getUserInfo } from '@/utils/auth';
@@ -98,6 +107,7 @@ export default {
     },
     components: {
         podsCharts,
+        podsCiliumCharts,
     },
     async created(){
         this.namespaceActive = useNamespaceStore().namespace;
@@ -136,6 +146,9 @@ export default {
 <style scoped>
 .box{display:flex; flex-direction: row;}
 .item{width:50%; padding:10px;}
+.monitor-content{overflow:auto;}
+.box,.cilium-box{flex-shrink:0;}
+.cilium-box{height:440px;padding:10px;box-sizing:border-box;}
 @media (max-width: 1300px) {
     .box {display:flex; flex-direction: column;}
     .item{width:100%; padding:10px; height:440px; box-sizing:border-box;}

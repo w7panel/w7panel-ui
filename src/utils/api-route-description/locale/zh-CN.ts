@@ -176,4 +176,10 @@ export default {
   'GET /panel-api/v1/metrics/installed': '检查监控组件安装状态',
   'GET /panel-api/v1/metrics/state': '获取监控状态',
   'GET /panel-api/v1/metrics/query-range': '查询监控时序数据',
+  'GET /panel-api/v1/traffic/health': '检查流量监控数据源状态',
+  'GET /panel-api/v1/traffic/summary': '获取流量监控汇总',
+  'GET /panel-api/v1/traffic/series': '获取流量监控趋势',
+  'GET /panel-api/v1/traffic/pods': '获取 Pod 流量排行',
+  'GET /panel-api/v1/traffic/domains': '获取域名流量排行',
+  'GET /panel-api/v1/traffic/urls': '获取热点 URL 排行',
 };
