@@ -7,12 +7,13 @@
 				<div class="mt-20 txt-r"><a-button type="primary" @click="installConflict.show=false">知道了</a-button></div>
 			</div>
 			<div v-else-if="installConflict.reason==='app_identify_exists'">
-				<a-alert type="warning">该订单已有应用安装记录，请先卸载原应用，或强制清除旧记录后重新安装。</a-alert>
+				<a-alert v-if="installConflict.params || installConflict.retryConfig" type="warning">该订单已有应用安装记录，请先卸载原应用，或强制清除旧记录后重新安装。</a-alert>
+				<a-alert v-else type="warning">该订单已有应用安装记录，请先卸载原应用后重试。</a-alert>
 				<div class="mt-10">原面板地址：<strong>{{ installConflict.panelUrl || '未知' }}</strong></div>
 				<div class="mt-20 df jc-e">
 					<a-button class="mr-10" @click="installConflict.show=false">取消</a-button>
 					<a-button class="mr-10" :disabled="!installConflict.panelUrl" @click="openOriginalPanel">前往原面板卸载</a-button>
-					<a-popconfirm content="强制清除会覆盖旧应用的安装记录，可能导致老应用状态丢失、无法继续升级。确定继续吗？" type="warning" position="bottom" @ok="forceReinstall">
+					<a-popconfirm v-if="installConflict.params || installConflict.retryConfig" content="强制清除会覆盖旧应用的安装记录，可能导致老应用状态丢失、无法继续升级。确定继续吗？" type="warning" position="bottom" @ok="forceReinstall">
 						<a-button status="danger">强制清除并安装</a-button>
 					</a-popconfirm>
 				</div>
@@ -372,7 +373,9 @@ export default {
 				domain: '',
 				panelUrl: '',
 				params: null,
+				retryConfig: false,
 			},
+			reinstallConfirmed: false,
         }
     },
     async created(){
@@ -405,7 +408,10 @@ export default {
             this.form.ingressHost = url.replace(/^https?:\/\//,'') || '';
             this.form.auto_ssl = this.form.ingressHostPre == 'https://';
         },
-        async init(){
+        async init(reinstall = false){
+			if(!reinstall){
+				this.reinstallConfirmed = false;
+			}
             if(this.is_component){
                 this.path = this.path_identifie;
             }else{
@@ -423,7 +429,7 @@ export default {
             await this.getToken();
             await this.getStorage();
             await this.getWhiteList();
-            await this.getInfo();
+			if(!await this.getInfo(reinstall)){return}
             await this.getMirror();
             await this.getIngressclassList();
             // 第一步域名
@@ -546,7 +552,7 @@ export default {
                 // console.log('rplist',this.rpList);
             })
         },
-        async getInfo(){
+        async getInfo(reinstall = false){
             if((!this.path||this.path=='undefined') && this.$route.query.completeName){
                 let {data} = await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/'+this.$route.query.completeName);
                 this.info = {
@@ -565,13 +571,15 @@ export default {
                 this.identifie = data?.spec?.identifie;
                 this.path = data.spec.zpkUrl;
                 this.releaseName = this.$route.query.completeName;
-                return;
+                return true;
             }
-            await panelApi.get('/zpk/config?releaseName='+this.releaseName,{params:{
+            return panelApi.get('/zpk/config',{params:{
                 repoUrl: this.path,
                 thirdpartyCDToken: this.$route.query.thirdpartyCDToken,
-            }}).then(async res=>{
-                if(!res?.data){return}
+                releaseName: this.releaseName,
+                reinstall,
+            },noAlert:true}).then(async res=>{
+                if(!res?.data){return true}
 
                 if(res?.data?.[0]){
                     let i = res.data?.[0];
@@ -820,6 +828,11 @@ export default {
                 }
                 // 更新应用，替换env
                 if(!this.releaseName && res?.data?.[0]?.releaseName){ this.releaseName = res.data[0].releaseName; }
+				return true;
+			}).catch(error=>{
+				if(this.handleInstallConflict(error, null, true)){return false}
+				this.$message.error(error?.response?.data?.error || error?.message || '获取安装配置失败');
+				return false;
             })
         },
         goBackList(){
@@ -924,8 +937,13 @@ export default {
             return panelApi.get('/zpk/config',{params:{
                 repoUrl: 'https://zpk.w7.cc/zpk/respo/info/'+name,
                 thirdpartyCDToken: this.$route.query.thirdpartyCDToken,
-            }}).then(res=>{
+            },noAlert:true}).then(res=>{
                 return res.data?.[0]?.name;
+			}).catch(error=>{
+				if(!this.handleInstallConflict(error)){
+					this.$message.error(error?.response?.data?.error || error?.message || '获取依赖应用信息失败');
+				}
+				return name;
             })
         },
         validator(sp){
@@ -1103,6 +1121,9 @@ export default {
                 params.isTrandition = true;
                 params.zipUrl = decodeURIComponent(this.$route.query.zipUrl);
             }
+			if(this.reinstallConfirmed){
+				params.reinstall = true;
+			}
 
             panelApi.put('/zpk/install',params,{loading:true,noAlert:true}).then(res=>{
                 this.step = 3;
@@ -1121,26 +1142,39 @@ export default {
                     });
                 }
             }).catch(error=>{
-				let conflict = error?.response?.data?.data;
-				if(error?.response?.status===409 && ['domain_mismatch','app_identify_exists'].includes(conflict?.conflict_reason)){
-					this.installConflict = {
-						show: true,
-						reason: conflict.conflict_reason,
-						domain: conflict.domain || '',
-						panelUrl: conflict.panel_url || '',
-						params: {...params},
-					};
-					return;
-				}
+				if(this.handleInstallConflict(error, {...params})){return}
 				this.$message.error(error?.response?.data?.error || error?.message || '安装失败');
 			});
         },
+		handleInstallConflict(error, params = null, retryConfig = false){
+			let responseData = error?.response?.data;
+			let conflict = responseData?.data;
+			let isConflictResponse = error?.response?.status===409 || responseData?.code===409;
+			if(!isConflictResponse || !['domain_mismatch','app_identify_exists'].includes(conflict?.conflict_reason)){
+				return false;
+			}
+			this.installConflict = {
+				show: true,
+				reason: conflict.conflict_reason,
+				domain: conflict.domain || '',
+				panelUrl: conflict.panel_url || '',
+				params,
+				retryConfig,
+			};
+			return true;
+		},
 		openOriginalPanel(){
 			if(!this.installConflict.panelUrl){return}
 			window.open(this.installConflict.panelUrl, '_blank', 'noopener,noreferrer');
 			this.installConflict.show = false;
 		},
 		forceReinstall(){
+			if(this.installConflict.retryConfig){
+				this.reinstallConfirmed = true;
+				this.installConflict.show = false;
+				this.init(true);
+				return;
+			}
 			let params = this.installConflict.params;
 			if(!params){return}
 			this.installConflict.show = false;
@@ -1155,6 +1189,7 @@ export default {
 					this.$router.push({query:{...this.$route.query,completeName:releaseName}}).then(()=>this.getStatus(releaseName));
 				}
 			}).catch(error=>{
+				if(this.handleInstallConflict(error, {...params, reinstall:true})){return}
 				this.$message.error(error?.response?.data?.error || error?.message || '强制安装失败');
 			});
 		},
