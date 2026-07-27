@@ -5,7 +5,7 @@
             <a-button class="mt-20" type="primary" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">去安装</a-button>
         </div>
         <div v-else class="df df-c monitor-content" style="height:100%;">
-            <div class="df ai-c jc-e">
+            <div class="monitor-toolbar df ai-c jc-e">
                 <a-range-picker
                     showTime
                     style="width: 400px;"
@@ -24,15 +24,7 @@
                     <a-option :value="43200">12小时</a-option>
                 </a-select>
             </div>
-            <div class="fc box" style="height:400px;">
-                <div class="item df df-c">
-                    <pods-charts :list="list" type="cpu" :step="memoryMonitor.step" :pickerValue="memoryMonitor.pickerValue"></pods-charts>
-                </div>
-                <div class="item">
-                    <pods-charts :list="list" type="memory" :step="memoryMonitor.step" :pickerValue="memoryMonitor.pickerValue"></pods-charts>
-                </div>
-            </div>
-            <div class="cilium-box mt-20">
+            <div class="pod-metrics-box mt-20">
                 <pods-cilium-charts
                     :list="list"
                     :namespace="namespaceActive"
@@ -47,7 +39,6 @@
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
-import podsCharts from '@/components/pods-charts.vue'
 import podsCiliumCharts from '@/components/pods-cilium-charts.vue'
 import { useNamespaceStore } from '@/store';
 import axios from 'axios'
@@ -106,7 +97,6 @@ export default {
         }
     },
     components: {
-        podsCharts,
         podsCiliumCharts,
     },
     async created(){
@@ -144,13 +134,7 @@ export default {
 </script>
 
 <style scoped>
-.box{display:flex; flex-direction: row;}
-.item{width:50%; padding:10px;}
-.monitor-content{overflow:auto;}
-.box,.cilium-box{flex-shrink:0;}
-.cilium-box{height:440px;padding:10px;box-sizing:border-box;}
-@media (max-width: 1300px) {
-    .box {display:flex; flex-direction: column;}
-    .item{width:100%; padding:10px; height:440px; box-sizing:border-box;}
-}
+.monitor-content{min-height:0;overflow:hidden;}
+.monitor-toolbar{flex-shrink:0;}
+.pod-metrics-box{width:100%;min-height:0;padding:10px;box-sizing:border-box;flex:1;}
 </style>

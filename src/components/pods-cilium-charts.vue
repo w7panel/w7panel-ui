@@ -1,11 +1,11 @@
 <template>
-    <div class="df df-c" style="height:100%;">
-        <div class="fs-16 b">Pod Cilium 指标</div>
+    <div class="pod-metrics df df-c">
+        <div class="fs-16 b df-s0">Pod指标</div>
         <a-tabs v-model:active-key="activeType" class="df-s0 mt-10">
             <a-tab-pane v-for="item in chartTypes" :key="item.key" :title="item.title" />
         </a-tabs>
         <a-spin :loading="loading" class="fc chart-spin">
-            <a-empty v-if="!loading && !series.length" description="暂无 Pod Cilium 指标数据" />
+            <a-empty v-if="!loading && !series.length" description="暂无 Pod 指标数据" />
             <div v-show="series.length" ref="chart" class="chart"></div>
         </a-spin>
     </div>
@@ -20,6 +20,8 @@ import { getUserInfo } from '@/utils/auth';
 import { useDarkStore } from '@/store';
 
 const METRICS = {
+    cpu: 'pod_cpu_usage_seconds_total',
+    memory: 'pod_memory_working_set_bytes',
     flow: 'hubble_flows_processed_total',
     drop: 'hubble_drop_total',
     dns: 'hubble_dns_queries_total',
@@ -31,8 +33,10 @@ export default {
     props: ['list', 'namespace', 'pickerValue', 'step'],
     data() {
         return {
-            activeType: 'flow',
+            activeType: 'cpu',
             chartTypes: [
+                { key: 'cpu', title: 'CPU' },
+                { key: 'memory', title: '内存' },
                 { key: 'flow', title: 'Cilium流量' },
                 { key: 'drop', title: 'Cilium丢包' },
                 { key: 'dns', title: 'DNS请求' },
@@ -42,7 +46,7 @@ export default {
             loading: false,
             series: [],
             chart: null,
-            resizeHandler: null,
+            resizeObserver: null,
             requestId: 0,
             userInfo: {},
             dark: useDarkStore(),
@@ -109,10 +113,19 @@ export default {
             });
             return { metricNamespace, nameMap };
         },
+        isResourceMetric() {
+            return this.activeType == 'cpu' || this.activeType == 'memory';
+        },
         getQuery(metric, metricNamespace, podNames) {
             const namespace = this.escapePromRegex(metricNamespace);
             const names = podNames.map(this.escapePromRegex).join('|');
-            const podMatcher = `${namespace}/(?:${names})`;
+            if (this.activeType == 'cpu') {
+                return `sum by (pod) (rate(${metric}{namespace="${namespace}",pod=~"^(${names})$"}[5m]))`;
+            }
+            if (this.activeType == 'memory') {
+                return `sum by (pod) (${metric}{namespace="${namespace}",pod=~"^(${names})$"})`;
+            }
+            const podMatcher = `^${namespace}/(${names})$`;
             return `sum by (source) (rate(${metric}{source=~"${podMatcher}"}[5m]))`
                 + ` or sum by (destination) (rate(${metric}{destination=~"${podMatcher}"}[5m]))`;
         },
@@ -151,6 +164,20 @@ export default {
                 if (currentRequest != this.requestId) return;
                 const result = response?.data?.data?.result || response?.data?.result || [];
                 this.series = result.map((item) => {
+                    if (this.isResourceMetric()) {
+                        const metricPodName = item.metric?.pod || '';
+                        return {
+                            name: nameMap[metricPodName] || metricPodName,
+                            type: 'line',
+                            smooth: true,
+                            data: (item.values || []).map((value) => [
+                                window.formatDate(value[0] * 1000),
+                                this.activeType == 'cpu'
+                                    ? Number(value[1]).toFixed(4)
+                                    : (Number(value[1]) / 1024 / 1024).toFixed(2),
+                            ]),
+                        };
+                    }
                     const context = item.metric?.source || item.metric?.destination || '';
                     const metricPodName = context.substring(context.indexOf('/') + 1);
                     const direction = item.metric?.source ? '出站' : '入站';
@@ -179,7 +206,13 @@ export default {
                 return;
             }
             if (!this.chart) this.chart = echarts.init(this.$refs.chart);
+            this.observeChartSize();
             const textColor = this.dark.isDark ? 'rgba(255,255,255,0.9)' : '#4e5969';
+            const unit = {
+                cpu: '核',
+                memory: 'MiB',
+                flow: 'flow/s',
+            }[this.activeType] || '次/s';
             this.chart.setOption({
                 backgroundColor: this.dark.isDark ? '#232324' : '#fff',
                 textStyle: { color: textColor },
@@ -189,17 +222,19 @@ export default {
                 xAxis: { type: 'category' },
                 yAxis: {
                     type: 'value',
-                    axisLabel: { formatter: `{value} ${this.activeType == 'flow' ? 'flow/s' : '次/s'}` },
+                    axisLabel: { formatter: `{value} ${unit}` },
                 },
                 series: this.series,
             }, true);
-            if (!this.resizeHandler) {
-                this.resizeHandler = () => this.chart?.resize();
-                window.addEventListener('resize', this.resizeHandler);
-            }
+        },
+        observeChartSize() {
+            if (this.resizeObserver || !this.$refs.chart) return;
+            this.resizeObserver = new ResizeObserver(() => this.chart?.resize());
+            this.resizeObserver.observe(this.$refs.chart);
         },
         disposeChart() {
-            if (this.resizeHandler) window.removeEventListener('resize', this.resizeHandler);
+            this.resizeObserver?.disconnect();
+            this.resizeObserver = null;
             this.chart?.dispose();
             this.chart = null;
         },
@@ -208,7 +243,8 @@ export default {
 </script>
 
 <style scoped>
-.chart-spin{width:100%;height:360px;}
-.chart-spin :deep(.arco-spin-children){height:100%;}
-.chart{width:100%;height:100%;background:#fff;}
+.pod-metrics{width:100%;height:100%;min-height:0;}
+.chart-spin{display:block;width:100%;height:auto;min-height:0;flex:1;overflow:hidden;}
+.chart-spin :deep(.arco-spin-children){width:100%;height:100%;min-height:0;}
+.chart{width:100%;height:100%;min-height:0;background:#fff;}
 </style>
