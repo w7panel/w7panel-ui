@@ -5,7 +5,7 @@
             <a-button class="mt-20" type="primary" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">去安装</a-button>
         </div>
         <div v-else class="df df-c monitor-content" style="height:100%;">
-            <div class="df ai-c jc-e">
+            <div class="monitor-toolbar df ai-c jc-e">
                 <a-range-picker
                     showTime
                     style="width: 400px;"
@@ -134,6 +134,7 @@ export default {
 </script>
 
 <style scoped>
-.monitor-content{overflow:auto;}
-.pod-metrics-box{height:440px;padding:10px;box-sizing:border-box;flex-shrink:0;}
+.monitor-content{min-height:0;overflow:hidden;}
+.monitor-toolbar{flex-shrink:0;}
+.pod-metrics-box{width:100%;min-height:0;padding:10px;box-sizing:border-box;flex:1;}
 </style>

@@ -1,6 +1,6 @@
 <template>
-    <div class="df df-c" style="height:100%;">
-        <div class="fs-16 b">Pod指标</div>
+    <div class="pod-metrics df df-c">
+        <div class="fs-16 b df-s0">Pod指标</div>
         <a-tabs v-model:active-key="activeType" class="df-s0 mt-10">
             <a-tab-pane v-for="item in chartTypes" :key="item.key" :title="item.title" />
         </a-tabs>
@@ -46,7 +46,7 @@ export default {
             loading: false,
             series: [],
             chart: null,
-            resizeHandler: null,
+            resizeObserver: null,
             requestId: 0,
             userInfo: {},
             dark: useDarkStore(),
@@ -206,6 +206,7 @@ export default {
                 return;
             }
             if (!this.chart) this.chart = echarts.init(this.$refs.chart);
+            this.observeChartSize();
             const textColor = this.dark.isDark ? 'rgba(255,255,255,0.9)' : '#4e5969';
             const unit = {
                 cpu: '核',
@@ -225,13 +226,15 @@ export default {
                 },
                 series: this.series,
             }, true);
-            if (!this.resizeHandler) {
-                this.resizeHandler = () => this.chart?.resize();
-                window.addEventListener('resize', this.resizeHandler);
-            }
+        },
+        observeChartSize() {
+            if (this.resizeObserver || !this.$refs.chart) return;
+            this.resizeObserver = new ResizeObserver(() => this.chart?.resize());
+            this.resizeObserver.observe(this.$refs.chart);
         },
         disposeChart() {
-            if (this.resizeHandler) window.removeEventListener('resize', this.resizeHandler);
+            this.resizeObserver?.disconnect();
+            this.resizeObserver = null;
             this.chart?.dispose();
             this.chart = null;
         },
@@ -240,7 +243,8 @@ export default {
 </script>
 
 <style scoped>
-.chart-spin{width:100%;height:360px;}
-.chart-spin :deep(.arco-spin-children){height:100%;}
-.chart{width:100%;height:100%;background:#fff;}
+.pod-metrics{width:100%;height:100%;min-height:0;}
+.chart-spin{display:block;width:100%;height:auto;min-height:0;flex:1;overflow:hidden;}
+.chart-spin :deep(.arco-spin-children){width:100%;height:100%;min-height:0;}
+.chart{width:100%;height:100%;min-height:0;background:#fff;}
 </style>
