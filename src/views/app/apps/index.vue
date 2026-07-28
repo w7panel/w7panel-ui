@@ -217,7 +217,7 @@ import k8syamlDrawer from '@/components/k8syaml-drawer.vue';
 import codepackDrawer from '@/components/codepack-drawer.vue';
 import helmForm from '../pages/helm-form.vue';
 import { getPermission,getFileEditor,getUserInfo } from '@/utils/auth';
-import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
+import { filterAppGroupWorkloadItems, isGatewayPluginAppGroup } from '@/utils/appgroup';
 
 export default {
     data(){
@@ -414,7 +414,7 @@ export default {
         refreshList(){
             return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then((res)=>{
                 let list = res?.data?.items || [];
-                list = list.filter(i=>!i?.metadata?.labels?.['w7.cc/parent']).map(i=>{
+                list = list.filter(i=>!i?.metadata?.labels?.['w7.cc/parent'] && !isGatewayPluginAppGroup(i)).map(i=>{
                     
                     let domain_apps = [];
                     let statusItem = filterAppGroupWorkloadItems(i?.status?.items || []);

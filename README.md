@@ -2,6 +2,8 @@
 
 基于 Vue 3 + TypeScript + Arco Design 的 Kubernetes 云原生应用管理平台前端。
 
+插件类 AppGroup（`w7.cc/manifest-type=gateway-plugin`）只在网关插件页面管理，不在顶部菜单、应用直达和普通应用列表中展示。
+
 ## 技术栈
 
 - **Vue 3.5** - 响应式框架
