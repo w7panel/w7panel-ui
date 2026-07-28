@@ -443,7 +443,8 @@ export default {
                             "w7.cc/job-source-title": data.metadata?.annotations?.['w7.cc/job-source-title'] || this.form.title,
                         },
                         labels: {
-                            "searchJob": this.createName(10),
+                            // 编辑 CronJob 时必须保留该标识，否则历史 Job 将无法再按标签关联。
+                            "searchJob": data.spec?.jobTemplate?.metadata?.labels?.searchJob || this.createName(10),
                         },
                     },
                     spec: jobSpec,

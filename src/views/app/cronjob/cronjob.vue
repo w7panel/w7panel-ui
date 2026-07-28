@@ -17,8 +17,7 @@
                         <a-table-column title="任务名称">
                             <template #cell="{ record }">
                                 <span class="point" :class="record.status_class"></span>
-                                <span v-if="record.last_schedule" class="c-blue cursor" @click="showHis(record)">{{record.title||record.name}}</span>
-                                <span v-else class="c-99">{{record.title||record.name}}</span>
+                                <span class="c-blue cursor" @click="showHis(record)">{{record.title||record.name}}</span>
                             </template>
                         </a-table-column>
                         <a-table-column title="执行周期">
@@ -126,10 +125,10 @@
             :jobList="jobLogModal.jobList"
             :jobName="jobLogModal.jobName"
             :label-selector="jobLogModal.labelSelector"
-            :showTabs="!jobLogModal.showTabs===false"
+            :show-tabs="jobLogModal.showTabs"
             :namespace="namespaceActive"
             :tail-lines="100"
-            @close="jobLogModal.show = false; jobLogModal.jobName = ''; jobLogModal.labelSelector = '';"
+            @close="closeJobLog"
         />
 
         <cronjob-drawer :show="form.show" :id="form.id" :defaultData="form.defaultData" :type="form.type" @close="closeForm"></cronjob-drawer>
@@ -184,7 +183,9 @@ export default {
             jobLogModal: {
                 show: false,
                 jobList: [],
+                jobName: '',
                 labelSelector: '',
+                showTabs: true,
             },
 
             form: {
@@ -221,6 +222,7 @@ export default {
         showHis(item){
             // 如果是 Job（有 dataItem），直接用 JobLog 组件
             if(item?.type === 'jobs'){
+                this.jobLogModal.jobList = [];
                 this.jobLogModal.jobName = item.name;
                 this.jobLogModal.labelSelector = '';
                 this.jobLogModal.show = true;
@@ -228,27 +230,19 @@ export default {
                 return;
             }
             
-            // 如果是 CronJob，从 searchJob 获取 Job 列表
-            if(!item.searchJob){
-                // 尝试用 labelSelector 方式
-                let selector = item?.dataItem?.spec?.selector?.matchLabels;
-                if(selector){
-                    let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
-                    this.jobLogModal.jobName = '';
-                    this.jobLogModal.labelSelector = label;
-                    this.jobLogModal.show = true;
-                    this.jobLogModal.showTabs = true;
-                }
-                return;
-            }
-            
-            // 获取 Job 列表
-            k8sproxy.get('/apis/batch/v1/namespaces/'+ this.namespaceActive +'/jobs?labelSelector=searchJob='+item.searchJob).then(res=>{
+            // 标签是 UI 创建任务的快速关联方式；ownerReferences 兼容原生 CronJob
+            // 及旧数据中没有 searchJob 标签的 Job。
+            k8sproxy.get('/apis/batch/v1/namespaces/'+ this.namespaceActive +'/jobs').then(res=>{
                 let data = res?.data?.items || [];
-                
+                data = data.filter(job=>{
+                    let matchesSearchJob = item.searchJob && job.metadata?.labels?.searchJob === item.searchJob;
+                    let ownedByCronJob = job.metadata?.ownerReferences?.some(ref=>ref.kind === 'CronJob' && ref.name === item.name);
+                    return matchesSearchJob || ownedByCronJob;
+                });
+
                 let list = data.map(i=>{
                     let durationInSeconds = '';
-                    if(i.status.completionTime && i.status.startTime){
+                    if(i.status?.completionTime && i.status?.startTime){
                         let st = new Date(i.status.startTime);
                         let ct = new Date(i.status.completionTime);
                         durationInSeconds = Math.floor((ct - st) / 1000) + '秒';
@@ -257,12 +251,12 @@ export default {
                     let status_text = i.spec?.suspend? '挂起' : (i.status?.succeeded? '成功' : '失败');
                     
                     return {
-                        title: i.metadata.annotations.title || i.metadata.name,
+                        title: i.metadata?.annotations?.title || i.metadata.name,
                         name: i.metadata.name,
-                        startTime: window.formatDate(i.status.startTime),
-                        stimes: new Date(i.status.startTime).getTime(),
-                        completionTime: window.formatDate(i.status.completionTime),
-                        durationInSeconds: durationInSeconds,
+                        startTime: window.formatDate(i.status?.startTime || ''),
+                        stimes: i.status?.startTime ? new Date(i.status.startTime).getTime() : 0,
+                        completionTime: window.formatDate(i.status?.completionTime || ''),
+                        duration: durationInSeconds,
                         suspend: i.spec?.suspend,
                         status_text: status_text,
                         status_class: status_class,
@@ -273,10 +267,18 @@ export default {
                 list.sort((i,j)=>j.stimes-i.stimes);
 
                 this.jobLogModal.jobList = list;
+                this.jobLogModal.jobName = '';
                 this.jobLogModal.labelSelector = '';
                 this.jobLogModal.show = true;
                 this.jobLogModal.showTabs = true;
             });
+        },
+        closeJobLog(){
+            this.jobLogModal.show = false;
+            this.jobLogModal.jobList = [];
+            this.jobLogModal.jobName = '';
+            this.jobLogModal.labelSelector = '';
+            this.jobLogModal.showTabs = true;
         },
         closeForm(v){
             this.form.show = false;
