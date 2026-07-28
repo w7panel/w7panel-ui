@@ -101,7 +101,7 @@
 
 <script>
 import jsyaml from 'js-yaml';
-import { panelApi, k8sproxy } from '@/utils/api';
+import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import yamlInput from '@/components/yaml-input.vue';
 import gatewayPluginMicroapp from '@/components/gateway-plugin-microapp.vue';
@@ -110,7 +110,6 @@ import {
     ensureGatewayPluginRule,
     getGatewayPluginRuleContext,
     getGatewayPluginRuleMatch,
-    getPluginMicroapp,
     getPluginTitle,
 } from '@/utils/gateway-plugin';
 
@@ -220,13 +219,7 @@ export default {
                 yaml: jsyaml.dump(current.config || {}, { lineWidth: -1, noRefs: true }),
             };
 
-            let item = this.microapp;
-            const explicitMicroapp = getPluginMicroapp(this.localPlugin);
-            if(!item && explicitMicroapp){
-                item = await panelApi.get(`/microapp/${encodeURIComponent(explicitMicroapp)}/info`, { noAlert: true })
-                    .then(res=>res?.data || null)
-                    .catch(()=>null);
-            }
+            const item = this.microapp;
             if(item){
                 const menuRoles = this.getMenus(item?.spec?.bindings || []);
                 const hasFrontendMenu = menuRoles.some(role=>Array.isArray(role.menus) && role.menus.length > 0);

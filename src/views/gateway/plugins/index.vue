@@ -145,10 +145,6 @@
                     <a-checkbox v-model="form.supportRule" class="ml-20">支持规则配置</a-checkbox>
                     <template #extra>全局配置默认开启；勾选规则配置后，插件会出现在应用域名管理的“更多”中。取消勾选会停用已有规则。</template>
                 </a-form-item>
-                <a-form-item v-if="!form.edit" label="配置前端包">
-                    <a-input v-model="form.microapp" placeholder="可选，填写 MicroApp 名称" allow-clear />
-                    <template #extra>配置后按照 MicroApp 方式加载操作界面；留空时显示 YAML 配置。</template>
-                </a-form-item>
             </a-form>
         </a-drawer>
 
@@ -190,7 +186,6 @@ import {
     WASM_PLUGIN_API,
     GATEWAY_PLUGIN_ANNOTATIONS,
     getPluginDescription,
-    getPluginMicroapp,
     getResourceGroupName,
     getPluginTitle,
     getPluginVersion,
@@ -277,7 +272,6 @@ export default {
                 priority: 0,
                 supportGlobal: true,
                 supportRule: false,
-                microapp: '',
             };
         },
         async getList(){
@@ -347,7 +341,6 @@ export default {
                 priority: Number(resource?.spec?.priority || 0),
                 supportGlobal: row.supportGlobal,
                 supportRule: row.supportRule,
-                microapp: getPluginMicroapp(resource),
             };
         },
         showUpgradeDetail(row){
@@ -395,11 +388,6 @@ export default {
             annotations['higress.io/wasm-plugin-description'] = this.form.description || '';
             annotations[GATEWAY_PLUGIN_ANNOTATIONS.supportGlobal] = String(this.form.supportGlobal);
             annotations[GATEWAY_PLUGIN_ANNOTATIONS.supportRule] = String(this.form.supportRule);
-            if(this.form.microapp){
-                annotations[GATEWAY_PLUGIN_ANNOTATIONS.microapp] = this.form.microapp.trim();
-            }else{
-                delete annotations[GATEWAY_PLUGIN_ANNOTATIONS.microapp];
-            }
             data.spec.url = this.form.image;
             data.spec.phase = this.form.phase;
             data.spec.priority = Number(this.form.priority);

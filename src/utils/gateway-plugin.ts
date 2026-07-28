@@ -9,7 +9,6 @@ export const OFFICIAL_APP_ANNOTATION = 'w7.cc/official-app';
 export const GATEWAY_PLUGIN_ANNOTATIONS = {
   supportGlobal: 'w7.cc/plugin-support-global',
   supportRule: 'w7.cc/plugin-support-rule',
-  microapp: 'w7.cc/plugin-microapp',
 } as const;
 
 export function getPluginAnnotations(plugin: any) {
@@ -33,35 +32,31 @@ export function supportsRuleConfig(plugin: any) {
   return Boolean(plugin?.spec?.matchRules?.length);
 }
 
-export function getPluginMicroapp(plugin: any) {
-  return getPluginAnnotations(plugin)[GATEWAY_PLUGIN_ANNOTATIONS.microapp] || '';
-}
-
 export function getResourceGroupName(resource: any) {
   return resource?.metadata?.labels?.[RESOURCE_GROUP_LABEL] || '';
 }
 
 /**
  * 制品中的 WasmPlugin 与 MicroApp 通过 w7.cc/group-name 归组。
- * 同组存在多个 MicroApp 时无法确定配置前端，必须回退 YAML；旧资源继续兼容显式 annotation。
+ * 旧版 MicroApp 未写分组标签时，兼容使用与分组同名的 MicroApp。
+ * 同组存在多个 MicroApp 时无法确定配置前端，必须回退 YAML。
  */
 export function resolvePluginMicroapp(plugin: any, microapps: any[] = []) {
   const groupName = getResourceGroupName(plugin);
   if (groupName) {
     const matches = microapps.filter(item => getResourceGroupName(item) === groupName);
     if (matches.length === 1) return matches[0];
-    return null;
+    if (matches.length > 1) return null;
+
+    const legacyMatches = microapps.filter(item => !getResourceGroupName(item) && item?.metadata?.name === groupName);
+    if (legacyMatches.length === 1) return legacyMatches[0];
   }
 
-  const explicitName = getPluginMicroapp(plugin);
-  if (!explicitName) return null;
-  return microapps.find(item => item?.metadata?.name === explicitName) || null;
+  return null;
 }
 
 export function getResolvedMicroappName(plugin: any, microapps: any[] = []) {
-  const resolvedName = resolvePluginMicroapp(plugin, microapps)?.metadata?.name || '';
-  if (getResourceGroupName(plugin)) return resolvedName;
-  return resolvedName || getPluginMicroapp(plugin);
+  return resolvePluginMicroapp(plugin, microapps)?.metadata?.name || '';
 }
 
 export function getPluginTitle(plugin: any) {
