@@ -19,7 +19,11 @@
             <a-button type="outline" class="mr-20" @click="helm.show=true;">Helm创建</a-button>
         </div>
         <div class="bg-white padding-20 mt-20">
-            <a-table :data="data" class="filetable applisttable" :bordered="false" :pagination="false">
+            <a-alert v-if="uninstallTarget" class="mb-20" type="warning">
+                <div>已定位原安装应用“{{ uninstallTarget.title || uninstallTarget.groupName }}”，请确认后点击右侧“卸载此应用”。</div>
+                <div class="mt-4">唯一标识：<strong>{{ uninstallTarget.groupName }}</strong></div>
+            </a-alert>
+            <a-table :data="data" class="filetable applisttable" :bordered="false" :pagination="false" row-key="groupName" :row-class="getRowClass">
                 <template #columns>
                     <a-table-column title="站点域名">
                         <template #cell="{ record }">
@@ -124,6 +128,10 @@
 
                                 <span v-if="record.deletionTimestamp" class="c-99 ml-10">删除中...</span>
                             </div>
+                            <div v-if="isUninstallTarget(record)" class="mt-4 df ai-c">
+                                <a-tag color="orange" size="small">待卸载</a-tag>
+                                <span class="ml-6 fs-12 c-99">标识：{{ record.groupName }}</span>
+                            </div>
                             <div v-if="record.upgrade && record.upgrade.canUpgrade" class="df df-inline ai-c">
                                 <a-popover position="bottom" trigger="click" :content-style="{ padding: '6px 10px 16px' }">
                                     <div class="cursor ml-10" style="color:rgb(var(--red-7));">
@@ -155,16 +163,16 @@
                     <a-table-column title="操作" :width="300">
                         <template #cell="{ record }">
                             <div v-if="record.deployStatus=='deploying'||record.deployStatus=='failed'">
-                                <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel' && !record.denyDelete" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                    <span :id="'app-'+record.groupName" class="c-blue cursor operation">删除</span>
+                                <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel' && !record.denyDelete" :content="getDeleteConfirm(record)" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
+                                    <span :id="'app-'+record.groupName" class="c-blue cursor operation">{{ isUninstallTarget(record) ? '卸载此应用' : '删除' }}</span>
                                 </a-popconfirm>
                             </div>
                             <div v-else>
                                 <span class="c-blue cursor operation" @click="toAppMenu(record,'app-detail-domain')">域名管理</span>
                                  <!-- v-if="permission.includes('app-apps-files')" -->
                                 <span v-if="fileeditor" class="c-blue cursor operation ml-10" @click="toAppMenu(record,'app-detail-files')">文件管理</span>
-                                <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel\-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel-offline' && record.groupName!=='w7panel' && permission.includes('app/apps/delete') && !record.denyDelete" :content="'确认要删除吗'" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                    <span :id="'app-'+record.groupName" class="c-blue cursor operation ml-10">删除</span>
+                                <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel\-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel-offline' && record.groupName!=='w7panel' && permission.includes('app/apps/delete') && !record.denyDelete" :content="getDeleteConfirm(record)" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
+                                    <span :id="'app-'+record.groupName" class="c-blue cursor operation ml-10">{{ isUninstallTarget(record) ? '卸载此应用' : '删除' }}</span>
                                 </a-popconfirm>
                             </div>
                         </template>
@@ -255,6 +263,8 @@ export default {
                 title: '',
                 appgroup: '',
             },
+
+			uninstallTarget: null,
         }
     },
     created(){
@@ -440,8 +450,29 @@ export default {
                 })
                 list.sort((a,b)=>(b.creationTimestamp - a.creationTimestamp));
                 this.data = list.filter(i=>!i.deletionTimestamp);
+				this.selectUninstallTarget();
             })
         },
+		selectUninstallTarget(){
+			let appIdentify = String(this.$route.query.uninstallApp || '').toLowerCase();
+			this.uninstallTarget = appIdentify
+				? this.data.find(item=>String(item.groupName || '').toLowerCase()===appIdentify) || null
+				: null;
+			if(!this.uninstallTarget){return}
+			this.$nextTick(()=>{
+				document.querySelector('.artifact-uninstall-target')?.scrollIntoView({behavior:'smooth', block:'center'});
+			});
+		},
+		getRowClass(record){
+			return record.groupName===this.uninstallTarget?.groupName ? 'artifact-uninstall-target' : '';
+		},
+		isUninstallTarget(record){
+			return record.groupName===this.uninstallTarget?.groupName;
+		},
+		getDeleteConfirm(record){
+			if(!this.isUninstallTarget(record)){return '确认要删除吗'}
+			return `确认卸载应用“${record.title || record.groupName}”吗？唯一标识：${record.groupName}`;
+		},
         dedupeDomains(domains){
             let set = new Set();
             return (domains || []).filter(item=>{
@@ -516,6 +547,8 @@ export default {
 .point.red{background:#D00805;}
 .point.gray{background:#999;}
 .point.orange{background: rgb(var(--orange-6));}
+:deep(.artifact-uninstall-target > td){background:rgb(var(--orange-1)) !important;}
+:deep(.artifact-uninstall-target > td:first-child){box-shadow:inset 3px 0 0 rgb(var(--orange-6));}
 </style>
 <style>
 .applisttable .edittitle{opacity:0;}

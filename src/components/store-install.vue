@@ -372,6 +372,7 @@ export default {
 				reason: '',
 				domain: '',
 				panelUrl: '',
+				appIdentify: '',
 				params: null,
 				retryConfig: false,
 			},
@@ -1158,6 +1159,7 @@ export default {
 				reason: conflict.conflict_reason,
 				domain: conflict.domain || '',
 				panelUrl: conflict.panel_url || '',
+				appIdentify: conflict.app_identify || '',
 				params,
 				retryConfig,
 			};
@@ -1165,7 +1167,17 @@ export default {
 		},
 		openOriginalPanel(){
 			if(!this.installConflict.panelUrl){return}
-			window.open(this.installConflict.panelUrl, '_blank', 'noopener,noreferrer');
+			let targetUrl = this.installConflict.panelUrl;
+			try{
+				let url = new URL(targetUrl, window.location.origin);
+				let basePath = url.pathname.replace(/\/+$/, '');
+				url.pathname = basePath.endsWith('/app/apps') ? basePath : basePath + '/app/apps';
+				if(this.installConflict.appIdentify){
+					url.searchParams.set('uninstallApp', this.installConflict.appIdentify);
+				}
+				targetUrl = url.toString();
+			}catch{}
+			window.open(targetUrl, '_blank', 'noopener,noreferrer');
 			this.installConflict.show = false;
 		},
 		forceReinstall(){
