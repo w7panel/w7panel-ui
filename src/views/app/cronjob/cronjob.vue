@@ -308,11 +308,13 @@ export default {
                 k8sproxy.get('/apis/batch/v1/namespaces/'+ this.namespaceActive +'/jobs').then(res=>{
                     let list = res?.data?.items || [];
                     list = list.map(i=>{
+                        let startTime = i.status?.startTime;
                         return {
                             statusSuccess: Boolean(!i.spec?.suspend && i.status?.succeeded),
                             sourceName: i.metadata?.annotations?.['w7.cc/job-source-name'] || '',
-                            startTime: new Date(i.status.startTime).getTime(),
+                            startTime: startTime ? new Date(startTime).getTime() : 0,
                             searchJob: i.metadata?.labels?.searchJob,
+                            ownerReferences: i.metadata?.ownerReferences || [],
                         }
                     })
                     this.allJobs = list;
@@ -403,9 +405,13 @@ export default {
             }
         },
         comStatus(){
-            if(!this.list?.length || !this.allJobs?.length){return}
+            if(!this.list?.length){return}
             this.list.map((li,index)=>{
-                let filter = this.allJobs.filter(i=>i.searchJob==li.searchJob);
+                let filter = this.allJobs.filter(i=>{
+                    let matchesSearchJob = li.searchJob && i.searchJob === li.searchJob;
+                    let ownedByCronJob = i.ownerReferences?.some(ref=>ref.kind === 'CronJob' && ref.name === li.name);
+                    return matchesSearchJob || ownedByCronJob;
+                });
                 if(!filter?.length){
                     li.status_class = 'c-99';
                     return;
