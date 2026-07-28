@@ -42,6 +42,11 @@
             
             <!-- 右侧日志区域 -->
             <div class="job-log-main">
+                <div v-if="loading || !hasJobRecords" class="job-log-state">
+                    <a-spin v-if="loading" />
+                    <span>{{ loading ? '加载中...' : '无数据' }}</span>
+                </div>
+                <template v-else>
                 <div class="log-toolbar">
                     <div class="df ai-c">
                         <div class="df ai-c">
@@ -55,7 +60,7 @@
                         <div class="df ai-c">
                             <div class="ml-20">容器：</div>
                             <div class="ml-10">
-                                <a-select v-model="currentContainer" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
+                                <a-select v-model="currentContainer" @change="fetchLog" style="min-width:150px;" placeholder="">
                                     <a-option v-for="i in containerList" :key="i" :value="i">{{ i }}</a-option>
                                 </a-select>
                             </div>
@@ -78,6 +83,7 @@
                 </div>
                 
                 <div class="log-terminal" ref="termbox"></div>
+                </template>
             </div>
         </div>
     </a-modal>
@@ -99,6 +105,11 @@
             
             <!-- 右侧日志区域 -->
             <div class="job-log-main">
+                <div v-if="loading || !hasJobRecords" class="job-log-state">
+                    <a-spin v-if="loading" />
+                    <span>{{ loading ? '加载中...' : '无数据' }}</span>
+                </div>
+                <template v-else>
                 <div class="log-toolbar">
                     <div class="df ai-c">
                         <div class="df ai-c">
@@ -112,7 +123,7 @@
                         <div class="df ai-c">
                             <div class="ml-20">容器：</div>
                             <div class="ml-10">
-                                <a-select v-model="currentContainer" @change="fetchLog" style="min-width:150px;" placeholder="加载中...">
+                                <a-select v-model="currentContainer" @change="fetchLog" style="min-width:150px;" placeholder="">
                                     <a-option v-for="i in containerList" :key="i" :value="i">{{ i }}</a-option>
                                 </a-select>
                             </div>
@@ -135,6 +146,7 @@
                 </div>
                 
                 <div class="log-terminal" ref="termbox" style="flex: 1;"></div>
+                </template>
             </div>
         </div>
     </div>
@@ -239,11 +251,15 @@ export default {
             currentPodName: '',
             podcont: '',
             currentJobName: '',
+            loading: false,
         };
     },
     computed: {
         currentNamespace() {
             return this.namespace || useNamespaceStore().namespace;
+        },
+        hasJobRecords() {
+            return this.list.length > 0;
         },
         // currentJobName() {
         //     return this.jobName || this.name;
@@ -292,6 +308,7 @@ export default {
             this.activeIndex = 0;
             this.currentPodName = '';
             this.podcont = '';
+            this.loading = true;
             // 初始化 currentContainer（优先使用 prop）
             if (this.container && !this.currentContainer) {
                 this.currentContainer = this.container;
@@ -347,6 +364,7 @@ export default {
             this.currentPodName = '';
             this.podcont = '';
             this.follow = true;
+            this.loading = false;
         },
         stopStream() {
             if (this.controller) {
@@ -386,10 +404,14 @@ export default {
                 this.list = this.jobList;
                 this.activeIndex = 0;
                 this.currentJobName = this.list[0].name;
+                this.loading = false;
                 this.fetchPodInfo();
                 return;
             }
-            if (!this.currentJobName) return;
+            if (!this.currentJobName) {
+                this.loading = false;
+                return;
+            }
 
             const params = { local: this.local ? 1 : undefined };
             k8sproxy.get(`/apis/batch/v1/namespaces/${this.currentNamespace}/jobs/${this.currentJobName}`, {
@@ -397,7 +419,10 @@ export default {
                 noAlert: true,
             }).then(res => {
                 const job = res?.data;
-                if (!job) return;
+                if (!job) {
+                    this.loading = false;
+                    return;
+                }
 
                 // 解析 Job 信息
                 const durationInSeconds = '';
@@ -426,9 +451,11 @@ export default {
 
                 this.list = [item];
                 this.activeIndex = 0;
+                this.loading = false;
                 this.fetchPodInfo();
             }).catch(err => {
                 console.error('Failed to get job:', err);
+                this.loading = false;
             });
         },
         fetchPodInfo() {
@@ -638,6 +665,15 @@ export default {
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+}
+
+.job-log-state {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--color-text-3);
 }
 
 .log-toolbar {
