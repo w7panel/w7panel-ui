@@ -7,13 +7,11 @@
         <div class="bg-white padding-20">
             <table class="com-table"><tbody>
                 <tr>
-                    <td>Name</td>
                     <td>域名</td>
                     <td>转发目标地址</td>
                     <td style="width:300px;">操作</td>
                 </tr>
                 <tr v-for="(item,index) in list" :key="index">
-                    <td>{{item.name}}</td>
                     <td>
                         <span class="df df-c ai-s">
                             <!-- <span>{{item.label}}</span> -->

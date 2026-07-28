@@ -73,10 +73,6 @@
 
             <div v-else-if="!loading" class="plugin-yaml-config">
                 <div class="plugin-yaml-config__toolbar">
-                    <div class="plugin-yaml-config__switch">
-                        <span>开启状态</span>
-                        <a-switch v-model="form.enabled" :disabled="!yamlEditing" />
-                    </div>
                     <a-space>
                         <template v-if="yamlEditing">
                             <a-button type="primary" @click="submitYaml">保存</a-button>
@@ -146,8 +142,8 @@ export default {
             forceYaml: false,
             yamlVisible: false,
             yamlEditing: false,
-            yamlSnapshot: { enabled: false, yaml: '' },
-            form: { enabled: false, yaml: '' },
+            yamlSnapshot: { yaml: '' },
+            form: { yaml: '' },
         };
     },
     computed: {
@@ -221,7 +217,6 @@ export default {
             this.localPlugin = JSON.parse(JSON.stringify(this.plugin));
             const current = this.getCurrentConfig();
             this.form = {
-                enabled: current.enabled,
                 yaml: jsyaml.dump(current.config || {}, { lineWidth: -1, noRefs: true }),
             };
 
@@ -297,7 +292,6 @@ export default {
         syncYamlForm(){
             const current = this.getCurrentConfig();
             this.form = {
-                enabled: current.enabled,
                 yaml: jsyaml.dump(current.config || {}, { lineWidth: -1, noRefs: true }),
             };
         },
@@ -384,7 +378,7 @@ export default {
                 this.$message.error(error?.message || 'YAML 格式错误');
                 return;
             }
-            this.persist(this.applyConfig(config, this.form.enabled)).then(()=>{
+            this.persist(this.applyConfig(config, this.getCurrentConfig().enabled)).then(()=>{
                 this.syncYamlForm();
                 this.rememberYamlSnapshot();
                 this.yamlEditing = false;
@@ -412,8 +406,7 @@ export default {
 .plugin-config-spin{display:block;width:100%;height:100%;}
 .plugin-config-spin :deep(.arco-spin-children){height:100%;}
 .plugin-yaml-config{height:calc(100vh - 180px);min-height:480px;}
-.plugin-yaml-config__toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;height:32px;}
-.plugin-yaml-config__switch{display:flex;align-items:center;gap:16px;}
+.plugin-yaml-config__toolbar{display:flex;align-items:center;justify-content:flex-end;gap:16px;height:32px;}
 .plugin-yaml-config__label{margin:18px 0 8px;color:var(--color-text-2);}
 .plugin-yaml-config__editor{height:calc(100% - 80px);min-height:380px;}
 .plugin-yaml-config__editor :deep(.yaml-input){width:100%;height:100%;border:1px solid var(--color-border-2);}
