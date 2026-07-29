@@ -17,6 +17,7 @@
                                 <div>
                                     <span>{{record.name}}</span>
                                     <span v-if="record.markRemoved" class="ml-6 c-red">[待删除]</span>
+                                    <span v-else-if="!record.userCreated" class="ml-6 c-99">[系统]</span>
                                 </div>
                                 <div class="fs-12" style="color: rgb(var(--gray-6));">{{record.volume}}</div>
                             </div>
@@ -45,8 +46,7 @@
     </div>
 </template>
 <script>
-import { k8sproxy, panelApi } from '@/utils/api';
-import { useNamespaceStore } from '@/store';
+import { panelApi } from '@/utils/api';
 import dayjs from 'dayjs';
 export default{
     data(){
@@ -62,33 +62,29 @@ export default{
                 {label: '快照总大小', value: 0},
             ],
             list: [],
-            namespaceActive: '',
             snapshotPurgeLoading: false,
         }
     },
     created(){
-        this.namespaceActive = useNamespaceStore().namespace;
         this.getList();
     },
     methods: {
         getList(){
             let id = this.$route.params.id;
-            k8sproxy.get(`/apis/longhorn.io/v1beta2/snapshots`,{
-                params: { labelSelector: `longhornvolume=${id}` },
-                noAlert: true,
-            }).then(res=>{
+            panelApi.get(`/longhorn/volumes/${id}/snapshots`,{noAlert: true}).then(res=>{
                 let items = res?.data?.items || [];
+                if(Array.isArray(res?.data)) items = res.data;
                 this.list = items.map(i=>({
-                    name: i.metadata.name,
-                    volume: i?.spec?.volume,
-                    namespace: i.metadata.namespace,
-                    createTime: i.metadata.creationTimestamp,
-                    creationTimestamp:dayjs(i.metadata.creationTimestamp).format('YYYY-MM-DD hh:mm:ss'),
-                    readyToUseNum: Number(i.status?.size),
-                    readyToUse: this.btog(i.status?.size),
-                    restoreSizeNum: Number(i.status?.restoreSize),
-                    restoreSize: this.btog(i.status?.restoreSize),
-                    markRemoved: i.status?.markRemoved,
+                    name: i.name,
+                    volume: i.volume,
+                    createTime: i.creationTimestamp,
+                    creationTimestamp:dayjs(i.creationTimestamp).format('YYYY-MM-DD HH:mm:ss'),
+                    readyToUseNum: Number(i.size),
+                    readyToUse: this.btog(i.size),
+                    restoreSizeNum: Number(i.volumeSize),
+                    restoreSize: this.btog(i.volumeSize),
+                    markRemoved: i.markRemoved,
+                    userCreated: i.userCreated,
                 }));
                 this.list.sort((a,b)=>dayjs(b.createTime).unix()-dayjs(a.createTime).unix());
                 this.descriptions[0].value = this.list.length;
