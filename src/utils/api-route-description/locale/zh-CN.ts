@@ -106,6 +106,7 @@ export default {
 
   'GET /panel-api/v1/longhorn/need-delete-replica': '获取 Longhorn 待删除副本',
   'GET /panel-api/v1/longhorn/volumes/status': '获取 Longhorn 卷状态',
+  'GET /panel-api/v1/longhorn/volumes/:volumeName/snapshots': '获取 Longhorn 卷快照',
   'POST /panel-api/v1/longhorn/install': '安装 Longhorn',
   'POST /panel-api/v1/longhorn/volumes/:volumeName/attach': '挂载 Longhorn 卷',
   'POST /panel-api/v1/longhorn/volumes/:volumeName/detach': '卸载 Longhorn 卷',
