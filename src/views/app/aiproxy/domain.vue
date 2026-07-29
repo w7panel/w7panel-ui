@@ -1236,7 +1236,8 @@ export default {
             }
             plugin = this.normalizeManagedPlugin(plugin, MODEL_VALIDATION_PLUGIN_NAME, MODEL_VALIDATION_PLUGIN_URL, MODEL_VALIDATION_PLUGIN_TITLE, 220);
             plugin.spec = plugin.spec || {};
-            plugin.spec.defaultConfigDisable = true;
+            // AI 代理只维护域名规则；已有插件的全局开关由网关插件页面独立管理。
+            // 新建插件的全局配置仍由 ensureManagedPlugin 的 defaultConfigDisable=true 默认关闭。
             if(!plugin.spec.defaultConfig || !Object.keys(plugin.spec.defaultConfig).length){
                 plugin.spec.defaultConfig = { body_schema: { type: 'object' } };
             }
