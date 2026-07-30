@@ -346,7 +346,7 @@
             </div>
         </div>
 
-        <div v-if="metricsState.canShowClusterMetrics" class="mt-20 bg-white padding-20">
+        <div v-if="metricsState.canShowClusterMetrics && !isCvmRequest" class="mt-20 bg-white padding-20">
             <div class="title fs-16">Cilium 监控</div>
             <div class="mt-20">
                 <a-tabs v-model:active-key="ciliumTabActive">
@@ -730,6 +730,9 @@ export default {
         olCharts,
     },
     computed:{
+        isCvmRequest(){
+            return String(this.userInfo?.['w7.cc/is-cvm-req'] ?? '') === 'true';
+        },
         isCkmRequest(){
             return this.userInfo?.['w7.cc/is-ckm-req']=='true'
                 || this.userInfo?.['w7.cc/is-cvm-req']=='true';
