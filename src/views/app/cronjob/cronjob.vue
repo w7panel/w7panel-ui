@@ -163,6 +163,7 @@ export default {
         return {
             namespaceActive: '',
             allJobs: [],
+            allJobsRequest: null,
             list: [],
             joblist: [],
             activekey: '1',
@@ -219,7 +220,7 @@ export default {
         toApp(item){
             this.$router.push({path: '/app/deployments/'+item.sourceName});
         },
-        showHis(item){
+        async showHis(item){
             // 如果是 Job（有 dataItem），直接用 JobLog 组件
             if(item?.type === 'jobs'){
                 this.jobLogModal.jobList = [];
@@ -229,49 +230,69 @@ export default {
                 this.jobLogModal.showTabs = false;
                 return;
             }
-            
-            // 标签是 UI 创建任务的快速关联方式；ownerReferences 兼容原生 CronJob
-            // 及旧数据中没有 searchJob 标签的 Job。
-            k8sproxy.get('/apis/batch/v1/namespaces/'+ this.namespaceActive +'/jobs').then(res=>{
-                let data = res?.data?.items || [];
-                data = data.filter(job=>{
-                    let matchesSearchJob = item.searchJob && job.metadata?.labels?.searchJob === item.searchJob;
-                    let ownedByCronJob = job.metadata?.ownerReferences?.some(ref=>ref.kind === 'CronJob' && ref.name === item.name);
-                    return matchesSearchJob || ownedByCronJob;
-                });
 
-                let list = data.map(i=>{
-                    let durationInSeconds = '';
-                    if(i.status?.completionTime && i.status?.startTime){
-                        let st = new Date(i.status.startTime);
-                        let ct = new Date(i.status.completionTime);
-                        durationInSeconds = Math.floor((ct - st) / 1000) + '秒';
-                    }
-                    let status_class = i.spec?.suspend? 'c-99' : (i.status?.succeeded? 'c-green' : 'c-red');
-                    let status_text = i.spec?.suspend? '挂起' : (i.status?.succeeded? '成功' : '失败');
-                    
-                    return {
-                        title: i.metadata?.annotations?.title || i.metadata.name,
-                        name: i.metadata.name,
-                        startTime: window.formatDate(i.status?.startTime || ''),
-                        stimes: i.status?.startTime ? new Date(i.status.startTime).getTime() : 0,
-                        completionTime: window.formatDate(i.status?.completionTime || ''),
-                        duration: durationInSeconds,
-                        suspend: i.spec?.suspend,
-                        status_text: status_text,
-                        status_class: status_class,
-                        dataItem: i,
-                        type: 'jobs',
-                    }
-                })
-                list.sort((i,j)=>j.stimes-i.stimes);
+            const jobsUrl = '/apis/batch/v1/namespaces/'+ this.namespaceActive +'/jobs';
+            let jobs = [];
+            if(item.searchJob){
+                // 常规任务由 Kubernetes API 按标签过滤，避免每次点击都拉取全量 Job。
+                const cachedJobsReady = this.allJobsRequest
+                    ? this.allJobsRequest.catch(()=>null)
+                    : Promise.resolve();
+                const [res] = await Promise.all([
+                    k8sproxy.get(jobsUrl, {
+                        params: { labelSelector: 'searchJob='+item.searchJob },
+                    }),
+                    cachedJobsReady,
+                ]);
+                const currentJobs = (res?.data?.items || []).filter(job=>job.metadata?.labels?.searchJob === item.searchJob);
+                // 从页面首次状态查询缓存中补入无标签或旧标签的历史 Job。
+                const legacyJobs = this.allJobs
+                    .map(job=>job.dataItem)
+                    .filter(job=>job
+                        && job.metadata?.labels?.searchJob !== item.searchJob
+                        && this.isOwnedByCronJob(job, item.name));
+                const jobMap = new Map();
+                legacyJobs.forEach(job=>jobMap.set(job.metadata?.uid || job.metadata?.name, job));
+                currentJobs.forEach(job=>jobMap.set(job.metadata?.uid || job.metadata?.name, job));
+                jobs = Array.from(jobMap.values());
+            }else{
+                // 原生或旧 CronJob 没有可供 API 过滤的标签，保留 ownerReference 全量兼容。
+                const res = await k8sproxy.get(jobsUrl);
+                jobs = (res?.data?.items || []).filter(job=>this.isOwnedByCronJob(job, item.name));
+            }
 
-                this.jobLogModal.jobList = list;
-                this.jobLogModal.jobName = '';
-                this.jobLogModal.labelSelector = '';
-                this.jobLogModal.show = true;
-                this.jobLogModal.showTabs = true;
-            });
+            const list = jobs.map(this.formatJobHistory).sort((i,j)=>j.stimes-i.stimes);
+            this.jobLogModal.jobList = list;
+            this.jobLogModal.jobName = '';
+            this.jobLogModal.labelSelector = '';
+            this.jobLogModal.show = true;
+            this.jobLogModal.showTabs = true;
+        },
+        isOwnedByCronJob(job, cronJobName){
+            return job.metadata?.ownerReferences?.some(ref=>ref.kind === 'CronJob' && ref.name === cronJobName);
+        },
+        formatJobHistory(job){
+            let duration = '';
+            if(job.status?.completionTime && job.status?.startTime){
+                const startTime = new Date(job.status.startTime);
+                const completionTime = new Date(job.status.completionTime);
+                duration = Math.floor((completionTime - startTime) / 1000) + '秒';
+            }
+            const statusClass = job.spec?.suspend? 'c-99' : (job.status?.succeeded? 'c-green' : 'c-red');
+            const statusText = job.spec?.suspend? '挂起' : (job.status?.succeeded? '成功' : '失败');
+            return {
+                title: job.metadata?.annotations?.title || job.metadata?.name,
+                name: job.metadata?.name,
+                startTime: window.formatDate(job.status?.startTime || ''),
+                stimes: job.status?.startTime ? new Date(job.status.startTime).getTime() : 0,
+                completionTime: window.formatDate(job.status?.completionTime || ''),
+                duration,
+                suspend: job.spec?.suspend,
+                status_text: statusText,
+                status_class: statusClass,
+                dataItem: job,
+                type: 'jobs',
+            };
         },
         closeJobLog(){
             this.jobLogModal.show = false;
@@ -305,7 +326,7 @@ export default {
                     this.comStatus();
                 })
                 
-                k8sproxy.get('/apis/batch/v1/namespaces/'+ this.namespaceActive +'/jobs').then(res=>{
+                this.allJobsRequest = k8sproxy.get('/apis/batch/v1/namespaces/'+ this.namespaceActive +'/jobs').then(res=>{
                     let list = res?.data?.items || [];
                     list = list.map(i=>{
                         let startTime = i.status?.startTime;
@@ -315,10 +336,12 @@ export default {
                             startTime: startTime ? new Date(startTime).getTime() : 0,
                             searchJob: i.metadata?.labels?.searchJob,
                             ownerReferences: i.metadata?.ownerReferences || [],
+                            dataItem: i,
                         }
                     })
                     this.allJobs = list;
                     this.comStatus();
+                    return list;
                 });
             }else if(this.activekey=='2'){
                 k8sproxy.get('/apis/batch/v1/namespaces/'+ this.namespaceActive +'/jobs?labelSelector=w7.cc/job-source!=cronjob').then(res=>{
