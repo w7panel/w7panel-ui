@@ -929,6 +929,7 @@ export default {
             this.haWarn = true;
         },
         getConfig(){
+            if(this.isCvmRequest){return}
             // config
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(res=>{
                 // console.log(res.data);
