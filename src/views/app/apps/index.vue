@@ -369,12 +369,18 @@ export default {
         },
         toAppMenu(item,pathName){
             let app = item?.childrenApp?.[0];
-            if(!app){return}
+            let group = item.groupName || app?.group;
+            if(!group){return}
             if(item.isHelm && pathName=='app-detail-domain'){
-                this.$router.push({name:'group-helm-domain',params:{group:app.group}})
+                this.$router.push({name:'group-helm-domain',params:{group}})
                 return;
             }
-            this.$router.push({name:pathName,params:{group:app.group, id:app.name, kind:app.kind}})
+            if(pathName=='app-detail-domain'){
+                this.$router.push({name:pathName,params:{group, id:app?.name, kind:app?.kind}})
+                return;
+            }
+            if(!app){return}
+            this.$router.push({name:pathName,params:{group, id:app.name, kind:app.kind}})
         },
         async del(item){
             // if(item.childrenApp.length){
