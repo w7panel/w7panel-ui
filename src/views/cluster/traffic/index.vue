@@ -39,11 +39,13 @@
         </a-select>
         <a-range-picker v-model:model-value="timeRange" show-time style="width: 330px" @ok="reload" />
         <span class="control-label">域名</span>
-        <a-select v-model="selectedDomain" allow-clear allow-search :filter-option="false" :loading="domainOptionsLoading" placeholder="搜索并选择域名" style="width: 190px" @search="searchDomains" @change="domainChanged">
+        <a-select v-model="selectedDomain" allow-search :filter-option="false" :loading="domainOptionsLoading" placeholder="搜索并选择域名" style="width: 190px" @search="searchDomains" @change="domainChanged">
+          <a-option :value="allFilterValue">全部域名</a-option>
           <a-option v-for="item in domainOptions" :key="item.value" :value="item.value">{{ item.label }}</a-option>
         </a-select>
         <span class="control-label">Pod</span>
-        <a-select v-model="selectedPodIP" allow-clear allow-search :filter-option="false" :loading="podOptionsLoading" placeholder="搜索并选择 Pod" style="width: 220px" @search="searchPods" @change="podChanged">
+        <a-select v-model="selectedPodIP" allow-search :filter-option="false" :loading="podOptionsLoading" placeholder="搜索并选择 Pod" style="width: 220px" @search="searchPods" @change="podChanged">
+          <a-option :value="allFilterValue">全部 Pod</a-option>
           <a-option v-for="item in podOptions" :key="item.value" :value="item.value">
             <div class="pod-option"><span>{{ item.label }}</span><small>{{ item.service || 'Service 未知' }} · {{ item.value }}</small></div>
           </a-option>
@@ -176,7 +178,7 @@ export default {
       namespaceStore: useNamespaceStore(), namespace: 'default', timeRange: [end.subtract(1, 'hour').toDate(), end.toDate()],
       activeTab: 'pods', step: '5m', trendMetric: 'requests', loading: false, seriesLoading: false, tableLoading: false,
       health: {}, summary: {}, series: [], rows: [], trendChart: null,
-      selectedDomain: '', selectedPodIP: '', domainOptions: [], podOptions: [], domainOptionsLoading: false, podOptionsLoading: false,
+      allFilterValue: '__all__', selectedDomain: '__all__', selectedPodIP: '__all__', domainOptions: [], podOptions: [], domainOptionsLoading: false, podOptionsLoading: false,
       domainSearchTimer: null, podSearchTimer: null, domainOptionRequest: 0, podOptionRequest: 0,
       pagination: { current: 1, pageSize: 20, total: 0 },
       filters: { keyword: '', method: '', status: '', sort: 'requests' }, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -197,7 +199,7 @@ export default {
   methods: {
     normalize(res) { return res?.data?.data ?? res?.data ?? {}; },
     params(extra = {}) {
-      return { namespace: this.namespace, start: dayjs(this.timeRange[0]).toISOString(), end: dayjs(this.timeRange[1]).toISOString(), domain: this.selectedDomain || undefined, upstreamIp: this.selectedPodIP || undefined, page: this.pagination.current, pageSize: this.pagination.pageSize, step: this.step, ...extra };
+      return { namespace: this.namespace, start: dayjs(this.timeRange[0]).toISOString(), end: dayjs(this.timeRange[1]).toISOString(), domain: this.selectedDomain !== this.allFilterValue ? this.selectedDomain : undefined, upstreamIp: this.selectedPodIP !== this.allFilterValue ? this.selectedPodIP : undefined, page: this.pagination.current, pageSize: this.pagination.pageSize, step: this.step, ...extra };
     },
     async reload() {
       this.loading = true; this.pagination.current = 1;
@@ -233,9 +235,9 @@ export default {
     },
     searchDomains(value) { clearTimeout(this.domainSearchTimer); this.domainSearchTimer = setTimeout(() => this.loadDomainOptions(value), 300); },
     searchPods(value) { clearTimeout(this.podSearchTimer); this.podSearchTimer = setTimeout(() => this.loadPodOptions(value), 300); },
-    async namespaceChanged() { this.selectedDomain = ''; this.selectedPodIP = ''; this.domainOptions = []; this.podOptions = []; this.podDetail.show = false; await this.reload(); },
-    async domainChanged() { this.pagination.current = 1; this.podDetail.show = false; this.topDomain = this.selectedDomain || ''; await Promise.all([this.reloadData(), this.loadPodOptions()]); },
-    async podChanged() { this.pagination.current = 1; this.podDetail.show = false; this.topPod = this.podOptions.find((item) => item.value === this.selectedPodIP)?.label || ''; await Promise.all([this.reloadData(), this.loadDomainOptions()]); },
+    async namespaceChanged() { this.selectedDomain = this.allFilterValue; this.selectedPodIP = this.allFilterValue; this.domainOptions = []; this.podOptions = []; this.podDetail.show = false; await this.reload(); },
+    async domainChanged() { this.pagination.current = 1; this.podDetail.show = false; this.topDomain = this.selectedDomain !== this.allFilterValue ? this.selectedDomain : ''; await Promise.all([this.reloadData(), this.loadPodOptions()]); },
+    async podChanged() { this.pagination.current = 1; this.podDetail.show = false; this.topPod = this.selectedPodIP !== this.allFilterValue ? (this.podOptions.find((item) => item.value === this.selectedPodIP)?.label || '') : ''; await Promise.all([this.reloadData(), this.loadDomainOptions()]); },
     async reloadData() { this.loading = true; await Promise.all([this.loadSummary(), this.loadSeries(), this.loadTable()]); this.loading = false; },
     async loadSeries() {
       this.seriesLoading = true;
