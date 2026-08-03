@@ -241,42 +241,21 @@
         <div v-if="metricsState.canShowClusterMetrics" class="mt-20 bg-white padding-20">
             <div class="df ai-c jc-b">
                 <div class="title fs-16">集群监控</div>
-                <div>
-                    <a-button v-if="metricsState.needInstallMetricsInDashboard" type="primary" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">安装监控</a-button>
-                    <div v-else class="df ai-c">
-                        <a-range-picker
-                            showTime
-                            style="width: 400px;"
-                            shortcuts-position="right"
-                            v-model:model-value="clusterMonitor.pickerValue"
-                            :shortcuts="rangeShortcuts"
-                            @ok="rangePicker"
-                        />
-                        <span class="ml-20">时间颗粒度</span>
-                        <a-select v-model="clusterMonitor.step" style="margin-left:10px;width:120px;">
-                            <a-option :value="15">15秒</a-option>
-                            <a-option :value="60">1分钟</a-option>
-                            <a-option :value="600">10分钟</a-option>
-                            <a-option :value="3600">1小时</a-option>
-                            <a-option :value="10800">3小时</a-option>
-                            <a-option :value="43200">12小时</a-option>
-                        </a-select>
-                    </div>
-                </div>
+                <a-button v-if="metricsState.needInstallMetricsInDashboard" type="primary" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">安装监控</a-button>
             </div>
             <div class="mt-20" >
                 <a-tabs v-model:active-key="tabActive">
                     <a-tab-pane :key="1" title="CPU使用">
-                        <ol-charts v-if="tabActive==1&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" :list="nodelist" activeType="cpu"></ol-charts>
+                        <ol-charts v-if="tabActive==1&&chartReady" :list="nodelist" activeType="cpu"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane :key="2" title="内存使用">
-                        <ol-charts v-if="tabActive==2&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" :list="nodelist" activeType="memory"></ol-charts>
+                        <ol-charts v-if="tabActive==2&&chartReady" :list="nodelist" activeType="memory"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane v-if="gpuIsOpen" :key="3" title="GPU显存使用">
-                        <ol-charts v-if="tabActive==3&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="HostGPUMemoryUsage"></ol-charts>
+                        <ol-charts v-if="tabActive==3&&chartReady" activeType="HostGPUMemoryUsage"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane v-if="gpuIsOpen" :key="4" title="GPU算力使用率">
-                        <ol-charts v-if="tabActive==4&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="HostCoreUtilization"></ol-charts>
+                        <ol-charts v-if="tabActive==4&&chartReady" activeType="HostCoreUtilization"></ol-charts>
                     </a-tab-pane>
                 </a-tabs>
             </div>
@@ -285,28 +264,7 @@
         <div v-if="metricsState.canShowNodeMetrics" class="mt-20 bg-white padding-20">
             <div class="df ai-c jc-b">
                 <div class="title fs-16">主机指标</div>
-                <div>
-                    <a-button v-if="noMonitor" type="primary" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">安装监控</a-button>
-                    <div v-else class="df ai-c">
-                        <a-range-picker
-                            showTime
-                            style="width: 400px;"
-                            shortcuts-position="right"
-                            v-model:model-value="hostMonitor.pickerValue"
-                            :shortcuts="rangeShortcuts"
-                            @ok="v=>hostMonitor.pickerValue=v"
-                        />
-                        <span class="ml-20">时间颗粒度</span>
-                        <a-select v-model="hostMonitor.step" style="margin-left:10px;width:120px;">
-                            <a-option :value="15">15秒</a-option>
-                            <a-option :value="60">1分钟</a-option>
-                            <a-option :value="600">10分钟</a-option>
-                            <a-option :value="3600">1小时</a-option>
-                            <a-option :value="10800">3小时</a-option>
-                            <a-option :value="43200">12小时</a-option>
-                        </a-select>
-                    </div>
-                </div>
+                <a-button v-if="noMonitor" type="primary" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">安装监控</a-button>
             </div>
             <div class="mt-20" >
                 <a-tabs v-model:active-key="chartActive">
@@ -325,22 +283,22 @@
                     <a-button v-for="item in nodelist" :key="item.name" :type="chartNodeActive==item.name?'primary':'outline'" @click="chartNodeActive=item.name">{{item.name}}</a-button>
                 </a-button-group>
                 <div v-if="!noMonitor" class="mt-20">
-                    <ol-charts v-if="chartActive==1&&chartNodeActive" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" :list="nodelist" activeType="load"></ol-charts>
+                    <ol-charts v-if="chartActive==1&&chartNodeActive" :list="nodelist" activeType="load"></ol-charts>
                     <div v-if="chartActive==2&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-write" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" activeType="disk-read" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" activeType="disk-write" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==3&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-in" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-out" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" activeType="network-in" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" activeType="network-out" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==4&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-read-bytes" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="disk-written-bytes" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" activeType="disk-read-bytes" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" activeType="disk-written-bytes" class="ml-20 fc"></ol-charts>
                     </div>
                     <div v-if="chartActive==5&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-receive-bytes" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :step="hostMonitor.step" :pickerValue="hostMonitor.pickerValue" activeType="network-transmit-bytes" class="ml-20 fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" activeType="network-receive-bytes" class="fc"></ol-charts>
+                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" activeType="network-transmit-bytes" class="ml-20 fc"></ol-charts>
                     </div>
                 </div>
             </div>
@@ -351,19 +309,19 @@
             <div class="mt-20">
                 <a-tabs v-model:active-key="ciliumTabActive">
                     <a-tab-pane :key="1" title="Cilium丢包">
-                        <ol-charts v-if="ciliumTabActive==1&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="cilium-drop-count"></ol-charts>
+                        <ol-charts v-if="ciliumTabActive==1&&chartReady" activeType="cilium-drop-count"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane :key="2" title="Cilium丢包流量">
-                        <ol-charts v-if="ciliumTabActive==2&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="cilium-drop-bytes"></ol-charts>
+                        <ol-charts v-if="ciliumTabActive==2&&chartReady" activeType="cilium-drop-bytes"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane :key="3" title="Cilium Endpoint">
-                        <ol-charts v-if="ciliumTabActive==3&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="cilium-endpoint"></ol-charts>
+                        <ol-charts v-if="ciliumTabActive==3&&chartReady" activeType="cilium-endpoint"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane :key="4" title="Cilium连通性">
-                        <ol-charts v-if="ciliumTabActive==4&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="cilium-unreachable"></ol-charts>
+                        <ol-charts v-if="ciliumTabActive==4&&chartReady" activeType="cilium-unreachable"></ol-charts>
                     </a-tab-pane>
                     <a-tab-pane :key="5" title="Cilium BPF Map">
-                        <ol-charts v-if="ciliumTabActive==5&&chartReady" :step="clusterMonitor.step" :pickerValue="clusterMonitor.pickerValue" activeType="cilium-bpf-map-pressure"></ol-charts>
+                        <ol-charts v-if="ciliumTabActive==5&&chartReady" activeType="cilium-bpf-map-pressure"></ol-charts>
                     </a-tab-pane>
                 </a-tabs>
             </div>
@@ -459,7 +417,6 @@ import olCharts from "./ol-charts.vue";
 import * as echarts from 'echarts'
 import { markRaw } from 'vue'
 import { useDarkStore } from '@/store'
-import dayjs from 'dayjs'
 import { getToken } from '@/utils/auth';
 import { getWebshell } from '@/utils/auth';
 
@@ -584,50 +541,6 @@ export default {
                 url: '',
             },
             
-            rangeShortcuts: [{
-                label: '5分钟',
-                value: () => [dayjs().subtract(5, 'minute'), dayjs()],
-            },{
-                label: '30分钟',
-                value: () => [dayjs().subtract(30, 'minute'), dayjs()],
-            },{
-                label: '1小时',
-                value: () => [dayjs().subtract(1, 'hour'), dayjs()],
-            },{
-                label: '3小时',
-                value: () => [dayjs().subtract(3, 'hour'), dayjs()],
-            },{
-                label: '12小时',
-                value: () => [dayjs().subtract(12, 'hour'), dayjs()],
-            },{
-                label: '24小时',
-                value: () => [dayjs().subtract(24, 'hour'), dayjs()],
-            },{
-                label: '2天',
-                value: () => [dayjs().subtract(2, 'day'), dayjs()],
-            },{
-                label: '7天',
-                value: () => [dayjs().subtract(7, 'day'), dayjs()],
-            },{
-                label: '30天',
-                value: () => [dayjs().subtract(30, 'day'), dayjs()],
-            },{
-                label: '今天',
-                value: () => [dayjs(dayjs().format('YYYY-MM-DD') + ' 00:00:00'), dayjs()],
-            },{
-                label: '昨天',
-                value: () => [dayjs(dayjs().format('YYYY-MM-DD') + ' 00:00:00').subtract(1, 'day'), dayjs(dayjs().format('YYYY-MM-DD') + ' 00:00:00')],
-            }],
-
-            clusterMonitor:{
-                pickerValue: [],
-                step: 15,
-            },
-            hostMonitor: {
-                pickerValue: [],
-                step: 15,
-            },
-
             metricsState: {},
 
             maxBandwidth: 1000,
@@ -647,36 +560,10 @@ export default {
         
         await this.initInfo();
 
-        // await panelApi.get('/helm/releases/w7panel-metrics',{noAlert:true}).then(res=>{
-        //     this.noMonitor = false;
-
-        //     this.clusterMonitor.pickerValue = [
-        //         dayjs().subtract(1, 'hour'),
-        //         dayjs(),
-        //     ]
-        //     if(this.clusterMode!='virtual' && this.clusterMode!='shared'){
-        //         this.hostMonitor.pickerValue = [
-        //             dayjs().subtract(1, 'hour'),
-        //             dayjs(),
-        //         ]
-        //     }
-        // }).catch(()=>{
-        //     this.noMonitor = true;
-        // })
         await panelApi.get('/metrics/state').then(async res=>{
             this.metricsState = res.data;
-            if(this.metricsState?.canShowClusterMetrics){
-                this.clusterMonitor.pickerValue = [
-                    dayjs().subtract(1, 'hour'),
-                    dayjs(),
-                ];
-            }
             if(this.metricsState?.canShowNodeMetrics){
                 this.noMonitor = false;
-                this.hostMonitor.pickerValue = [
-                    dayjs().subtract(1, 'hour'),
-                    dayjs(),
-                ];
                 this.virtualDiskFilterCache = await panelApi.get('/metrics/query-range',{
                     params: {
                         query: '(node_disk_info{model="VIRTUAL-DISK"})',
@@ -805,9 +692,6 @@ export default {
                 current += step;
             }
             return ticks;
-        },
-        rangePicker(v){
-            this.clusterMonitor.pickerValue = v;
         },
         paySuccess(e){
             if(e?.data?.type!='paysuccess'){return}

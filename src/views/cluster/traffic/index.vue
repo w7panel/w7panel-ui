@@ -37,7 +37,7 @@
         <a-select v-model="namespace" style="width: 140px" @change="namespaceChanged">
           <a-option v-for="item in namespaceList" :key="item" :value="item">{{ item }}</a-option>
         </a-select>
-        <a-range-picker v-model:model-value="timeRange" show-time style="width: 330px" @ok="reload" />
+        <a-range-picker v-model:model-value="timeRange" show-time :disabled-date="disabledTrafficDate" style="width: 330px" @ok="reload" />
         <span class="control-label">域名</span>
         <a-select v-model="selectedDomain" allow-search :filter-option="false" :loading="domainOptionsLoading" placeholder="搜索并选择域名" style="width: 190px" @search="searchDomains" @change="domainChanged">
           <a-option :value="allFilterValue">全部域名</a-option>
@@ -58,9 +58,21 @@
     </section>
 
     <section class="chart-panel mt-16">
-      <div class="section-heading">
-        <div><h3>请求趋势</h3><p>选择的时间范围内，按时间颗粒度汇总。</p></div>
-        <div class="trend-controls">
+      <monitor-stat-chart
+        title="请求趋势"
+        :step-options="trafficSteps"
+        :retention-seconds="logRetentionSeconds"
+        :fixed-time-range="timeRange"
+        :default-step="300"
+        :data="trendSeries"
+        :loading="seriesLoading"
+        :unit="trendConfig.unit"
+        :option="trendOption"
+        empty-text="当前时间范围暂无请求趋势"
+        @query-change="trendQueryChanged"
+      >
+        <template #subtitle><p class="chart-subtitle">选择的时间范围内，按时间颗粒度汇总。</p></template>
+        <template #controls>
           <a-radio-group v-model="trendMetric" type="button" @change="renderTrend">
             <a-radio value="requests">请求数</a-radio>
             <a-radio value="traffic">流量</a-radio>
@@ -68,16 +80,8 @@
             <a-radio value="hitRate">命中率</a-radio>
             <a-radio value="hits">命中数</a-radio>
           </a-radio-group>
-          <a-select v-model="step" style="width: 120px" @change="loadSeries">
-            <a-option value="5m">5 分钟</a-option><a-option value="30m">30 分钟</a-option>
-            <a-option value="2h">2 小时</a-option><a-option value="12h">12 小时</a-option>
-          </a-select>
-        </div>
-      </div>
-      <a-spin :loading="seriesLoading" class="chart-spin">
-        <a-empty v-if="!seriesLoading && !series.length" description="当前时间范围暂无请求趋势" />
-        <div v-show="series.length" ref="trendChart" class="trend-chart"></div>
-      </a-spin>
+        </template>
+      </monitor-stat-chart>
     </section>
 
     <section class="data-panel mt-16">
@@ -165,43 +169,57 @@
 </template>
 
 <script>
-import * as echarts from 'echarts';
 import dayjs from 'dayjs';
-import { markRaw } from 'vue';
 import { trafficApi } from '@/api/traffic';
 import { useNamespaceStore } from '@/store';
+import MonitorStatChart from '@/components/monitor-stat-chart.vue';
+import { LOG_RETENTION_SECONDS, TRAFFIC_STEPS, TRAFFIC_STEP_VALUES } from '@/config/monitor';
 
 export default {
+  components: { MonitorStatChart },
   data() {
     const end = dayjs();
     return {
       namespaceStore: useNamespaceStore(), namespace: 'default', timeRange: [end.subtract(1, 'hour').toDate(), end.toDate()],
       activeTab: 'pods', step: '5m', trendMetric: 'requests', loading: false, seriesLoading: false, tableLoading: false,
-      health: {}, summary: {}, series: [], rows: [], trendChart: null,
+      health: {}, summary: {}, series: [], rows: [],
+      trafficSteps: TRAFFIC_STEPS, logRetentionSeconds: LOG_RETENTION_SECONDS,
       allFilterValue: '__all__', selectedDomain: '__all__', selectedPodIP: '__all__', domainOptions: [], podOptions: [], domainOptionsLoading: false, podOptionsLoading: false,
       domainSearchTimer: null, podSearchTimer: null, domainOptionRequest: 0, podOptionRequest: 0,
       pagination: { current: 1, pageSize: 20, total: 0 },
       filters: { keyword: '', method: '', status: '', sort: 'requests' }, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-      topDomain: '', topPod: '', podDetail: { show: false, data: {}, loading: false, rows: [], pagination: { current: 1, pageSize: 20, total: 0 } }, resizeHandler: null,
+      topDomain: '', topPod: '', podDetail: { show: false, data: {}, loading: false, rows: [], pagination: { current: 1, pageSize: 20, total: 0 } },
     };
   },
   computed: {
     namespaceList() { return this.namespaceStore.namespaceList.length ? this.namespaceStore.namespaceList : ['default']; },
     totalBytes() { return Number(this.summary.bytes_received || 0) + Number(this.summary.bytes_sent || 0); },
     healthMessage() { const logs = this.health?.logs; return logs && !logs.available ? (logs.message || 'Higress 访问日志不可用') : ''; },
+    trendConfig() {
+      return {
+        requests: { unit: '请求数', fields: [['requests_total', '总请求'], ['requests_http1', 'HTTP/1'], ['requests_http2', 'HTTP/2'], ['requests_http3', 'HTTP/3'], ['requests_https', 'HTTPS']], format: this.formatNumber },
+        traffic: { unit: '流量', fields: [['traffic_bytes', '总流量']], format: this.formatBytes },
+        bandwidth: { unit: '带宽', fields: [['bandwidth_bps', '平均带宽']], format: this.formatBandwidth },
+        hitRate: { unit: '命中率', fields: [['hit_rate_total', '总命中率'], ['hit_rate_2xx', '2xx'], ['hit_rate_3xx', '3xx'], ['hit_rate_4xx', '4xx'], ['hit_rate_5xx', '5xx'], ['hit_rate_other', '其他']], format: this.formatPercent },
+        hits: { unit: '命中数', fields: [['hits_total', '总命中数'], ['hits_2xx', '2xx'], ['hits_3xx', '3xx'], ['hits_4xx', '4xx'], ['hits_5xx', '5xx'], ['hits_other', '其他']], format: this.formatNumber },
+      }[this.trendMetric];
+    },
+    trendSeries() { const points = Array.isArray(this.series) ? this.series : []; return this.trendConfig.fields.map(([field, name]) => ({ name, smooth: true, showSymbol: false, areaStyle: { opacity: 0.05 }, data: points.map((item) => [item._time, Number(item[field] || 0)]) })); },
+    trendOption() { const config = this.trendConfig; return { tooltip: { trigger: 'axis', valueFormatter: (value) => config.format(value) }, yAxis: { type: 'value', name: config.unit, axisLabel: { formatter: (value) => config.format(value) }, splitLine: { lineStyle: { color: '#f2f3f5' } } } }; },
   },
   async created() {
     await this.namespaceStore.fetchNamespaceList();
     this.namespace = this.namespaceStore.namespace || this.namespaceList[0] || 'default';
     this.reload();
   },
-  beforeUnmount() { window.removeEventListener('resize', this.resizeHandler); clearTimeout(this.domainSearchTimer); clearTimeout(this.podSearchTimer); this.trendChart?.dispose(); },
+  beforeUnmount() { clearTimeout(this.domainSearchTimer); clearTimeout(this.podSearchTimer); },
   methods: {
     normalize(res) { return res?.data?.data ?? res?.data ?? {}; },
     params(extra = {}) {
       return { namespace: this.namespace, start: dayjs(this.timeRange[0]).toISOString(), end: dayjs(this.timeRange[1]).toISOString(), domain: this.selectedDomain !== this.allFilterValue ? this.selectedDomain : undefined, upstreamIp: this.selectedPodIP !== this.allFilterValue ? this.selectedPodIP : undefined, page: this.pagination.current, pageSize: this.pagination.pageSize, step: this.step, ...extra };
     },
     async reload() {
+      if (!this.isTrafficRangeValid()) { this.$message.error('查询时间必须在最近 30 天内'); return; }
       this.loading = true; this.pagination.current = 1;
       const tasks = [this.loadHealth(), this.loadSummary(), this.loadSeries(), this.loadTable(), this.loadDomainOptions(), this.loadPodOptions()];
       if (this.podDetail.show) tasks.push(this.loadPodURLs());
@@ -241,8 +259,8 @@ export default {
     async reloadData() { this.loading = true; await Promise.all([this.loadSummary(), this.loadSeries(), this.loadTable()]); this.loading = false; },
     async loadSeries() {
       this.seriesLoading = true;
-      try { this.series = this.normalize(await trafficApi.series(this.params())) || []; } catch { this.series = []; }
-      this.seriesLoading = false; this.$nextTick(this.renderTrend);
+      try { const data = this.normalize(await trafficApi.series(this.params())); this.series = Array.isArray(data) ? data : []; } catch { this.series = []; }
+      this.seriesLoading = false;
     },
     async loadTable() {
       this.tableLoading = true;
@@ -271,27 +289,10 @@ export default {
       this.podDetail.loading = false;
     },
     podURLPageChanged(page) { this.podDetail.pagination.current = page; this.loadPodURLs(); },
-    renderTrend() {
-      if (!this.$refs.trendChart || !this.series.length) { this.trendChart?.clear(); return; }
-      if (!this.trendChart) { this.trendChart = markRaw(echarts.init(this.$refs.trendChart)); this.resizeHandler = () => this.trendChart?.resize(); window.addEventListener('resize', this.resizeHandler); }
-      const configs = {
-        requests: { unit: '请求数', fields: [['requests_total', '总请求'], ['requests_http1', 'HTTP/1'], ['requests_http2', 'HTTP/2'], ['requests_http3', 'HTTP/3'], ['requests_https', 'HTTPS']], format: this.formatNumber },
-        traffic: { unit: '流量', fields: [['traffic_bytes', '总流量']], format: this.formatBytes },
-        bandwidth: { unit: '带宽', fields: [['bandwidth_bps', '平均带宽']], format: this.formatBandwidth },
-        hitRate: { unit: '命中率', fields: [['hit_rate_total', '总命中率'], ['hit_rate_2xx', '2xx'], ['hit_rate_3xx', '3xx'], ['hit_rate_4xx', '4xx'], ['hit_rate_5xx', '5xx'], ['hit_rate_other', '其他']], format: this.formatPercent },
-        hits: { unit: '命中数', fields: [['hits_total', '总命中数'], ['hits_2xx', '2xx'], ['hits_3xx', '3xx'], ['hits_4xx', '4xx'], ['hits_5xx', '5xx'], ['hits_other', '其他']], format: this.formatNumber },
-      };
-      const config = configs[this.trendMetric];
-      const chartSeries = config.fields.map(([field, name]) => ({ name, type: 'line', smooth: true, showSymbol: false, areaStyle: { opacity: 0.05 }, data: this.series.map((item) => [item._time, Number(item[field] || 0)]) }));
-      this.trendChart.setOption({
-        color: ['#165dff', '#00b42a', '#f7ba1e', '#722ed1', '#f53f3f', '#86909c'],
-        tooltip: { trigger: 'axis', valueFormatter: (value) => config.format(value) }, legend: { type: 'scroll', top: 0 },
-        grid: { left: 20, right: 20, top: 42, bottom: 10, containLabel: true },
-        xAxis: { type: 'time', axisLine: { lineStyle: { color: '#c9cdd4' } } },
-        yAxis: { type: 'value', name: config.unit, axisLabel: { formatter: (value) => config.format(value) }, splitLine: { lineStyle: { color: '#f2f3f5' } } },
-        series: chartSeries,
-      }, true);
-    },
+    renderTrend() {},
+    trendQueryChanged({ step }) { this.step = TRAFFIC_STEP_VALUES[step] || '5m'; this.loadSeries(); },
+    disabledTrafficDate(current) { const value = dayjs(current); const now = dayjs(); return value.isAfter(now, 'day') || value.isBefore(now.subtract(this.logRetentionSeconds, 'second'), 'day'); },
+    isTrafficRangeValid() { const start = dayjs(this.timeRange?.[0]); const end = dayjs(this.timeRange?.[1]); const now = dayjs(); return start.isValid() && end.isValid() && start.isBefore(end) && !end.isAfter(now.add(1, 'minute')) && !start.isBefore(now.subtract(this.logRetentionSeconds, 'second').subtract(1, 'minute')); },
     formatNumber(value) { return Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 }); },
     formatBytes(value) { const n = Number(value || 0); if (n < 1024) return `${n.toFixed(0)} B`; if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`; if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`; return `${(n / 1073741824).toFixed(2)} GB`; },
     formatBandwidth(value) { const n = Number(value || 0); if (n < 1000) return `${n.toFixed(0)} bps`; if (n < 1000000) return `${(n / 1000).toFixed(1)} Kbps`; if (n < 1000000000) return `${(n / 1000000).toFixed(1)} Mbps`; return `${(n / 1000000000).toFixed(2)} Gbps`; },

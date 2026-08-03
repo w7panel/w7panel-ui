@@ -4,20 +4,31 @@
         <a-tabs v-model:active-key="activeType" class="df-s0 mt-10">
             <a-tab-pane v-for="item in chartTypes" :key="item.key" :title="item.title" />
         </a-tabs>
-        <a-spin :loading="loading" class="fc chart-spin">
-            <a-empty v-if="!loading && !series.length" description="暂无 Pod 指标数据" />
-            <div v-show="series.length" ref="chart" class="chart"></div>
-        </a-spin>
+        <monitor-stat-chart
+            :key="activeType"
+            class="fc"
+            :title="activeChart.title"
+            :step-options="activeStepOptions"
+            :retention-seconds="metricRetentionSeconds"
+            :fixed-step="normalizedFixedStep"
+            :fixed-time-range="pickerValue"
+            :default-step="activeStepOptions[0].value"
+            :data="series"
+            :loading="loading"
+            :unit="activeUnit"
+            empty-text="暂无 Pod 指标数据"
+            @query-change="queryChanged"
+        />
     </div>
 </template>
 
 <script>
-import * as echarts from 'echarts';
 import CryptoJS from 'crypto-js';
 import dayjs from 'dayjs';
 import { panelApi } from '@/utils/api';
 import { getUserInfo } from '@/utils/auth';
-import { useDarkStore } from '@/store';
+import MonitorStatChart from '@/components/monitor-stat-chart.vue';
+import { METRIC_30S_STEPS, METRIC_60S_STEPS, METRIC_RETENTION_SECONDS } from '@/config/monitor';
 
 const METRICS = {
     cpu: 'pod_cpu_usage_seconds_total',
@@ -30,6 +41,7 @@ const METRICS = {
 };
 
 export default {
+    components: { MonitorStatChart },
     props: ['list', 'namespace', 'pickerValue', 'step'],
     data() {
         return {
@@ -45,27 +57,32 @@ export default {
             ],
             loading: false,
             series: [],
-            chart: null,
-            resizeObserver: null,
             requestId: 0,
             userInfo: {},
-            dark: useDarkStore(),
+            metricRetentionSeconds: METRIC_RETENTION_SECONDS,
+            queryRange: null,
+            queryStep: null,
+            queriesByType: {},
         };
     },
     created() {
         this.userInfo = getUserInfo() || {};
     },
-    mounted() {
-        this.loadChart();
-    },
-    beforeUnmount() {
-        this.disposeChart();
+    mounted() { this.loadChart(); },
+    computed: {
+        activeChart() { return this.chartTypes.find((item) => item.key === this.activeType) || this.chartTypes[0]; },
+        activeStepOptions() { return this.isResourceMetric() ? METRIC_60S_STEPS : METRIC_30S_STEPS; },
+        normalizedFixedStep() { return this.step == null ? null : Number(this.step); },
+        activeUnit() { return { cpu: '核', memory: 'MiB', flow: 'flow/s' }[this.activeType] || '次/s'; },
     },
     watch: {
         list() {
             this.loadChart();
         },
-        activeType() {
+        activeType(value) {
+            const query = this.queriesByType[value] || {};
+            this.queryRange = query.range || null;
+            this.queryStep = query.step || null;
             this.loadChart();
         },
         pickerValue() {
@@ -73,9 +90,6 @@ export default {
         },
         step() {
             this.loadChart();
-        },
-        'dark.isDark'() {
-            this.renderChart();
         },
     },
     methods: {
@@ -132,7 +146,10 @@ export default {
         getTimeParams(query) {
             let start = dayjs().subtract(1, 'hour').unix();
             let end = dayjs().unix();
-            if (this.pickerValue?.length == 2) {
+            if (this.queryRange?.length == 2) {
+                start = this.queryRange[0];
+                end = this.queryRange[1];
+            } else if (this.pickerValue?.length == 2) {
                 start = dayjs(this.pickerValue[0]).unix();
                 end = dayjs(this.pickerValue[1]).unix();
             }
@@ -140,7 +157,7 @@ export default {
                 query,
                 start,
                 end,
-                step: this.step || 15,
+                step: this.queryStep || this.step || this.activeStepOptions[0].value,
                 local: 1,
             };
         },
@@ -152,7 +169,6 @@ export default {
             this.series = [];
             if (!metric || !podNames.length) {
                 this.loading = false;
-                this.renderChart();
                 return;
             }
             this.loading = true;
@@ -168,10 +184,9 @@ export default {
                         const metricPodName = item.metric?.pod || '';
                         return {
                             name: nameMap[metricPodName] || metricPodName,
-                            type: 'line',
                             smooth: true,
                             data: (item.values || []).map((value) => [
-                                window.formatDate(value[0] * 1000),
+                                value[0] * 1000,
                                 this.activeType == 'cpu'
                                     ? Number(value[1]).toFixed(4)
                                     : (Number(value[1]) / 1024 / 1024).toFixed(2),
@@ -183,10 +198,9 @@ export default {
                     const direction = item.metric?.source ? '出站' : '入站';
                     return {
                         name: `${nameMap[metricPodName] || metricPodName} / ${direction}`,
-                        type: 'line',
                         smooth: true,
                         data: (item.values || []).map((value) => [
-                            window.formatDate(value[0] * 1000),
+                            value[0] * 1000,
                             Number(value[1]).toFixed(3),
                         ]),
                     };
@@ -196,47 +210,13 @@ export default {
             } finally {
                 if (currentRequest == this.requestId) {
                     this.loading = false;
-                    this.$nextTick(() => this.renderChart());
                 }
             }
         },
-        renderChart() {
-            if (!this.series.length || !this.$refs.chart) {
-                this.chart?.clear();
-                return;
-            }
-            if (!this.chart) this.chart = echarts.init(this.$refs.chart);
-            this.observeChartSize();
-            const textColor = this.dark.isDark ? 'rgba(255,255,255,0.9)' : '#4e5969';
-            const unit = {
-                cpu: '核',
-                memory: 'MiB',
-                flow: 'flow/s',
-            }[this.activeType] || '次/s';
-            this.chart.setOption({
-                backgroundColor: this.dark.isDark ? '#232324' : '#fff',
-                textStyle: { color: textColor },
-                tooltip: { trigger: 'axis', appendToBody: true },
-                legend: { type: 'scroll', textStyle: { color: textColor } },
-                grid: { left: '3%', right: '4%', bottom: 20, containLabel: true },
-                xAxis: { type: 'category' },
-                yAxis: {
-                    type: 'value',
-                    axisLabel: { formatter: `{value} ${unit}` },
-                },
-                series: this.series,
-            }, true);
-        },
-        observeChartSize() {
-            if (this.resizeObserver || !this.$refs.chart) return;
-            this.resizeObserver = new ResizeObserver(() => this.chart?.resize());
-            this.resizeObserver.observe(this.$refs.chart);
-        },
-        disposeChart() {
-            this.resizeObserver?.disconnect();
-            this.resizeObserver = null;
-            this.chart?.dispose();
-            this.chart = null;
+        queryChanged({ start, end, step }) {
+            this.queryRange = [start, end]; this.queryStep = step;
+            this.queriesByType[this.activeType] = { range: this.queryRange, step };
+            this.loadChart();
         },
     },
 };
