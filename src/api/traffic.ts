@@ -7,11 +7,12 @@ export interface TrafficQuery {
   page?: number;
   pageSize?: number;
   domain?: string;
+  upstreamIp?: string;
+  search?: string;
   method?: string;
   status?: string;
   keyword?: string;
   sort?: 'requests' | 'traffic' | 'errors' | 'latency';
-  dimension?: 'domain' | 'pod';
   step?: string;
 }
 

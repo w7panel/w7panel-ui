@@ -34,10 +34,20 @@
     <section class="control-bar mt-16">
       <div class="control-group">
         <span class="control-label">命名空间</span>
-        <a-select v-model="namespace" style="width: 180px" @change="reload">
+        <a-select v-model="namespace" style="width: 140px" @change="namespaceChanged">
           <a-option v-for="item in namespaceList" :key="item" :value="item">{{ item }}</a-option>
         </a-select>
-        <a-range-picker v-model:model-value="timeRange" show-time style="width: 380px" @ok="reload" />
+        <a-range-picker v-model:model-value="timeRange" show-time style="width: 330px" @ok="reload" />
+        <span class="control-label">域名</span>
+        <a-select v-model="selectedDomain" allow-clear allow-search :filter-option="false" :loading="domainOptionsLoading" placeholder="搜索并选择域名" style="width: 190px" @search="searchDomains" @change="domainChanged">
+          <a-option v-for="item in domainOptions" :key="item.value" :value="item.value">{{ item.label }}</a-option>
+        </a-select>
+        <span class="control-label">Pod</span>
+        <a-select v-model="selectedPodIP" allow-clear allow-search :filter-option="false" :loading="podOptionsLoading" placeholder="搜索并选择 Pod" style="width: 220px" @search="searchPods" @change="podChanged">
+          <a-option v-for="item in podOptions" :key="item.value" :value="item.value">
+            <div class="pod-option"><span>{{ item.label }}</span><small>{{ item.service || 'Service 未知' }} · {{ item.value }}</small></div>
+          </a-option>
+        </a-select>
       </div>
       <a-button :loading="loading" @click="reload">
         <template #icon><icon-refresh /></template>
@@ -45,28 +55,22 @@
       </a-button>
     </section>
 
-    <section class="summary-grid mt-16">
-      <article class="metric-block">
-        <span>请求总数</span><strong>{{ formatNumber(summary.requests) }}</strong><small>经过 Higress 的 HTTP 请求</small>
-      </article>
-      <article class="metric-block">
-        <span>总流量</span><strong>{{ formatBytes(totalBytes) }}</strong><small>请求与响应字节之和</small>
-      </article>
-      <article class="metric-block">
-        <span>错误率</span><strong :class="{ danger: Number(summary.error_rate) > 0.05 }">{{ formatPercent(summary.error_rate) }}</strong><small>HTTP 4xx 与 5xx</small>
-      </article>
-      <article class="metric-block">
-        <span>P95 延迟</span><strong>{{ formatDuration(summary.p95_duration_ms) }}</strong><small>网关端到端耗时</small>
-      </article>
-    </section>
-
     <section class="chart-panel mt-16">
       <div class="section-heading">
         <div><h3>请求趋势</h3><p>选择的时间范围内，按时间颗粒度汇总。</p></div>
-        <a-select v-model="step" style="width: 120px" @change="loadSeries">
-          <a-option value="5m">5 分钟</a-option><a-option value="30m">30 分钟</a-option>
-          <a-option value="2h">2 小时</a-option><a-option value="12h">12 小时</a-option>
-        </a-select>
+        <div class="trend-controls">
+          <a-radio-group v-model="trendMetric" type="button" @change="renderTrend">
+            <a-radio value="requests">请求数</a-radio>
+            <a-radio value="traffic">流量</a-radio>
+            <a-radio value="bandwidth">带宽</a-radio>
+            <a-radio value="hitRate">命中率</a-radio>
+            <a-radio value="hits">命中数</a-radio>
+          </a-radio-group>
+          <a-select v-model="step" style="width: 120px" @change="loadSeries">
+            <a-option value="5m">5 分钟</a-option><a-option value="30m">30 分钟</a-option>
+            <a-option value="2h">2 小时</a-option><a-option value="12h">12 小时</a-option>
+          </a-select>
+        </div>
       </div>
       <a-spin :loading="seriesLoading" class="chart-spin">
         <a-empty v-if="!seriesLoading && !series.length" description="当前时间范围暂无请求趋势" />
@@ -81,9 +85,23 @@
         <a-tab-pane key="urls" title="热点 URL"></a-tab-pane>
       </a-tabs>
 
+      <section class="summary-grid analysis-summary">
+        <article class="metric-block">
+          <span>请求总数</span><strong>{{ formatNumber(summary.requests) }}</strong><small>经过 Higress 的 HTTP 请求</small>
+        </article>
+        <article class="metric-block">
+          <span>总流量</span><strong>{{ formatBytes(totalBytes) }}</strong><small>请求与响应字节之和</small>
+        </article>
+        <article class="metric-block">
+          <span>错误率</span><strong :class="{ danger: Number(summary.error_rate) > 0.05 }">{{ formatPercent(summary.error_rate) }}</strong><small>HTTP 4xx 与 5xx</small>
+        </article>
+        <article class="metric-block">
+          <span>P95 延迟</span><strong>{{ formatDuration(summary.p95_duration_ms) }}</strong><small>网关端到端耗时</small>
+        </article>
+      </section>
+
       <div v-if="activeTab === 'urls'" class="url-filters">
         <a-input v-model="filters.keyword" allow-clear placeholder="筛选路径" @press-enter="search" />
-        <a-input v-model="filters.domain" allow-clear placeholder="筛选域名" @press-enter="search" />
         <a-select v-model="filters.method" allow-clear placeholder="请求方法">
           <a-option v-for="method in methods" :key="method" :value="method">{{ method }}</a-option>
         </a-select>
@@ -123,14 +141,23 @@
       </div>
     </section>
 
-    <a-drawer :width="760" :visible="podDetail.show" :footer="false" @cancel="podDetail.show = false">
-      <template #title>{{ podDetail.data.pod_name || podDetail.data.upstream_ip }} 网络详情</template>
-      <div class="pod-detail-summary">
-        <div><span>网关请求</span><strong>{{ formatNumber(podDetail.data.requests) }}</strong></div>
-        <div><span>HTTP 流量</span><strong>{{ formatBytes(Number(podDetail.data.bytes_received || 0) + Number(podDetail.data.bytes_sent || 0)) }}</strong></div>
+    <a-drawer :width="960" :visible="podDetail.show" :footer="false" @cancel="podDetail.show = false">
+      <template #title>{{ podDetail.data.pod_name || podDetail.data.upstream_ip }} 关联 URL</template>
+      <a-table :loading="podDetail.loading" :data="podDetail.rows" :pagination="false" row-key="rowKey" class="traffic-table">
+        <template #columns>
+          <a-table-column title="域名" data-index="authority" :width="210" />
+          <a-table-column title="方法" :width="90"><template #cell="{ record }"><a-tag>{{ record.method }}</a-tag></template></a-table-column>
+          <a-table-column title="路径" :width="300"><template #cell="{ record }"><code class="path-code" :title="record.path">{{ record.path }}</code></template></a-table-column>
+          <a-table-column title="请求数" :width="100"><template #cell="{ record }">{{ formatNumber(record.requests) }}</template></a-table-column>
+          <a-table-column title="流量" :width="110"><template #cell="{ record }">{{ formatBytes(Number(record.bytes_received || 0) + Number(record.bytes_sent || 0)) }}</template></a-table-column>
+          <a-table-column title="错误率" :width="100"><template #cell="{ record }"><span :class="{ danger: Number(record.error_rate) > 0.05 }">{{ formatPercent(record.error_rate) }}</span></template></a-table-column>
+          <a-table-column title="P95 延迟" :width="110"><template #cell="{ record }">{{ formatDuration(record.p95_duration_ms) }}</template></a-table-column>
+        </template>
+      </a-table>
+      <div class="pagination-row drawer-pagination">
+        <span>按当前命名空间、时间和域名条件聚合</span>
+        <a-pagination v-model:current="podDetail.pagination.current" :page-size="podDetail.pagination.pageSize" :total="podDetail.pagination.total" @change="podURLPageChanged" />
       </div>
-      <pods-cilium-charts v-if="podDetail.show && podDetail.data.pod_name && podDetail.data.pod_name !== '已终止 Pod'" :list="[podDetail.data.pod_name]" :namespace="podDetail.data.namespace || namespace" :picker-value="timeRange" :step="300" />
-      <a-empty v-else description="Pod 已终止，无法关联 Hubble 网络指标" />
     </a-drawer>
   </div>
 </template>
@@ -141,19 +168,19 @@ import dayjs from 'dayjs';
 import { markRaw } from 'vue';
 import { trafficApi } from '@/api/traffic';
 import { useNamespaceStore } from '@/store';
-import PodsCiliumCharts from '@/components/pods-cilium-charts.vue';
 
 export default {
-  components: { PodsCiliumCharts },
   data() {
     const end = dayjs();
     return {
       namespaceStore: useNamespaceStore(), namespace: 'default', timeRange: [end.subtract(1, 'hour').toDate(), end.toDate()],
-      activeTab: 'pods', step: '5m', loading: false, seriesLoading: false, tableLoading: false,
+      activeTab: 'pods', step: '5m', trendMetric: 'requests', loading: false, seriesLoading: false, tableLoading: false,
       health: {}, summary: {}, series: [], rows: [], trendChart: null,
+      selectedDomain: '', selectedPodIP: '', domainOptions: [], podOptions: [], domainOptionsLoading: false, podOptionsLoading: false,
+      domainSearchTimer: null, podSearchTimer: null, domainOptionRequest: 0, podOptionRequest: 0,
       pagination: { current: 1, pageSize: 20, total: 0 },
-      filters: { keyword: '', domain: '', method: '', status: '', sort: 'requests' }, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-      topDomain: '', topPod: '', podDetail: { show: false, data: {} }, resizeHandler: null,
+      filters: { keyword: '', method: '', status: '', sort: 'requests' }, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+      topDomain: '', topPod: '', podDetail: { show: false, data: {}, loading: false, rows: [], pagination: { current: 1, pageSize: 20, total: 0 } }, resizeHandler: null,
     };
   },
   computed: {
@@ -166,22 +193,53 @@ export default {
     this.namespace = this.namespaceStore.namespace || this.namespaceList[0] || 'default';
     this.reload();
   },
-  beforeUnmount() { window.removeEventListener('resize', this.resizeHandler); this.trendChart?.dispose(); },
+  beforeUnmount() { window.removeEventListener('resize', this.resizeHandler); clearTimeout(this.domainSearchTimer); clearTimeout(this.podSearchTimer); this.trendChart?.dispose(); },
   methods: {
     normalize(res) { return res?.data?.data ?? res?.data ?? {}; },
     params(extra = {}) {
-      return { namespace: this.namespace, start: dayjs(this.timeRange[0]).toISOString(), end: dayjs(this.timeRange[1]).toISOString(), page: this.pagination.current, pageSize: this.pagination.pageSize, step: this.step, ...extra };
+      return { namespace: this.namespace, start: dayjs(this.timeRange[0]).toISOString(), end: dayjs(this.timeRange[1]).toISOString(), domain: this.selectedDomain || undefined, upstreamIp: this.selectedPodIP || undefined, page: this.pagination.current, pageSize: this.pagination.pageSize, step: this.step, ...extra };
     },
     async reload() {
       this.loading = true; this.pagination.current = 1;
-      await Promise.all([this.loadHealth(), this.loadSummary(), this.loadSeries(), this.loadTable()]);
+      const tasks = [this.loadHealth(), this.loadSummary(), this.loadSeries(), this.loadTable(), this.loadDomainOptions(), this.loadPodOptions()];
+      if (this.podDetail.show) tasks.push(this.loadPodURLs());
+      await Promise.all(tasks);
       this.loading = false;
     },
     async loadHealth() { try { this.health = this.normalize(await trafficApi.health()); } catch (error) { this.health = { logs: { available: false, message: error?.message } }; } },
     async loadSummary() { try { this.summary = this.normalize(await trafficApi.summary(this.params())); } catch { this.summary = {}; } },
+    async loadDomainOptions(search = '') {
+      const request = ++this.domainOptionRequest; this.domainOptionsLoading = true;
+      const params = this.params({ domain: undefined, search, page: 1, pageSize: 50 });
+      try {
+        const data = this.normalize(await trafficApi.domains(params));
+        if (request === this.domainOptionRequest) this.domainOptions = this.keepSelectedOption((data.list || []).map((item) => ({ value: item.authority, label: item.authority })), this.selectedDomain, this.domainOptions);
+      } catch { if (request === this.domainOptionRequest) this.domainOptions = this.keepSelectedOption([], this.selectedDomain, this.domainOptions); }
+      if (request === this.domainOptionRequest) this.domainOptionsLoading = false;
+    },
+    async loadPodOptions(search = '') {
+      const request = ++this.podOptionRequest; this.podOptionsLoading = true;
+      const params = this.params({ upstreamIp: undefined, search, page: 1, pageSize: 50 });
+      try {
+        const data = this.normalize(await trafficApi.pods(params));
+        if (request === this.podOptionRequest) this.podOptions = this.keepSelectedOption((data.list || []).map((item) => ({ value: item.upstream_ip, label: item.pod_name || item.upstream_ip, service: item.upstream_service })), this.selectedPodIP, this.podOptions);
+      } catch { if (request === this.podOptionRequest) this.podOptions = this.keepSelectedOption([], this.selectedPodIP, this.podOptions); }
+      if (request === this.podOptionRequest) this.podOptionsLoading = false;
+    },
+    keepSelectedOption(options, selected, previous) {
+      if (!selected || options.some((item) => item.value === selected)) return options;
+      const current = previous.find((item) => item.value === selected);
+      return current ? [current, ...options] : options;
+    },
+    searchDomains(value) { clearTimeout(this.domainSearchTimer); this.domainSearchTimer = setTimeout(() => this.loadDomainOptions(value), 300); },
+    searchPods(value) { clearTimeout(this.podSearchTimer); this.podSearchTimer = setTimeout(() => this.loadPodOptions(value), 300); },
+    async namespaceChanged() { this.selectedDomain = ''; this.selectedPodIP = ''; this.domainOptions = []; this.podOptions = []; this.podDetail.show = false; await this.reload(); },
+    async domainChanged() { this.pagination.current = 1; this.podDetail.show = false; this.topDomain = this.selectedDomain || ''; await Promise.all([this.reloadData(), this.loadPodOptions()]); },
+    async podChanged() { this.pagination.current = 1; this.podDetail.show = false; this.topPod = this.podOptions.find((item) => item.value === this.selectedPodIP)?.label || ''; await Promise.all([this.reloadData(), this.loadDomainOptions()]); },
+    async reloadData() { this.loading = true; await Promise.all([this.loadSummary(), this.loadSeries(), this.loadTable()]); this.loading = false; },
     async loadSeries() {
       this.seriesLoading = true;
-      try { this.series = this.normalize(await trafficApi.series(this.params({ dimension: this.activeTab === 'pods' ? 'pod' : 'domain' }))) || []; } catch { this.series = []; }
+      try { this.series = this.normalize(await trafficApi.series(this.params())) || []; } catch { this.series = []; }
       this.seriesLoading = false; this.$nextTick(this.renderTrend);
     },
     async loadTable() {
@@ -196,19 +254,45 @@ export default {
       } catch { this.rows = []; this.pagination.total = 0; }
       this.tableLoading = false;
     },
-    tabChanged() { this.pagination.current = 1; this.loadTable(); this.loadSeries(); },
+    tabChanged() { this.pagination.current = 1; this.loadTable(); },
     search() { this.pagination.current = 1; this.loadTable(); },
     pageChanged(page) { this.pagination.current = page; this.loadTable(); },
-    openPod(record) { this.podDetail = { show: true, data: record }; },
+    openPod(record) { this.podDetail.show = true; this.podDetail.data = record; this.podDetail.rows = []; this.podDetail.pagination.current = 1; this.loadPodURLs(); },
+    async loadPodURLs() {
+      this.podDetail.loading = true;
+      try {
+        const response = await trafficApi.urls(this.params({ upstreamIp: this.podDetail.data.upstream_ip, page: this.podDetail.pagination.current, pageSize: this.podDetail.pagination.pageSize, sort: 'requests' }));
+        const data = this.normalize(response);
+        this.podDetail.rows = (data.list || []).map((item, index) => ({ ...item, rowKey: `pod-url-${this.podDetail.pagination.current}-${index}` }));
+        this.podDetail.pagination.total = Number(data.total || 0);
+      } catch { this.podDetail.rows = []; this.podDetail.pagination.total = 0; }
+      this.podDetail.loading = false;
+    },
+    podURLPageChanged(page) { this.podDetail.pagination.current = page; this.loadPodURLs(); },
     renderTrend() {
       if (!this.$refs.trendChart || !this.series.length) { this.trendChart?.clear(); return; }
       if (!this.trendChart) { this.trendChart = markRaw(echarts.init(this.$refs.trendChart)); this.resizeHandler = () => this.trendChart?.resize(); window.addEventListener('resize', this.resizeHandler); }
-      const grouped = {};
-      this.series.forEach((item) => { const name = item.authority || item.upstream_ip || '全部请求'; if (!grouped[name]) grouped[name] = []; grouped[name].push([item._time, Number(item.requests || 0)]); });
-      this.trendChart.setOption({ color: ['#165dff', '#00b42a', '#f7ba1e', '#722ed1'], tooltip: { trigger: 'axis' }, legend: { type: 'scroll', top: 0 }, grid: { left: 20, right: 20, top: 42, bottom: 10, containLabel: true }, xAxis: { type: 'time', axisLine: { lineStyle: { color: '#c9cdd4' } } }, yAxis: { type: 'value', name: '请求数', splitLine: { lineStyle: { color: '#f2f3f5' } } }, series: Object.entries(grouped).slice(0, 8).map(([name, data]) => ({ name, type: 'line', smooth: true, showSymbol: false, areaStyle: { opacity: 0.06 }, data })) }, true);
+      const configs = {
+        requests: { unit: '请求数', fields: [['requests_total', '总请求'], ['requests_http1', 'HTTP/1'], ['requests_http2', 'HTTP/2'], ['requests_http3', 'HTTP/3'], ['requests_https', 'HTTPS']], format: this.formatNumber },
+        traffic: { unit: '流量', fields: [['traffic_bytes', '总流量']], format: this.formatBytes },
+        bandwidth: { unit: '带宽', fields: [['bandwidth_bps', '平均带宽']], format: this.formatBandwidth },
+        hitRate: { unit: '命中率', fields: [['hit_rate_total', '总命中率'], ['hit_rate_2xx', '2xx'], ['hit_rate_3xx', '3xx'], ['hit_rate_4xx', '4xx'], ['hit_rate_5xx', '5xx'], ['hit_rate_other', '其他']], format: this.formatPercent },
+        hits: { unit: '命中数', fields: [['hits_total', '总命中数'], ['hits_2xx', '2xx'], ['hits_3xx', '3xx'], ['hits_4xx', '4xx'], ['hits_5xx', '5xx'], ['hits_other', '其他']], format: this.formatNumber },
+      };
+      const config = configs[this.trendMetric];
+      const chartSeries = config.fields.map(([field, name]) => ({ name, type: 'line', smooth: true, showSymbol: false, areaStyle: { opacity: 0.05 }, data: this.series.map((item) => [item._time, Number(item[field] || 0)]) }));
+      this.trendChart.setOption({
+        color: ['#165dff', '#00b42a', '#f7ba1e', '#722ed1', '#f53f3f', '#86909c'],
+        tooltip: { trigger: 'axis', valueFormatter: (value) => config.format(value) }, legend: { type: 'scroll', top: 0 },
+        grid: { left: 20, right: 20, top: 42, bottom: 10, containLabel: true },
+        xAxis: { type: 'time', axisLine: { lineStyle: { color: '#c9cdd4' } } },
+        yAxis: { type: 'value', name: config.unit, axisLabel: { formatter: (value) => config.format(value) }, splitLine: { lineStyle: { color: '#f2f3f5' } } },
+        series: chartSeries,
+      }, true);
     },
     formatNumber(value) { return Number(value || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 }); },
     formatBytes(value) { const n = Number(value || 0); if (n < 1024) return `${n.toFixed(0)} B`; if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`; if (n < 1073741824) return `${(n / 1048576).toFixed(1)} MB`; return `${(n / 1073741824).toFixed(2)} GB`; },
+    formatBandwidth(value) { const n = Number(value || 0); if (n < 1000) return `${n.toFixed(0)} bps`; if (n < 1000000) return `${(n / 1000).toFixed(1)} Kbps`; if (n < 1000000000) return `${(n / 1000000).toFixed(1)} Mbps`; return `${(n / 1000000000).toFixed(2)} Gbps`; },
     formatPercent(value) { return `${(Number(value || 0) * 100).toFixed(2)}%`; },
     formatDuration(value) { const n = Number(value || 0); return n >= 1000 ? `${(n / 1000).toFixed(2)}s` : `${n.toFixed(0)}ms`; },
   },
@@ -226,10 +310,14 @@ export default {
 .flow-node span { display: block; margin-bottom: 7px; font-size: 12px; color: #b8d8ff; }.flow-node strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
 .gateway-node { background: rgba(255,255,255,.18); }.flow-line { position: relative; text-align: center; }.flow-line i { display: block; height: 2px; background: linear-gradient(90deg, rgba(255,255,255,.25), #62d8ff); }.flow-line i::after { content: ''; position: absolute; top: -3px; right: 0; border: 4px solid transparent; border-left-color: #62d8ff; }.flow-line em { display: block; margin-top: 8px; font-size: 11px; font-style: normal; color: #b8d8ff; }
 .control-bar, .data-panel, .chart-panel { padding: 20px; background: var(--color-bg-2, #fff); }.control-bar, .control-group, .section-heading, .pagination-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.control-label { color: var(--traffic-muted); }
+.control-group { flex: 1; flex-wrap: wrap; justify-content: flex-start; }.control-bar > .arco-btn { flex: none; }
 .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--traffic-line); border: 1px solid var(--traffic-line); }.metric-block { padding: 18px 20px; background: var(--color-bg-2, #fff); }.metric-block span, .metric-block small { display: block; color: var(--traffic-muted); }.metric-block strong { display: block; margin: 10px 0 6px; color: var(--traffic-ink); font: 600 26px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; }.metric-block small { font-size: 12px; }.danger { color: #f53f3f !important; }
+.analysis-summary { margin: 4px 0 16px; }
+.pod-option { display: flex; flex-direction: column; padding: 3px 0; }.pod-option small { color: var(--traffic-muted); font-size: 11px; }
 .section-heading h3 { margin: 0 0 5px; font-size: 16px; }.section-heading p { margin: 0; color: var(--traffic-muted); }.chart-spin { display: block; min-height: 290px; margin-top: 16px; }.trend-chart { height: 290px; }
+.trend-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 .url-filters { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 0; border-top: 1px solid var(--traffic-line); }.url-filters :deep(.arco-input-wrapper), .url-filters :deep(.arco-select) { width: 180px; }.traffic-table { margin-top: 12px; }.entity-link { display: block; max-width: 210px; padding: 0; color: var(--traffic-blue); background: none; border: 0; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.traffic-table small { display: block; margin-top: 3px; color: var(--traffic-muted); }.path-code { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #4e5969; }.pagination-row { margin-top: 16px; }.pagination-row > span { color: var(--traffic-muted); font-size: 12px; }
-.pod-detail-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }.pod-detail-summary > div { padding: 16px; background: #f7f8fa; }.pod-detail-summary span { display: block; color: var(--traffic-muted); }.pod-detail-summary strong { display: block; margin-top: 8px; font-size: 20px; }
+.drawer-pagination { margin-top: 16px; }
 @media (max-width: 1100px) { .traffic-hero { grid-template-columns: 1fr; }.summary-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 720px) { .traffic-hero { padding: 22px 18px; }.flow-ribbon { grid-template-columns: 1fr; gap: 8px; }.flow-line { display: none; }.control-bar, .control-group { align-items: stretch; flex-direction: column; }.summary-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }

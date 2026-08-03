@@ -89,6 +89,10 @@
     "key": "gateway",
     "route": "gateway",
     "children": [{
+        "title": "统计分析",
+        "key": "gateway-traffic",
+        "route": "gateway/traffic"
+    },{
         "title": "反向代理",
         "key": "gateway-rvproxy",
         "route": "gateway/rvproxy",
