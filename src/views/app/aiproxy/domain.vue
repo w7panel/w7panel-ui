@@ -655,9 +655,9 @@ export default {
                     k8sproxy.get('/api/v1/namespaces/'+this.namespaceActive+'/secrets?labelSelector='+AI_LABEL+'=true,'+AI_DOMAIN_LABEL+'='+name, { noAlert: true }),
                     this.getMcpBridge(),
                     loadInstalledPluginArtifacts(k8sproxy, [
-                        { artifact: AI_PROXY_PLUGIN_ARTIFACT, legacyPluginName: PLUGIN_NAME },
-                        { artifact: KEY_AUTH_PLUGIN_ARTIFACT, legacyPluginName: KEY_AUTH_PLUGIN_NAME },
-                        { artifact: REQUEST_VALIDATION_PLUGIN_ARTIFACT, legacyPluginName: MODEL_VALIDATION_PLUGIN_NAME },
+                        { artifact: AI_PROXY_PLUGIN_ARTIFACT },
+                        { artifact: KEY_AUTH_PLUGIN_ARTIFACT },
+                        { artifact: REQUEST_VALIDATION_PLUGIN_ARTIFACT },
                     ]),
                 ]);
                 const [aiProxy, keyAuth, modelValidation] = dependencies;
@@ -1113,7 +1113,7 @@ export default {
             if(!plugin) throw new Error('Key Auth 认证插件未安装，请先完成安装');
             plugin = clone(plugin);
             plugin.spec = plugin.spec || {};
-            plugin.spec.defaultConfigDisable = false;
+            // AI 代理只管理当前域名的认证规则，不改写 Key Auth 的全局开关。
             plugin.spec.defaultConfig = plugin.spec.defaultConfig || {};
             const normalizedConsumers = this.normalizeKeyAuthConsumers(plugin.spec.defaultConfig);
             plugin.spec.defaultConfig.global_auth = false;
@@ -1251,7 +1251,7 @@ export default {
         },
         ensureDefaultConfig(plugin){
             plugin.spec = plugin.spec || {};
-            plugin.spec.defaultConfigDisable = false;
+            // Provider 定义按 Higress 协议集中存放，但域名配置不应改写插件全局开关。
             plugin.spec.defaultConfig = plugin.spec.defaultConfig || {};
             plugin.spec.defaultConfig.providers = plugin.spec.defaultConfig.providers || [];
             plugin.spec.matchRules = plugin.spec.matchRules || [];

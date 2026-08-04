@@ -15,6 +15,7 @@
             <table class="com-table"><tbody>
                 <tr>
                     <td>域名</td>
+                    <td>AI 代理</td>
                     <td>模型</td>
                     <td>认证</td>
                     <td>服务提供者</td>
@@ -24,6 +25,7 @@
                     <td>
                         <a :href="item.url" target="_blank" class="c-blue cursor">{{ item.url }}</a>
                     </td>
+                    <td>{{ item.enabled ? '已开启' : '已关闭' }}</td>
                     <td>
                         <span v-if="item.models.length">{{ item.models.join(', ') }}</span>
                         <span v-else>-</span>
@@ -39,7 +41,7 @@
                     </td>
                 </tr>
                 <tr v-if="!list.length">
-                    <td colspan="5"><a-empty /></td>
+                    <td colspan="6"><a-empty /></td>
                 </tr>
             </tbody></table>
         </div>
@@ -122,7 +124,12 @@ import { k8sproxy } from '@/utils/api';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import { getPermission, getUserInfo } from '@/utils/auth';
-import { cleanupIngressPluginRules } from '@/utils/gateway-plugin';
+import {
+    cleanupIngressPluginRules,
+    ensureGatewayPluginRule,
+    getGatewayPluginRuleContext,
+    getGatewayPluginRuleMatch,
+} from '@/utils/gateway-plugin';
 import {
     AI_LABEL,
     AI_DOMAIN_LABEL,
@@ -207,7 +214,7 @@ export default {
                     k8sproxy.get('/apis/networking.k8s.io/v1/namespaces/'+this.namespaceActive+'/ingresses?labelSelector='+AI_LABEL+'=true'),
                     k8sproxy.get('/api/v1/namespaces/'+this.namespaceActive+'/secrets?labelSelector='+AI_LABEL+'=true', { noAlert: true }),
                     loadInstalledPluginArtifacts(k8sproxy, [
-                        { artifact: AI_PROXY_PLUGIN_ARTIFACT, legacyPluginName: PLUGIN_NAME },
+                        { artifact: AI_PROXY_PLUGIN_ARTIFACT },
                     ]),
                 ]);
                 const [aiProxy] = dependencies;
@@ -217,6 +224,7 @@ export default {
                 this.aiProxyPluginName = aiProxy.plugin?.metadata?.name || PLUGIN_NAME;
                 this.secrets = secretRes?.data?.items || [];
                 const rules = this.plugin?.spec?.matchRules || [];
+                let pluginChanged = false;
                 this.list = this.ingresses.map(ing=>{
                     const host = ing?.spec?.rules?.[0]?.host || '';
                     const annotations = ing?.metadata?.annotations || {};
@@ -226,6 +234,14 @@ export default {
                     const legacyRouteProviders = rule?.config?.providers || [];
                     const legacyProviders = this.secrets.filter(s=>s?.metadata?.labels?.[AI_DOMAIN_LABEL] == ing.metadata.name && s?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true');
                     const effectiveProviders = providers.length ? providers : legacyRouteProviders;
+                    const ruleContext = getGatewayPluginRuleContext(ing, this.namespaceActive);
+                    let ruleMatch = getGatewayPluginRuleMatch(this.plugin, ruleContext);
+                    if(this.plugin && this.permission.includes('gateway/aiproxy/edit') && (ruleMatch.index < 0 || this.plugin.spec.matchRules[ruleMatch.index]?.configDisable === true)){
+                        const index = ensureGatewayPluginRule(this.plugin, ruleContext);
+                        this.plugin.spec.matchRules[index].configDisable = false;
+                        pluginChanged = true;
+                        ruleMatch = getGatewayPluginRuleMatch(this.plugin, ruleContext);
+                    }
                     const providerCount = effectiveProviders.length || legacyProviders.length;
                     const enabledProviderCount = effectiveProviders.length ? effectiveProviders.filter(i=>i?.enabled !== false).length : legacyProviders.filter(s=>s?.metadata?.annotations?.['w7.cc/enabled'] !== 'false').length;
                     return {
@@ -234,11 +250,16 @@ export default {
                         url: (ssl?'https://':'http://') + host,
                         models: readStringArray(annotations[AI_MODELS_ANNOTATION] || rule?.config?.models),
                         authEnabled: annotations[AI_AUTH_ANNOTATION] === 'true' || !!rule?.config?.auth?.enabled,
+                        enabled: ruleMatch.index >= 0 && this.plugin?.spec?.matchRules?.[ruleMatch.index]?.configDisable !== true,
                         providers: providerCount,
                         enabledProviders: enabledProviderCount,
                         ingress: ing,
                     }
                 });
+                if(pluginChanged){
+                    const response = await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+this.aiProxyPluginName, this.plugin);
+                    this.plugin = response?.data || this.plugin;
+                }
             } finally {
                 useLoadingStore().loading = false;
             }
@@ -413,8 +434,8 @@ export default {
         },
         async discoverDeleteContext(row){
             const [keyAuth, modelValidation] = await loadInstalledPluginArtifacts(k8sproxy, [
-                { artifact: KEY_AUTH_PLUGIN_ARTIFACT, legacyPluginName: KEY_AUTH_PLUGIN_NAME },
-                { artifact: REQUEST_VALIDATION_PLUGIN_ARTIFACT, legacyPluginName: MODEL_VALIDATION_PLUGIN_NAME },
+                { artifact: KEY_AUTH_PLUGIN_ARTIFACT },
+                { artifact: REQUEST_VALIDATION_PLUGIN_ARTIFACT },
             ]);
             this.keyAuthPluginName = keyAuth.plugin?.metadata?.name || KEY_AUTH_PLUGIN_NAME;
             this.modelValidationPluginName = modelValidation.plugin?.metadata?.name || MODEL_VALIDATION_PLUGIN_NAME;

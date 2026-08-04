@@ -40,11 +40,9 @@ function normalizeArtifactIdentify(value: unknown): string {
 function resolveInstalledPluginArtifact(
   plugins: any[] = [],
   artifact: AIProxyPluginArtifact,
-  legacyPluginName = '',
 ) {
   const groupName = normalizeArtifactIdentify(artifact.identify);
   const plugin = plugins.find(item => getResourceGroupName(item) === groupName)
-    || plugins.find(item => item?.metadata?.name === legacyPluginName)
     || null;
   return {
     plugin,
@@ -54,7 +52,7 @@ function resolveInstalledPluginArtifact(
 
 export async function loadInstalledPluginArtifacts(
   k8sClient: any,
-  targets: Array<{ artifact: AIProxyPluginArtifact; legacyPluginName: string }>,
+  targets: Array<{ artifact: AIProxyPluginArtifact }>,
 ) {
   const groupNames = [...new Set(targets.map(item => normalizeArtifactIdentify(item.artifact.identify)).filter(Boolean))];
   const plugins = await loadResourcesByGroupNames(k8sClient, WASM_PLUGIN_API, groupNames);
@@ -62,19 +60,7 @@ export async function loadInstalledPluginArtifacts(
   const resolved = targets.map(target => resolveInstalledPluginArtifact(
     plugins,
     target.artifact,
-    target.legacyPluginName,
   ));
-  await Promise.all(resolved.map(async (item, index) => {
-    if(item.plugin || !targets[index].legacyPluginName) return;
-    const response = await k8sClient.get(
-      `${WASM_PLUGIN_API}/${encodeURIComponent(targets[index].legacyPluginName)}`,
-      { noAlert: true },
-    ).catch(()=>null);
-    if(response?.data){
-      item.plugin = response.data;
-      item.installed = true;
-    }
-  }));
   return resolved;
 }
 

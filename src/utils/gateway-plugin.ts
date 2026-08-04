@@ -77,7 +77,7 @@ function uniqueStrings(values: any[]) {
 
 /**
  * 通用网关插件的域名规则统一使用 Higress 标准的 namespace/ingressName 目标。
- * AI 代理自行维护的 domain/service 规则不通过这里识别或修改。
+ * AI Provider 自行维护的 service 规则不通过这里识别或修改；AI 域名插件状态复用这里的 Ingress 规则。
  */
 export function getGatewayPluginRuleContext(ingress: any, namespace = ''): GatewayPluginRuleContext {
   return {
