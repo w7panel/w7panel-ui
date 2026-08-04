@@ -267,21 +267,20 @@
                 <a-button v-if="noMonitor" type="primary" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">安装监控</a-button>
             </div>
             <div class="mt-20" >
-                <a-tabs v-model:active-key="chartActive">
-                    <a-tab-pane :key="1" title="负载">
-                    </a-tab-pane>
-                    <a-tab-pane :key="2" title="硬盘I/O">
-                    </a-tab-pane>
-                    <a-tab-pane :key="3" title="网络I/O">
-                    </a-tab-pane>
-                    <a-tab-pane :key="4" title="硬盘读写">
-                    </a-tab-pane>
-                    <a-tab-pane :key="5" title="网络流量">
-                    </a-tab-pane>
-                </a-tabs>
-                <a-button-group v-if="chartActive!=1" type="outline">
-                    <a-button v-for="item in nodelist" :key="item.name" :type="chartNodeActive==item.name?'primary':'outline'" @click="chartNodeActive=item.name">{{item.name}}</a-button>
-                </a-button-group>
+                <div class="host-metric-toolbar">
+                    <a-tabs v-model:active-key="chartActive" hide-content class="host-metric-tabs">
+                        <a-tab-pane :key="1" title="负载"></a-tab-pane>
+                        <a-tab-pane :key="2" title="硬盘I/O"></a-tab-pane>
+                        <a-tab-pane :key="3" title="网络I/O"></a-tab-pane>
+                        <a-tab-pane :key="4" title="硬盘读写"></a-tab-pane>
+                        <a-tab-pane :key="5" title="网络流量"></a-tab-pane>
+                    </a-tabs>
+                    <div v-if="chartActive!=1" class="host-node-switch">
+                        <a-radio-group v-model="chartNodeActive" type="button">
+                            <a-radio v-for="item in nodelist" :key="item.name" :value="item.name">{{item.name}}</a-radio>
+                        </a-radio-group>
+                    </div>
+                </div>
                 <div v-if="!noMonitor" class="mt-20">
                     <ol-charts v-if="chartActive==1&&chartNodeActive" :list="nodelist" activeType="load"></ol-charts>
                     <div v-if="chartActive==2&&chartNodeActive" class="df">
@@ -1478,11 +1477,15 @@ export default {
 .cercil-panel .point.point1{background:#165dff;}
 .cercil-panel .point.point2{background:#00b42a;}
 .cercil-panel .point.point3{background:#ff9a2e;}
+.host-metric-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;min-width:0;}
+.host-metric-tabs{flex:1;min-width:0;}
+.host-node-switch{flex:none;max-width:50%;overflow-x:auto;white-space:nowrap;}
 .chartbox{width:150px; height:150px; position:relative;}
 .chartbox .percent{position:absolute; width:50px; height:50px; border-radius:50%; margin:auto; left:0; top:0; bottom:0; right:0;}
 
 .top-item{margin:10px; border-radius:6px; background:var(--color-neutral-2); padding:20px; white-space:nowrap;}
 .top-item .iconbox{width:50px; height:50px; margin-right:30px; border-radius:50%; border:2px solid var(--color-neutral-4); outline:2px solid var(--color-neutral-1); color:var(--color-text-1);}
+@media (max-width: 900px){.host-metric-toolbar{flex-wrap:wrap;}.host-node-switch{max-width:100%;margin-left:auto;}}
 </style>
 <style>
 .big-a-progress .arco-progress-circle-wrapper{width:100px!important; height:100px!important;}
