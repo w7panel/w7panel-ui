@@ -86,7 +86,7 @@
                                 @click="openForm(record)"
                             >编辑</a-link>
                             <a-popconfirm
-                                v-if="permission.includes('gateway/plugins/delete') && !record.officialApp"
+                                v-if="permission.includes('gateway/plugins/delete') && !record.denyDelete"
                                 content="卸载后插件及其全部规则配置将被删除，是否继续？"
                                 position="lt"
                                 :content-style="{maxWidth:'360px'}"
@@ -181,6 +181,7 @@ import { getPermission } from '@/utils/auth';
 import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
 import {
     APPGROUP_API,
+    DENY_DELETE_ANNOTATION,
     MICROAPP_API,
     OFFICIAL_APP_ANNOTATION,
     WASM_PLUGIN_API,
@@ -241,6 +242,7 @@ export default {
                     groupName,
                     appGroup,
                     officialApp: appGroup?.metadata?.annotations?.[OFFICIAL_APP_ANNOTATION] === 'true',
+                    denyDelete: appGroup?.metadata?.annotations?.[DENY_DELETE_ANNOTATION] === 'true',
                     upgrade: this.upgradeInfoMap[groupName] || null,
                     enabled: isGlobalPluginEnabled(resource),
                     supportGlobal: supportsGlobalConfig(resource),
@@ -451,8 +453,8 @@ export default {
             });
         },
         removePlugin(row){
-            if(row.officialApp){
-                this.$message.warning('官方应用提供的插件不允许卸载');
+            if(row.denyDelete){
+                this.$message.warning('该插件所属应用禁止卸载');
                 return;
             }
             return k8sproxy.delete(`${WASM_PLUGIN_API}/${row.name}`, { loading: true }).then(()=>{

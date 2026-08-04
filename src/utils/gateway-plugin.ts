@@ -5,6 +5,7 @@ export const MICROAPP_API = `/apis/w7panel.w7.com/v1alpha1/namespaces/${MICROAPP
 export const APPGROUP_API = `/apis/w7panel.w7.com/v1alpha1/namespaces/${MICROAPP_NAMESPACE}/appgroups`;
 export const RESOURCE_GROUP_LABEL = 'w7.cc/group-name';
 export const OFFICIAL_APP_ANNOTATION = 'w7.cc/official-app';
+export const DENY_DELETE_ANNOTATION = 'w7.cc/deny-delete';
 
 export const GATEWAY_PLUGIN_ANNOTATIONS = {
   supportGlobal: 'w7.cc/plugin-support-global',
