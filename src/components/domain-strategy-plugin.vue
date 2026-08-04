@@ -78,20 +78,25 @@ import {
     normalizeGatewayPluginIdentify,
 } from '@/utils/gateway-plugin-market';
 import {
-    APPGROUP_API,
-    MICROAPP_API,
-    OFFICIAL_APP_ANNOTATION,
     WASM_PLUGIN_API,
     ensureGatewayPluginRule,
     getGatewayPluginRuleContext,
     getGatewayPluginRuleMatch,
     getPluginDescription,
-    getResourceGroupName,
     getResolvedMicroappName,
     getPluginTitle,
     getPluginVersion,
     supportsRuleConfig,
 } from '@/utils/gateway-plugin';
+import {
+    APPGROUP_API,
+    MICROAPP_API,
+    OFFICIAL_APP_ANNOTATION,
+    RESOURCE_IDENTIFIE_ANNOTATION,
+    RESOURCE_IDENTIFIE_LABEL,
+    getResourceGroupName,
+    loadResourcesByGroupNames,
+} from '@/utils/w7panel-resource';
 
 export default {
     props: ['data', 'show'],
@@ -131,16 +136,17 @@ export default {
         async getAllPlugin(){
             const ingressName = this.data?.metadata?.name;
             if(!ingressName){ return; }
-            const [pluginRes, microappRes, appGroupRes, marketRes] = await Promise.all([
+            const [pluginRes, marketRes] = await Promise.all([
                 k8sproxy.get(WASM_PLUGIN_API),
-                k8sproxy.get(MICROAPP_API, { noAlert: true }).catch(()=>({ data: { items: [] } })),
-                k8sproxy.get(APPGROUP_API),
                 loadGatewayPluginMarket().catch(()=>[]),
             ]);
             const resources = (pluginRes?.data?.items || [])
                 .filter(plugin=>supportsRuleConfig(plugin));
-            const microapps = microappRes?.data?.items || [];
-            const appGroups = appGroupRes?.data?.items || [];
+            const groupNames = [...new Set(resources.map(resource=>getResourceGroupName(resource)).filter(Boolean))];
+            const [microapps, appGroups] = await Promise.all([
+                loadResourcesByGroupNames(k8sproxy, MICROAPP_API, groupNames, true),
+                loadResourcesByGroupNames(k8sproxy, APPGROUP_API, groupNames, true),
+            ]);
             const appGroupMap = Object.fromEntries(appGroups.map(group=>[group?.metadata?.name, group]));
             const marketTypeMap = Object.fromEntries(marketRes.map(item=>[
                 normalizeGatewayPluginIdentify(item.identify),
@@ -167,8 +173,8 @@ export default {
                 const appGroup = appGroupMap[getResourceGroupName(resource)] || null;
                 const identify = normalizeGatewayPluginIdentify(
                     appGroup?.spec?.identifie
-                    || appGroup?.metadata?.annotations?.['w7.cc/identifie']
-                    || resource?.metadata?.labels?.['w7.cc/identifie']
+                    || appGroup?.metadata?.annotations?.[RESOURCE_IDENTIFIE_ANNOTATION]
+                    || resource?.metadata?.labels?.[RESOURCE_IDENTIFIE_LABEL]
                 );
                 const hasFrontend = (microappInfo?.spec?.bindings || []).some(binding=>
                     binding?.support === 'thirdparty_cd'

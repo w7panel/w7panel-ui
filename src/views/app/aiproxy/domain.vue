@@ -8,12 +8,26 @@
                     <span>{{ host || '-' }}</span>
                 </a-form-item>
                 <a-form-item label="模型名称">
-                    <a-input-tag v-model="routeForm.models" :disabled="!permission.includes('gateway/aiproxy/edit')" placeholder="输入后回车，支持多个模型；留空表示不限制" allow-clear />
+                    <div style="width:100%;">
+                        <a-input-tag v-model="routeForm.models" :disabled="!permission.includes('gateway/aiproxy/edit') || !requestValidationPluginInstalled" placeholder="输入后回车，支持多个模型；留空表示不限制" allow-clear />
+                        <div v-if="requestValidationPluginInstalled === false" class="c-99 mt-4">
+                            尚未安装请求校验插件
+                            <a-link v-if="permission.includes('gateway/plugins/add')" @click="installRequestValidationPlugin">立即安装</a-link>
+                            <span v-else>，请联系管理员安装</span>
+                        </div>
+                    </div>
                 </a-form-item>
                 <a-form-item label="认证">
-                    <a-switch v-model="routeForm.authEnabled" :disabled="!permission.includes('gateway/aiproxy/edit')" />
+                    <div class="df ai-c" style="gap:12px;">
+                        <a-switch v-model="routeForm.authEnabled" :disabled="!permission.includes('gateway/aiproxy/edit') || !keyAuthPluginInstalled" />
+                        <span v-if="keyAuthPluginInstalled === false" class="c-99">
+                            尚未安装 Key Auth 认证插件
+                            <a-link v-if="permission.includes('gateway/plugins/add')" @click="installKeyAuthPlugin">立即安装</a-link>
+                            <span v-else>，请联系管理员安装</span>
+                        </span>
+                    </div>
                 </a-form-item>
-                <a-form-item v-if="routeForm.authEnabled" label="消费者">
+                <a-form-item v-if="routeForm.authEnabled && keyAuthPluginInstalled" label="消费者">
                     <div class="consumer-config">
                         <div v-if="permission.includes('gateway/aiproxy/edit')" class="mb-10">
                             <a-button type="outline" size="small" @click="openConsumer()">
@@ -362,6 +376,9 @@ import {
     AI_MODELS_ANNOTATION,
     AI_AUTH_ANNOTATION,
     AI_PROVIDERS_ANNOTATION,
+    KEY_AUTH_PLUGIN_ARTIFACT,
+    AI_PROXY_PLUGIN_ARTIFACT,
+    REQUEST_VALIDATION_PLUGIN_ARTIFACT,
     consumerResourceId,
     consumerSecretName,
     domainResourcePrefix,
@@ -370,20 +387,14 @@ import {
     readRouteProviders,
     readStringArray,
     resourceName,
+    loadInstalledPluginArtifacts,
     validateProviderWeights,
 } from '@/utils/ai-proxy';
 
 const PLUGIN_NAME = 'ai-proxy.internal';
 const PLUGIN_NAMESPACE = 'higress-system';
-const PLUGIN_VERSION = '2.0.0';
-const PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/ai-proxy:2.0.0';
-const BUILTIN_PLUGIN_VERSION = '2.0.0';
 const KEY_AUTH_PLUGIN_NAME = 'key-auth.internal';
-const KEY_AUTH_PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/key-auth:2.0.0';
-const KEY_AUTH_PLUGIN_TITLE = 'Key Auth 认证';
 const MODEL_VALIDATION_PLUGIN_NAME = 'request-validation.internal';
-const MODEL_VALIDATION_PLUGIN_URL = 'oci://higress-registry.cn-hangzhou.cr.aliyuncs.com/plugins/request-validation:2.0.0';
-const MODEL_VALIDATION_PLUGIN_TITLE = '请求校验';
 const MCPBRIDGE_NAME = 'default';
 
 const PROVIDER_TYPES = [
@@ -536,6 +547,11 @@ export default {
             host: '',
             providers: [],
             consumers: [],
+            keyAuthPluginInstalled: null,
+            requestValidationPluginInstalled: null,
+            aiProxyPluginName: PLUGIN_NAME,
+            keyAuthPluginName: KEY_AUTH_PLUGIN_NAME,
+            modelValidationPluginName: MODEL_VALIDATION_PLUGIN_NAME,
             consumerForm: {
                 show: false,
                 isEdit: false,
@@ -634,16 +650,25 @@ export default {
             useLoadingStore().loading = true;
             try {
                 const name = this.$route.query.name;
-                const [ingRes, plugin, secretRes, keyAuthPlugin, mcpBridge] = await Promise.all([
+                const [ingRes, secretRes, mcpBridge, dependencies] = await Promise.all([
                     k8sproxy.get('/apis/networking.k8s.io/v1/namespaces/'+this.namespaceActive+'/ingresses/'+name),
-                    this.getPlugin(),
                     k8sproxy.get('/api/v1/namespaces/'+this.namespaceActive+'/secrets?labelSelector='+AI_LABEL+'=true,'+AI_DOMAIN_LABEL+'='+name, { noAlert: true }),
-                    this.getManagedPlugin(KEY_AUTH_PLUGIN_NAME),
                     this.getMcpBridge(),
+                    loadInstalledPluginArtifacts(k8sproxy, [
+                        { artifact: AI_PROXY_PLUGIN_ARTIFACT, legacyPluginName: PLUGIN_NAME },
+                        { artifact: KEY_AUTH_PLUGIN_ARTIFACT, legacyPluginName: KEY_AUTH_PLUGIN_NAME },
+                        { artifact: REQUEST_VALIDATION_PLUGIN_ARTIFACT, legacyPluginName: MODEL_VALIDATION_PLUGIN_NAME },
+                    ]),
                 ]);
+                const [aiProxy, keyAuth, modelValidation] = dependencies;
                 this.ingress = ingRes.data;
                 this.host = this.ingress?.spec?.rules?.[0]?.host || '';
-                this.plugin = plugin;
+                this.plugin = aiProxy.plugin;
+                this.aiProxyPluginName = aiProxy.plugin?.metadata?.name || PLUGIN_NAME;
+                this.keyAuthPluginName = keyAuth.plugin?.metadata?.name || KEY_AUTH_PLUGIN_NAME;
+                this.modelValidationPluginName = modelValidation.plugin?.metadata?.name || MODEL_VALIDATION_PLUGIN_NAME;
+                this.keyAuthPluginInstalled = keyAuth.installed;
+                this.requestValidationPluginInstalled = modelValidation.installed;
                 const rule = this.currentRule();
                 const annotations = this.ingress?.metadata?.annotations || {};
                 this.routeForm.models = readStringArray(annotations[AI_MODELS_ANNOTATION] || rule?.config?.models);
@@ -652,7 +677,7 @@ export default {
                 const legacyProviders = secrets.filter(s=>s?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true').map(s=>this.secretToProvider(s));
                 const storedProviders = readRouteProviders(annotations[AI_PROVIDERS_ANNOTATION]);
                 const providerRefs = storedProviders.length ? storedProviders : (rule?.config?.providers || []);
-                const routeProviders = this.routeProviders(providerRefs, plugin, mcpBridge);
+                const routeProviders = this.routeProviders(providerRefs, this.plugin, mcpBridge);
                 this.providers = routeProviders.length ? routeProviders : legacyProviders;
                 this.proxyServerOptions = (mcpBridge?.spec?.proxies || []).map(item=>({
                     value: item.name,
@@ -660,61 +685,22 @@ export default {
                 })).filter(item=>item.value);
                 this.consumers = secrets
                     .filter(s=>s?.metadata?.labels?.[AI_CONSUMER_LABEL] == 'true')
-                    .map(s=>this.secretToConsumer(s, keyAuthPlugin));
+                    .map(s=>this.secretToConsumer(s, keyAuth.plugin));
             } finally {
                 useLoadingStore().loading = false;
             }
         },
         getPlugin(){
-            return k8sproxy.get('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+PLUGIN_NAME, { noAlert: true }).then(res=>res.data).catch(()=>null);
+            return this.getManagedPlugin(this.aiProxyPluginName);
         },
         async savePlugin(plugin){
-            const res = await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+PLUGIN_NAME, plugin);
+            const res = await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+this.aiProxyPluginName, plugin);
             this.plugin = res.data;
             return res.data;
         },
-        ensurePlugin(){
-            if(this.plugin){
-                const plugin = clone(this.plugin);
-                plugin.metadata = plugin.metadata || {};
-                plugin.metadata.labels = plugin.metadata.labels || {};
-                plugin.spec = plugin.spec || {};
-                plugin.spec.url = PLUGIN_URL;
-                plugin.metadata.labels['higress.io/resource-definer'] = 'higress';
-                plugin.metadata.labels['higress.io/wasm-plugin-name'] = 'ai-proxy';
-                plugin.metadata.labels['higress.io/wasm-plugin-version'] = PLUGIN_VERSION;
-                plugin.metadata.labels['higress.io/wasm-plugin-built-in'] = 'true';
-                return Promise.resolve(plugin);
-            }
-            const data = {
-                apiVersion: 'extensions.higress.io/v1alpha1',
-                kind: 'WasmPlugin',
-                metadata: {
-                    name: PLUGIN_NAME,
-                    namespace: PLUGIN_NAMESPACE,
-                    labels: {
-                        [AI_LABEL]: 'true',
-                        'higress.io/resource-definer': 'higress',
-                        'higress.io/wasm-plugin-name': 'ai-proxy',
-                        'higress.io/wasm-plugin-version': PLUGIN_VERSION,
-                        'higress.io/wasm-plugin-built-in': 'true',
-                    },
-                    annotations: {
-                        'higress.io/wasm-plugin-title': 'AI代理',
-                        'higress.io/wasm-plugin-description': 'AI代理',
-                    },
-                },
-                spec: {
-                    defaultConfigDisable: false,
-                    defaultConfig: { providers: [] },
-                    failStrategy: 'FAIL_OPEN',
-                    phase: 'UNSPECIFIED_PHASE',
-                    priority: 20,
-                    url: PLUGIN_URL,
-                    matchRules: [],
-                },
-            };
-            return k8sproxy.post('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins', data).then(res=>res.data);
+        requirePlugin(){
+            if(!this.plugin) throw new Error('AI 代理插件未安装，请返回列表完成安装');
+            return clone(this.plugin);
         },
         currentRule(){
             return (this.plugin?.spec?.matchRules || []).find(rule=>{
@@ -1016,7 +1002,7 @@ export default {
             const credentials = consumers.flatMap(item=>compact(item.values));
             if(credentials.some(item=>!item)) return '认证令牌不能为空';
             if(new Set(credentials).size != credentials.length) return '同一域名下的消费者认证令牌不能重复';
-            const plugin = await this.getManagedPlugin(KEY_AUTH_PLUGIN_NAME);
+            const plugin = await this.getManagedPlugin(this.keyAuthPluginName);
             const prefix = domainResourcePrefix(this.ingress.metadata.name);
             const otherCredentials = new Set((plugin?.spec?.defaultConfig?.consumers || [])
                 .filter(item=>!String(item?.name || '').startsWith(prefix))
@@ -1028,6 +1014,14 @@ export default {
         async saveRoute(){
             const models = compact(this.routeForm.models);
             const consumerNames = this.consumers.map(i=>String(i.name || '').trim()).filter(Boolean);
+            if(this.routeForm.authEnabled && !this.keyAuthPluginInstalled){
+                this.$message.error('请先安装 Key Auth 认证插件');
+                return;
+            }
+            if(models.length && !this.requestValidationPluginInstalled){
+                this.$message.error('请先安装请求校验插件');
+                return;
+            }
             if(this.routeForm.authEnabled && !consumerNames.length){
                 this.$message.error('启用认证时至少需要配置一个消费者');
                 return;
@@ -1100,74 +1094,24 @@ export default {
         getManagedPlugin(name){
             return k8sproxy.get('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+name, { noAlert: true }).then(res=>res.data).catch(()=>null);
         },
-        async ensureManagedPlugin(name, url, title, defaultConfig, defaultConfigDisable, priority){
-            const old = await this.getManagedPlugin(name);
-            if(old) return old;
-            const pluginName = name.replace(/\.internal$/, '');
-            const data = {
-                apiVersion: 'extensions.higress.io/v1alpha1',
-                kind: 'WasmPlugin',
-                metadata: {
-                    name,
-                    namespace: PLUGIN_NAMESPACE,
-                    labels: {
-                        [AI_LABEL]: 'true',
-                        'higress.io/resource-definer': 'higress',
-                        'higress.io/wasm-plugin-name': pluginName,
-                        'higress.io/wasm-plugin-version': BUILTIN_PLUGIN_VERSION,
-                        'higress.io/wasm-plugin-built-in': 'true',
-                    },
-                    annotations: {
-                        'higress.io/wasm-plugin-title': title,
-                        'higress.io/wasm-plugin-description': title,
-                    },
-                },
-                spec: {
-                    url,
-                    failStrategy: 'FAIL_OPEN',
-                    phase: 'AUTHN',
-                    priority,
-                    defaultConfigDisable,
-                    defaultConfig,
-                    matchRules: [],
-                },
-            };
-            return k8sproxy.post('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins', data).then(res=>res.data);
+        installKeyAuthPlugin(){
+            this.$router.push({
+                path: '/app/store-install',
+                query: { path: KEY_AUTH_PLUGIN_ARTIFACT.installUrl },
+            });
         },
-        normalizeManagedPlugin(plugin, name, url, title, priority){
-            const result = plugin || {};
-            const pluginName = name.replace(/\.internal$/, '');
-            result.metadata = result.metadata || {};
-            result.metadata.labels = result.metadata.labels || {};
-            result.metadata.annotations = result.metadata.annotations || {};
-            result.metadata.labels['higress.io/resource-definer'] = 'higress';
-            result.metadata.labels['higress.io/wasm-plugin-name'] = pluginName;
-            result.metadata.labels['higress.io/wasm-plugin-version'] = BUILTIN_PLUGIN_VERSION;
-            result.metadata.labels['higress.io/wasm-plugin-built-in'] = 'true';
-            result.metadata.annotations['higress.io/wasm-plugin-title'] = title;
-            result.metadata.annotations['higress.io/wasm-plugin-description'] = title;
-            result.spec = result.spec || {};
-            result.spec.url = url;
-            result.spec.failStrategy = 'FAIL_OPEN';
-            result.spec.phase = 'AUTHN';
-            result.spec.priority = priority;
-            return result;
+        installRequestValidationPlugin(){
+            this.$router.push({
+                path: '/app/store-install',
+                query: { path: REQUEST_VALIDATION_PLUGIN_ARTIFACT.installUrl },
+            });
         },
         async syncKeyAuthPlugin(){
             const currentConsumers = this.consumers.filter(i=>i.name).map(item=>this.consumerToKeyAuthConfig(item));
-            let plugin = await this.getManagedPlugin(KEY_AUTH_PLUGIN_NAME);
+            let plugin = await this.getManagedPlugin(this.keyAuthPluginName);
             if(!plugin && !this.routeForm.authEnabled) return;
-            if(!plugin){
-                plugin = await this.ensureManagedPlugin(
-                    KEY_AUTH_PLUGIN_NAME,
-                    KEY_AUTH_PLUGIN_URL,
-                    KEY_AUTH_PLUGIN_TITLE,
-                    { global_auth: false, consumers: currentConsumers, keys: ['x-higress-dummy-key'] },
-                    false,
-                    310,
-                );
-            }
-            plugin = this.normalizeManagedPlugin(plugin, KEY_AUTH_PLUGIN_NAME, KEY_AUTH_PLUGIN_URL, KEY_AUTH_PLUGIN_TITLE, 310);
+            if(!plugin) throw new Error('Key Auth 认证插件未安装，请先完成安装');
+            plugin = clone(plugin);
             plugin.spec = plugin.spec || {};
             plugin.spec.defaultConfigDisable = false;
             plugin.spec.defaultConfig = plugin.spec.defaultConfig || {};
@@ -1192,7 +1136,7 @@ export default {
                     configDisable: false,
                 });
             }
-            await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+KEY_AUTH_PLUGIN_NAME, plugin);
+            await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+this.keyAuthPluginName, plugin);
         },
         consumerToKeyAuthConfig(consumer){
             const source = consumer.source || 'BEARER';
@@ -1222,22 +1166,12 @@ export default {
         },
         async syncModelValidationPlugin(){
             const models = compact(this.routeForm.models);
-            let plugin = await this.getManagedPlugin(MODEL_VALIDATION_PLUGIN_NAME);
+            let plugin = await this.getManagedPlugin(this.modelValidationPluginName);
             if(!plugin && !models.length) return;
-            if(!plugin){
-                plugin = await this.ensureManagedPlugin(
-                    MODEL_VALIDATION_PLUGIN_NAME,
-                    MODEL_VALIDATION_PLUGIN_URL,
-                    MODEL_VALIDATION_PLUGIN_TITLE,
-                    { body_schema: { type: 'object' } },
-                    true,
-                    220,
-                );
-            }
-            plugin = this.normalizeManagedPlugin(plugin, MODEL_VALIDATION_PLUGIN_NAME, MODEL_VALIDATION_PLUGIN_URL, MODEL_VALIDATION_PLUGIN_TITLE, 220);
+            if(!plugin) throw new Error('请求校验插件未安装，无法保存模型限制');
+            plugin = clone(plugin);
             plugin.spec = plugin.spec || {};
             // AI 代理只维护域名规则；已有插件的全局开关由网关插件页面独立管理。
-            // 新建插件的全局配置仍由 ensureManagedPlugin 的 defaultConfigDisable=true 默认关闭。
             if(!plugin.spec.defaultConfig || !Object.keys(plugin.spec.defaultConfig).length){
                 plugin.spec.defaultConfig = { body_schema: { type: 'object' } };
             }
@@ -1257,7 +1191,7 @@ export default {
                     configDisable: false,
                 });
             }
-            await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+MODEL_VALIDATION_PLUGIN_NAME, plugin);
+            await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+this.modelValidationPluginName, plugin);
         },
         async syncRuleProviders(providerList){
             const providers = (providerList || this.providers).map(item=>({
@@ -1266,7 +1200,7 @@ export default {
             }));
             const weightError = validateProviderWeights(providers);
             if(weightError) throw new Error(weightError);
-            const plugin = await this.ensurePlugin();
+            const plugin = this.requirePlugin();
             const oldRules = plugin.spec.matchRules || [];
             const legacyRule = oldRules.find(rule=>(rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress?.metadata?.name));
             const legacyIds = (legacyRule?.config?.providers || []).map(item=>item?.provider || item?.name).filter(Boolean);
@@ -1303,7 +1237,7 @@ export default {
             await this.syncRuleProviders(nextProviders);
         },
         async removeProviderResources(providerName, nextProviders){
-            const plugin = await this.ensurePlugin();
+            const plugin = this.requirePlugin();
             const defaultConfig = this.ensureDefaultConfig(plugin);
             const providerId = this.providers.find(item=>item.name == providerName)?.id || providerResourceId(this.ingress.metadata.name, providerName);
             defaultConfig.providers = (defaultConfig.providers || []).filter(item=>item?.id != providerId);

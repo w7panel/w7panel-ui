@@ -1,3 +1,9 @@
+import { WASM_PLUGIN_API } from '@/utils/gateway-plugin';
+import {
+  getResourceGroupName,
+  loadResourcesByGroupNames,
+} from '@/utils/w7panel-resource';
+
 export const AI_LABEL = 'w7.cc/gateway-ai-proxy';
 export const AI_DOMAIN_LABEL = 'w7.cc/gateway-ai-domain';
 export const AI_CONSUMER_LABEL = 'w7.cc/gateway-ai-consumer';
@@ -5,6 +11,72 @@ export const AI_CONSUMER_LABEL = 'w7.cc/gateway-ai-consumer';
 export const AI_MODELS_ANNOTATION = 'w7.cc/gateway-ai-models';
 export const AI_AUTH_ANNOTATION = 'w7.cc/gateway-ai-auth-enabled';
 export const AI_PROVIDERS_ANNOTATION = 'w7.cc/gateway-ai-providers';
+
+// AI 代理依赖固定的制品市场插件。页面只检测安装状态并跳转安装，禁止运行时请求市场列表或自动创建内置 WasmPlugin。
+export const AI_PROXY_PLUGIN_ARTIFACT = {
+  identify: 'w7panel-pluginaiproxy',
+  installUrl: 'https://zpk.w7.cc/zpk/respo/info/w7panel-pluginaiproxy',
+} as const;
+
+export const KEY_AUTH_PLUGIN_ARTIFACT = {
+  identify: 'w7panel-pluginkeyauth',
+  installUrl: 'https://zpk.w7.cc/zpk/respo/info/w7panel-pluginkeyauth',
+} as const;
+
+export const REQUEST_VALIDATION_PLUGIN_ARTIFACT = {
+  identify: 'w7panel-pluginrequestvalidation',
+  installUrl: 'https://zpk.w7.cc/zpk/respo/info/w7panel-pluginrequestvalidation',
+} as const;
+
+export type AIProxyPluginArtifact = {
+  identify: string;
+  installUrl: string;
+};
+
+function normalizeArtifactIdentify(value: unknown): string {
+  return String(value || '').trim().toLowerCase().replaceAll('_', '-');
+}
+
+function resolveInstalledPluginArtifact(
+  plugins: any[] = [],
+  artifact: AIProxyPluginArtifact,
+  legacyPluginName = '',
+) {
+  const groupName = normalizeArtifactIdentify(artifact.identify);
+  const plugin = plugins.find(item => getResourceGroupName(item) === groupName)
+    || plugins.find(item => item?.metadata?.name === legacyPluginName)
+    || null;
+  return {
+    plugin,
+    installed: Boolean(plugin),
+  };
+}
+
+export async function loadInstalledPluginArtifacts(
+  k8sClient: any,
+  targets: Array<{ artifact: AIProxyPluginArtifact; legacyPluginName: string }>,
+) {
+  const groupNames = [...new Set(targets.map(item => normalizeArtifactIdentify(item.artifact.identify)).filter(Boolean))];
+  const plugins = await loadResourcesByGroupNames(k8sClient, WASM_PLUGIN_API, groupNames);
+
+  const resolved = targets.map(target => resolveInstalledPluginArtifact(
+    plugins,
+    target.artifact,
+    target.legacyPluginName,
+  ));
+  await Promise.all(resolved.map(async (item, index) => {
+    if(item.plugin || !targets[index].legacyPluginName) return;
+    const response = await k8sClient.get(
+      `${WASM_PLUGIN_API}/${encodeURIComponent(targets[index].legacyPluginName)}`,
+      { noAlert: true },
+    ).catch(()=>null);
+    if(response?.data){
+      item.plugin = response.data;
+      item.installed = true;
+    }
+  }));
+  return resolved;
+}
 
 export interface AIRouteProvider {
   id: string;

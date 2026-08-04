@@ -1,11 +1,9 @@
+import {
+  getResourceGroupName,
+} from '@/utils/w7panel-resource';
+
 export const WASM_PLUGIN_NAMESPACE = 'higress-system';
 export const WASM_PLUGIN_API = `/apis/extensions.higress.io/v1alpha1/namespaces/${WASM_PLUGIN_NAMESPACE}/wasmplugins`;
-export const MICROAPP_NAMESPACE = 'default';
-export const MICROAPP_API = `/apis/w7panel.w7.com/v1alpha1/namespaces/${MICROAPP_NAMESPACE}/microapps`;
-export const APPGROUP_API = `/apis/w7panel.w7.com/v1alpha1/namespaces/${MICROAPP_NAMESPACE}/appgroups`;
-export const RESOURCE_GROUP_LABEL = 'w7.cc/group-name';
-export const OFFICIAL_APP_ANNOTATION = 'w7.cc/official-app';
-export const DENY_DELETE_ANNOTATION = 'w7.cc/deny-delete';
 
 export const GATEWAY_PLUGIN_ANNOTATIONS = {
   supportGlobal: 'w7.cc/plugin-support-global',
@@ -31,10 +29,6 @@ export function supportsRuleConfig(plugin: any) {
 
   // 已经存在规则的旧插件继续兼容；没有规则的新旧插件都必须显式勾选。
   return Boolean(plugin?.spec?.matchRules?.length);
-}
-
-export function getResourceGroupName(resource: any) {
-  return resource?.metadata?.labels?.[RESOURCE_GROUP_LABEL] || '';
 }
 
 /**

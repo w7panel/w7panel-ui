@@ -215,14 +215,9 @@ import {
     normalizeGatewayPluginIdentify,
 } from '@/utils/gateway-plugin-market';
 import {
-    APPGROUP_API,
-    DENY_DELETE_ANNOTATION,
-    MICROAPP_API,
-    OFFICIAL_APP_ANNOTATION,
     WASM_PLUGIN_API,
     GATEWAY_PLUGIN_ANNOTATIONS,
     getPluginDescription,
-    getResourceGroupName,
     getPluginTitle,
     getPluginVersion,
     isGlobalPluginEnabled,
@@ -232,6 +227,16 @@ import {
     supportsGlobalConfig,
     supportsRuleConfig,
 } from '@/utils/gateway-plugin';
+import {
+    APPGROUP_API,
+    DENY_DELETE_ANNOTATION,
+    MICROAPP_API,
+    OFFICIAL_APP_ANNOTATION,
+    RESOURCE_IDENTIFIE_ANNOTATION,
+    RESOURCE_IDENTIFIE_LABEL,
+    getResourceGroupName,
+    loadResourcesByGroupNames,
+} from '@/utils/w7panel-resource';
 
 export default {
     components: { gatewayPluginConfig },
@@ -271,8 +276,8 @@ export default {
                 const appGroup = this.appGroupMap[groupName] || null;
                 const identify = normalizeGatewayPluginIdentify(
                     appGroup?.spec?.identifie
-                    || appGroup?.metadata?.annotations?.['w7.cc/identifie']
-                    || resource?.metadata?.labels?.['w7.cc/identifie']
+                    || appGroup?.metadata?.annotations?.[RESOURCE_IDENTIFIE_ANNOTATION]
+                    || resource?.metadata?.labels?.[RESOURCE_IDENTIFIE_LABEL]
                 );
                 if(identify && !installedByIdentify.has(identify)){
                     installedByIdentify.set(identify, resource);
@@ -289,8 +294,8 @@ export default {
                     const appGroup = this.appGroupMap[groupName] || null;
                     const identify = normalizeGatewayPluginIdentify(
                         appGroup?.spec?.identifie
-                        || appGroup?.metadata?.annotations?.['w7.cc/identifie']
-                        || resource?.metadata?.labels?.['w7.cc/identifie']
+                        || appGroup?.metadata?.annotations?.[RESOURCE_IDENTIFIE_ANNOTATION]
+                        || resource?.metadata?.labels?.[RESOURCE_IDENTIFIE_LABEL]
                     );
                     return !identify || !marketIdentifies.has(identify);
                 })
@@ -349,7 +354,7 @@ export default {
             return {
                 key: `installed:${resource?.metadata?.name || marketItem?.identify || ''}`,
                 name: resource?.metadata?.name || '',
-                identify: marketItem?.identify || appGroup?.spec?.identifie || resource?.metadata?.labels?.['w7.cc/identifie'] || resource?.metadata?.name || '',
+                identify: marketItem?.identify || appGroup?.spec?.identifie || resource?.metadata?.labels?.[RESOURCE_IDENTIFIE_LABEL] || resource?.metadata?.name || '',
                 title: marketItem?.name || getPluginTitle(resource),
                 description: marketItem?.description || getPluginDescription(resource),
                 version: getPluginVersion(resource) || marketItem?.latest_version || '',
@@ -384,16 +389,19 @@ export default {
             };
         },
         async getList(){
-            const [pluginRes, microappRes, appGroupRes, consoleRes, marketRes] = await Promise.all([
+            const [pluginRes, consoleRes, marketRes] = await Promise.all([
                 k8sproxy.get(WASM_PLUGIN_API, { loading: true }),
-                k8sproxy.get(MICROAPP_API, { noAlert: true }).catch(()=>({ data: { items: [] } })),
-                k8sproxy.get(APPGROUP_API),
                 panelApi.get('/auth/console/info', { noAlert: true }).catch(()=>({ data: {} })),
                 loadGatewayPluginMarket().catch(()=>[]),
             ]);
             this.resources = pluginRes?.data?.items || [];
-            this.microapps = microappRes?.data?.items || [];
-            this.appGroupMap = Object.fromEntries((appGroupRes?.data?.items || [])
+            const groupNames = [...new Set(this.resources.map(resource=>getResourceGroupName(resource)).filter(Boolean))];
+            const [microapps, appGroups] = await Promise.all([
+                loadResourcesByGroupNames(k8sproxy, MICROAPP_API, groupNames, true),
+                loadResourcesByGroupNames(k8sproxy, APPGROUP_API, groupNames, true),
+            ]);
+            this.microapps = microapps;
+            this.appGroupMap = Object.fromEntries(appGroups
                 .map(group=>[group?.metadata?.name, group]));
             this.consoleInfo = consoleRes?.data || {};
             this.marketPlugins = marketRes;
