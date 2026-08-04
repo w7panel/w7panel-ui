@@ -2,36 +2,12 @@
   <div class="padding-20 traffic-page">
     <route-breadcrumb />
 
-    <section class="traffic-hero">
-      <div class="hero-copy">
-        <span class="hero-kicker">TRAFFIC OBSERVATORY</span>
-        <h2>流量从哪里来，又去了哪里</h2>
-        <p>统一查看入口域名、热点路径和最终承载请求的 Pod。</p>
-      </div>
-      <div class="flow-ribbon" aria-label="域名到 Pod 的流量路径">
-        <div class="flow-node">
-          <span>入口</span>
-          <strong>{{ topDomain || '域名' }}</strong>
-        </div>
-        <div class="flow-line"><i></i><em>{{ formatNumber(summary.requests) }} 次请求</em></div>
-        <div class="flow-node gateway-node">
-          <span>网关</span>
-          <strong>Higress</strong>
-        </div>
-        <div class="flow-line"><i></i><em>{{ formatBytes(totalBytes) }}</em></div>
-        <div class="flow-node">
-          <span>承载</span>
-          <strong>{{ topPod || 'Service / Pod' }}</strong>
-        </div>
-      </div>
-    </section>
-
-    <a-alert v-if="healthMessage" class="mt-16" type="warning" show-icon>
+    <a-alert v-if="healthMessage" type="warning" show-icon>
       <template #title>部分监控数据暂不可用</template>
       {{ healthMessage }}
     </a-alert>
 
-    <section class="control-bar mt-16">
+    <section class="control-bar" :class="{ 'mt-16': healthMessage }">
       <div class="control-group">
         <span class="control-label">命名空间</span>
         <a-select v-model="namespace" style="width: 140px" @change="namespaceChanged">
@@ -77,8 +53,8 @@
             <a-radio value="requests">请求数</a-radio>
             <a-radio value="traffic">流量</a-radio>
             <a-radio value="bandwidth">带宽</a-radio>
-            <a-radio value="hitRate">命中率</a-radio>
-            <a-radio value="hits">命中数</a-radio>
+            <a-radio value="hitRate">状态码占比</a-radio>
+            <a-radio value="hits">状态码次数</a-radio>
           </a-radio-group>
         </template>
       </monitor-stat-chart>
@@ -188,7 +164,7 @@ export default {
       domainSearchTimer: null, podSearchTimer: null, domainOptionRequest: 0, podOptionRequest: 0,
       pagination: { current: 1, pageSize: 20, total: 0 },
       filters: { keyword: '', method: '', status: '', sort: 'requests' }, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-      topDomain: '', topPod: '', podDetail: { show: false, data: {}, loading: false, rows: [], pagination: { current: 1, pageSize: 20, total: 0 } },
+      podDetail: { show: false, data: {}, loading: false, rows: [], pagination: { current: 1, pageSize: 20, total: 0 } },
     };
   },
   computed: {
@@ -200,12 +176,12 @@ export default {
         requests: { unit: '请求数', fields: [['requests_total', '总请求'], ['requests_http1', 'HTTP/1'], ['requests_http2', 'HTTP/2'], ['requests_http3', 'HTTP/3'], ['requests_https', 'HTTPS']], format: this.formatNumber },
         traffic: { unit: '流量', fields: [['traffic_bytes', '总流量']], format: this.formatBytes },
         bandwidth: { unit: '带宽', fields: [['bandwidth_bps', '平均带宽']], format: this.formatBandwidth },
-        hitRate: { unit: '命中率', fields: [['hit_rate_total', '总命中率'], ['hit_rate_2xx', '2xx'], ['hit_rate_3xx', '3xx'], ['hit_rate_4xx', '4xx'], ['hit_rate_5xx', '5xx'], ['hit_rate_other', '其他']], format: this.formatPercent },
-        hits: { unit: '命中数', fields: [['hits_total', '总命中数'], ['hits_2xx', '2xx'], ['hits_3xx', '3xx'], ['hits_4xx', '4xx'], ['hits_5xx', '5xx'], ['hits_other', '其他']], format: this.formatNumber },
+        hitRate: { unit: '占比', fields: [['hit_rate_2xx', '2xx占比'], ['hit_rate_3xx', '3xx占比'], ['hit_rate_4xx', '4xx占比'], ['hit_rate_5xx', '5xx占比'], ['hit_rate_other', '其他状态码占比']], format: this.formatPercent },
+        hits: { unit: '次数', fields: [['hits_total', '总请求数'], ['hits_2xx', '2xx次数'], ['hits_3xx', '3xx次数'], ['hits_4xx', '4xx次数'], ['hits_5xx', '5xx次数'], ['hits_other', '其他状态码次数']], format: this.formatNumber },
       }[this.trendMetric];
     },
-    trendSeries() { const points = Array.isArray(this.series) ? this.series : []; return this.trendConfig.fields.map(([field, name]) => ({ name, smooth: true, showSymbol: false, areaStyle: { opacity: 0.05 }, data: points.map((item) => [item._time, Number(item[field] || 0)]) })); },
-    trendOption() { const config = this.trendConfig; return { tooltip: { trigger: 'axis', valueFormatter: (value) => config.format(value) }, yAxis: { type: 'value', name: config.unit, axisLabel: { formatter: (value) => config.format(value) }, splitLine: { lineStyle: { color: '#f2f3f5' } } } }; },
+    trendSeries() { const points = Array.isArray(this.series) ? this.series : []; return this.trendConfig.fields.map(([field, name]) => ({ name, data: points.map((item) => [item._time, Number(item[field] || 0)]) })); },
+    trendOption() { const config = this.trendConfig; return { tooltip: { valueFormatter: (value) => config.format(value) }, yAxis: { name: config.unit, axisLabel: { formatter: (value) => config.format(value) } } }; },
   },
   async created() {
     await this.namespaceStore.fetchNamespaceList();
@@ -254,8 +230,8 @@ export default {
     searchDomains(value) { clearTimeout(this.domainSearchTimer); this.domainSearchTimer = setTimeout(() => this.loadDomainOptions(value), 300); },
     searchPods(value) { clearTimeout(this.podSearchTimer); this.podSearchTimer = setTimeout(() => this.loadPodOptions(value), 300); },
     async namespaceChanged() { this.selectedDomain = this.allFilterValue; this.selectedPodIP = this.allFilterValue; this.domainOptions = []; this.podOptions = []; this.podDetail.show = false; await this.reload(); },
-    async domainChanged() { this.pagination.current = 1; this.podDetail.show = false; this.topDomain = this.selectedDomain !== this.allFilterValue ? this.selectedDomain : ''; await Promise.all([this.reloadData(), this.loadPodOptions()]); },
-    async podChanged() { this.pagination.current = 1; this.podDetail.show = false; this.topPod = this.selectedPodIP !== this.allFilterValue ? (this.podOptions.find((item) => item.value === this.selectedPodIP)?.label || '') : ''; await Promise.all([this.reloadData(), this.loadDomainOptions()]); },
+    async domainChanged() { this.pagination.current = 1; this.podDetail.show = false; await Promise.all([this.reloadData(), this.loadPodOptions()]); },
+    async podChanged() { this.pagination.current = 1; this.podDetail.show = false; await Promise.all([this.reloadData(), this.loadDomainOptions()]); },
     async reloadData() { this.loading = true; await Promise.all([this.loadSummary(), this.loadSeries(), this.loadTable()]); this.loading = false; },
     async loadSeries() {
       this.seriesLoading = true;
@@ -269,8 +245,6 @@ export default {
         const response = await trafficApi[this.activeTab](this.params(extras)); const data = this.normalize(response);
         this.rows = (data.list || []).map((item, index) => ({ ...item, rowKey: `${this.activeTab}-${this.pagination.current}-${index}` }));
         this.pagination.total = Number(data.total || 0);
-        if (this.activeTab === 'domains') this.topDomain = this.rows[0]?.authority || this.topDomain;
-        if (this.activeTab === 'pods') this.topPod = this.rows[0]?.pod_name || this.topPod;
       } catch { this.rows = []; this.pagination.total = 0; }
       this.tableLoading = false;
     },
@@ -304,14 +278,6 @@ export default {
 
 <style scoped>
 .traffic-page { --traffic-blue: #165dff; --traffic-ink: #1d2129; --traffic-muted: #86909c; --traffic-line: #e5e6eb; }
-.traffic-hero { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(580px, 1.7fr); gap: 32px; align-items: center; min-height: 190px; padding: 28px 32px; color: white; background: linear-gradient(125deg, #142c5b 0%, #174ea6 55%, #1677c8 100%); border-radius: 4px; overflow: hidden; }
-.hero-kicker { font: 600 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .18em; color: #b8d8ff; }
-.hero-copy h2 { margin: 12px 0 8px; font-size: 25px; line-height: 1.3; }
-.hero-copy p { margin: 0; color: rgba(255,255,255,.72); }
-.flow-ribbon { display: grid; grid-template-columns: minmax(125px, 1fr) minmax(120px, .8fr) minmax(125px, 1fr) minmax(120px, .8fr) minmax(140px, 1fr); align-items: center; }
-.flow-node { min-width: 0; padding: 18px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.24); backdrop-filter: blur(5px); }
-.flow-node span { display: block; margin-bottom: 7px; font-size: 12px; color: #b8d8ff; }.flow-node strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
-.gateway-node { background: rgba(255,255,255,.18); }.flow-line { position: relative; text-align: center; }.flow-line i { display: block; height: 2px; background: linear-gradient(90deg, rgba(255,255,255,.25), #62d8ff); }.flow-line i::after { content: ''; position: absolute; top: -3px; right: 0; border: 4px solid transparent; border-left-color: #62d8ff; }.flow-line em { display: block; margin-top: 8px; font-size: 11px; font-style: normal; color: #b8d8ff; }
 .control-bar, .data-panel, .chart-panel { padding: 20px; background: var(--color-bg-2, #fff); }.control-bar, .control-group, .section-heading, .pagination-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.control-label { color: var(--traffic-muted); }
 .control-group { flex: 1; flex-wrap: wrap; justify-content: flex-start; }.control-bar > .arco-btn { flex: none; }
 .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--traffic-line); border: 1px solid var(--traffic-line); }.metric-block { padding: 18px 20px; background: var(--color-bg-2, #fff); }.metric-block span, .metric-block small { display: block; color: var(--traffic-muted); }.metric-block strong { display: block; margin: 10px 0 6px; color: var(--traffic-ink); font: 600 26px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; }.metric-block small { font-size: 12px; }.danger { color: #f53f3f !important; }
@@ -321,7 +287,7 @@ export default {
 .trend-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 .url-filters { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 0; border-top: 1px solid var(--traffic-line); }.url-filters :deep(.arco-input-wrapper), .url-filters :deep(.arco-select) { width: 180px; }.traffic-table { margin-top: 12px; }.entity-link { display: block; max-width: 210px; padding: 0; color: var(--traffic-blue); background: none; border: 0; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.traffic-table small { display: block; margin-top: 3px; color: var(--traffic-muted); }.path-code { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #4e5969; }.pagination-row { margin-top: 16px; }.pagination-row > span { color: var(--traffic-muted); font-size: 12px; }
 .drawer-pagination { margin-top: 16px; }
-@media (max-width: 1100px) { .traffic-hero { grid-template-columns: 1fr; }.summary-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 720px) { .traffic-hero { padding: 22px 18px; }.flow-ribbon { grid-template-columns: 1fr; gap: 8px; }.flow-line { display: none; }.control-bar, .control-group { align-items: stretch; flex-direction: column; }.summary-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) { .control-bar, .control-group { align-items: stretch; flex-direction: column; }.summary-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
