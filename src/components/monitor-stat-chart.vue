@@ -115,16 +115,44 @@ export default {
         this.resizeObserver = new ResizeObserver(() => this.chart?.resize());
         this.resizeObserver.observe(this.$refs.chart);
       }
-      const textColor = this.dark.isDark ? 'rgba(255,255,255,.9)' : '#4e5969';
-      const series = this.data.map((item) => ({ ...item, type: this.chartType || item.type || 'line' }));
-      const { legend: optionLegend = {}, grid: optionGrid = {}, ...option } = this.option || {};
+      const isDark = this.dark.isDark;
+      const textColor = isDark ? 'rgba(255,255,255,.9)' : '#4e5969';
+      const mutedColor = isDark ? 'rgba(255,255,255,.55)' : '#86909c';
+      const axisLineColor = isDark ? 'rgba(255,255,255,.16)' : '#e5e6eb';
+      const splitLineColor = isDark ? 'rgba(255,255,255,.08)' : '#f2f3f5';
+      const series = this.data.map((item) => {
+        const type = item.type || this.chartType || 'line';
+        return type === 'line'
+          ? { smooth: true, showSymbol: false, symbol: 'circle', symbolSize: 6, areaStyle: { opacity: 0.05 }, ...item, type }
+          : { ...item, type };
+      });
+      const {
+        legend: optionLegend = {}, grid: optionGrid = {}, tooltip: optionTooltip = {},
+        xAxis: optionXAxis = {}, yAxis: optionYAxis = {}, ...option
+      } = this.option || {};
+      const axisLabel = { color: mutedColor };
+      const axisLine = { lineStyle: { color: axisLineColor } };
+      const axisTick = { lineStyle: { color: axisLineColor } };
       this.chart.setOption({
-        backgroundColor: this.dark.isDark ? '#232324' : '#fff', textStyle: { color: textColor },
+        backgroundColor: isDark ? '#232324' : '#fff', textStyle: { color: textColor },
         color: ['#165dff', '#00b42a', '#f7ba1e', '#722ed1', '#f53f3f', '#86909c'],
-        tooltip: { trigger: 'axis', appendToBody: true },
+        tooltip: { trigger: 'axis', appendToBody: true, ...optionTooltip },
         legend: { type: 'scroll', bottom: 0, ...optionLegend, textStyle: { color: textColor, ...(optionLegend.textStyle || {}) } },
         grid: { left: 20, right: 20, top: 42, bottom: 52, containLabel: true, ...optionGrid },
-        xAxis: { type: 'time' }, yAxis: { type: 'value', name: this.unit }, series,
+        xAxis: {
+          type: 'time', boundaryGap: false, ...optionXAxis,
+          axisLabel: { ...axisLabel, ...(optionXAxis.axisLabel || {}) },
+          axisLine: { ...axisLine, ...(optionXAxis.axisLine || {}), lineStyle: { ...axisLine.lineStyle, ...(optionXAxis.axisLine?.lineStyle || {}) } },
+          axisTick: { ...axisTick, ...(optionXAxis.axisTick || {}), lineStyle: { ...axisTick.lineStyle, ...(optionXAxis.axisTick?.lineStyle || {}) } },
+        },
+        yAxis: {
+          type: 'value', name: this.unit, ...optionYAxis,
+          axisLabel: { ...axisLabel, ...(optionYAxis.axisLabel || {}) },
+          axisLine: { ...axisLine, ...(optionYAxis.axisLine || {}), lineStyle: { ...axisLine.lineStyle, ...(optionYAxis.axisLine?.lineStyle || {}) } },
+          axisTick: { ...axisTick, ...(optionYAxis.axisTick || {}), lineStyle: { ...axisTick.lineStyle, ...(optionYAxis.axisTick?.lineStyle || {}) } },
+          splitLine: { show: true, ...(optionYAxis.splitLine || {}), lineStyle: { color: splitLineColor, ...(optionYAxis.splitLine?.lineStyle || {}) } },
+        },
+        series,
         ...option,
       }, true);
     },

@@ -204,8 +204,8 @@ export default {
         hits: { unit: '命中数', fields: [['hits_total', '总命中数'], ['hits_2xx', '2xx'], ['hits_3xx', '3xx'], ['hits_4xx', '4xx'], ['hits_5xx', '5xx'], ['hits_other', '其他']], format: this.formatNumber },
       }[this.trendMetric];
     },
-    trendSeries() { const points = Array.isArray(this.series) ? this.series : []; return this.trendConfig.fields.map(([field, name]) => ({ name, smooth: true, showSymbol: false, areaStyle: { opacity: 0.05 }, data: points.map((item) => [item._time, Number(item[field] || 0)]) })); },
-    trendOption() { const config = this.trendConfig; return { tooltip: { trigger: 'axis', valueFormatter: (value) => config.format(value) }, yAxis: { type: 'value', name: config.unit, axisLabel: { formatter: (value) => config.format(value) }, splitLine: { lineStyle: { color: '#f2f3f5' } } } }; },
+    trendSeries() { const points = Array.isArray(this.series) ? this.series : []; return this.trendConfig.fields.map(([field, name]) => ({ name, data: points.map((item) => [item._time, Number(item[field] || 0)]) })); },
+    trendOption() { const config = this.trendConfig; return { tooltip: { valueFormatter: (value) => config.format(value) }, yAxis: { name: config.unit, axisLabel: { formatter: (value) => config.format(value) } } }; },
   },
   async created() {
     await this.namespaceStore.fetchNamespaceList();
