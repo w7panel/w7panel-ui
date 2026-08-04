@@ -5,31 +5,10 @@
             <a-button class="mt-20" type="primary" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">去安装</a-button>
         </div>
         <div v-else class="df df-c monitor-content" style="height:100%;">
-            <div class="monitor-toolbar df ai-c jc-e">
-                <a-range-picker
-                    showTime
-                    style="width: 400px;"
-                    shortcuts-position="right"
-                    v-model:model-value="memoryMonitor.pickerValue"
-                    :shortcuts="rangeShortcuts"
-                    @ok="v=>memoryMonitor.pickerValue = v"
-                />
-                <span class="ml-20">时间颗粒度</span>
-                <a-select v-model="memoryMonitor.step" style="margin-left:10px;width:120px;">
-                    <a-option :value="15">15秒</a-option>
-                    <a-option :value="60">1分钟</a-option>
-                    <a-option :value="600">10分钟</a-option>
-                    <a-option :value="3600">1小时</a-option>
-                    <a-option :value="10800">3小时</a-option>
-                    <a-option :value="43200">12小时</a-option>
-                </a-select>
-            </div>
             <div class="pod-metrics-box mt-20">
                 <pods-cilium-charts
                     :list="list"
                     :namespace="namespaceActive"
-                    :step="memoryMonitor.step"
-                    :pickerValue="memoryMonitor.pickerValue"
                 />
             </div>
         </div>
@@ -43,7 +22,6 @@ import podsCiliumCharts from '@/components/pods-cilium-charts.vue'
 import { useNamespaceStore } from '@/store';
 import axios from 'axios'
 import { getUserInfo } from '@/utils/auth';
-import dayjs from 'dayjs';
 
 export default {
     props: ['data','title'],
@@ -53,45 +31,6 @@ export default {
             list: [],
             clusterMode: '',
             noMonitor: true,
-
-            memoryMonitor: {
-                pickerValue: '',
-                step: '15',
-            },
-            rangeShortcuts: [{
-                label: '5分钟',
-                value: () => [dayjs().subtract(5, 'minute'), dayjs()],
-            },{
-                label: '30分钟',
-                value: () => [dayjs().subtract(30, 'minute'), dayjs()],
-            },{
-                label: '1小时',
-                value: () => [dayjs().subtract(1, 'hour'), dayjs()],
-            },{
-                label: '3小时',
-                value: () => [dayjs().subtract(3, 'hour'), dayjs()],
-            },{
-                label: '12小时',
-                value: () => [dayjs().subtract(12, 'hour'), dayjs()],
-            },{
-                label: '24小时',
-                value: () => [dayjs().subtract(24, 'hour'), dayjs()],
-            },{
-                label: '2天',
-                value: () => [dayjs().subtract(2, 'day'), dayjs()],
-            },{
-                label: '7天',
-                value: () => [dayjs().subtract(7, 'day'), dayjs()],
-            },{
-                label: '30天',
-                value: () => [dayjs().subtract(30, 'day'), dayjs()],
-            },{
-                label: '今天',
-                value: () => [dayjs(dayjs().format('YYYY-MM-DD') + ' 00:00:00'), dayjs()],
-            },{
-                label: '昨天',
-                value: () => [dayjs(dayjs().format('YYYY-MM-DD') + ' 00:00:00').subtract(1, 'day'), dayjs(dayjs().format('YYYY-MM-DD') + ' 00:00:00')],
-            }],
 
             metricsState: {},
         }
@@ -111,10 +50,6 @@ export default {
         this.metricsState = stateRes.data;
         this.noMonitor = !installedRes?.data?.installed;
         
-        this.memoryMonitor.pickerValue = [
-            dayjs().subtract(1, 'hour'),
-            dayjs(),
-        ]
         this.getList();
     },
     methods: {
