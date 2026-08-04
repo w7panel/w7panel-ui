@@ -2,6 +2,21 @@
   <div class="padding-20 traffic-page">
     <route-breadcrumb />
 
+    <div v-if="metricsInstalled === null" class="metrics-gate">
+      <a-spin tip="正在检查监控组件..." />
+    </div>
+
+    <div v-else-if="!metricsInstalled" class="metrics-gate metrics-install">
+      <a-empty description="未安装监控">
+        <template #image>
+          <div class="metrics-mark"><icon-bar-chart /></div>
+        </template>
+      </a-empty>
+      <p>安装 w7panel-metrics 后，才能查看请求趋势和统计分析。</p>
+      <a-button type="primary" @click="installMetrics">去安装</a-button>
+    </div>
+
+    <template v-else>
     <a-alert v-if="healthMessage" type="warning" show-icon>
       <template #title>部分监控数据暂不可用</template>
       {{ healthMessage }}
@@ -141,6 +156,7 @@
         <a-pagination v-model:current="podDetail.pagination.current" :page-size="podDetail.pagination.pageSize" :total="podDetail.pagination.total" @change="podURLPageChanged" />
       </div>
     </a-drawer>
+    </template>
   </div>
 </template>
 
@@ -150,12 +166,17 @@ import { trafficApi } from '@/api/traffic';
 import { useNamespaceStore } from '@/store';
 import MonitorStatChart from '@/components/monitor-stat-chart.vue';
 import { LOG_RETENTION_SECONDS, TRAFFIC_STEPS, TRAFFIC_STEP_VALUES } from '@/config/monitor';
+import { k8sproxy } from '@/utils/api';
+
+const METRICS_APPGROUP_PATH = '/apis/w7panel.w7.com/v1alpha1/namespaces/default/appgroups/w7panel-metrics';
+const METRICS_INSTALL_PATH = '/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics';
 
 export default {
   components: { MonitorStatChart },
   data() {
     const end = dayjs();
     return {
+      metricsInstalled: null,
       namespaceStore: useNamespaceStore(), namespace: 'default', timeRange: [end.subtract(1, 'hour').toDate(), end.toDate()],
       activeTab: 'pods', step: '5m', trendMetric: 'requests', loading: false, seriesLoading: false, tableLoading: false,
       health: {}, summary: {}, series: [], rows: [],
@@ -184,12 +205,23 @@ export default {
     trendOption() { const config = this.trendConfig; return { tooltip: { valueFormatter: (value) => config.format(value) }, yAxis: { name: config.unit, axisLabel: { formatter: (value) => config.format(value) } } }; },
   },
   async created() {
+    this.metricsInstalled = await this.checkMetricsInstalled();
+    if (!this.metricsInstalled) return;
     await this.namespaceStore.fetchNamespaceList();
     this.namespace = this.namespaceStore.namespace || this.namespaceList[0] || 'default';
     this.reload();
   },
   beforeUnmount() { clearTimeout(this.domainSearchTimer); clearTimeout(this.podSearchTimer); },
   methods: {
+    async checkMetricsInstalled() {
+      try {
+        await k8sproxy.get(METRICS_APPGROUP_PATH, { noAlert: true });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    installMetrics() { this.$router.push(METRICS_INSTALL_PATH); },
     normalize(res) { return res?.data?.data ?? res?.data ?? {}; },
     params(extra = {}) {
       return { namespace: this.namespace, start: dayjs(this.timeRange[0]).toISOString(), end: dayjs(this.timeRange[1]).toISOString(), domain: this.selectedDomain !== this.allFilterValue ? this.selectedDomain : undefined, upstreamIp: this.selectedPodIP !== this.allFilterValue ? this.selectedPodIP : undefined, page: this.pagination.current, pageSize: this.pagination.pageSize, step: this.step, ...extra };
@@ -278,6 +310,8 @@ export default {
 
 <style scoped>
 .traffic-page { --traffic-blue: #165dff; --traffic-ink: #1d2129; --traffic-muted: #86909c; --traffic-line: #e5e6eb; }
+.metrics-gate { min-height: calc(100vh - 170px); display: flex; align-items: center; justify-content: center; flex-direction: column; }
+.metrics-install { color: var(--traffic-muted); }.metrics-install p { margin: 4px 0 20px; }.metrics-mark { width: 64px; height: 64px; display: grid; place-items: center; color: var(--traffic-blue); background: #edf3ff; border-radius: 50%; font-size: 30px; }
 .control-bar, .data-panel, .chart-panel { padding: 20px; background: var(--color-bg-2, #fff); }.control-bar, .control-group, .section-heading, .pagination-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.control-label { color: var(--traffic-muted); }
 .control-group { flex: 1; flex-wrap: wrap; justify-content: flex-start; }.control-bar > .arco-btn { flex: none; }
 .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--traffic-line); border: 1px solid var(--traffic-line); }.metric-block { padding: 18px 20px; background: var(--color-bg-2, #fff); }.metric-block span, .metric-block small { display: block; color: var(--traffic-muted); }.metric-block strong { display: block; margin: 10px 0 6px; color: var(--traffic-ink); font: 600 26px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace; }.metric-block small { font-size: 12px; }.danger { color: #f53f3f !important; }
