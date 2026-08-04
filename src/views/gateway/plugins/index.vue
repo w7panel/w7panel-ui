@@ -18,8 +18,30 @@
             <a-alert style="margin-bottom:16px;">
                 全局状态仅控制插件的全局配置，不影响域名规则；域名规则请在应用域名管理的“更多”中独立配置。
             </a-alert>
-            <a-table :data="filteredList" :bordered="false" :pagination="false" row-key="name">
-                <template #columns>
+            <div v-if="groupedFilteredList.length" class="plugin-category-list">
+              <section
+                  v-for="group in groupedFilteredList"
+                  :key="group.key"
+                  class="plugin-category"
+                  :class="{'plugin-category--collapsed':isCategoryCollapsed(group.key)}"
+              >
+                <button type="button" class="plugin-category__title" @click="toggleCategory(group.key)">
+                    <span class="df ai-c" style="gap:6px;">
+                        <icon-right v-if="isCategoryCollapsed(group.key)" />
+                        <icon-down v-else />
+                        <span>{{group.title}}</span>
+                    </span>
+                    <span class="plugin-category__count">{{group.items.length}} 个插件</span>
+                </button>
+                <a-table
+                    v-show="!isCategoryCollapsed(group.key)"
+                    :data="group.items"
+                    :bordered="false"
+                    :pagination="false"
+                    :show-header="false"
+                    row-key="key"
+                >
+                    <template #columns>
                     <a-table-column title="插件" :width="360">
                         <template #cell="{ record }">
                             <div class="df ai-c" style="gap:8px;">
@@ -50,7 +72,7 @@
                                     </template>
                                 </a-popover>
                             </div>
-                            <div class="fs-12 c-99 mt-4">{{record.name}}{{record.version ? `@${record.version}` : ''}}</div>
+                            <div class="fs-12 c-99 mt-4">{{record.identify}}{{record.version ? `@${record.version}` : ''}}</div>
                             <div v-if="record.description" class="fs-12 c-99 mt-4">{{record.description}}</div>
                         </template>
                     </a-table-column>
@@ -66,40 +88,48 @@
                     <a-table-column title="全局状态" :width="110">
                         <template #cell="{ record }">
                             <a-switch
-                                v-if="record.supportGlobal"
+                                v-if="record.installed && record.supportGlobal"
                                 :model-value="record.enabled"
                                 :loading="togglingNames.includes(record.name)"
                                 :disabled="!permission.includes('gateway/plugins/edit')"
                                 @change="enabled=>togglePlugin(record, enabled)"
                             />
+                            <a-tag v-else-if="!record.installed" color="orangered">待安装</a-tag>
                             <span v-else class="c-99">--</span>
                         </template>
                     </a-table-column>
                     <a-table-column title="操作" :width="210">
                         <template #cell="{ record }">
                             <a-link
-                                v-if="record.supportGlobal && permission.includes('gateway/plugins/edit')"
+                                v-if="record.installed && record.supportGlobal && permission.includes('gateway/plugins/edit')"
                                 @click="openConfig(record)"
                             >全局配置</a-link>
                             <a-link
-                                v-if="permission.includes('gateway/plugins/edit') && !record.officialApp"
+                                v-if="record.installed && permission.includes('gateway/plugins/edit') && !record.officialApp"
                                 @click="openForm(record)"
                             >编辑</a-link>
                             <a-popconfirm
-                                v-if="permission.includes('gateway/plugins/delete') && !record.denyDelete"
-                                content="卸载后插件及其全部规则配置将被删除，是否继续？"
+                                v-if="record.installed && record.appGroup && permission.includes('gateway/plugins/delete') && !record.denyDelete"
+                                :content="getUninstallConfirm(record)"
                                 position="lt"
                                 :content-style="{maxWidth:'360px'}"
                                 type="warning"
                                 :ok-button-props="{status:'danger'}"
-                                @ok="removePlugin(record)"
+                                @ok="uninstallPluginApplication(record)"
                             >
                                 <a-link status="danger">卸载</a-link>
                             </a-popconfirm>
+                            <a-link
+                                v-if="!record.installed && permission.includes('gateway/plugins/add')"
+                                @click="toInstall(record)"
+                            >安装</a-link>
                         </template>
                     </a-table-column>
-                </template>
-            </a-table>
+                    </template>
+                </a-table>
+              </section>
+            </div>
+            <a-empty v-if="!groupedFilteredList.length" />
         </div>
 
         <a-drawer
@@ -180,6 +210,11 @@ import { k8sproxy, panelApi } from '@/utils/api';
 import { getPermission } from '@/utils/auth';
 import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
 import {
+    groupGatewayPlugins,
+    loadGatewayPluginMarket,
+    normalizeGatewayPluginIdentify,
+} from '@/utils/gateway-plugin-market';
+import {
     APPGROUP_API,
     DENY_DELETE_ANNOTATION,
     MICROAPP_API,
@@ -205,6 +240,7 @@ export default {
             keyword: '',
             permission: getPermission() || [],
             resources: [],
+            marketPlugins: [],
             microapps: [],
             microappInfoMap: {},
             appGroupMap: {},
@@ -212,6 +248,7 @@ export default {
             consoleInfo: {},
             upgradeDetail: { show: false, version: '', description: '' },
             togglingNames: [],
+            collapsedCategories: [],
             form: this.emptyForm(),
             config: { show: false, plugin: null, microapp: null },
             rules: {
@@ -228,39 +265,109 @@ export default {
     },
     computed: {
         list(){
-            return this.resources.map(resource=>{
-                const microappName = getResolvedMicroappName(resource, this.microapps);
-                const microappInfo = this.microappInfoMap[microappName] || null;
+            const installedByIdentify = new Map();
+            this.resources.forEach(resource=>{
                 const groupName = getResourceGroupName(resource);
                 const appGroup = this.appGroupMap[groupName] || null;
-                return {
-                    name: resource?.metadata?.name || '',
-                    title: getPluginTitle(resource),
-                    description: getPluginDescription(resource),
-                    version: getPluginVersion(resource),
-                    microappInfo,
-                    groupName,
-                    appGroup,
-                    officialApp: appGroup?.metadata?.annotations?.[OFFICIAL_APP_ANNOTATION] === 'true',
-                    denyDelete: appGroup?.metadata?.annotations?.[DENY_DELETE_ANNOTATION] === 'true',
-                    upgrade: this.upgradeInfoMap[groupName] || null,
-                    enabled: isGlobalPluginEnabled(resource),
-                    supportGlobal: supportsGlobalConfig(resource),
-                    supportRule: supportsRuleConfig(resource),
-                    resource,
-                };
+                const identify = normalizeGatewayPluginIdentify(
+                    appGroup?.spec?.identifie
+                    || appGroup?.metadata?.annotations?.['w7.cc/identifie']
+                    || resource?.metadata?.labels?.['w7.cc/identifie']
+                );
+                if(identify && !installedByIdentify.has(identify)){
+                    installedByIdentify.set(identify, resource);
+                }
             });
+            const marketIdentifies = new Set(this.marketPlugins.map(item=>normalizeGatewayPluginIdentify(item.identify)));
+            const marketRows = this.marketPlugins.map(item=>{
+                const resource = installedByIdentify.get(normalizeGatewayPluginIdentify(item.identify)) || null;
+                return this.buildListRow(resource, item);
+            });
+            const legacyRows = this.resources
+                .filter(resource=>{
+                    const groupName = getResourceGroupName(resource);
+                    const appGroup = this.appGroupMap[groupName] || null;
+                    const identify = normalizeGatewayPluginIdentify(
+                        appGroup?.spec?.identifie
+                        || appGroup?.metadata?.annotations?.['w7.cc/identifie']
+                        || resource?.metadata?.labels?.['w7.cc/identifie']
+                    );
+                    return !identify || !marketIdentifies.has(identify);
+                })
+                .map(resource=>this.buildListRow(resource, null));
+            return [...marketRows, ...legacyRows];
+        },
+        groupedFilteredList(){
+            return groupGatewayPlugins(this.filteredList);
         },
         filteredList(){
             const keyword = this.keyword.trim().toLowerCase();
             if(!keyword){ return this.list; }
-            return this.list.filter(item=>`${item.name} ${item.title} ${item.description}`.toLowerCase().includes(keyword));
+            return this.list.filter(item=>`${item.identify} ${item.title} ${item.description}`.toLowerCase().includes(keyword));
         },
     },
     created(){
         this.getList();
     },
     methods: {
+        isCategoryCollapsed(category){
+            return this.collapsedCategories.includes(category);
+        },
+        toggleCategory(category){
+            this.collapsedCategories = this.isCategoryCollapsed(category)
+                ? this.collapsedCategories.filter(item=>item !== category)
+                : [...this.collapsedCategories, category];
+        },
+        buildListRow(resource, marketItem){
+            if(!resource){
+                return {
+                    key: `market:${marketItem.identify}`,
+                    name: '',
+                    identify: marketItem.identify,
+                    title: marketItem.name,
+                    description: marketItem.description || '',
+                    version: marketItem.latest_version || '',
+                    pluginType: marketItem.plugin_type || '',
+                    formulaUrl: marketItem.formula_url || '',
+                    installed: false,
+                    officialApp: false,
+                    denyDelete: false,
+                    upgrade: null,
+                    enabled: false,
+                    supportGlobal: false,
+                    supportRule: false,
+                    resource: null,
+                    microappInfo: null,
+                    groupName: '',
+                    appGroup: null,
+                };
+            }
+            const microappName = getResolvedMicroappName(resource, this.microapps);
+            const microappInfo = this.microappInfoMap[microappName] || null;
+            const groupName = getResourceGroupName(resource);
+            const appGroup = this.appGroupMap[groupName] || null;
+            return {
+                key: `installed:${resource?.metadata?.name || marketItem?.identify || ''}`,
+                name: resource?.metadata?.name || '',
+                identify: marketItem?.identify || appGroup?.spec?.identifie || resource?.metadata?.labels?.['w7.cc/identifie'] || resource?.metadata?.name || '',
+                title: marketItem?.name || getPluginTitle(resource),
+                description: marketItem?.description || getPluginDescription(resource),
+                version: getPluginVersion(resource) || marketItem?.latest_version || '',
+                pluginType: marketItem?.plugin_type || '',
+                formulaUrl: marketItem?.formula_url || '',
+                installed: true,
+                microappInfo,
+                groupName,
+                appGroup,
+                officialApp: appGroup?.metadata?.annotations?.[OFFICIAL_APP_ANNOTATION] === 'true',
+                denyDelete: appGroup?.metadata?.annotations?.[DENY_DELETE_ANNOTATION] === 'true',
+                upgrade: this.upgradeInfoMap[groupName] || null,
+                enabled: isGlobalPluginEnabled(resource),
+                supportGlobal: supportsGlobalConfig(resource),
+                supportRule: supportsRuleConfig(resource),
+                resource,
+            };
+        },
         emptyForm(){
             return {
                 show: false,
@@ -277,17 +384,19 @@ export default {
             };
         },
         async getList(){
-            const [pluginRes, microappRes, appGroupRes, consoleRes] = await Promise.all([
+            const [pluginRes, microappRes, appGroupRes, consoleRes, marketRes] = await Promise.all([
                 k8sproxy.get(WASM_PLUGIN_API, { loading: true }),
                 k8sproxy.get(MICROAPP_API, { noAlert: true }).catch(()=>({ data: { items: [] } })),
                 k8sproxy.get(APPGROUP_API),
                 panelApi.get('/auth/console/info', { noAlert: true }).catch(()=>({ data: {} })),
+                loadGatewayPluginMarket().catch(()=>[]),
             ]);
             this.resources = pluginRes?.data?.items || [];
             this.microapps = microappRes?.data?.items || [];
             this.appGroupMap = Object.fromEntries((appGroupRes?.data?.items || [])
                 .map(group=>[group?.metadata?.name, group]));
             this.consoleInfo = consoleRes?.data || {};
+            this.marketPlugins = marketRes;
             await Promise.all([
                 this.loadMicroappFrontendStatus(),
                 this.loadUpgradeInfo(),
@@ -364,6 +473,20 @@ export default {
                 query: {
                     path: zpkUrl,
                     releasename: groupName,
+                    thirdpartyCDToken: this.consoleInfo?.thirdparty_cd_token || '',
+                    insClusterId: this.consoleInfo?.cluster_id || '',
+                },
+            });
+        },
+        toInstall(row){
+            if(!row?.formulaUrl){
+                this.$message.error('制品市场未返回插件安装地址');
+                return;
+            }
+            this.$router.push({
+                path: '/app/store-install',
+                query: {
+                    path: row.formulaUrl,
                     thirdpartyCDToken: this.consoleInfo?.thirdparty_cd_token || '',
                     insClusterId: this.consoleInfo?.cluster_id || '',
                 },
@@ -452,13 +575,21 @@ export default {
                 this.togglingNames = this.togglingNames.filter(name=>name !== row.name);
             });
         },
-        removePlugin(row){
+        getUninstallConfirm(row){
+            const title = row?.appGroup?.spec?.title || row?.title || row?.groupName;
+            return `确认卸载应用“${title}”吗？该应用包含的全部网关插件及关联资源都将被删除。`;
+        },
+        uninstallPluginApplication(row){
             if(row.denyDelete){
                 this.$message.warning('该插件所属应用禁止卸载');
                 return;
             }
-            return k8sproxy.delete(`${WASM_PLUGIN_API}/${row.name}`, { loading: true }).then(()=>{
-                this.$message.success('插件已卸载');
+            if(!row?.appGroup || !row?.groupName){
+                this.$message.error('未找到插件所属应用，无法执行卸载');
+                return;
+            }
+            return k8sproxy.delete(`${APPGROUP_API}/${encodeURIComponent(row.groupName)}`, { loading: true }).then(()=>{
+                this.$message.success('应用已卸载');
                 this.getList();
             });
         },
@@ -475,3 +606,16 @@ export default {
     },
 };
 </script>
+
+<style scoped>
+.plugin-category-list{overflow:hidden;border:1px solid var(--color-border-2);border-radius:4px;background:var(--color-bg-2);}
+.plugin-category + .plugin-category{border-top:1px solid var(--color-border-1);}
+.plugin-category__title{display:flex;align-items:center;justify-content:space-between;width:100%;height:44px;padding:0 16px;border:0;background:var(--color-bg-2);font-size:14px;font-weight:500;color:var(--color-text-1);cursor:pointer;text-align:left;transition:background-color .2s,color .2s,box-shadow .2s;}
+.plugin-category:not(.plugin-category--collapsed)>.plugin-category__title{background:var(--color-primary-light-1);color:rgb(var(--primary-6));box-shadow:inset 3px 0 0 rgb(var(--primary-6));}
+.plugin-category__title:hover{background:var(--color-fill-1);color:rgb(var(--primary-6));}
+.plugin-category__title :deep(.arco-icon){font-size:13px;color:var(--color-text-3);transition:color .2s;}
+.plugin-category__title:hover :deep(.arco-icon){color:rgb(var(--primary-6));}
+.plugin-category:not(.plugin-category--collapsed)>.plugin-category__title :deep(.arco-icon){color:rgb(var(--primary-6));}
+.plugin-category__count{font-size:12px;font-weight:400;color:var(--color-text-3);}
+.plugin-category :deep(.arco-table-container){border-top:1px solid var(--color-border-1);}
+</style>
