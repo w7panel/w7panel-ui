@@ -13,7 +13,7 @@
         </template>
       </a-empty>
       <p>安装 w7panel-metrics 后，才能查看请求趋势和统计分析。</p>
-      <a-button type="primary" @click="installMetrics">去安装</a-button>
+      <a-button type="primary" @click="installMetrics">点击安装</a-button>
     </div>
 
     <template v-else>
@@ -157,6 +157,13 @@
       </div>
     </a-drawer>
     </template>
+
+    <store-install-drawer
+      :show="metricsInstall.show"
+      :path="metricsInstall.path"
+      @close="metricsInstall.show = false"
+      @installedStatusSuccess="metricsInstalledSuccess"
+    />
   </div>
 </template>
 
@@ -165,18 +172,20 @@ import dayjs from 'dayjs';
 import { trafficApi } from '@/api/traffic';
 import { useNamespaceStore } from '@/store';
 import MonitorStatChart from '@/components/monitor-stat-chart.vue';
+import StoreInstallDrawer from '@/components/store-install-drawer.vue';
 import { LOG_RETENTION_SECONDS, TRAFFIC_STEPS, TRAFFIC_STEP_VALUES } from '@/config/monitor';
 import { k8sproxy } from '@/utils/api';
 
 const METRICS_APPGROUP_PATH = '/apis/w7panel.w7.com/v1alpha1/namespaces/default/appgroups/w7panel-metrics';
-const METRICS_INSTALL_PATH = '/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics';
+const METRICS_ZPK_PATH = 'https://zpk.w7.cc/zpk/respo/info/w7panel_metrics';
 
 export default {
-  components: { MonitorStatChart },
+  components: { MonitorStatChart, StoreInstallDrawer },
   data() {
     const end = dayjs();
     return {
       metricsInstalled: null,
+      metricsInstall: { show: false, path: METRICS_ZPK_PATH },
       namespaceStore: useNamespaceStore(), namespace: 'default', timeRange: [end.subtract(1, 'hour').toDate(), end.toDate()],
       activeTab: 'pods', step: '5m', trendMetric: 'requests', loading: false, seriesLoading: false, tableLoading: false,
       health: {}, summary: {}, series: [], rows: [],
@@ -205,14 +214,23 @@ export default {
     trendOption() { const config = this.trendConfig; return { tooltip: { valueFormatter: (value) => config.format(value) }, yAxis: { name: config.unit, axisLabel: { formatter: (value) => config.format(value) } } }; },
   },
   async created() {
-    this.metricsInstalled = await this.checkMetricsInstalled();
-    if (!this.metricsInstalled) return;
-    await this.namespaceStore.fetchNamespaceList();
-    this.namespace = this.namespaceStore.namespace || this.namespaceList[0] || 'default';
-    this.reload();
+    await this.initializeMetrics();
   },
   beforeUnmount() { clearTimeout(this.domainSearchTimer); clearTimeout(this.podSearchTimer); },
   methods: {
+    async initializeMetrics() {
+      this.metricsInstalled = null;
+      this.metricsInstalled = await this.checkMetricsInstalled();
+      if (!this.metricsInstalled) return;
+      await this.namespaceStore.fetchNamespaceList();
+      this.namespace = this.namespaceStore.namespace || this.namespaceList[0] || 'default';
+      await this.reload();
+    },
+    async metricsInstalledSuccess() {
+      this.metricsInstall.show = false;
+      await this.initializeMetrics();
+    },
+    installMetrics() { this.metricsInstall.show = true; },
     async checkMetricsInstalled() {
       try {
         await k8sproxy.get(METRICS_APPGROUP_PATH, { noAlert: true });
@@ -221,7 +239,6 @@ export default {
         return false;
       }
     },
-    installMetrics() { this.$router.push(METRICS_INSTALL_PATH); },
     normalize(res) { return res?.data?.data ?? res?.data ?? {}; },
     params(extra = {}) {
       return { namespace: this.namespace, start: dayjs(this.timeRange[0]).toISOString(), end: dayjs(this.timeRange[1]).toISOString(), domain: this.selectedDomain !== this.allFilterValue ? this.selectedDomain : undefined, upstreamIp: this.selectedPodIP !== this.allFilterValue ? this.selectedPodIP : undefined, page: this.pagination.current, pageSize: this.pagination.pageSize, step: this.step, ...extra };
