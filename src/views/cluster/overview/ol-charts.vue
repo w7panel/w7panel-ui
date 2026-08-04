@@ -254,7 +254,7 @@ export default {
                     'cpu': 'rate(pod_cpu_usage_seconds_total{pod="' + Name + '"})',
                     'memory': 'pod_memory_working_set_bytes{pod="' + Name + '"}',
                 }:{
-                    'cpu': 'rate(node_cpu_usage_seconds_total{job="' + nodeResourceJob + '"})',
+                    'cpu': 'rate(node_cpu_usage_seconds_total{job="' + nodeResourceJob + '"}[3m])',
                     'memory': '(node_memory_working_set_bytes{job="' + nodeResourceJob + '"})',
                 }),
 

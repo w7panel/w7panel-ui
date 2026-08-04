@@ -117,13 +117,15 @@ export default {
       }
       const textColor = this.dark.isDark ? 'rgba(255,255,255,.9)' : '#4e5969';
       const series = this.data.map((item) => ({ ...item, type: this.chartType || item.type || 'line' }));
+      const { legend: optionLegend = {}, grid: optionGrid = {}, ...option } = this.option || {};
       this.chart.setOption({
         backgroundColor: this.dark.isDark ? '#232324' : '#fff', textStyle: { color: textColor },
         color: ['#165dff', '#00b42a', '#f7ba1e', '#722ed1', '#f53f3f', '#86909c'],
-        tooltip: { trigger: 'axis', appendToBody: true }, legend: { type: 'scroll', textStyle: { color: textColor } },
-        grid: { left: 20, right: 20, top: 42, bottom: 16, containLabel: true },
+        tooltip: { trigger: 'axis', appendToBody: true },
+        legend: { type: 'scroll', bottom: 0, ...optionLegend, textStyle: { color: textColor, ...(optionLegend.textStyle || {}) } },
+        grid: { left: 20, right: 20, top: 42, bottom: 52, containLabel: true, ...optionGrid },
         xAxis: { type: 'time' }, yAxis: { type: 'value', name: this.unit }, series,
-        ...this.option,
+        ...option,
       }, true);
     },
   },
