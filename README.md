@@ -84,7 +84,7 @@ ZPK 安装页会在读取配置和提交安装时识别结构化订单绑定冲�
 | 网关插件 | `/gateway/plugins` | 读取 `zm.w7.com` 制品市场网关插件清单，按类型分类展示，支持待安装插件直接安装，并提供官方应用保护、AppGroup 制品更新、独立的全局/规则开关、基于 `namespace/ingressName` 的规则配置、共享 Ingress 规则拆分、Ingress 删除清理、MicroApp 配置界面和 YAML 预览编辑 |
 | AI 代理 | `/gateway/aiproxy` | AI 代理与 Key Auth 插件安装检测及引导、AI 域名插件自动开启、Higress 供应商专属配置、代理服务器、模型候选、Token 故障转移、权重、Key Auth 消费者、模型白名单和关联资源删除检测 |
 
-AI 代理复用制品安装的 AI Proxy、Key Auth 和请求校验 WasmPlugin；其中两个通用插件统一展示为“Key Auth 认证”和“请求校验”，不使用 AI 专属名称。页面只按制品 group name 检测依赖并引导进入制品安装，不按 `*.internal` 资源名兜底，也不再自动创建 Higress 默认插件。域名仍以业务命名空间的 Ingress 为数据源，不依赖默认关闭的 Higress Console。进入 AI 代理列表时会按 `namespace/ingressName` 自动创建或开启域名规则，不使用插件全局开关。
+AI 代理复用制品安装的 AI Proxy、Key Auth 和请求校验 WasmPlugin；其中两个通用插件统一展示为“Key Auth 认证”和“请求校验”，不使用 AI 专属名称。页面只按制品 group name 检测依赖并引导进入制品安装，不按 `*.internal` 资源名兜底，也不再自动创建 Higress 默认插件。域名仍以业务命名空间的 Ingress 为数据源，不依赖默认关闭的 Higress Console。AI Proxy、Key Auth、请求校验以及“域名管理 → 更多”的域名级规则统一使用 `namespace/ingressName`，不使用插件全局开关；旧 `domain`/裸 Ingress、Provider Secret、旧 Provider ID/名称、消费者 Secret `key` 和单数 `credential` 均不再读取或迁移。
 
 ## UI 组件
 

@@ -86,11 +86,15 @@ export function getGatewayPluginRuleContext(ingress: any, namespace = ''): Gatew
   };
 }
 
-export function getGatewayPluginRuleMatch(plugin: any, context: GatewayPluginRuleContext) {
-  const rules = plugin?.spec?.matchRules || [];
-  const target = context.namespace && context.ingressName
+export function getGatewayPluginIngressTarget(context: GatewayPluginRuleContext) {
+  return context.namespace && context.ingressName
     ? `${context.namespace}/${context.ingressName}`
     : '';
+}
+
+export function getGatewayPluginRuleMatch(plugin: any, context: GatewayPluginRuleContext) {
+  const rules = plugin?.spec?.matchRules || [];
+  const target = getGatewayPluginIngressTarget(context);
   if (!target) return { index: -1, scope: 'ingress', values: [] as string[] };
   const index = rules.findIndex((rule: any) => (rule?.ingress || []).includes(target));
   if (index >= 0) return { index, scope: 'ingress', values: [target] };
@@ -107,7 +111,7 @@ export function ensureGatewayPluginRule(plugin: any, context: GatewayPluginRuleC
   const match = getGatewayPluginRuleMatch(plugin, context);
   if (match.index < 0) {
     plugin.spec.matchRules.push({
-      ingress: [`${context.namespace}/${context.ingressName}`],
+      ingress: [getGatewayPluginIngressTarget(context)],
       config: {},
       configDisable: true,
     });
@@ -118,7 +122,11 @@ export function ensureGatewayPluginRule(plugin: any, context: GatewayPluginRuleC
   const matchedValues = uniqueStrings(match.values);
   const remainingValues = (rule?.ingress || []).filter((value: string) => !matchedValues.includes(value));
   const hasOtherTargets = remainingValues.length > 0
-    || ['domain', 'service'].some(key => (rule?.[key] || []).length > 0);
+    || Object.entries(rule || {}).some(([key, value]) =>
+      !['ingress', 'config', 'configDisable'].includes(key)
+      && Array.isArray(value)
+      && value.length > 0
+    );
   if (!hasOtherTargets) return match.index;
 
   if (remainingValues.length) rule.ingress = remainingValues;
@@ -130,6 +138,29 @@ export function ensureGatewayPluginRule(plugin: any, context: GatewayPluginRuleC
   };
   plugin.spec.matchRules.splice(match.index + 1, 0, isolatedRule);
   return match.index + 1;
+}
+
+/** 移除当前 namespaced Ingress 规则目标，并返回命中的原规则。 */
+export function removeGatewayPluginRuleTargets(plugin: any, context: GatewayPluginRuleContext) {
+  plugin.spec = plugin.spec || {};
+  const target = getGatewayPluginIngressTarget(context);
+  const matchedRules: any[] = [];
+  const rules = plugin.spec.matchRules || [];
+  plugin.spec.matchRules = rules.filter((rule: any) => {
+    const matched = Boolean(target && (rule?.ingress || []).includes(target));
+    if (!matched) return true;
+    matchedRules.push(JSON.parse(JSON.stringify(rule)));
+
+    const remainingIngress = (rule?.ingress || []).filter((value: string) => value !== target);
+    if (remainingIngress.length) rule.ingress = remainingIngress;
+    else delete rule.ingress;
+    return Object.entries(rule || {}).some(([key, value]) =>
+      !['config', 'configDisable'].includes(key)
+      && Array.isArray(value)
+      && value.length > 0
+    );
+  });
+  return matchedRules;
 }
 
 /** 删除已不存在 Ingress 的匹配目标，共享规则中的其他目标保持不变。 */
@@ -147,7 +178,11 @@ export function removeIngressTargetsFromPlugin(plugin: any, namespace: string, i
     changed = true;
     if (remaining.length) rule.ingress = remaining;
     else delete rule.ingress;
-    return ['ingress', 'domain', 'service'].some(key => (rule?.[key] || []).length > 0);
+    return Object.entries(rule || {}).some(([key, value]) =>
+      !['config', 'configDisable'].includes(key)
+      && Array.isArray(value)
+      && value.length > 0
+    );
   });
   return { data, changed };
 }

@@ -129,6 +129,7 @@ import {
     ensureGatewayPluginRule,
     getGatewayPluginRuleContext,
     getGatewayPluginRuleMatch,
+    removeGatewayPluginRuleTargets,
 } from '@/utils/gateway-plugin';
 import {
     AI_LABEL,
@@ -166,7 +167,6 @@ export default {
             aiProxyPluginName: PLUGIN_NAME,
             keyAuthPluginName: KEY_AUTH_PLUGIN_NAME,
             modelValidationPluginName: MODEL_VALIDATION_PLUGIN_NAME,
-            secrets: [],
             permission: [],
             debug: false,
             whiteList: [],
@@ -210,9 +210,8 @@ export default {
         async getData(){
             useLoadingStore().loading = true;
             try {
-                const [ingRes, secretRes, dependencies] = await Promise.all([
+                const [ingRes, dependencies] = await Promise.all([
                     k8sproxy.get('/apis/networking.k8s.io/v1/namespaces/'+this.namespaceActive+'/ingresses?labelSelector='+AI_LABEL+'=true'),
-                    k8sproxy.get('/api/v1/namespaces/'+this.namespaceActive+'/secrets?labelSelector='+AI_LABEL+'=true', { noAlert: true }),
                     loadInstalledPluginArtifacts(k8sproxy, [
                         { artifact: AI_PROXY_PLUGIN_ARTIFACT },
                     ]),
@@ -222,18 +221,12 @@ export default {
                 this.plugin = aiProxy.plugin;
                 this.aiProxyPluginInstalled = aiProxy.installed;
                 this.aiProxyPluginName = aiProxy.plugin?.metadata?.name || PLUGIN_NAME;
-                this.secrets = secretRes?.data?.items || [];
-                const rules = this.plugin?.spec?.matchRules || [];
                 let pluginChanged = false;
                 this.list = this.ingresses.map(ing=>{
                     const host = ing?.spec?.rules?.[0]?.host || '';
                     const annotations = ing?.metadata?.annotations || {};
                     const ssl = ing?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
-                    const rule = this.findRule(rules, ing, host);
                     const providers = readRouteProviders(annotations[AI_PROVIDERS_ANNOTATION]);
-                    const legacyRouteProviders = rule?.config?.providers || [];
-                    const legacyProviders = this.secrets.filter(s=>s?.metadata?.labels?.[AI_DOMAIN_LABEL] == ing.metadata.name && s?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true');
-                    const effectiveProviders = providers.length ? providers : legacyRouteProviders;
                     const ruleContext = getGatewayPluginRuleContext(ing, this.namespaceActive);
                     let ruleMatch = getGatewayPluginRuleMatch(this.plugin, ruleContext);
                     if(this.plugin && this.permission.includes('gateway/aiproxy/edit') && (ruleMatch.index < 0 || this.plugin.spec.matchRules[ruleMatch.index]?.configDisable === true)){
@@ -242,14 +235,14 @@ export default {
                         pluginChanged = true;
                         ruleMatch = getGatewayPluginRuleMatch(this.plugin, ruleContext);
                     }
-                    const providerCount = effectiveProviders.length || legacyProviders.length;
-                    const enabledProviderCount = effectiveProviders.length ? effectiveProviders.filter(i=>i?.enabled !== false).length : legacyProviders.filter(s=>s?.metadata?.annotations?.['w7.cc/enabled'] !== 'false').length;
+                    const providerCount = providers.length;
+                    const enabledProviderCount = providers.filter(i=>i?.enabled !== false).length;
                     return {
                         name: ing.metadata.name,
                         host,
                         url: (ssl?'https://':'http://') + host,
-                        models: readStringArray(annotations[AI_MODELS_ANNOTATION] || rule?.config?.models),
-                        authEnabled: annotations[AI_AUTH_ANNOTATION] === 'true' || !!rule?.config?.auth?.enabled,
+                        models: readStringArray(annotations[AI_MODELS_ANNOTATION]),
+                        authEnabled: annotations[AI_AUTH_ANNOTATION] === 'true',
                         enabled: ruleMatch.index >= 0 && this.plugin?.spec?.matchRules?.[ruleMatch.index]?.configDisable !== true,
                         providers: providerCount,
                         enabledProviders: enabledProviderCount,
@@ -266,11 +259,6 @@ export default {
         },
         getPlugin(){
             return this.getManagedPlugin(this.aiProxyPluginName);
-        },
-        findRule(rules, ing, host){
-            return (rules || []).find(rule=>{
-                return (rule?.domain || []).includes(host) || (rule?.ingress || []).includes(ing.metadata.name);
-            }) || null;
         },
         openForm(){
             if(!this.aiProxyPluginInstalled || !this.plugin){
@@ -445,13 +433,11 @@ export default {
             ]);
             const prefix = domainResourcePrefix(row.name);
             const annotationProviders = readRouteProviders(row.ingress?.metadata?.annotations?.[AI_PROVIDERS_ANNOTATION]);
-            const legacyRule = this.findRule(plugin?.spec?.matchRules || [], row.ingress, row.host);
             const providerIds = annotationProviders.map(item=>item.id)
-                .concat((legacyRule?.config?.providers || []).map(item=>item.provider || item.name))
                 .concat((plugin?.spec?.defaultConfig?.providers || []).map(item=>item?.id).filter(id=>String(id || '').startsWith(prefix)))
                 .concat((plugin?.spec?.matchRules || []).map(rule=>rule?.config?.activeProviderId).filter(id=>String(id || '').startsWith(prefix)))
                 .filter(Boolean);
-            const keyRules = (keyAuthPlugin?.spec?.matchRules || []).filter(rule=>this.ruleMatchesDomain(rule, row));
+            const keyRules = (keyAuthPlugin?.spec?.matchRules || []).filter(rule=>this.ruleMatchesIngress(rule, row));
             const consumerNames = keyRules.flatMap(rule=>rule?.config?.allow || [])
                 .concat((keyAuthPlugin?.spec?.defaultConfig?.consumers || []).map(item=>item?.name).filter(name=>String(name || '').startsWith(prefix)))
                 .filter(Boolean);
@@ -482,7 +468,7 @@ export default {
             ]);
             const prefix = domainResourcePrefix(row.name);
             const consumerNames = new Set(this.deleteTask.context?.consumerNames || []);
-            const hasRule = (plugin?.spec?.matchRules || []).some(rule=>this.ruleMatchesDomain(rule, row));
+            const hasRule = (plugin?.spec?.matchRules || []).some(rule=>this.ruleMatchesIngress(rule, row));
             const hasConsumer = (plugin?.spec?.defaultConfig?.consumers || []).some(item=>{
                 const name = String(item?.name || '');
                 return name.startsWith(prefix) || consumerNames.has(name);
@@ -502,22 +488,19 @@ export default {
                     const id = String(item?.id || '');
                     return !providerIds.includes(id) && !id.startsWith(prefix);
                 });
+                removeGatewayPluginRuleTargets(plugin, getGatewayPluginRuleContext(row.ingress, this.namespaceActive));
                 plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>{
-                    const matchedDomain = this.ruleMatchesDomain(rule, row);
                     const matchedService = providerIds.some(id=>rule?.config?.activeProviderId == id || (rule?.service || []).includes(providerServiceName(id)+'.dns') || (rule?.service || []).includes(providerServiceName(id)+'.static'));
-                    return !matchedDomain && !matchedService;
+                    return !matchedService;
                 });
                 await this.savePlugin(plugin);
             }
             await this.removeMcpRegistries(providerIds);
-            const secrets = (await this.getDomainSecrets(row.name)).filter(secret=>secret?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true');
-            await this.deleteSecrets(secrets);
         },
         async verifyProviderResourcesDeleted(row){
-            const [plugin, mcp, secrets] = await Promise.all([
+            const [plugin, mcp] = await Promise.all([
                 this.getPluginStrict(),
                 this.getMcpBridge(),
-                this.getDomainSecrets(row.name),
             ]);
             const context = this.deleteTask.context || {};
             const providerIds = new Set(context.providerIds || []);
@@ -525,12 +508,11 @@ export default {
             const prefix = domainResourcePrefix(row.name);
             const hasProvider = (plugin?.spec?.defaultConfig?.providers || []).some(item=>providerIds.has(item?.id) || String(item?.id || '').startsWith(prefix));
             const hasRule = (plugin?.spec?.matchRules || []).some(rule=>{
-                if(this.ruleMatchesDomain(rule, row)) return true;
+                if(this.ruleMatchesIngress(rule, row)) return true;
                 return [...providerIds].some(id=>rule?.config?.activeProviderId == id || (rule?.service || []).includes(providerServiceName(id)+'.dns') || (rule?.service || []).includes(providerServiceName(id)+'.static'));
             });
             const hasRegistry = (mcp?.spec?.registries || []).some(item=>registryNames.has(item?.name));
-            const hasSecret = secrets.some(secret=>secret?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true');
-            return !hasProvider && !hasRule && !hasRegistry && !hasSecret;
+            return !hasProvider && !hasRule && !hasRegistry;
         },
         async deleteDomainResources(row){
             await this.removeDomainPluginConfig(this.modelValidationPluginName, row, false);
@@ -545,11 +527,13 @@ export default {
                 this.getManagedPlugin(this.modelValidationPluginName),
                 this.getIngress(row.name),
             ]);
-            const hasRule = (plugin?.spec?.matchRules || []).some(rule=>this.ruleMatchesDomain(rule, row));
+            const hasRule = (plugin?.spec?.matchRules || []).some(rule=>this.ruleMatchesIngress(rule, row));
             return !hasRule && !ingress;
         },
-        ruleMatchesDomain(rule, row){
-            return (rule?.domain || []).includes(row.host) || (rule?.ingress || []).includes(row.name);
+        ruleMatchesIngress(rule, row){
+            const context = getGatewayPluginRuleContext(row.ingress, this.namespaceActive);
+            const target = context.namespace && context.ingressName ? context.namespace + '/' + context.ingressName : '';
+            return Boolean(target && (rule?.ingress || []).includes(target));
         },
         getManagedPlugin(name){
             return this.getOptionalResource('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+name);
@@ -599,9 +583,8 @@ export default {
             const plugin = await k8sproxy.get(url, { noAlert: true }).then(res=>res.data).catch(()=>null);
             if(!plugin) return;
             plugin.spec = plugin.spec || {};
-            const matchedRules = (plugin.spec.matchRules || []).filter(rule=>(rule?.domain || []).includes(row.host) || (rule?.ingress || []).includes(row.name));
+            const matchedRules = removeGatewayPluginRuleTargets(plugin, getGatewayPluginRuleContext(row.ingress, this.namespaceActive));
             const matchedConsumers = new Set(matchedRules.flatMap(rule=>rule?.config?.allow || []));
-            plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>!((rule?.domain || []).includes(row.host) || (rule?.ingress || []).includes(row.name)));
             if(removeConsumers){
                 const prefix = domainResourcePrefix(row.name);
                 plugin.spec.defaultConfig = plugin.spec.defaultConfig || {};

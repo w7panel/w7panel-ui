@@ -370,6 +370,11 @@ import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import { getPermission } from '@/utils/auth';
 import {
+    getGatewayPluginIngressTarget,
+    getGatewayPluginRuleContext,
+    removeGatewayPluginRuleTargets,
+} from '@/utils/gateway-plugin';
+import {
     AI_LABEL,
     AI_DOMAIN_LABEL,
     AI_CONSUMER_LABEL,
@@ -669,23 +674,21 @@ export default {
                 this.modelValidationPluginName = modelValidation.plugin?.metadata?.name || MODEL_VALIDATION_PLUGIN_NAME;
                 this.keyAuthPluginInstalled = keyAuth.installed;
                 this.requestValidationPluginInstalled = modelValidation.installed;
-                const rule = this.currentRule();
                 const annotations = this.ingress?.metadata?.annotations || {};
-                this.routeForm.models = readStringArray(annotations[AI_MODELS_ANNOTATION] || rule?.config?.models);
-                this.routeForm.authEnabled = annotations[AI_AUTH_ANNOTATION] === 'true' || !!rule?.config?.auth?.enabled;
+                this.routeForm.models = readStringArray(annotations[AI_MODELS_ANNOTATION]);
+                this.routeForm.authEnabled = annotations[AI_AUTH_ANNOTATION] === 'true';
                 const secrets = secretRes?.data?.items || [];
-                const legacyProviders = secrets.filter(s=>s?.metadata?.labels?.[AI_CONSUMER_LABEL] != 'true').map(s=>this.secretToProvider(s));
                 const storedProviders = readRouteProviders(annotations[AI_PROVIDERS_ANNOTATION]);
-                const providerRefs = storedProviders.length ? storedProviders : (rule?.config?.providers || []);
-                const routeProviders = this.routeProviders(providerRefs, this.plugin, mcpBridge);
-                this.providers = routeProviders.length ? routeProviders : legacyProviders;
+                const routeProviders = this.routeProviders(storedProviders, this.plugin, mcpBridge);
+                this.providers = routeProviders;
                 this.proxyServerOptions = (mcpBridge?.spec?.proxies || []).map(item=>({
                     value: item.name,
                     label: item.name + (item.serverAddress ? ' (' + item.serverAddress + ':' + item.serverPort + ')' : ''),
                 })).filter(item=>item.value);
                 this.consumers = secrets
                     .filter(s=>s?.metadata?.labels?.[AI_CONSUMER_LABEL] == 'true')
-                    .map(s=>this.secretToConsumer(s, keyAuth.plugin));
+                    .map(s=>this.secretToConsumer(s))
+                    .filter(Boolean);
             } finally {
                 useLoadingStore().loading = false;
             }
@@ -702,11 +705,6 @@ export default {
             if(!this.plugin) throw new Error('AI 代理插件未安装，请返回列表完成安装');
             return clone(this.plugin);
         },
-        currentRule(){
-            return (this.plugin?.spec?.matchRules || []).find(rule=>{
-                return (rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress?.metadata?.name);
-            }) || null;
-        },
         globalProviderMap(plugin){
             const providers = plugin?.spec?.defaultConfig?.providers || [];
             const map = {};
@@ -722,10 +720,10 @@ export default {
                 if(item?.name) registryMap[item.name] = item;
             });
             return (providerRefs || []).map(item=>{
-                const legacyId = item.id || item.provider || item.name;
-                const name = item.name || legacyId;
-                const id = providerResourceId(this.ingress?.metadata?.name || '', name);
-                const config = providerMap[id] || providerMap[legacyId] || {};
+                const id = String(item?.id || '').trim();
+                const name = String(item?.name || '').trim();
+                if(!id || !name || id != providerResourceId(this.ingress?.metadata?.name || '', name)) return null;
+                const config = providerMap[id] || {};
                 return {
                     ...this.providerConfigToForm(config, item),
                     id,
@@ -734,7 +732,7 @@ export default {
                     weight: Number(item.weight) || 0,
                     enabled: item.enabled !== false,
                 };
-            }).filter(item=>item.id && item.name);
+            }).filter(Boolean);
         },
         openProvider(row){
             if(!row){
@@ -840,48 +838,17 @@ export default {
                 }
             })
         },
-        secretToProvider(secret){
-            const baseUrl = decode(secret?.data?.baseUrl);
-            const apiKey = decode(secret?.data?.apiKey);
-            return {
-                secretName: secret.metadata.name,
-                name: secret?.metadata?.annotations?.['w7.cc/provider-name'] || secret.metadata.name,
-                type: 'openai',
-                protocol: 'openai/v1',
-                tokens: apiKey ? [apiKey] : [],
-                rawConfigs: baseUrl ? { openaiCustomUrl: baseUrl } : {},
-                endpointUrl: baseUrl,
-                weight: Number(secret?.metadata?.annotations?.['w7.cc/weight'] || 0),
-                enabled: secret?.metadata?.annotations?.['w7.cc/enabled'] !== 'false',
-            };
-        },
-        secretToConsumer(secret, keyAuthPlugin){
-            const name = secret?.metadata?.annotations?.['w7.cc/consumer-name'] || secret.metadata.name;
-            const pluginName = consumerResourceId(this.ingress.metadata.name, name);
-            const pluginConfig = (keyAuthPlugin?.spec?.defaultConfig?.consumers || []).find(item=>item?.name == pluginName) || {};
-            const legacyValue = decode(secret?.data?.key);
+        secretToConsumer(secret){
+            const name = String(secret?.metadata?.annotations?.['w7.cc/consumer-name'] || '').trim();
+            if(!name) return null;
             let values = [];
             try {
                 const storedValues = JSON.parse(decode(secret?.data?.values) || '[]');
                 if(Array.isArray(storedValues)) values = compact(storedValues);
             } catch {}
-            if(!values.length) values = compact(pluginConfig.credentials || [pluginConfig.credential]);
-            const pluginKeys = compact(pluginConfig.keys);
-            const isBearer = pluginConfig.in_header === true
-                && pluginKeys.some(item=>item.toLowerCase() == 'authorization')
-                && values.length
-                && values.every(item=>/^Bearer\s+/i.test(item));
-            let source = decode(secret?.data?.source);
-            if(!source){
-                if(isBearer) source = 'BEARER';
-                else if(pluginConfig.in_header === true) source = 'HEADER';
-                else if(pluginConfig.in_query === true) source = 'QUERY';
-                else source = 'HEADER';
-            }
-            if(source == 'BEARER') values = values.map(item=>item.replace(/^Bearer\s+/i, ''));
-            if(!values.length && legacyValue) values = [legacyValue];
-            const storedTokenKey = decode(secret?.data?.tokenKey);
-            const tokenKey = source == 'BEARER' ? '' : (storedTokenKey || pluginKeys[0] || (source == 'QUERY' ? 'apikey' : 'x-api-key'));
+            const source = decode(secret?.data?.source);
+            if(!['BEARER', 'HEADER', 'QUERY'].includes(source)) return null;
+            const tokenKey = source == 'BEARER' ? '' : decode(secret?.data?.tokenKey);
             return {
                 secretName: secret.metadata.name,
                 name,
@@ -1006,7 +973,7 @@ export default {
             const prefix = domainResourcePrefix(this.ingress.metadata.name);
             const otherCredentials = new Set((plugin?.spec?.defaultConfig?.consumers || [])
                 .filter(item=>!String(item?.name || '').startsWith(prefix))
-                .flatMap(item=>item?.credentials || [item?.credential])
+                .flatMap(item=>item?.credentials || [])
                 .map(item=>String(item || '').replace(/^Bearer\s+/i, ''))
                 .filter(Boolean));
             return credentials.some(item=>otherCredentials.has(item)) ? '消费者认证令牌已被其他域名使用，请重新生成' : '';
@@ -1077,7 +1044,6 @@ export default {
                     },
                     type: 'Opaque',
                     data: {
-                        key: encode(values[0] || ''),
                         values: encode(JSON.stringify(values)),
                         source: encode(consumer.source || 'BEARER'),
                         tokenKey: encode(consumer.tokenKey || ''),
@@ -1115,23 +1081,23 @@ export default {
             plugin.spec = plugin.spec || {};
             // AI 代理只管理当前域名的认证规则，不改写 Key Auth 的全局开关。
             plugin.spec.defaultConfig = plugin.spec.defaultConfig || {};
-            const normalizedConsumers = this.normalizeKeyAuthConsumers(plugin.spec.defaultConfig);
             plugin.spec.defaultConfig.global_auth = false;
             plugin.spec.defaultConfig.keys = ['x-higress-dummy-key'];
             delete plugin.spec.defaultConfig.in_header;
             delete plugin.spec.defaultConfig.in_query;
             const prefix = domainResourcePrefix(this.ingress.metadata.name);
-            const otherConsumers = normalizedConsumers.filter(item=>!String(item?.name || '').startsWith(prefix));
+            const otherConsumers = (plugin.spec.defaultConfig.consumers || []).filter(item=>!String(item?.name || '').startsWith(prefix));
             const normalizeCredential = value=>String(value || '').replace(/^Bearer\s+/i, '');
-            const otherCredentials = new Set(otherConsumers.flatMap(item=>item?.credentials || [item?.credential]).map(normalizeCredential).filter(Boolean));
+            const otherCredentials = new Set(otherConsumers.flatMap(item=>item?.credentials || []).map(normalizeCredential).filter(Boolean));
             const currentCredentials = currentConsumers.flatMap(item=>item.credentials || []).map(normalizeCredential).filter(Boolean);
             if(currentCredentials.some(item=>otherCredentials.has(item))) throw new Error('消费者认证令牌已被其他域名使用，请重新生成');
             if(new Set(currentCredentials).size != currentCredentials.length) throw new Error('同一域名下的消费者认证令牌不能重复');
             plugin.spec.defaultConfig.consumers = otherConsumers.concat(currentConsumers);
-            plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>!((rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress.metadata.name)));
+            const ruleContext = getGatewayPluginRuleContext(this.ingress, this.namespaceActive);
+            removeGatewayPluginRuleTargets(plugin, ruleContext);
             if(this.routeForm.authEnabled){
                 plugin.spec.matchRules.push({
-                    domain: [this.host],
+                    ingress: [getGatewayPluginIngressTarget(ruleContext)],
                     config: { allow: currentConsumers.map(item=>item.name) },
                     configDisable: false,
                 });
@@ -1150,20 +1116,6 @@ export default {
             };
             return config;
         },
-        normalizeKeyAuthConsumers(defaultConfig){
-            const defaultKeys = compact(defaultConfig?.keys);
-            const defaultInHeader = defaultConfig?.in_header;
-            const defaultInQuery = defaultConfig?.in_query;
-            return (defaultConfig?.consumers || []).map(item=>{
-                const config = clone(item);
-                config.credentials = compact(config.credentials || [config.credential]);
-                if(!compact(config.keys).length) config.keys = defaultKeys.length ? defaultKeys : ['x-api-key'];
-                if(config.in_header === undefined) config.in_header = defaultInHeader === undefined ? true : !!defaultInHeader;
-                if(config.in_query === undefined) config.in_query = !!defaultInQuery;
-                delete config.credential;
-                return config;
-            });
-        },
         async syncModelValidationPlugin(){
             const models = compact(this.routeForm.models);
             let plugin = await this.getManagedPlugin(this.modelValidationPluginName);
@@ -1175,10 +1127,11 @@ export default {
             if(!plugin.spec.defaultConfig || !Object.keys(plugin.spec.defaultConfig).length){
                 plugin.spec.defaultConfig = { body_schema: { type: 'object' } };
             }
-            plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>!((rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress.metadata.name)));
+            const ruleContext = getGatewayPluginRuleContext(this.ingress, this.namespaceActive);
+            removeGatewayPluginRuleTargets(plugin, ruleContext);
             if(models.length){
                 plugin.spec.matchRules.push({
-                    domain: [this.host],
+                    ingress: [getGatewayPluginIngressTarget(ruleContext)],
                     config: {
                         body_schema: {
                             type: 'object',
@@ -1201,21 +1154,6 @@ export default {
             const weightError = validateProviderWeights(providers);
             if(weightError) throw new Error(weightError);
             const plugin = this.requirePlugin();
-            const oldRules = plugin.spec.matchRules || [];
-            const legacyRule = oldRules.find(rule=>(rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress?.metadata?.name));
-            const legacyIds = (legacyRule?.config?.providers || []).map(item=>item?.provider || item?.name).filter(Boolean);
-            const otherReferencedIds = new Set(oldRules.filter(rule=>rule !== legacyRule).flatMap(rule=>(rule?.config?.providers || []).map(item=>item?.provider || item?.name)).filter(Boolean));
-            const currentIds = new Set(providers.map(item=>item.id));
-            const staleLegacyIds = legacyIds.filter(id=>!currentIds.has(id) && !otherReferencedIds.has(id));
-            plugin.spec.matchRules = (plugin.spec.matchRules || []).filter(rule=>!((rule?.domain || []).includes(this.host) || (rule?.ingress || []).includes(this.ingress?.metadata?.name)));
-            if(staleLegacyIds.length){
-                const defaultConfig = this.ensureDefaultConfig(plugin);
-                defaultConfig.providers = (defaultConfig.providers || []).filter(item=>!staleLegacyIds.includes(item?.id));
-                plugin.spec.matchRules = plugin.spec.matchRules.filter(rule=>!staleLegacyIds.some(id=>(rule?.service || []).includes(this.providerServiceName(id)+'.dns') || (rule?.service || []).includes(this.providerServiceName(id)+'.static')));
-                for(const id of staleLegacyIds){
-                    await this.removeMcpBridgeRegistry(this.providerServiceName(id));
-                }
-            }
             providers.forEach(provider=>{
                 this.upsertGlobalProvider(plugin, provider);
                 this.upsertProviderServiceRule(plugin, provider);
