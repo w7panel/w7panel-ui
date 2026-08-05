@@ -117,6 +117,19 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 },
             },
             {
+                path: 'appgroup/:group/direct',
+                name: 'group-app-direct',
+                component: ()=>import('@/views/app/apps/detail.vue'),
+                meta: {
+                    locale: '应用直达',
+                    routekey: 'group-app-direct',
+                    hideInMenu: true,
+                    requiresAuth: true,
+                    roles: ['*'],
+                    key: 'app-apps',
+                },
+            },
+            {
                 path: 'appgroup/:group/micro',
                 name: 'group-micro',
                 component: ()=>import('@/views/app/apps/detail.vue'),
