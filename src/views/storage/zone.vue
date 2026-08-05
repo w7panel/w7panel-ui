@@ -51,9 +51,15 @@
                                         <div class="fs-12" style="color:rgb(var(--gray-6));">{{record.storageClassName}}</div>
                                     </div>
 
-                                    <div v-if="record.isExpanding" class="ml-10 fs-12 c-66 df ai-c">
+                                    <div v-if="record.resizeActive || record.isExpanding" class="ml-10 fs-12 c-66 df ai-c">
                                         <icon-loading />
-                                        <span class="ml-4">扩容中</span>
+                                        <span class="ml-4">{{record.resizeText || '扩容中'}}</span>
+                                    </div>
+                                    <a-tooltip v-else-if="record.resizeState=='failed'" :content="record.resizeMessage || '扩容失败'">
+                                        <span class="ml-10 fs-12 c-red">扩容失败</span>
+                                    </a-tooltip>
+                                    <div v-else-if="record.resizeState=='succeeded'" class="ml-10 fs-12 c-green">
+                                        扩容完成
                                     </div>
                                 </div>
                             </template>
@@ -121,8 +127,9 @@
                         </a-table-column>
                         <a-table-column title="操作" fixed='right' :width="240">
                             <template #cell="{ record }">
-                                <span v-if="hasLonghornSystem && !record.isExpanding" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
-                                <span v-if="record.isExpanding" class="c-blue cursor mr-20" @click="cancelExpand(record)">取消扩容</span>
+                                <span v-if="hasLonghornSystem && !record.isExpanding && !record.resizeActive && record.resizeState!='failed'" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
+                                <span v-if="record.isExpanding && !record.resizeActive" class="c-blue cursor mr-20" @click="cancelExpand(record)">取消扩容</span>
+                                <span v-if="record.resizeState=='failed'" class="c-blue cursor mr-20" @click="retryResize(record)">重试</span>
 
                                 <span v-if="record.state=='attached'" class="operation c-blue cursor mr-20" :class="tfloading.includes(record.name)?'disabled':''" @click="trimFilesystem(record)">
                                     <span>碎片整理</span>
@@ -359,6 +366,8 @@ export default {
                 let list = res?.data?.items;
                 list = list.map(i=>{
                     let size = i.spec?.resources?.requests?.storage;
+                    let annotations = i.metadata?.annotations || {};
+                    let resizeState = annotations['storage.w7.cc/resize-state'] || '';
                     return {
                         name: i.metadata.name,
                         namespace: i.metadata.namespace,
@@ -372,6 +381,11 @@ export default {
                         status: i.status?.phase,
 
                         volumeName: i.spec?.volumeName,
+                        resizeState,
+                        resizeMessage: annotations['storage.w7.cc/resize-message'] || '',
+                        resizeTarget: annotations['storage.w7.cc/resize-target'] || '',
+                        resizeActive: ['pending','detaching','resizing','attaching','restarting'].includes(resizeState),
+                        resizeText: this.resizeStateText(resizeState),
                     }
                 })
                 this.list = list;
@@ -415,6 +429,11 @@ export default {
                         return {
                             ...i,
                             ...obj,
+                            resizeActive: i.resizeActive,
+                            resizeState: i.resizeState,
+                            resizeMessage: i.resizeMessage,
+                            resizeTarget: i.resizeTarget,
+                            resizeText: i.resizeText,
                             bindstatus,
                         }
                     })
@@ -471,7 +490,7 @@ export default {
                     i.isCustom = arr.includes(i.name);
                     i.isDefault = i.name == this.customsDefault;
                 });
-                if(this.list.filter(i=>i.isExpanding)?.length){
+                if(this.list.some(i=>i.isExpanding || i.resizeActive)){
                     clearTimeout(this.testExpanding);
                     this.testExpanding = setTimeout(()=>{
                         this.getList();
@@ -531,6 +550,33 @@ export default {
                 this.getList();
             })
         },
+        resizeStateText(state){
+            return {
+                pending: '等待扩容',
+                detaching: '正在分离',
+                resizing: '正在扩容',
+                attaching: '正在绑定',
+                restarting: '正在重启 Pod',
+            }[state] || '';
+        },
+        retryResize(record){
+            k8sproxy.patch(`/api/v1/namespaces/${record.namespace}/persistentvolumeclaims/${record.name}`,{
+                metadata: {
+                    annotations: {
+                        'storage.w7.cc/resize-state': 'pending',
+                        'storage.w7.cc/resize-message': '扩容任务已重新提交',
+                        'storage.w7.cc/resize-stage-at': new Date().toISOString(),
+                        'storage.w7.cc/resize-detach-requested': null,
+                        'storage.w7.cc/resize-attach-requested': null,
+                    }
+                }
+            },{
+                headers: {'Content-Type': 'application/merge-patch+json'},
+            }).then(()=>{
+                this.$message.success('扩容任务已重新提交');
+                this.getList();
+            });
+        },
         openExpend(record){
             console.log(record)
             this.expand = {
@@ -563,7 +609,7 @@ export default {
                         size: Number(this.expand.size),
                     }).then(res=>{
                         this.expand.show = false;
-                        this.$message.success('操作成功');
+                        this.$message.success('扩容任务已提交');
                         setTimeout(()=>{
                             this.getList();
                         },800)
@@ -580,7 +626,7 @@ export default {
                     headers: {'Content-Type': 'application/json-patch+json'},
                 }).then(res=>{
                     this.expand.show = false;
-                    this.$message.success('操作成功');
+                    this.$message.success('扩容任务已提交');
                     setTimeout(()=>{
                         this.getList();
                     },800)
