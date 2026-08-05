@@ -80,10 +80,10 @@
                                  <!-- v-if="permission.includes('app-apps-files')" -->
                                 <a-menu-item v-if="fileeditor" key="app-detail-files"><icon-folder />文件管理</a-menu-item>
                                 <a-menu-item key="app-detail-domain"><icon-cloud />域名管理</a-menu-item>
-                                <a-menu-item v-if="showAppDirect" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
                                 <a-menu-item key="app-detail-job"><icon-code-square />执行脚本</a-menu-item>
                                 <a-menu-item key="app-detail-version"><icon-select-all />历史版本</a-menu-item>
                                 <a-menu-item key="app-detail-moniter"><icon-bar-chart />运行状态</a-menu-item>
+                                <a-menu-item v-if="showAppDirect" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
                             </a-menu>
                         </div>
                     </div>
@@ -270,6 +270,16 @@ export default {
             ]
         },
         '$route.name'(v,ov){
+            this.selectMenu = [this.$route.meta.routekey];
+            this.isHelmPage = /^group\-helm(\-|$)/.test(v);
+            if(this.isHelmPage){
+                this.appname = 'helm-'+this.$route.params.group;
+            }else if(this.$route.params.kind && this.$route.params.id){
+                this.appname = this.$route.params.kind + this.$route.params.id;
+            }
+            if(v == 'group-app-direct' || ov == 'group-app-direct'){
+                return;
+            }
             this.getData();
         },
         '$route.params.page'(v){
@@ -1099,9 +1109,18 @@ export default {
             });
         },
         changeKey(val){
-            const params = val == 'group-app-direct'
-                ? {group: this.$route.params.group}
-                : this.$route.params;
+            let params = this.$route.params;
+            if(val == 'group-app-direct'){
+                params = {group: this.$route.params.group};
+            }else if(val.startsWith('app-detail-') && (!params.kind || !params.id)){
+                const app = this.applist.find(item=>!item.isHelm && item.key==this.appname)
+                    || this.applist.find(item=>!item.isHelm && item.kind && item.name);
+                params = {
+                    group: this.$route.params.group,
+                    kind: app?.kind,
+                    id: app?.name,
+                };
+            }
             this.$router.push({name:val, params});
         },
         toCopy(){

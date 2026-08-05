@@ -307,10 +307,6 @@
                             </a-option>
                         </a-select>
                     </a-form-item>
-                    <a-form-item v-if="domainForm.originType==3" label="游客访问">
-                        <a-switch v-model="domainForm.needlogin" :checked-value="false" :unchecked-value="true"></a-switch>
-                    </a-form-item>
-
                 </a-form>
             </a-spin>
         </a-drawer>
@@ -508,10 +504,6 @@
                         </a-option>
                     </a-select>
                 </a-form-item>
-                <a-form-item v-if="domain.originType==3" label="游客访问">
-                    <a-switch v-model="domain.needlogin" :checked-value="false" :unchecked-value="true"></a-switch>
-                </a-form-item>
-
             </a-form>
         </a-drawer>
         <!-- 卡片添加域名 -->
@@ -1396,7 +1388,6 @@ export default {
                     originType: originType,
                     ...{
                         zdApp: RHC?.microapp_name,
-                        needlogin: RHC?.microapp_needlogin,
                     },
                     
                     // noReplace: noReplace,
@@ -1497,7 +1488,6 @@ export default {
                     originType: originType,
                     ...{
                         zdApp: RHC?.microapp_name,
-                        needlogin: RHC?.microapp_needlogin,
                     },
 
                     // noReplace: noReplace,
@@ -1658,7 +1648,6 @@ export default {
                 destination: item.destination,
 
                 zdApp: this.inRvproxy? (item.zdApp || '') : this.currentDirectApp.name,
-                needlogin: true, // 应用直达，游客访问
             }
             if(this.whiteList?.length && this.whiteList[this.domainForm?.whiteDomain]?.prefixRandom && !this.domainForm.domain){
                 this.domainForm.domain = this.createShortUuid();
@@ -1921,7 +1910,7 @@ export default {
                                 `microapp_do /`,
                                 `microapp_leftmenu true`,
                                 `microapp_breadcrumb true`,
-                                `microapp_needlogin ${this.domainForm.needlogin}`,
+                                'microapp_needlogin true',
                             ].join('\n')
                         }
                         data.metadata.annotations = {
@@ -1969,7 +1958,6 @@ export default {
                 app: item?.app || '',
                 originType: item.originType || (this.inRvproxy? 1 : 2),
                 zdApp: this.inRvproxy? (item?.zdApp || '') : this.currentDirectApp.name,
-                needlogin: !!item?.needlogin,
 
                 appPorts: this.inRvproxy? [] : (this.appPorts[item.app] || []),
                 isroot: item.is_root || false,
@@ -2058,7 +2046,7 @@ export default {
                             microapp_do: '/',
                             microapp_leftmenu:  true,
                             microapp_breadcrumb: true,
-                            microapp_needlogin: this.domain.needlogin,
+                            microapp_needlogin: true,
                         }
                         data.metadata.annotations[key] = Object.entries(obj).map(([k,v])=>`${k} ${v}`).join('\n');
                     }else{
