@@ -693,9 +693,6 @@ export default {
                 useLoadingStore().loading = false;
             }
         },
-        getPlugin(){
-            return this.getManagedPlugin(this.aiProxyPluginName);
-        },
         async savePlugin(plugin){
             const res = await k8sproxy.put('/apis/extensions.higress.io/v1alpha1/namespaces/'+PLUGIN_NAMESPACE+'/wasmplugins/'+this.aiProxyPluginName, plugin);
             this.plugin = res.data;
