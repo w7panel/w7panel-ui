@@ -69,11 +69,13 @@
                     <div v-if="$route.name!='group-micro2'">
                         <a-divider v-if="bottomMenus.length || externalServices.length" style="margin:10px;width:auto;min-width:auto;" />
                         <div v-if="$route.name!=''">
-                            <a-menu v-if="isHelmPage || (isMicroPage&&isHelmApp)" v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
+                            <a-menu v-if="isHelmPage || ((isMicroPage||isAppDirectPage)&&isHelmApp)" v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
+                                <a-menu-item v-if="showAppDirect" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
                                 <a-menu-item key="group-helm-detail" ><icon-apps />应用详情</a-menu-item>
                                 <a-menu-item key="group-helm-domain" ><icon-cloud />域名管理</a-menu-item>
                             </a-menu>
                             <a-menu v-else v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
+                                <a-menu-item v-if="showAppDirect" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
                                 <a-menu-item key="app-detail-detail"><icon-apps />应用详情</a-menu-item>
                                 <a-menu-item key="app-detail-pod"><icon-nav />容器列表</a-menu-item>
                                  <!-- v-if="permission.includes('app-apps-files')" -->
@@ -92,6 +94,9 @@
                 <div class="bg-white external-service-box fc">
                     <productMarketOrder  :remote-url="activeExternalService.url"/>
                 </div>
+            </a-layout-content>
+            <a-layout-content v-else-if="isAppDirectPage" :class="['df df-c', {'ml-6': !hideAppMenu}]">
+                <app-direct :info="info" class="routerviewbox fc" />
             </a-layout-content>
             <a-layout-content v-else-if="isMicroPage" :class="['df df-c', {'ml-6': !hideAppMenu}]">
                 <div :class="['bg-white routerviewbox fc', {'ml-6': !hideAppMenu}]" >
@@ -175,6 +180,7 @@ import { createK8sProxy, createMicroappProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import productMarketOrder from '../product-market/order.vue'
+import AppDirect from '@/views/topapp/app-direct.vue';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -240,6 +246,7 @@ export default {
             downOk: true,
             hideAppMenu: false,
             externalServices: [],
+            userRole: '',
         }
     },
     watch: {
@@ -288,6 +295,7 @@ export default {
     async created(){
         this.permission = getPermission() || [];
         this.fileeditor = getFileEditor() == 'true';
+        this.userRole = getK8sinfo()?.['w7.cc/role'] || '';
         this.selectMenu = [this.$route.meta.routekey]
         this.namespaceActive = useNamespaceStore().namespace;
         this.groupTitle = this.$route.params.group;
@@ -300,6 +308,8 @@ export default {
     },
     computed:{
         isMicroPage(){ return this.$route.name == 'group-micro' || this.$route.name == 'group-micro2'; },
+        isAppDirectPage(){ return this.$route.name == 'group-app-direct'; },
+        showAppDirect(){ return this.hasThirdpartyCd && this.userRole == 'founder'; },
         menuLocationGroups(){
             return splitMicroAppMenuRoles(this.roles);
         },
@@ -339,7 +349,8 @@ export default {
     components: {
         formDrawer,
         wujieModals,
-        productMarketOrder
+        productMarketOrder,
+        AppDirect,
     },
     beforeUnmount(){
         if(this.watchInterval){
@@ -1044,7 +1055,7 @@ export default {
                 useLoadingStore().loading = false;
             }).then(()=>{
                 new Promise((resolve,reject)=>{
-                    if(!this.isMicroPage && !this.appname && (!this.$route.params.kind || !this.$route.params.id)){
+                    if(!this.isMicroPage && !this.isAppDirectPage && !this.appname && (!this.$route.params.kind || !this.$route.params.id)){
                         let app = this.applist.find(i=>i.kind&&i.name);
                         this.appname = app.kind + app.name;
                         this.$router.push({params:{
@@ -1088,7 +1099,10 @@ export default {
             });
         },
         changeKey(val){
-            this.$router.push({name:val, params: this.$route.params});
+            const params = val == 'group-app-direct'
+                ? {group: this.$route.params.group}
+                : this.$route.params;
+            this.$router.push({name:val, params});
         },
         toCopy(){
             if(!this.copying){

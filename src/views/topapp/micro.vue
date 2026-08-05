@@ -17,20 +17,13 @@
                     style="height:calc(100vh - 62px);box-sizing:border-box;"
                 >
                     <micro-container
-                        v-show="!isAppDirectPage"
                         ref="microcontainer"
                         :appgroup="groupName"
-                        :menuActive="microMenuActive"
+                        :menuActive="menuActive"
                         @getinfo="v=>info=v"
                         @getBindings="v=>bindings=v"
                         @changeAppMenu="changeAppMenu"
                     ></micro-container>
-                    <app-direct
-                        v-if="isAppDirectPage"
-                        :roles="roles"
-                        :info="info"
-                        @open="routeChange"
-                    />
                 </div>
             </a-layout-content>
         </a-layout>
@@ -42,9 +35,8 @@ import { useNamespaceStore } from '@/store';
 import { getK8sinfo } from '@/utils/auth';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 import microContainer from './micro-container.vue'
-import appDirect from './app-direct.vue'
 
-const APP_DIRECT_DO = '__topapp_app_direct__';
+const LEGACY_APP_DIRECT_DO = '__topapp_app_direct__';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -66,7 +58,6 @@ export default{
             bindings: [],
             groupName: '',
             hideAppMenu: false,
-            currentMicroMenuActive: '',
         }
     },
     created(){
@@ -76,22 +67,11 @@ export default{
     components: {
         TopappMenu,
         microContainer,
-        appDirect,
-    },
-    computed: {
-        isAppDirectPage(){
-            return this.menuActive === APP_DIRECT_DO;
-        },
-        microMenuActive(){
-            return this.isAppDirectPage ? this.currentMicroMenuActive : this.menuActive;
-        },
     },
     watch:{
         do(v){
             this.menuActive = v || this.$route.query.do || '';
-            if(!this.isAppDirectPage){
-                this.currentMicroMenuActive = this.menuActive;
-            }
+            this.redirectLegacyAppDirect(this.menuActive);
         },
         bindings(v){
             this.getMenu(v)
@@ -119,10 +99,10 @@ export default{
             this.identifieList = [];
             this.info = {};
             this.bindings = [];
-            this.menuActive = this.do || this.$route.query.do || '';
-            this.currentMicroMenuActive = this.menuActive === APP_DIRECT_DO ? '' : this.menuActive;
             this.hideAppMenu = this.isHideMenu();
             this.groupName = this.group || this.$route.params.group;
+            this.menuActive = this.do || this.$route.query.do || '';
+            this.redirectLegacyAppDirect(this.menuActive);
         },
         changeAppMenu(v){
             this.hideAppMenu = (v === false)? true : this.isHideMenu();
@@ -138,34 +118,32 @@ export default{
             const routeDo = this.getRouteDo();
             if(routeDo){
                 this.menuActive = routeDo;
-                if(!this.isAppDirectPage){
-                    this.currentMicroMenuActive = routeDo;
-                }
+                this.redirectLegacyAppDirect(routeDo);
                 return;
             }
             this.syncAppmicroMenu();
         },
         syncAppmicroMenu(){
-            if(this.isAppDirectPage){ return; }
             const appmicro = this.getAppmicroMenu();
             if(!appmicro){ return; }
             this.menuActive = appmicro;
-            this.currentMicroMenuActive = appmicro;
         },
         routeChange(v){
-            const oldMicroMenuActive = this.currentMicroMenuActive;
-            const wasAppDirectPage = this.isAppDirectPage;
             this.menuActive = v || '';
-            if(this.menuActive === APP_DIRECT_DO){
-                return;
-            }
-            this.currentMicroMenuActive = this.menuActive;
-            if(wasAppDirectPage && oldMicroMenuActive === this.menuActive){
-                this.$refs?.microcontainer?.routeChange?.(v);
-                this.$nextTick(()=>{
-                    window.dispatchEvent(new Event('resize'));
-                });
-            }
+            this.redirectLegacyAppDirect(this.menuActive);
+        },
+        redirectLegacyAppDirect(value){
+            if(value !== LEGACY_APP_DIRECT_DO || !this.groupName){ return false; }
+            const query = {...this.$route.query};
+            delete query.do;
+            delete query.appmicro;
+            delete query.showMenu;
+            this.$router.replace({
+                name: 'group-app-direct',
+                params: {group: this.groupName},
+                query,
+            });
+            return true;
         },
         getMenu(bindings){
 
@@ -187,7 +165,6 @@ export default{
                 })
             }catch{}
             
-            roles = this.injectAppDirectMenu(roles);
             roles.sort((a, b) => (b.name === 'founder') - (a.name === 'founder'));
             
             if(userRole=='founder'){
@@ -201,26 +178,8 @@ export default{
             }else{
                 this.menuActive = this.getAppmicroMenu() || this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
             }
-            if(!this.isAppDirectPage){
-                this.currentMicroMenuActive = this.menuActive;
-            }
+            this.redirectLegacyAppDirect(this.menuActive);
 
-        },
-        injectAppDirectMenu(roles){
-            const founder = roles.find(i=>i.name === 'founder');
-            if(!founder || founder.menus?.some(i=>i.do === APP_DIRECT_DO)){
-                return roles;
-            }
-            founder.menus = [
-                ...(founder.menus || []),
-                {
-                    title: '应用直达',
-                    do: APP_DIRECT_DO,
-                    displayorder: -1,
-                    isLocalPage: true,
-                },
-            ];
-            return roles;
         },
         isHideMenu(){
             const showMenu = this.showMenu ?? this.$route.query.showMenu;
