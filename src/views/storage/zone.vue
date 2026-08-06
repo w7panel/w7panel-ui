@@ -104,7 +104,8 @@
                         <a-table-column title="绑定状态">
                             <template #cell="{ record }">
                                 <span v-if="record.bindstatus">
-                                    <template v-if="record.attachedNodeId">{{record.attachedNodeId}}（{{record.bindstatus}}）</template>
+                                    <template v-if="record.bindstatus=='扩容中'">{{record.bindstatus}}</template>
+                                    <template v-else-if="record.attachedNodeId">{{record.attachedNodeId}}（{{record.bindstatus}}）</template>
                                     <template v-else>{{record.bindstatus}}</template>
                                 </span>
                                 <span v-else>-</span>
@@ -394,6 +395,7 @@ export default {
                         resizeSucceededRemaining,
                         resizeMessage: annotations['storage.w7.cc/resize-message'] || '',
                         resizeTarget: annotations['storage.w7.cc/resize-target'] || '',
+                        resizeOriginallyAttached: annotations['storage.w7.cc/resize-originally-attached'] || '',
                         resizeActive: ['pending','detaching','resizing','attaching','restarting'].includes(resizeState),
                         resizeText: this.resizeStateText(resizeState),
                     }
@@ -430,8 +432,13 @@ export default {
                         obj.snapShotNum = Number(obj.snapShotSize);
                         
                         const attachmentState = obj.attachmentState || obj.state;
+                        const detachedResizeActive = i.resizeActive && (
+                            i.resizeOriginallyAttached === 'false' ||
+                            (i.resizeState === 'pending' && !i.resizeOriginallyAttached && attachmentState === 'detached')
+                        );
                         let bindstatus = '';
-                        if(attachmentState=='attached' && obj.isLock=='true'){ bindstatus = '锁定' }
+                        if(detachedResizeActive){ bindstatus = '扩容中' }
+                        else if(attachmentState=='attached' && obj.isLock=='true'){ bindstatus = '锁定' }
                         else if(attachmentState=='attached'){ bindstatus = '自动' }
                         else if(attachmentState=='attaching'){ bindstatus = '绑定中' }
                         else if(attachmentState=='detaching'){ bindstatus = '分离中' }
@@ -448,6 +455,7 @@ export default {
                             resizeSucceededRemaining: i.resizeSucceededRemaining,
                             resizeMessage: i.resizeMessage,
                             resizeTarget: i.resizeTarget,
+                            resizeOriginallyAttached: i.resizeOriginallyAttached,
                             resizeText: i.resizeText,
                             attachmentState,
                             bindstatus,
