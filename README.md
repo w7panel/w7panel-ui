@@ -77,7 +77,8 @@ ZPK 安装页会在读取配置和提交安装时识别结构化订单绑定冲�
 | 集群概览 | `/cluster/overview` | 集群资源监控 |
 | 节点管理 | `/cluster/nodes` | K8s 节点管理 |
 | 应用列表 | `/app/apps` | 应用部署和管理 |
-| 应用详情 | `/app/appgroup/{id}` | 应用资源管理，并内嵌展示 AppGroup 声明的服务入口 |
+| 应用详情 | `/app/appgroup/{id}` | 应用资源管理；MicroApp 菜单按所属 Binding 读取同名 `roleConfig`，并将制品提供的 `zpk-market` 服务中心统一展示 |
+| 顶部微应用 | `/appgroup/{id}` | 顶部应用菜单按所属 Binding 切换同名 `roleConfig`，依据 `load_mode` 和 `serverUrl` 加载对应页面 |
 | 容器列表 | `/app/appgroup/{id}/pod` | Pod/容器管理 |
 | 存储设备 | `/storage/disk` | Longhorn 存储 |
 | 资源浏览器 | `/cluster/resource` | K8s 资源浏览 |

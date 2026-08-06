@@ -38,6 +38,9 @@ export default{
         return {
             namespaceActive: '',
             info: {},
+            microAppBaseInfo: {},
+            microAppRoleConfig: {},
+            bindings: [],
             extra: {},
             page: '',
             downOk: true,
@@ -68,8 +71,16 @@ export default{
         },
         menuActive(v){
             if(!v || this.page==v){return}
+            const previousBinding = this.getMenuBindingName(this.page);
             this.page = v;
             this.rememberMicroRoute(v);
+            const currentBinding = this.applyMenuRuntimeConfig(v);
+            this.$emit('getinfo',{...this.info});
+            if(previousBinding !== currentBinding){
+                this.destroyMicro();
+                this.wujieInit();
+                return;
+            }
             this.routeChange(v);
         },
         '$route.query.appmicro'(){
@@ -110,7 +121,7 @@ export default{
         },
         getMicroAppBaseUrl(){
             if(this.info.load_mode === 'iframe'){
-                return this.info.iframePath || this.info.url || this.info.frontendUrl || '';
+                return this.info.iframePath || this.info.serverUrl || this.info.url || this.info.frontendUrl || '';
             }
             return this.info.frontendUrl || '';
         },
@@ -139,14 +150,43 @@ export default{
             this.wujieInit();
             return true;
         },
+        getMenuBindingName(route){
+            return this.bindings.find(binding=>(binding.menu || []).some(menu=>menu.do === route))?.name || '';
+        },
+        normalizeMicroMenuRoute(value){
+            const bases = [
+                this.getMicroAppBaseUrl(),
+                this.microAppBaseInfo?.frontendUrl,
+                ...Object.values(this.microAppRoleConfig || {}).flatMap(config=>[config?.serverUrl, config?.url]),
+            ].filter(Boolean);
+            for(const base of [...new Set(bases)]){
+                const route = normalizeWujieSyncRoute(value, getWujieRoutePrefix(base));
+                if(this.getMenuBindingName(route)){
+                    return route;
+                }
+            }
+            return normalizeWujieSyncRoute(value, getWujieRoutePrefix(this.getMicroAppBaseUrl()));
+        },
+        applyMenuRuntimeConfig(route){
+            const userRole = getK8sinfo()['w7.cc/role'];
+            const bindingName = this.getMenuBindingName(route);
+            const roleProps = this.microAppRoleConfig?.[bindingName]
+                || this.microAppRoleConfig?.[userRole]
+                || this.microAppRoleConfig?.founder
+                || {};
+            this.info = {
+                ...this.microAppBaseInfo,
+                ...roleProps,
+                ...(roleProps.frontend_props || {}),
+            };
+            return bindingName;
+        },
         routeChange(v){
-            // if(this.info.load_mode === 'iframe'){
-            //     // this.info.iframeRoute = v || '';
-            //     // this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
-            //     this.destroyMicro();
-            //     this.wujieInit();
-            // }else{
-            // }
+            if(this.info.load_mode === 'iframe'){
+                this.destroyMicro();
+                this.wujieInit();
+                return;
+            }
             bus.$emit("routeChange", (v || '').replace(/^#/,''));
             this.rememberMicroRoute(v);
         },
@@ -156,13 +196,16 @@ export default{
             }catch{}
             this.destroyMicro();
             this.info = {};
+            this.microAppBaseInfo = {};
+            this.microAppRoleConfig = {};
+            this.bindings = [];
             this.extra = {};
             this.page = '';
             this.downOk = true;
             this.microLoading = false;
         },
         rememberCurrentMicroRoute(){
-            this.rememberMicroRoute(normalizeWujieSyncRoute(this.$route.query?.appmicro, getWujieRoutePrefix(this.info.frontendUrl)));
+            this.rememberMicroRoute(this.normalizeMicroMenuRoute(this.$route.query?.appmicro));
         },
         rememberMicroRoute(route){
             if(!route){ return; }
@@ -174,21 +217,10 @@ export default{
                 let item  = res?.data;
                 if(!item){return}
 
-                let userRole = getK8sinfo()['w7.cc/role'];
                 let roleConfig = item?.spec?.['config-v2']?.props?.roleConfig || {};
-                let roleProps = roleConfig?.[userRole] || {};
-                if(roleConfig.founder && !roleConfig?.[userRole]){
-                    roleProps = roleConfig.founder;
-                }
-                if(roleProps.frontend_props){
-                    roleProps = {
-                        ...roleProps,
-                        ...roleProps.frontend_props,
-                    }
-                }
-
-                this.info = {
-                    ...this.info,
+                this.microAppRoleConfig = roleConfig;
+                this.bindings = item?.spec?.bindings || [];
+                this.microAppBaseInfo = {
                     appgroup: appgroup,
                     // frontendUrl: item?.spec?.frontendUrl,
                     // 测试短路径
@@ -198,21 +230,23 @@ export default{
                     password: item?.spec?.config?.props?.password,
                     appImage: item?.spec?.config?.props?.image,
                     ...item?.spec?.config?.props,
-                    ...roleProps,
-                }
+                };
+                this.applyMenuRuntimeConfig('');
                 this.extra = {
                     identifie: item.metadata?.labels?.['w7.cc/identifie'] || '',
                     version: item.metadata?.labels?.['w7.cc/version'] || '',
                     name: item.metadata.name,
                     namespace: item.metadata.namespace,
                 }
-                this.$emit('getBindings',item?.spec?.bindings||[])
+                this.$emit('getBindings',this.bindings)
                 this.$emit('getinfo',{...this.info})
                 this.rememberCurrentMicroRoute();
                 this.$nextTick(()=>{
-                    const appmicro = this.ignoreAppmicroOnce ? '' : normalizeWujieSyncRoute(this.$route.query?.appmicro, getWujieRoutePrefix(this.info.frontendUrl));
+                    const appmicro = this.ignoreAppmicroOnce ? '' : this.normalizeMicroMenuRoute(this.$route.query?.appmicro);
                     this.ignoreAppmicroOnce = false;
                     this.page = appmicro || this.menuActive || '';
+                    this.applyMenuRuntimeConfig(this.page);
+                    this.$emit('getinfo',{...this.info});
                     this.rememberMicroRoute(this.page);
 
                     this.wujieInit();
@@ -231,7 +265,7 @@ export default{
             })
 
             if(this.info.load_mode=='iframe'){
-                this.info.iframePath = this.info.url;
+                this.info.iframePath = this.getMicroAppBaseUrl();
                 this.info.iframeRoute = this.page || '';
                 this.info.iframeSrc = this.buildIframeSrc(this.info.iframePath, this.info.iframeRoute);
                 // return;
@@ -315,7 +349,7 @@ export default{
                 degrade: this.info.load_mode === 'iframe',
                 degradeAttrs: { style: 'border:0;display:block;' },
                 sync: true,
-                prefix: getWujieRoutePrefix(this.info.frontendUrl),
+                prefix: getWujieRoutePrefix(this.getMicroAppBaseUrl()),
                 props: props,
                 plugins: this.info.load_mode === 'iframe' ? [createWujieRequestCredentialsPlugin(), createWujieRequirePlugin()] : [],
                 fetch: this.info.load_mode === 'iframe' ? wujieFetch : null,

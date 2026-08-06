@@ -158,7 +158,7 @@ export default{
                     menus.sort((a,b)=>b.displayorder-a.displayorder);
                     menus = this.transformMenu(menus)
                     roles.push({
-                        title: ROLE_NAME[i.name] || i.name,
+                        title: i.title || ROLE_NAME[i.name] || i.name,
                         name: i.name,
                         menus: menus,
                     })
