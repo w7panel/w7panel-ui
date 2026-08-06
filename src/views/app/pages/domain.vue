@@ -291,14 +291,22 @@
                     </a-form-item>
 
                     <a-form-item v-if="domainForm.originType==3" label="直达应用" style="margin-top:20px;" field="zdApp">
-                        <a-select v-model="domainForm.zdApp" placeholder="请选择应用">
-                            <a-option v-for="item in topApps" :key="item.name" :label="item.title" :value="item.name"></a-option>
+                        <a-select
+                            v-model="domainForm.zdApp"
+                            placeholder="搜索并选择应用"
+                            allow-search
+                            :filter-option="filterDirectAppOption"
+                            :loading="directAppsLoading"
+                            :disabled="!inRvproxy"
+                        >
+                            <a-option v-for="item in directAppOptions" :key="item.name" :label="item.title" :value="item.name">
+                                <div class="direct-app-option">
+                                    <span>{{item.title}}</span>
+                                    <small v-if="item.title!=item.name">{{item.name}}</small>
+                                </div>
+                            </a-option>
                         </a-select>
                     </a-form-item>
-                    <a-form-item v-if="domainForm.originType==3" label="游客访问">
-                        <a-switch v-model="domainForm.needlogin" :checked-value="false" :unchecked-value="true"></a-switch>
-                    </a-form-item>
-
                 </a-form>
             </a-spin>
         </a-drawer>
@@ -480,14 +488,22 @@
                 </a-form-item>
 
                 <a-form-item v-if="domain.originType==3" label="直达应用" field="zdApp">
-                    <a-select v-model="domain.zdApp" placeholder="请选择应用">
-                        <a-option v-for="item in topApps" :key="item.name" :label="item.title" :value="item.name"></a-option>
+                    <a-select
+                        v-model="domain.zdApp"
+                        placeholder="搜索并选择应用"
+                        allow-search
+                        :filter-option="filterDirectAppOption"
+                        :loading="directAppsLoading"
+                        :disabled="!inRvproxy"
+                    >
+                        <a-option v-for="item in directAppOptions" :key="item.name" :label="item.title" :value="item.name">
+                            <div class="direct-app-option">
+                                <span>{{item.title}}</span>
+                                <small v-if="item.title!=item.name">{{item.name}}</small>
+                            </div>
+                        </a-option>
                     </a-select>
                 </a-form-item>
-                <a-form-item v-if="domain.originType==3" label="游客访问">
-                    <a-switch v-model="domain.needlogin" :checked-value="false" :unchecked-value="true"></a-switch>
-                </a-form-item>
-
             </a-form>
         </a-drawer>
         <!-- 卡片添加域名 -->
@@ -555,7 +571,7 @@
 </template>
 
 <script>
-import { k8sproxy, panelApi } from '@/utils/api';
+import { k8sproxy } from '@/utils/api';
 
 import axios from 'axios'
 import domainStrategy from '@/components/domain-strategy.vue'
@@ -661,7 +677,8 @@ export default {
             multipleGrayreleaseShow: false,
             multipleStrategyShow: false,
 
-            topApps: [],
+            directApps: [],
+            directAppsLoading: false,
         };
     },
     components: {
@@ -675,6 +692,7 @@ export default {
         this.debug = getUserInfo()?.['w7.cc/debug']=='true';
         this.inRvproxy = this.$route.name == 'gateway-rvproxy-domain';
         this.namespaceActive = useNamespaceStore().namespace;
+        this.loadDirectApps();
         await this.getWhiteList();
         this.refreshGroup();
         this.getList();
@@ -698,27 +716,81 @@ export default {
             }
             return !!this.appList?.length;
         },
+        currentDirectApp(){
+            const name = this.$route.params?.group || '';
+            const current = this.directApps.find(item=>item.name==name);
+            if(current){ return current; }
+            return {
+                name,
+                title: this.groupData?.metadata?.annotations?.title || this.groupData?.spec?.title || name,
+            };
+        },
+        directAppOptions(){
+            let options = this.inRvproxy ? [...this.directApps] : [this.currentDirectApp];
+            const selectedNames = this.inRvproxy
+                ? [this.domainForm?.zdApp, this.domain?.zdApp]
+                : [];
+            selectedNames.filter(Boolean).forEach(name=>{
+                if(!options.some(item=>item.name==name)){
+                    options.push({name, title:name});
+                }
+            });
+            return options.filter(item=>item.name);
+        },
     },
     methods: {
         async cleanupIngressPluginRules(ingressNames){
             return cleanupIngressPluginRules(k8sproxy, this.namespaceActive, ingressNames);
         },
         chengeFormOriginType(v){
-            if(v==3){ this.getMenutop(); }
+            if(v==3 && !this.inRvproxy){
+                const name = this.currentDirectApp.name;
+                this.domainForm.zdApp = name;
+                this.domain.zdApp = name;
+            }
             if(v==2){
                 this.domain.app = '';
                 this.domain.port = '';
             }
         },
-        getMenutop(){
-            panelApi.get('/microapp/top').then(res=>{
-                let items = res.data?.items || [];
-                let topApps = items.map(i=>({
-                    title: i?.metadata?.annotations?.title || i?.spec?.title,
-                    name: i.metadata.name,
-                }))
-                this.topApps = topApps;
-            })
+        async loadDirectApps(){
+            this.directAppsLoading = true;
+            try{
+                const {data} = await k8sproxy.get(
+                    '/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps',
+                    {noAlert:true},
+                );
+                const appMap = new Map();
+                (data?.items || []).forEach(item=>{
+                    const name = item?.metadata?.name || '';
+                    const frontendUrl = String(item?.spec?.frontendUrl || '').trim();
+                    const manifestType = item?.metadata?.annotations?.['w7.cc/manifest-type'];
+                    if(!name || !frontendUrl || manifestType=='gateway-plugin'){ return; }
+                    appMap.set(name, {
+                        name,
+                        title: item?.metadata?.annotations?.title || item?.spec?.title || name,
+                    });
+                });
+                this.directApps = [...appMap.values()].sort((a,b)=>
+                    String(a.title).localeCompare(String(b.title), 'zh-CN')
+                );
+            }catch{
+                this.directApps = [];
+            }finally{
+                this.directAppsLoading = false;
+            }
+        },
+        filterDirectAppOption(inputValue, option){
+            const keyword = String(inputValue || '').trim().toLocaleLowerCase();
+            if(!keyword){ return true; }
+            const label = option?.label ?? option?.props?.label ?? '';
+            const value = option?.value ?? option?.props?.value ?? '';
+            return `${label} ${value}`.toLocaleLowerCase().includes(keyword);
+        },
+        normalizeDirectAppTarget(form){
+            if(form?.originType==3 && !this.inRvproxy){
+                form.zdApp = this.currentDirectApp.name;
+            }
         },
         openBind(row){
             this.bindDomain = {
@@ -1316,7 +1388,6 @@ export default {
                     originType: originType,
                     ...{
                         zdApp: RHC?.microapp_name,
-                        needlogin: RHC?.microapp_needlogin,
                     },
                     
                     // noReplace: noReplace,
@@ -1417,7 +1488,6 @@ export default {
                     originType: originType,
                     ...{
                         zdApp: RHC?.microapp_name,
-                        needlogin: RHC?.microapp_needlogin,
                     },
 
                     // noReplace: noReplace,
@@ -1577,7 +1647,7 @@ export default {
                 whiteDomain: item.name? item.whiteDomain : 0,
                 destination: item.destination,
 
-                needlogin: true, // 应用直达，游客访问
+                zdApp: this.inRvproxy? (item.zdApp || '') : this.currentDirectApp.name,
             }
             if(this.whiteList?.length && this.whiteList[this.domainForm?.whiteDomain]?.prefixRandom && !this.domainForm.domain){
                 this.domainForm.domain = this.createShortUuid();
@@ -1617,6 +1687,7 @@ export default {
             }).catch(()=>{})
         },
         submitDomainForm(eve){
+            this.normalizeDirectAppTarget(this.domainForm);
             return new Promise((resolve,reject)=>{
                 if(this.domainForm.originType == 2 && !this.hasAppOptions){
                     this.$message.warning('暂无应用可选');
@@ -1839,7 +1910,7 @@ export default {
                                 `microapp_do /`,
                                 `microapp_leftmenu true`,
                                 `microapp_breadcrumb true`,
-                                `microapp_needlogin ${this.domainForm.needlogin}`,
+                                'microapp_needlogin true',
                             ].join('\n')
                         }
                         data.metadata.annotations = {
@@ -1873,7 +1944,6 @@ export default {
             
             // app: this.$route.params.id,
             // appPorts: this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id] || []),
-            if(item.originType==3){ this.getMenutop(); }
             this.domain = {
                 ...this.domain,
                 show: true,
@@ -1887,8 +1957,7 @@ export default {
 
                 app: item?.app || '',
                 originType: item.originType || (this.inRvproxy? 1 : 2),
-                zdApp: item?.zdApp || '',
-                needlogin: !!item?.needlogin,
+                zdApp: this.inRvproxy? (item?.zdApp || '') : this.currentDirectApp.name,
 
                 appPorts: this.inRvproxy? [] : (this.appPorts[item.app] || []),
                 isroot: item.is_root || false,
@@ -1908,6 +1977,7 @@ export default {
         },
         // 提交子目录
         submitForm(eve){
+            this.normalizeDirectAppTarget(this.domain);
             const parseConfig = (str)=>{
                 return str.split('\n').reduce((obj, line) => {
                     const [k, v] = line.trim().split(/\s+/)
@@ -1976,7 +2046,7 @@ export default {
                             microapp_do: '/',
                             microapp_leftmenu:  true,
                             microapp_breadcrumb: true,
-                            microapp_needlogin: this.domain.needlogin,
+                            microapp_needlogin: true,
                         }
                         data.metadata.annotations[key] = Object.entries(obj).map(([k,v])=>`${k} ${v}`).join('\n');
                     }else{
@@ -2254,6 +2324,17 @@ export default {
 <style scoped>
 .topcard{width:400px;margin:10px 20px 0 0;}
 .topcard .listbox .item{min-height:28px;}
+.direct-app-option{
+    display: flex;
+    flex-direction: column;
+    padding: 3px 0;
+    line-height: 20px;
+}
+.direct-app-option small{
+    color: var(--color-text-3);
+    font-size: 11px;
+    line-height: 16px;
+}
 .table-expand-btn{
     display: inline-flex;
     align-items: center;

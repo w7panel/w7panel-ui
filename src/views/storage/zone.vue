@@ -30,7 +30,7 @@
                             <template #cell="{ record }">
                                 <div class="df ai-c">
                                     <!-- 状态图标 -->
-                                    <icon-loading v-if="record.state=='attaching'" class="zone-status-loading df-s0" />
+                                    <icon-loading v-if="record.attachmentState=='attaching'||record.attachmentState=='detaching'" class="zone-status-loading df-s0" />
                                     <div v-else-if="record.status=='Lost'||record.status=='Released'" class="point c-red df-s0" ></div>
                                     <div v-else-if="record.status=='Bound'" class="point c-green df-s0"></div>
                                     <div v-else class="point df-s0"></div>
@@ -51,9 +51,15 @@
                                         <div class="fs-12" style="color:rgb(var(--gray-6));">{{record.storageClassName}}</div>
                                     </div>
 
-                                    <div v-if="record.isExpanding" class="ml-10 fs-12 c-66 df ai-c">
+                                    <div v-if="record.resizeActive || record.isExpanding" class="ml-10 fs-12 c-66 df ai-c">
                                         <icon-loading />
-                                        <span class="ml-4">扩容中</span>
+                                        <span class="ml-4">{{record.resizeText || '扩容中'}}</span>
+                                    </div>
+                                    <a-tooltip v-else-if="record.resizeState=='failed'" :content="record.resizeMessage || '扩容失败'">
+                                        <span class="ml-10 fs-12 c-red">扩容失败</span>
+                                    </a-tooltip>
+                                    <div v-else-if="record.resizeState=='succeeded'" class="ml-10 fs-12 c-green">
+                                        扩容完成
                                     </div>
                                 </div>
                             </template>
@@ -97,15 +103,18 @@
 
                         <a-table-column title="绑定状态">
                             <template #cell="{ record }">
-                                <span v-if="record.bindstatus">{{ record.attachedNodeId || '-' }}（{{record.bindstatus}}）</span>
+                                <span v-if="record.bindstatus">
+                                    <template v-if="record.attachedNodeId">{{record.attachedNodeId}}（{{record.bindstatus}}）</template>
+                                    <template v-else>{{record.bindstatus}}</template>
+                                </span>
                                 <span v-else>-</span>
                                 
                                 <a-dropdown>
-                                    <span v-if="record.state=='attached'||record.state=='attaching'||record.state=='detached'" class="ml-10 c-blue cursor zone-operation-dropdown" style="white-space:nowrap;">操作<icon-down/></span>
+                                    <span v-if="record.attachmentState=='attached'||record.attachmentState=='attaching'||record.attachmentState=='detached'" class="ml-10 c-blue cursor zone-operation-dropdown" style="white-space:nowrap;">操作<icon-down/></span>
                                     <template #content>
-                                        <a-doption v-if="record.state=='attached'&&record.isLock=='true'" @click="detach.volumeName=record.volumeName;detach.force=false;submitDetach();">解锁</a-doption>
-                                        <a-doption v-if="record.state=='detached'" @click="openAttach(record)">绑定</a-doption>
-                                        <a-doption v-if="record.state=='attached'||record.state=='attaching'" @click="openDetach(record)">分离</a-doption>
+                                        <a-doption v-if="record.attachmentState=='attached'&&record.isLock=='true'" @click="detach.volumeName=record.volumeName;detach.force=false;submitDetach();">解锁</a-doption>
+                                        <a-doption v-if="record.attachmentState=='detached'" @click="openAttach(record)">绑定</a-doption>
+                                        <a-doption v-if="record.attachmentState=='attached'||record.attachmentState=='attaching'" @click="openDetach(record)">分离</a-doption>
                                     </template>
                                 </a-dropdown>
                             </template>
@@ -121,10 +130,11 @@
                         </a-table-column>
                         <a-table-column title="操作" fixed='right' :width="240">
                             <template #cell="{ record }">
-                                <span v-if="hasLonghornSystem && !record.isExpanding" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
-                                <span v-if="record.isExpanding" class="c-blue cursor mr-20" @click="cancelExpand(record)">取消扩容</span>
+                                <span v-if="hasLonghornSystem && !record.isExpanding && !record.resizeActive && record.resizeState!='failed'" class="c-blue cursor mr-20" @click="openExpend(record)">扩容</span>
+                                <span v-if="record.isExpanding && !record.resizeActive" class="c-blue cursor mr-20" @click="cancelExpand(record)">取消扩容</span>
+                                <span v-if="record.resizeState=='failed'" class="c-blue cursor mr-20" @click="retryResize(record)">重试</span>
 
-                                <span v-if="record.state=='attached'" class="operation c-blue cursor mr-20" :class="tfloading.includes(record.name)?'disabled':''" @click="trimFilesystem(record)">
+                                <span v-if="record.attachmentState=='attached'" class="operation c-blue cursor mr-20" :class="tfloading.includes(record.name)?'disabled':''" @click="trimFilesystem(record)">
                                     <span>碎片整理</span>
                                     <icon-loading v-if="tfloading.includes(record.name)" class="ml-4" />
                                 </span>
@@ -232,7 +242,7 @@ export default {
                 hostId: '',
             },
             nodeList: [],
-            testExpanding: null,
+            statusPollTimer: null,
             tfloading: [],
         }
     },
@@ -249,7 +259,7 @@ export default {
         IconBookmark,
     },
     beforeUnmount(){
-        clearTimeout(this.testExpanding);
+        clearTimeout(this.statusPollTimer);
     },
     methods: {
         trimFilesystem(row){
@@ -359,6 +369,8 @@ export default {
                 let list = res?.data?.items;
                 list = list.map(i=>{
                     let size = i.spec?.resources?.requests?.storage;
+                    let annotations = i.metadata?.annotations || {};
+                    let resizeState = annotations['storage.w7.cc/resize-state'] || '';
                     return {
                         name: i.metadata.name,
                         namespace: i.metadata.namespace,
@@ -372,6 +384,11 @@ export default {
                         status: i.status?.phase,
 
                         volumeName: i.spec?.volumeName,
+                        resizeState,
+                        resizeMessage: annotations['storage.w7.cc/resize-message'] || '',
+                        resizeTarget: annotations['storage.w7.cc/resize-target'] || '',
+                        resizeActive: ['pending','detaching','resizing','attaching','restarting'].includes(resizeState),
+                        resizeText: this.resizeStateText(resizeState),
                     }
                 })
                 this.list = list;
@@ -405,16 +422,24 @@ export default {
                         obj.snapShot = this.btog(obj.snapShotSize);
                         obj.snapShotNum = Number(obj.snapShotSize);
                         
+                        const attachmentState = obj.attachmentState || obj.state;
                         let bindstatus = '';
-                        if(obj.state=='attached' && obj.isLock=='true'){ bindstatus = '锁定' }
-                        else if(obj.state=='attached'){ bindstatus = '自动' }
-                        else if(obj.state=='attaching'){ bindstatus = '绑定中' }
-                        // else if(obj.state=='detached'){ bindstatus = '未绑定' }
+                        if(attachmentState=='attached' && obj.isLock=='true'){ bindstatus = '锁定' }
+                        else if(attachmentState=='attached'){ bindstatus = '自动' }
+                        else if(attachmentState=='attaching'){ bindstatus = '绑定中' }
+                        else if(attachmentState=='detaching'){ bindstatus = '分离中' }
+                        else if(attachmentState=='detached'){ bindstatus = '未绑定' }
 
 
                         return {
                             ...i,
                             ...obj,
+                            resizeActive: i.resizeActive,
+                            resizeState: i.resizeState,
+                            resizeMessage: i.resizeMessage,
+                            resizeTarget: i.resizeTarget,
+                            resizeText: i.resizeText,
+                            attachmentState,
                             bindstatus,
                         }
                     })
@@ -452,11 +477,27 @@ export default {
                         }
                     }
                     this.list = list;
+                    this.scheduleStatusPolling(list);
                     this.getCustom();
                 })
             }catch{
                 this.list = list;
+                this.scheduleStatusPolling(list);
                 this.getCustom();
+            }
+        },
+        scheduleStatusPolling(list){
+            clearTimeout(this.statusPollTimer);
+            const hasPendingState = list.some(i=>
+                i.isExpanding ||
+                i.resizeActive ||
+                i.attachmentState=='attaching' ||
+                i.attachmentState=='detaching'
+            );
+            if(hasPendingState){
+                this.statusPollTimer = setTimeout(()=>{
+                    this.getList();
+                },5000);
             }
         },
         // 判断是否手动创建
@@ -471,12 +512,6 @@ export default {
                     i.isCustom = arr.includes(i.name);
                     i.isDefault = i.name == this.customsDefault;
                 });
-                if(this.list.filter(i=>i.isExpanding)?.length){
-                    clearTimeout(this.testExpanding);
-                    this.testExpanding = setTimeout(()=>{
-                        this.getList();
-                    },5000)
-                }
                 this.list1 = this.list.filter(i=>i.isCustom&&!i.onlyshow);
                 this.list2 = this.list.filter(i=>!i.isCustom||i.onlyshow);
                 // console.log(this.list1,this.list2)
@@ -531,6 +566,33 @@ export default {
                 this.getList();
             })
         },
+        resizeStateText(state){
+            return {
+                pending: '等待扩容',
+                detaching: '正在分离',
+                resizing: '正在扩容',
+                attaching: '正在绑定',
+                restarting: '正在重启 Pod',
+            }[state] || '';
+        },
+        retryResize(record){
+            k8sproxy.patch(`/api/v1/namespaces/${record.namespace}/persistentvolumeclaims/${record.name}`,{
+                metadata: {
+                    annotations: {
+                        'storage.w7.cc/resize-state': 'pending',
+                        'storage.w7.cc/resize-message': '扩容任务已重新提交',
+                        'storage.w7.cc/resize-stage-at': new Date().toISOString(),
+                        'storage.w7.cc/resize-detach-requested': null,
+                        'storage.w7.cc/resize-attach-requested': null,
+                    }
+                }
+            },{
+                headers: {'Content-Type': 'application/merge-patch+json'},
+            }).then(()=>{
+                this.$message.success('扩容任务已重新提交');
+                this.getList();
+            });
+        },
         openExpend(record){
             console.log(record)
             this.expand = {
@@ -563,7 +625,7 @@ export default {
                         size: Number(this.expand.size),
                     }).then(res=>{
                         this.expand.show = false;
-                        this.$message.success('操作成功');
+                        this.$message.success('扩容任务已提交');
                         setTimeout(()=>{
                             this.getList();
                         },800)
@@ -580,7 +642,7 @@ export default {
                     headers: {'Content-Type': 'application/json-patch+json'},
                 }).then(res=>{
                     this.expand.show = false;
-                    this.$message.success('操作成功');
+                    this.$message.success('扩容任务已提交');
                     setTimeout(()=>{
                         this.getList();
                     },800)

@@ -63,17 +63,17 @@
                         <a-divider v-if="bottomMenus.length" style="margin:10px;width:auto;min-width:auto;" />
                         <div v-if="$route.name!=''">
                             <a-menu v-if="isHelmPage || ((isMicroPage||isAppDirectPage)&&isHelmApp)" v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
-                                <a-menu-item v-if="showAppDirect" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
                                 <a-menu-item key="group-helm-detail" ><icon-apps />应用详情</a-menu-item>
                                 <a-menu-item key="group-helm-domain" ><icon-cloud />域名管理</a-menu-item>
+                                <a-menu-item v-if="showAppDirect && (isHelmPage || isAppDirectPage)" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
                             </a-menu>
                             <a-menu v-else v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
-                                <a-menu-item v-if="showAppDirect" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
                                 <a-menu-item key="app-detail-detail"><icon-apps />应用详情</a-menu-item>
                                 <a-menu-item key="app-detail-pod"><icon-nav />容器列表</a-menu-item>
                                  <!-- v-if="permission.includes('app-apps-files')" -->
                                 <a-menu-item v-if="fileeditor" key="app-detail-files"><icon-folder />文件管理</a-menu-item>
                                 <a-menu-item key="app-detail-domain"><icon-cloud />域名管理</a-menu-item>
+                                <a-menu-item v-if="showAppDirect" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
                                 <a-menu-item key="app-detail-job"><icon-code-square />执行脚本</a-menu-item>
                                 <a-menu-item key="app-detail-version"><icon-select-all />历史版本</a-menu-item>
                                 <a-menu-item key="app-detail-moniter"><icon-bar-chart />运行状态</a-menu-item>
@@ -258,6 +258,16 @@ export default {
             ]
         },
         '$route.name'(v,ov){
+            this.selectMenu = [this.$route.meta.routekey];
+            this.isHelmPage = /^group\-helm(\-|$)/.test(v);
+            if(this.isHelmPage){
+                this.appname = 'helm-'+this.$route.params.group;
+            }else if(this.$route.params.kind && this.$route.params.id){
+                this.appname = this.$route.params.kind + this.$route.params.id;
+            }
+            if(v == 'group-app-direct' || ov == 'group-app-direct'){
+                return;
+            }
             this.getData();
         },
         '$route.params.page'(v){
@@ -980,7 +990,10 @@ export default {
                 this.hasThirdpartyCd = false;
                 this.microApp = null;
                 await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group,{noAlert:true}).then(res=>{
-                    if(res?.data){
+                    const hasThirdpartyCdMenu = (res?.data?.spec?.bindings || []).some(binding=>
+                        binding?.support === 'thirdparty_cd' && Array.isArray(binding?.menu) && binding.menu.length > 0
+                    );
+                    if(res?.data && hasThirdpartyCdMenu){
                         this.hasThirdpartyCd = true;
                         this.microApp = res.data;
                     }
@@ -1070,9 +1083,18 @@ export default {
             });
         },
         changeKey(val){
-            const params = val == 'group-app-direct'
-                ? {group: this.$route.params.group}
-                : this.$route.params;
+            let params = this.$route.params;
+            if(val == 'group-app-direct'){
+                params = {group: this.$route.params.group};
+            }else if(val.startsWith('app-detail-') && (!params.kind || !params.id)){
+                const app = this.applist.find(item=>!item.isHelm && item.key==this.appname)
+                    || this.applist.find(item=>!item.isHelm && item.kind && item.name);
+                params = {
+                    group: this.$route.params.group,
+                    kind: app?.kind,
+                    id: app?.name,
+                };
+            }
             this.$router.push({name:val, params});
         },
         toCopy(){
