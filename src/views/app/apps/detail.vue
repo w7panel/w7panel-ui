@@ -65,7 +65,7 @@
                             <a-menu v-if="isHelmPage || ((isMicroPage||isAppDirectPage)&&isHelmApp)" v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
                                 <a-menu-item key="group-helm-detail" ><icon-apps />应用详情</a-menu-item>
                                 <a-menu-item key="group-helm-domain" ><icon-cloud />域名管理</a-menu-item>
-                                <a-menu-item v-if="showAppDirect && (isHelmPage || isAppDirectPage)" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
+                                <a-menu-item v-if="showAppDirect" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
                             </a-menu>
                             <a-menu v-else v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
                                 <a-menu-item key="app-detail-detail"><icon-apps />应用详情</a-menu-item>
