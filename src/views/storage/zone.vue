@@ -58,7 +58,7 @@
                                     <a-tooltip v-else-if="record.resizeState=='failed'" :content="record.resizeMessage || '扩容失败'">
                                         <span class="ml-10 fs-12 c-red">扩容失败</span>
                                     </a-tooltip>
-                                    <div v-else-if="record.resizeState=='succeeded'" class="ml-10 fs-12 c-green">
+                                    <div v-else-if="record.resizeSucceededVisible" class="ml-10 fs-12 c-green">
                                         扩容完成
                                     </div>
                                 </div>
@@ -196,6 +196,8 @@ import zoneDrawer from './zone-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import { IconBookmark } from '@arco-design/web-vue/es/icon';
 import CryptoJS  from 'crypto-js';
+
+const RESIZE_SUCCESS_VISIBLE_MS = 30000;
 
 export default {
     data() {
@@ -371,6 +373,8 @@ export default {
                     let size = i.spec?.resources?.requests?.storage;
                     let annotations = i.metadata?.annotations || {};
                     let resizeState = annotations['storage.w7.cc/resize-state'] || '';
+                    let resizeStageAt = annotations['storage.w7.cc/resize-stage-at'] || '';
+                    let resizeSucceededRemaining = this.resizeSuccessRemaining(resizeState, resizeStageAt);
                     return {
                         name: i.metadata.name,
                         namespace: i.metadata.namespace,
@@ -385,6 +389,9 @@ export default {
 
                         volumeName: i.spec?.volumeName,
                         resizeState,
+                        resizeStageAt,
+                        resizeSucceededVisible: resizeSucceededRemaining > 0,
+                        resizeSucceededRemaining,
                         resizeMessage: annotations['storage.w7.cc/resize-message'] || '',
                         resizeTarget: annotations['storage.w7.cc/resize-target'] || '',
                         resizeActive: ['pending','detaching','resizing','attaching','restarting'].includes(resizeState),
@@ -436,6 +443,9 @@ export default {
                             ...obj,
                             resizeActive: i.resizeActive,
                             resizeState: i.resizeState,
+                            resizeStageAt: i.resizeStageAt,
+                            resizeSucceededVisible: i.resizeSucceededVisible,
+                            resizeSucceededRemaining: i.resizeSucceededRemaining,
                             resizeMessage: i.resizeMessage,
                             resizeTarget: i.resizeTarget,
                             resizeText: i.resizeText,
@@ -494,10 +504,17 @@ export default {
                 i.attachmentState=='attaching' ||
                 i.attachmentState=='detaching'
             );
-            if(hasPendingState){
+            const successDelays = list
+                .map(i=>Number(i.resizeSucceededRemaining) || 0)
+                .filter(i=>i > 0);
+            const successDelay = successDelays.length
+                ? Math.min(...successDelays) + 50
+                : 0;
+            const delay = hasPendingState ? 5000 : successDelay;
+            if(delay){
                 this.statusPollTimer = setTimeout(()=>{
                     this.getList();
-                },5000);
+                },delay);
             }
         },
         // 判断是否手动创建
@@ -574,6 +591,13 @@ export default {
                 attaching: '正在绑定',
                 restarting: '正在重启 Pod',
             }[state] || '';
+        },
+        resizeSuccessRemaining(state, stageAt){
+            if(state !== 'succeeded' || !stageAt){return 0;}
+            const completedAt = new Date(stageAt).getTime();
+            if(!Number.isFinite(completedAt)){return 0;}
+            const elapsed = Math.max(0, Date.now() - completedAt);
+            return Math.max(0, RESIZE_SUCCESS_VISIBLE_MS - elapsed);
         },
         retryResize(record){
             k8sproxy.patch(`/api/v1/namespaces/${record.namespace}/persistentvolumeclaims/${record.name}`,{
