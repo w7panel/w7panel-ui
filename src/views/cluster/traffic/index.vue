@@ -49,15 +49,6 @@
     </section>
 
     <section class="chart-panel mt-16">
-      <div class="trend-metric-tabs">
-        <a-radio-group v-model="trendMetric" type="button" @change="renderTrend">
-          <a-radio value="requests">请求数</a-radio>
-          <a-radio value="traffic">流量</a-radio>
-          <a-radio value="bandwidth">带宽</a-radio>
-          <a-radio value="hitRate">状态码占比</a-radio>
-          <a-radio value="hits">状态码次数</a-radio>
-        </a-radio-group>
-      </div>
       <statistics-analysis-charts :groups="trendGroups" model-value="trend" :show-tabs="false">
         <template #chart>
           <monitor-stat-chart
@@ -73,7 +64,17 @@
             empty-text="当前时间范围暂无请求趋势"
             @query-change="trendQueryChanged"
           >
-            <template #subtitle><p class="chart-subtitle">选择的时间范围内，按时间颗粒度汇总。</p></template>
+            <template #subtitle>
+              <div class="trend-metric-tabs">
+                <a-radio-group v-model="trendMetric" type="button" @change="renderTrend">
+                  <a-radio value="requests">请求数</a-radio>
+                  <a-radio value="traffic">流量</a-radio>
+                  <a-radio value="bandwidth">带宽</a-radio>
+                  <a-radio value="hitRate">状态码占比</a-radio>
+                  <a-radio value="hits">状态码次数</a-radio>
+                </a-radio-group>
+              </div>
+            </template>
           </monitor-stat-chart>
         </template>
       </statistics-analysis-charts>
@@ -342,7 +343,7 @@ export default {
 .pod-option { display: flex; flex-direction: column; padding: 3px 0; }.pod-option small { color: var(--traffic-muted); font-size: 11px; }
 .section-heading h3 { margin: 0 0 5px; font-size: 16px; }.section-heading p { margin: 0; color: var(--traffic-muted); }.chart-spin { display: block; min-height: 290px; margin-top: 16px; }.trend-chart { height: 290px; }
 .trend-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
-.trend-metric-tabs { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.trend-metric-tabs { display: flex; align-items: center; margin-top: 12px; }
 .url-filters { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 0; border-top: 1px solid var(--traffic-line); }.url-filters :deep(.arco-input-wrapper), .url-filters :deep(.arco-select) { width: 180px; }.traffic-table { margin-top: 12px; }.entity-link { display: block; max-width: 210px; padding: 0; color: var(--traffic-blue); background: none; border: 0; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.traffic-table small { display: block; margin-top: 3px; color: var(--traffic-muted); }.path-code { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #4e5969; }.pagination-row { margin-top: 16px; }.pagination-row > span { color: var(--traffic-muted); font-size: 12px; }
 .drawer-pagination { margin-top: 16px; }
 @media (max-width: 1100px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
