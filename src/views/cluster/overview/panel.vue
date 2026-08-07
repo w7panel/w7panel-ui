@@ -288,7 +288,7 @@
                     <template #chart="{ chart, group }">
                         <ol-charts
                             v-if="chartNodeActive && (chart.activeType == 'load' || chartReady)"
-                            :show-title="(group.charts?.length || 1) > 1"
+                            :show-title="false"
                             :list="chart.activeType == 'load' ? nodelist : []"
                             :node="chart.activeType == 'load' ? '' : chartNodeActive"
                             :virtualDiskFilterCache="virtualDiskFilterCache"
