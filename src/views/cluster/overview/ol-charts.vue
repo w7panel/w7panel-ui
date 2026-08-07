@@ -1,6 +1,7 @@
 <template>
     <monitor-stat-chart
         :title="showChartTitle ? chartTitle : ''"
+        :show-header="showChartTitle"
         :step-options="activeStepOptions"
         :retention-seconds="metricRetentionSeconds"
         :fixed-step="normalizedFixedStep"
