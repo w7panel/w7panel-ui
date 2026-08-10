@@ -4,6 +4,7 @@
 
 - 新增宿主级 `panelProxy` 并注入应用详情、顶部应用和网关插件三类 Wujie 微应用容器；代理固定访问同源 `/panel-api/v1/`、自动覆盖当前面板 Token，并拒绝跨域地址和目录穿越。用于微应用安全复用主面板 API，避免错误借用依赖 backend URL 的 `microappProxy`。影响模块：微应用宿主请求协议。验证：待执行类型检查和生产构建。
 - 验证：`npm run build` 生产构建通过；`npm run type:check` 仍被仓库已有的 `$popupContainer` 类型、缺失 `route-listener`、`NodeJS` 命名空间等存量错误阻塞，本次修改文件未产生新增类型错误。
+- 新增仓库技能 `w7panel-microapp-host-api`，说明 `panelProxy`、`microappProxy`、`k8sproxy`、`runningFirstPod`、`podShell` 与 `loginCloud` 的选择规则、返回类型、错误诊断和安全边界，并提供 Traffic、CKM 监控、MySQL 工作负载及普通微应用后端四类接入示例。影响模块：`skills/` 开发指引。验证：`quick_validate.py` 校验通过。
 
 ## 2026-08-07
 
