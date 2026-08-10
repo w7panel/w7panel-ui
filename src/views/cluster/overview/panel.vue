@@ -301,32 +301,6 @@
             </div>
         </div>
 
-        <div v-if="metricsState.canShowClusterMetrics && !isCvmRequest" class="mt-20 bg-white padding-20">
-            <div class="title fs-16">Cilium 监控</div>
-            <div class="df ai-c jc-b monitor-panel-header">
-                <a-radio-group v-model="ciliumTabActive" type="button">
-                    <a-radio v-for="group in ciliumMetricGroups" :key="group.key" :value="group.key">{{ group.title }}</a-radio>
-                </a-radio-group>
-                <div class="monitor-panel-controls">
-                    <a-range-picker v-model:model-value="ciliumTimeRange" show-time :disabled-date="disabledMetricDate" :shortcuts="metricShortcuts" shortcuts-position="right" />
-                    <a-select v-model="ciliumStep" :options="ciliumStepOptions" style="width:120px" />
-                </div>
-            </div>
-            <div class="mt-20">
-                <statistics-analysis-charts v-model="ciliumTabActive" :groups="ciliumMetricGroups" :show-tabs="false">
-                    <template #chart="{ chart, group }">
-                        <ol-charts
-                            v-if="chartReady"
-                            :show-title="(group.charts?.length || 1) > 1"
-                            :activeType="chart.activeType"
-                            :picker-value="ciliumTimeRange"
-                            :step="ciliumStep"
-                        ></ol-charts>
-                    </template>
-                </statistics-analysis-charts>
-            </div>
-        </div>
-
         <div v-if="metricsState.needInstallMetricsInDashboard" class="mt-20 bg-white padding-20 df df-c jc-c" style="height:200px;">
             <a-empty>
                 <span>暂无数据，安装面板统计后，可收集CPU、内存、负载等多种指标的监控数据，<span class="cursor c-blue" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">安装面板统计</span></span>
