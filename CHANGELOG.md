@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2026-08-10
+
+- 新增宿主级 `panelProxy` 并注入应用详情、顶部应用和网关插件三类 Wujie 微应用容器；代理固定访问同源 `/panel-api/v1/`、自动覆盖当前面板 Token，并拒绝跨域地址和目录穿越。用于微应用安全复用主面板 API，避免错误借用依赖 backend URL 的 `microappProxy`。影响模块：微应用宿主请求协议。验证：待执行类型检查和生产构建。
+- 验证：`npm run build` 生产构建通过；`npm run type:check` 仍被仓库已有的 `$popupContainer` 类型、缺失 `route-listener`、`NodeJS` 命名空间等存量错误阻塞，本次修改文件未产生新增类型错误。
+
 ## 2026-08-07
 
 - 统计分析图表公共组件（`statistics-analysis-charts`）的分组选择器从图表顶部移至左侧：Tab 样式改为左侧竖排 `a-tabs`，按钮组样式改为纵向按钮组；Cluster 集群监控、主机指标、Cilium 监控与应用运行状态四个面板统一生效，请求趋势页（单组、无选择器）不受影响；≤900px 时回退为纵向堆叠。

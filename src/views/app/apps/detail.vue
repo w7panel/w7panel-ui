@@ -164,7 +164,7 @@ import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-crede
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
-import { createK8sProxy, createMicroappProxy } from '@/utils/microapp-proxy';
+import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import AppDirect from '@/views/topapp/app-direct.vue';
@@ -525,6 +525,7 @@ export default {
                 podShell,
                 microappProxy: createMicroappProxy(proxyBackendUrl),
                 k8sproxy: createK8sProxy(),
+                panelProxy: createPanelProxy(),
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
             }
