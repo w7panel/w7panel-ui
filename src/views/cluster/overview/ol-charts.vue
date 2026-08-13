@@ -1,6 +1,7 @@
 <template>
     <monitor-stat-chart
-        :title="chartTitle"
+        :title="showChartTitle ? chartTitle : ''"
+        :show-header="showChartTitle"
         :step-options="activeStepOptions"
         :retention-seconds="metricRetentionSeconds"
         :fixed-step="normalizedFixedStep"
@@ -25,7 +26,7 @@ import { METRIC_30S_STEPS, METRIC_60S_STEPS, METRIC_RETENTION_SECONDS } from '@/
 
 export default {
     components: { MonitorStatChart },
-    props: ['list','node','activeType','noMonitor','pickerValue','step','virtualDiskFilterCache'],
+    props: ['list','node','activeType','noMonitor','pickerValue','step','virtualDiskFilterCache','showTitle'],
     data(){
         return {
             // activeType: 'cpu',
@@ -145,6 +146,7 @@ export default {
     beforeDestroy(){
     },
     computed: {
+        showChartTitle(){ return this.showTitle !== false; },
         activeChartState(){ return this.getChartState(this.activeType); },
         activeStepOptions(){ return (this.isCiliumChart(this.activeType) || ['HostGPUMemoryUsage','HostCoreUtilization'].includes(this.activeType)) ? METRIC_30S_STEPS : METRIC_60S_STEPS; },
         normalizedFixedStep(){ return this.step == null ? null : Number(this.step); },

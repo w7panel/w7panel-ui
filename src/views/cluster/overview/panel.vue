@@ -239,8 +239,11 @@
         </div>
 
         <div v-if="metricsState.canShowClusterMetrics" class="mt-20 bg-white padding-20">
-            <div class="df ai-c jc-b">
-                <div class="title fs-16">集群监控</div>
+            <div class="title fs-16">集群监控</div>
+            <div class="df ai-c jc-b monitor-panel-header">
+                <a-radio-group v-model="tabActive" type="button">
+                    <a-radio v-for="group in clusterMetricGroups" :key="group.key" :value="group.key">{{ group.title }}</a-radio>
+                </a-radio-group>
                 <div class="monitor-panel-controls">
                     <a-range-picker v-model:model-value="clusterTimeRange" show-time :disabled-date="disabledMetricDate" :shortcuts="metricShortcuts" shortcuts-position="right" />
                     <a-select v-model="clusterStep" :options="metricStepOptions" style="width:120px" />
@@ -248,95 +251,53 @@
                 </div>
             </div>
             <div class="mt-20" >
-                <a-tabs v-model:active-key="tabActive">
-                    <a-tab-pane :key="1" title="CPU使用">
-                        <ol-charts v-if="tabActive==1&&chartReady" :list="nodelist" activeType="cpu" :picker-value="clusterTimeRange" :step="clusterStep"></ol-charts>
-                    </a-tab-pane>
-                    <a-tab-pane :key="2" title="内存使用">
-                        <ol-charts v-if="tabActive==2&&chartReady" :list="nodelist" activeType="memory" :picker-value="clusterTimeRange" :step="clusterStep"></ol-charts>
-                    </a-tab-pane>
-                    <a-tab-pane v-if="gpuIsOpen" :key="3" title="GPU显存使用">
-                        <ol-charts v-if="tabActive==3&&chartReady" activeType="HostGPUMemoryUsage" :picker-value="clusterTimeRange" :step="clusterStep"></ol-charts>
-                    </a-tab-pane>
-                    <a-tab-pane v-if="gpuIsOpen" :key="4" title="GPU算力使用率">
-                        <ol-charts v-if="tabActive==4&&chartReady" activeType="HostCoreUtilization" :picker-value="clusterTimeRange" :step="clusterStep"></ol-charts>
-                    </a-tab-pane>
-                </a-tabs>
+                <statistics-analysis-charts v-model="tabActive" :groups="clusterMetricGroups" :show-tabs="false">
+                    <template #chart="{ chart, group }">
+                        <ol-charts
+                            v-if="chartReady"
+                            :show-title="(group.charts?.length || 1) > 1"
+                            :list="chart.list ? nodelist : []"
+                            :activeType="chart.activeType"
+                            :picker-value="clusterTimeRange"
+                            :step="clusterStep"
+                        ></ol-charts>
+                    </template>
+                </statistics-analysis-charts>
             </div>
         </div>
 
         <div v-if="metricsState.canShowNodeMetrics" class="mt-20 bg-white padding-20">
-            <div class="df ai-c jc-b">
-                <div class="title fs-16">主机指标</div>
+            <div class="title fs-16">主机指标</div>
+            <div class="df ai-c jc-b monitor-panel-header">
+                <a-radio-group v-model="chartActive" type="button">
+                    <a-radio v-for="group in hostMetricGroups" :key="group.key" :value="group.key">{{ group.title }}</a-radio>
+                </a-radio-group>
                 <div class="monitor-panel-controls">
+                    <div v-if="chartActive != 1" class="host-node-switch">
+                        <a-select v-model="chartNodeActive" placeholder="选择节点" style="width:160px">
+                            <a-option v-for="item in nodelist" :key="item.name" :value="item.name">{{item.name}}</a-option>
+                        </a-select>
+                    </div>
                     <a-range-picker v-model:model-value="hostTimeRange" show-time :disabled-date="disabledMetricDate" :shortcuts="metricShortcuts" shortcuts-position="right" />
                     <a-select v-model="hostStep" :options="metricStepOptions" style="width:120px" />
                     <a-button v-if="noMonitor" type="primary" @click="$router.push('/app/store-install?path=https://zpk.w7.cc/zpk/respo/info/w7panel_metrics')">安装监控</a-button>
                 </div>
             </div>
             <div class="mt-20" >
-                <div class="host-metric-toolbar">
-                    <a-tabs v-model:active-key="chartActive" hide-content class="host-metric-tabs">
-                        <a-tab-pane :key="1" title="负载"></a-tab-pane>
-                        <a-tab-pane :key="2" title="硬盘I/O"></a-tab-pane>
-                        <a-tab-pane :key="3" title="网络I/O"></a-tab-pane>
-                        <a-tab-pane :key="4" title="硬盘读写"></a-tab-pane>
-                        <a-tab-pane :key="5" title="网络流量"></a-tab-pane>
-                    </a-tabs>
-                    <div v-if="chartActive!=1" class="host-node-switch">
-                        <a-radio-group v-model="chartNodeActive" type="button">
-                            <a-radio v-for="item in nodelist" :key="item.name" :value="item.name">{{item.name}}</a-radio>
-                        </a-radio-group>
-                    </div>
-                </div>
-                <div v-if="!noMonitor" class="mt-20">
-                    <ol-charts v-if="chartActive==1&&chartNodeActive" :list="nodelist" activeType="load" :picker-value="hostTimeRange" :step="hostStep"></ol-charts>
-                    <div v-if="chartActive==2&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :picker-value="hostTimeRange" :step="hostStep" activeType="disk-read" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :picker-value="hostTimeRange" :step="hostStep" activeType="disk-write" class="ml-20 fc"></ol-charts>
-                    </div>
-                    <div v-if="chartActive==3&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :picker-value="hostTimeRange" :step="hostStep" activeType="network-in" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :picker-value="hostTimeRange" :step="hostStep" activeType="network-out" class="ml-20 fc"></ol-charts>
-                    </div>
-                    <div v-if="chartActive==4&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :picker-value="hostTimeRange" :step="hostStep" activeType="disk-read-bytes" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :picker-value="hostTimeRange" :step="hostStep" activeType="disk-written-bytes" class="ml-20 fc"></ol-charts>
-                    </div>
-                    <div v-if="chartActive==5&&chartNodeActive" class="df">
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :picker-value="hostTimeRange" :step="hostStep" activeType="network-receive-bytes" class="fc"></ol-charts>
-                        <ol-charts :node="chartNodeActive" v-if="chartReady" :virtualDiskFilterCache="virtualDiskFilterCache" :picker-value="hostTimeRange" :step="hostStep" activeType="network-transmit-bytes" class="ml-20 fc"></ol-charts>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="metricsState.canShowClusterMetrics && !isCvmRequest" class="mt-20 bg-white padding-20">
-            <div class="df ai-c jc-b">
-                <div class="title fs-16">Cilium 监控</div>
-                <div class="monitor-panel-controls">
-                    <a-range-picker v-model:model-value="ciliumTimeRange" show-time :disabled-date="disabledMetricDate" :shortcuts="metricShortcuts" shortcuts-position="right" />
-                    <a-select v-model="ciliumStep" :options="ciliumStepOptions" style="width:120px" />
-                </div>
-            </div>
-            <div class="mt-20">
-                <a-tabs v-model:active-key="ciliumTabActive">
-                    <a-tab-pane :key="1" title="Cilium丢包">
-                        <ol-charts v-if="ciliumTabActive==1&&chartReady" activeType="cilium-drop-count" :picker-value="ciliumTimeRange" :step="ciliumStep"></ol-charts>
-                    </a-tab-pane>
-                    <a-tab-pane :key="2" title="Cilium丢包流量">
-                        <ol-charts v-if="ciliumTabActive==2&&chartReady" activeType="cilium-drop-bytes" :picker-value="ciliumTimeRange" :step="ciliumStep"></ol-charts>
-                    </a-tab-pane>
-                    <a-tab-pane :key="3" title="Cilium Endpoint">
-                        <ol-charts v-if="ciliumTabActive==3&&chartReady" activeType="cilium-endpoint" :picker-value="ciliumTimeRange" :step="ciliumStep"></ol-charts>
-                    </a-tab-pane>
-                    <a-tab-pane :key="4" title="Cilium连通性">
-                        <ol-charts v-if="ciliumTabActive==4&&chartReady" activeType="cilium-unreachable" :picker-value="ciliumTimeRange" :step="ciliumStep"></ol-charts>
-                    </a-tab-pane>
-                    <a-tab-pane :key="5" title="Cilium BPF Map">
-                        <ol-charts v-if="ciliumTabActive==5&&chartReady" activeType="cilium-bpf-map-pressure" :picker-value="ciliumTimeRange" :step="ciliumStep"></ol-charts>
-                    </a-tab-pane>
-                </a-tabs>
+                <statistics-analysis-charts v-if="!noMonitor" v-model="chartActive" :groups="hostMetricGroups" :show-tabs="false">
+                    <template #chart="{ chart, group }">
+                        <ol-charts
+                            v-if="chartNodeActive && (chart.activeType == 'load' || chartReady)"
+                            :show-title="false"
+                            :list="chart.activeType == 'load' ? nodelist : []"
+                            :node="chart.activeType == 'load' ? '' : chartNodeActive"
+                            :virtualDiskFilterCache="virtualDiskFilterCache"
+                            :picker-value="hostTimeRange"
+                            :step="hostStep"
+                            :activeType="chart.activeType"
+                        ></ol-charts>
+                    </template>
+                </statistics-analysis-charts>
             </div>
         </div>
 
@@ -427,6 +388,7 @@ import { k8sproxy } from '@/utils/api';
 import axios from "axios";
 import {useNamespaceStore,useLoadingStore} from "@/store";
 import olCharts from "./ol-charts.vue";
+import StatisticsAnalysisCharts from '@/components/statistics-analysis-charts.vue';
 import * as echarts from 'echarts'
 import { markRaw } from 'vue'
 import { useDarkStore } from '@/store'
@@ -636,6 +598,7 @@ export default {
     },
     components: {
         olCharts,
+        StatisticsAnalysisCharts,
     },
     computed:{
         isCvmRequest(){
@@ -647,6 +610,34 @@ export default {
         },
         metricStepOptions(){ return METRIC_60S_STEPS; },
         ciliumStepOptions(){ return METRIC_30S_STEPS; },
+        clusterMetricGroups(){
+            return [
+                { key: 1, title: 'CPU使用', charts: [{ key: 'cpu', activeType: 'cpu', list: true }] },
+                { key: 2, title: '内存使用', charts: [{ key: 'memory', activeType: 'memory', list: true }] },
+                ...(this.gpuIsOpen ? [
+                    { key: 3, title: 'GPU显存使用', charts: [{ key: 'gpu-memory', activeType: 'HostGPUMemoryUsage' }] },
+                    { key: 4, title: 'GPU算力使用率', charts: [{ key: 'gpu-core', activeType: 'HostCoreUtilization' }] },
+                ] : []),
+            ];
+        },
+        hostMetricGroups(){
+            return [
+                { key: 1, title: '负载', charts: [{ key: 'load', activeType: 'load' }] },
+                { key: 2, title: '硬盘I/O', charts: [{ key: 'disk-read', activeType: 'disk-read' }, { key: 'disk-write', activeType: 'disk-write' }] },
+                { key: 3, title: '网络I/O', charts: [{ key: 'network-in', activeType: 'network-in' }, { key: 'network-out', activeType: 'network-out' }] },
+                { key: 4, title: '硬盘读写', charts: [{ key: 'disk-read-bytes', activeType: 'disk-read-bytes' }, { key: 'disk-write-bytes', activeType: 'disk-written-bytes' }] },
+                { key: 5, title: '网络流量', charts: [{ key: 'network-receive-bytes', activeType: 'network-receive-bytes' }, { key: 'network-transmit-bytes', activeType: 'network-transmit-bytes' }] },
+            ];
+        },
+        ciliumMetricGroups(){
+            return [
+                { key: 1, title: 'Cilium丢包', charts: [{ key: 'drop-count', activeType: 'cilium-drop-count' }] },
+                { key: 2, title: 'Cilium丢包流量', charts: [{ key: 'drop-bytes', activeType: 'cilium-drop-bytes' }] },
+                { key: 3, title: 'Cilium Endpoint', charts: [{ key: 'endpoint', activeType: 'cilium-endpoint' }] },
+                { key: 4, title: 'Cilium连通性', charts: [{ key: 'unreachable', activeType: 'cilium-unreachable' }] },
+                { key: 5, title: 'Cilium BPF Map', charts: [{ key: 'bpf-map-pressure', activeType: 'cilium-bpf-map-pressure' }] },
+            ];
+        },
         metricShortcuts(){
             return [5, 30, 60, 180, 720, 1440]
                 .filter(minutes => minutes * 60 <= METRIC_RETENTION_SECONDS)
@@ -1514,16 +1505,15 @@ export default {
 .cercil-panel .point.point1{background:#165dff;}
 .cercil-panel .point.point2{background:#00b42a;}
 .cercil-panel .point.point3{background:#ff9a2e;}
-.host-metric-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;min-width:0;}
+.monitor-panel-header{min-width:0;margin-top:20px;}
 .monitor-panel-controls{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap;}
-.host-metric-tabs{flex:1;min-width:0;}
 .host-node-switch{flex:none;max-width:50%;overflow-x:auto;white-space:nowrap;}
 .chartbox{width:150px; height:150px; position:relative;}
 .chartbox .percent{position:absolute; width:50px; height:50px; border-radius:50%; margin:auto; left:0; top:0; bottom:0; right:0;}
 
 .top-item{margin:10px; border-radius:6px; background:var(--color-neutral-2); padding:20px; white-space:nowrap;}
 .top-item .iconbox{width:50px; height:50px; margin-right:30px; border-radius:50%; border:2px solid var(--color-neutral-4); outline:2px solid var(--color-neutral-1); color:var(--color-text-1);}
-@media (max-width: 900px){.host-metric-toolbar{flex-wrap:wrap;}.host-node-switch{max-width:100%;margin-left:auto;}.monitor-panel-controls{width:100%;justify-content:flex-start;margin-top:12px;}.monitor-panel-controls .arco-picker{flex:1;min-width:240px;}}
+@media (max-width: 900px){.monitor-panel-header{flex-wrap:wrap;}.host-node-switch{max-width:100%;}.monitor-panel-controls{width:100%;justify-content:flex-start;margin-top:12px;}.monitor-panel-controls .arco-picker{flex:1;min-width:240px;}}
 </style>
 <style>
 .big-a-progress .arco-progress-circle-wrapper{width:100px!important; height:100px!important;}

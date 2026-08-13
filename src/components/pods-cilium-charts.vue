@@ -1,21 +1,27 @@
 <template>
     <div class="pod-metrics df df-c">
-        <div class="fs-16 b df-s0">Pod指标</div>
-        <a-tabs v-model:active-key="activeType" class="df-s0 mt-10">
-            <a-tab-pane v-for="item in chartTypes" :key="item.key" :title="item.title" />
-        </a-tabs>
-        <monitor-stat-chart
-            :key="activeType"
-            class="fc"
-            :title="activeChart.title"
-            :step-options="activeStepOptions"
+        <div class="pod-metrics-toolbar df ai-c jc-b df-s0">
+            <div class="fs-16 b">Pod指标</div>
+            <div class="pod-metrics-controls">
+                <a-range-picker
+                    v-model:model-value="timeRange"
+                    show-time
+                    :disabled-date="disabledMetricDate"
+                    :shortcuts="metricShortcuts"
+                    shortcuts-position="right"
+                />
+                <a-select v-model="selectedStep" :options="activeStepOptions" style="width:120px" @change="timeChanged" />
+            </div>
+        </div>
+        <statistics-analysis-charts
+            v-model="activeType"
+            class="fc mt-10"
+            :groups="metricGroups"
+            :show-tabs="false"
+            selector-style="buttons"
+            :picker-value="timeRange"
+            :step="selectedStep"
             :retention-seconds="metricRetentionSeconds"
-            :fixed-step="normalizedFixedStep"
-            :fixed-time-range="pickerValue"
-            :default-step="activeStepOptions[0].value"
-            :data="series"
-            :loading="loading"
-            :unit="activeUnit"
             empty-text="暂无 Pod 指标数据"
             @query-change="queryChanged"
         />
@@ -27,7 +33,7 @@ import CryptoJS from 'crypto-js';
 import dayjs from 'dayjs';
 import { panelApi } from '@/utils/api';
 import { getUserInfo } from '@/utils/auth';
-import MonitorStatChart from '@/components/monitor-stat-chart.vue';
+import StatisticsAnalysisCharts from '@/components/statistics-analysis-charts.vue';
 import { METRIC_30S_STEPS, METRIC_60S_STEPS, METRIC_RETENTION_SECONDS } from '@/config/monitor';
 
 const METRICS = {
@@ -41,7 +47,7 @@ const METRICS = {
 };
 
 export default {
-    components: { MonitorStatChart },
+    components: { StatisticsAnalysisCharts },
     props: ['list', 'namespace', 'pickerValue', 'step'],
     data() {
         return {
@@ -60,6 +66,8 @@ export default {
             requestId: 0,
             userInfo: {},
             metricRetentionSeconds: METRIC_RETENTION_SECONDS,
+            timeRange: [dayjs().subtract(1, 'hour').toDate(), dayjs().toDate()],
+            selectedStep: METRIC_60S_STEPS[0].value,
             queryRange: null,
             queryStep: null,
             queriesByType: {},
@@ -72,8 +80,30 @@ export default {
     computed: {
         activeChart() { return this.chartTypes.find((item) => item.key === this.activeType) || this.chartTypes[0]; },
         activeStepOptions() { return this.isResourceMetric() ? METRIC_60S_STEPS : METRIC_30S_STEPS; },
-        normalizedFixedStep() { return this.step == null ? null : Number(this.step); },
         activeUnit() { return { cpu: '核', memory: 'MiB', flow: 'flow/s' }[this.activeType] || '次/s'; },
+        metricShortcuts() {
+            return [5, 30, 60, 180, 720, 1440]
+                .filter((minutes) => minutes * 60 <= METRIC_RETENTION_SECONDS)
+                .map((minutes) => ({
+                    label: minutes < 60 ? `${minutes}分钟` : minutes < 1440 ? `${minutes / 60}小时` : `${minutes / 1440}天`,
+                    value: () => [dayjs().subtract(minutes, 'minute').toDate(), dayjs().toDate()],
+                }));
+        },
+        metricGroups() {
+            return this.chartTypes.map((item) => ({
+                key: item.key,
+                title: item.title,
+                charts: [{
+                    key: item.key,
+                    title: item.title,
+                    unit: { cpu: '核', memory: 'MiB', flow: 'flow/s' }[item.key] || '次/s',
+                    series: item.key == this.activeType ? this.series : [],
+                    loading: item.key == this.activeType && this.loading,
+                    stepOptions: ['cpu', 'memory'].includes(item.key) ? METRIC_60S_STEPS : METRIC_30S_STEPS,
+                    defaultStep: ['cpu', 'memory'].includes(item.key) ? METRIC_60S_STEPS[0].value : METRIC_30S_STEPS[0].value,
+                }],
+            }));
+        },
     },
     watch: {
         list() {
@@ -83,13 +113,11 @@ export default {
             const query = this.queriesByType[value] || {};
             this.queryRange = query.range || null;
             this.queryStep = query.step || null;
+            this.selectedStep = query.step ?? this.activeStepOptions[0]?.value;
             this.loadChart();
         },
-        pickerValue() {
-            this.loadChart();
-        },
-        step() {
-            this.loadChart();
+        timeRange() {
+            this.timeChanged();
         },
     },
     methods: {
@@ -149,15 +177,15 @@ export default {
             if (this.queryRange?.length == 2) {
                 start = this.queryRange[0];
                 end = this.queryRange[1];
-            } else if (this.pickerValue?.length == 2) {
-                start = dayjs(this.pickerValue[0]).unix();
-                end = dayjs(this.pickerValue[1]).unix();
+            } else if (this.timeRange?.length == 2) {
+                start = dayjs(this.timeRange[0]).unix();
+                end = dayjs(this.timeRange[1]).unix();
             }
             return {
                 query,
                 start,
                 end,
-                step: this.queryStep || this.step || this.activeStepOptions[0].value,
+                step: this.queryStep || this.selectedStep || this.activeStepOptions[0].value,
                 local: 1,
             };
         },
@@ -218,12 +246,29 @@ export default {
             this.queriesByType[this.activeType] = { range: this.queryRange, step };
             this.loadChart();
         },
+        disabledMetricDate(current) {
+            const value = dayjs(current);
+            const now = dayjs();
+            return value.isAfter(now, 'day') || value.isBefore(now.subtract(METRIC_RETENTION_SECONDS, 'second'), 'day');
+        },
+        timeChanged() {
+            if (!this.timeRange?.length) return;
+            this.queryRange = [dayjs(this.timeRange[0]).unix(), dayjs(this.timeRange[1]).unix()];
+            this.queryStep = this.selectedStep;
+            this.queriesByType[this.activeType] = { range: this.queryRange, step: this.queryStep };
+            this.loadChart();
+        },
     },
 };
 </script>
 
 <style scoped>
 .pod-metrics{width:100%;height:100%;min-height:0;}
+.pod-metrics-toolbar{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.pod-metrics-controls{display:flex;align-items:center;gap:12px;}
+.pod-metrics :deep(.statistics-analysis-charts){display:flex;flex-direction:column;min-height:0;flex:1;}
+.pod-metrics :deep(.statistics-analysis-grid){flex:1;min-height:0;grid-auto-rows:minmax(360px,1fr);}
+@media (max-width:900px){.pod-metrics-toolbar{flex-direction:column;align-items:stretch;}.pod-metrics-controls{flex-wrap:wrap;}}
 .chart-spin{display:block;width:100%;height:auto;min-height:0;flex:1;overflow:hidden;}
 .chart-spin :deep(.arco-spin-children){width:100%;height:100%;min-height:0;}
 .chart{width:100%;height:100%;min-height:0;background:#fff;}

@@ -29,8 +29,8 @@
                     </a-menu>
                 </div>
             </a-layout-sider>
-            <a-layout-content class="ml-6 df df-c">
-                <div class="bg-white routerviewbox fc ml-6" >
+            <a-layout-content class="ml-12 df df-c">
+                <div class="bg-white routerviewbox fc" >
                     <div id="appmicro" style="height:calc(100vh - 146px);transform:translate(0,0);"></div>
                 </div>
             </a-layout-content>

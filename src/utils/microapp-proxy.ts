@@ -21,6 +21,13 @@ export class K8sProxyError extends MicroappProxyError {
     }
 }
 
+export class PanelProxyError extends MicroappProxyError {
+    constructor(message: string, code: string) {
+        super(message, code);
+        this.name = 'PanelProxyError';
+    }
+}
+
 type ProxyErrorFactory = (message: string) => MicroappProxyError;
 
 function invalidBaseUrl(message: string) {
@@ -37,6 +44,14 @@ function invalidK8sBaseUrl(message: string) {
 
 function invalidK8sRequestUrl(message: string) {
     return new K8sProxyError(message, 'INVALID_K8S_PROXY_URL');
+}
+
+function invalidPanelBaseUrl(message: string) {
+    return new PanelProxyError(message, 'INVALID_PANEL_PROXY_BASE_URL');
+}
+
+function invalidPanelRequestUrl(message: string) {
+    return new PanelProxyError(message, 'INVALID_PANEL_PROXY_URL');
 }
 
 function hasPathTraversal(path: string) {
@@ -127,6 +142,7 @@ export type MicroappProxy = (
 ) => Promise<Response>;
 
 export type K8sProxy = MicroappProxy;
+export type PanelProxy = MicroappProxy;
 
 function createHostProxy(
     baseUrl: string,
@@ -177,5 +193,14 @@ export function createK8sProxy(): K8sProxy {
         'k8sproxy',
         invalidK8sBaseUrl,
         invalidK8sRequestUrl,
+    );
+}
+
+export function createPanelProxy(): PanelProxy {
+    return createHostProxy(
+        '/panel-api/v1',
+        'panelProxy',
+        invalidPanelBaseUrl,
+        invalidPanelRequestUrl,
     );
 }

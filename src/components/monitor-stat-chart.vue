@@ -1,6 +1,6 @@
 <template>
   <div class="monitor-stat-chart">
-    <div class="monitor-stat-header">
+    <div v-if="showHeader" class="monitor-stat-header">
       <div>
         <div v-if="title" class="monitor-stat-title">{{ title }}</div>
         <slot name="subtitle" />
@@ -28,7 +28,7 @@
       </div>
     </div>
     <a-alert v-if="configurationError" type="error" class="monitor-stat-error">{{ configurationError }}</a-alert>
-    <a-spin v-else :loading="loading" class="monitor-stat-spin">
+    <a-spin v-else :loading="loading" :class="['monitor-stat-spin', { 'monitor-stat-spin-with-header': showHeader }]">
       <a-empty v-if="!loading && !data.length" :description="emptyText" />
       <div v-show="data.length" ref="chart" class="monitor-stat-body"></div>
     </a-spin>
@@ -45,6 +45,7 @@ export default {
   name: 'MonitorStatChart',
   props: {
     title: { type: String, default: '' },
+    showHeader: { type: Boolean, default: true },
     stepOptions: { type: Array, required: true },
     retentionSeconds: { type: Number, required: true },
     chartType: { type: String, default: 'line' },
@@ -164,6 +165,6 @@ export default {
 .monitor-stat-chart{width:100%;height:100%;min-height:360px;display:flex;flex-direction:column;}
 .monitor-stat-header,.monitor-stat-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
 .monitor-stat-title{font-size:16px;font-weight:600;}.monitor-stat-controls{justify-content:flex-end;}
-.monitor-stat-spin{display:block;flex:1;min-height:300px;margin-top:16px;}.monitor-stat-spin :deep(.arco-spin-children){height:100%;}
+.monitor-stat-spin{display:block;flex:1;min-height:300px;}.monitor-stat-spin-with-header{margin-top:16px;}.monitor-stat-spin :deep(.arco-spin-children){height:100%;}
 .monitor-stat-body{width:100%;height:100%;min-height:300px;}.monitor-stat-error{margin-top:16px;}
 </style>

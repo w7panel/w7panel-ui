@@ -49,30 +49,35 @@
     </section>
 
     <section class="chart-panel mt-16">
-      <monitor-stat-chart
-        title="请求趋势"
-        :step-options="trafficSteps"
-        :retention-seconds="logRetentionSeconds"
-        :fixed-time-range="timeRange"
-        :default-step="300"
-        :data="trendSeries"
-        :loading="seriesLoading"
-        :unit="trendConfig.unit"
-        :option="trendOption"
-        empty-text="当前时间范围暂无请求趋势"
-        @query-change="trendQueryChanged"
-      >
-        <template #subtitle><p class="chart-subtitle">选择的时间范围内，按时间颗粒度汇总。</p></template>
-        <template #controls>
-          <a-radio-group v-model="trendMetric" type="button" @change="renderTrend">
-            <a-radio value="requests">请求数</a-radio>
-            <a-radio value="traffic">流量</a-radio>
-            <a-radio value="bandwidth">带宽</a-radio>
-            <a-radio value="hitRate">状态码占比</a-radio>
-            <a-radio value="hits">状态码次数</a-radio>
-          </a-radio-group>
+      <statistics-analysis-charts :groups="trendGroups" model-value="trend" :show-tabs="false">
+        <template #chart>
+          <monitor-stat-chart
+            title="请求趋势"
+            :step-options="trafficSteps"
+            :retention-seconds="logRetentionSeconds"
+            :fixed-time-range="timeRange"
+            :default-step="300"
+            :data="trendSeries"
+            :loading="seriesLoading"
+            :unit="trendConfig.unit"
+            :option="trendOption"
+            empty-text="当前时间范围暂无请求趋势"
+            @query-change="trendQueryChanged"
+          >
+            <template #subtitle>
+              <div class="trend-metric-tabs">
+                <a-radio-group v-model="trendMetric" type="button" @change="renderTrend">
+                  <a-radio value="requests">请求数</a-radio>
+                  <a-radio value="traffic">流量</a-radio>
+                  <a-radio value="bandwidth">带宽</a-radio>
+                  <a-radio value="hitRate">状态码占比</a-radio>
+                  <a-radio value="hits">状态码次数</a-radio>
+                </a-radio-group>
+              </div>
+            </template>
+          </monitor-stat-chart>
         </template>
-      </monitor-stat-chart>
+      </statistics-analysis-charts>
     </section>
 
     <section class="data-panel mt-16">
@@ -172,6 +177,7 @@ import dayjs from 'dayjs';
 import { trafficApi } from '@/api/traffic';
 import { useNamespaceStore } from '@/store';
 import MonitorStatChart from '@/components/monitor-stat-chart.vue';
+import StatisticsAnalysisCharts from '@/components/statistics-analysis-charts.vue';
 import StoreInstallDrawer from '@/components/store-install-drawer.vue';
 import { LOG_RETENTION_SECONDS, TRAFFIC_STEPS, TRAFFIC_STEP_VALUES } from '@/config/monitor';
 import { k8sproxy } from '@/utils/api';
@@ -180,7 +186,7 @@ const METRICS_APPGROUP_PATH = '/apis/w7panel.w7.com/v1alpha1/namespaces/default/
 const METRICS_ZPK_PATH = 'https://zpk.w7.cc/zpk/respo/info/w7panel_metrics';
 
 export default {
-  components: { MonitorStatChart, StoreInstallDrawer },
+  components: { MonitorStatChart, StatisticsAnalysisCharts, StoreInstallDrawer },
   data() {
     const end = dayjs();
     return {
@@ -212,6 +218,7 @@ export default {
     },
     trendSeries() { const points = Array.isArray(this.series) ? this.series : []; return this.trendConfig.fields.map(([field, name]) => ({ name, data: points.map((item) => [item._time, Number(item[field] || 0)]) })); },
     trendOption() { const config = this.trendConfig; return { tooltip: { valueFormatter: (value) => config.format(value) }, yAxis: { name: config.unit, axisLabel: { formatter: (value) => config.format(value) } } }; },
+    trendGroups() { return [{ key: 'trend', title: '请求趋势', charts: [{ key: 'trend' }] }]; },
   },
   async created() {
     await this.initializeMetrics();
@@ -336,6 +343,7 @@ export default {
 .pod-option { display: flex; flex-direction: column; padding: 3px 0; }.pod-option small { color: var(--traffic-muted); font-size: 11px; }
 .section-heading h3 { margin: 0 0 5px; font-size: 16px; }.section-heading p { margin: 0; color: var(--traffic-muted); }.chart-spin { display: block; min-height: 290px; margin-top: 16px; }.trend-chart { height: 290px; }
 .trend-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.trend-metric-tabs { display: flex; align-items: center; margin-top: 12px; }
 .url-filters { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 0; border-top: 1px solid var(--traffic-line); }.url-filters :deep(.arco-input-wrapper), .url-filters :deep(.arco-select) { width: 180px; }.traffic-table { margin-top: 12px; }.entity-link { display: block; max-width: 210px; padding: 0; color: var(--traffic-blue); background: none; border: 0; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.traffic-table small { display: block; margin-top: 3px; color: var(--traffic-muted); }.path-code { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #4e5969; }.pagination-row { margin-top: 16px; }.pagination-row > span { color: var(--traffic-muted); font-size: 12px; }
 .drawer-pagination { margin-top: 16px; }
 @media (max-width: 1100px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }

@@ -117,7 +117,7 @@ export default {
             this.$router.push({ query: {} });
             panelApi.get('/auth/console/bind?code=' + code).then(() => {
                 Message.success('绑定成功');
-                this.getCloudInfo();
+                window.location.reload();
             });
         }
     },

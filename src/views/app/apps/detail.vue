@@ -65,7 +65,7 @@
                             <a-menu v-if="isHelmPage || ((isMicroPage||isAppDirectPage)&&isHelmApp)" v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
                                 <a-menu-item key="group-helm-detail" ><icon-apps />应用详情</a-menu-item>
                                 <a-menu-item key="group-helm-domain" ><icon-cloud />域名管理</a-menu-item>
-                                <a-menu-item v-if="showAppDirect && (isHelmPage || isAppDirectPage)" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
+                                <a-menu-item v-if="showAppDirect" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
                             </a-menu>
                             <a-menu v-else v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
                                 <a-menu-item key="app-detail-detail"><icon-apps />应用详情</a-menu-item>
@@ -164,7 +164,7 @@ import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-crede
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
-import { createK8sProxy, createMicroappProxy } from '@/utils/microapp-proxy';
+import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import AppDirect from '@/views/topapp/app-direct.vue';
@@ -525,6 +525,7 @@ export default {
                 podShell,
                 microappProxy: createMicroappProxy(proxyBackendUrl),
                 k8sproxy: createK8sProxy(),
+                panelProxy: createPanelProxy(),
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
             }
