@@ -1141,12 +1141,16 @@ export default {
             }).then(res=>{
                 let items = res?.data?.items || [];
                 let list = items.map(item=>{
+                    const firstContainer = item?.spec?.containers?.[0] || {};
+                    const firstContainerStatus = item?.status?.containerStatuses?.find(status => status?.name === firstContainer.name)
+                        || item?.status?.containerStatuses?.[0]
+                        || {};
                     return {
                         status: item?.status?.phase?.toUpperCase() || '',
                         namespace: item?.metadata?.namespace,
                         hostIp: item?.status?.hostIP,
-                        containerId: item.status?.containerStatuses?.[0]?.containerID,
-                        containerName: item.status?.containerStatuses?.[0]?.name,
+                        containerId: firstContainerStatus.containerID,
+                        containerName: firstContainer.name || firstContainerStatus.name,
                         creationTimestamp: item?.metadata?.creationTimestamp,
                         name: item?.metadata?.name,
                     }
