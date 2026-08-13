@@ -184,6 +184,11 @@ export default {
                 path: this.scope === 'rule' ? this.ingress?.spec?.rules?.[0]?.http?.paths?.[0]?.path || '' : '',
                 pluginConfig: config.config,
                 pluginEnabled: config.enabled,
+                // 只读上下文：无论当前打开全局还是规则配置，都提供完整的全局配置和规则配置。
+                // 保存仍由 savePluginConfig 按当前 configScope 写入，插件前端不应直接修改这些字段。
+                globalPluginConfig: config.globalConfig,
+                globalPluginEnabled: config.globalEnabled,
+                ...(this.scope === 'global' ? { ruleConfigs: config.ruleConfigs } : {}),
                 // 兼容已接入旧字段名的插件前端。
                 pluginConfigEnabled: config.enabled,
                 microappRole: this.menuRoles[0]?.name || (this.scope === 'rule' ? 'normal' : 'founder'),
@@ -321,18 +326,30 @@ export default {
         },
         getCurrentConfig(){
             const plugin = this.localPlugin || {};
+            // 每次生成上下文都复制一份，避免 MicroApp 修改注入对象时反向污染面板本地资源。
+            const globalConfig = JSON.parse(JSON.stringify(plugin?.spec?.defaultConfig || {}));
+            const globalEnabled = plugin?.spec?.defaultConfigDisable !== true;
+            const ruleConfigs = this.scope === 'global'
+                ? JSON.parse(JSON.stringify(plugin?.spec?.matchRules || []))
+                : undefined;
             if(this.scope === 'global'){
                 return {
-                    config: plugin?.spec?.defaultConfig || {},
-                    enabled: plugin?.spec?.defaultConfigDisable !== true,
+                    config: globalConfig,
+                    enabled: globalEnabled,
+                    globalConfig,
+                    globalEnabled,
+                    ruleConfigs,
                 };
             }
             const context = getGatewayPluginRuleContext(this.ingress, this.namespaceActive);
             const index = getGatewayPluginRuleMatch(plugin, context).index;
             const rule = index >= 0 ? plugin?.spec?.matchRules?.[index] : null;
             return {
-                config: rule?.config || {},
+                config: JSON.parse(JSON.stringify(rule?.config || {})),
                 enabled: Boolean(rule) && rule?.configDisable !== true,
+                globalConfig,
+                globalEnabled,
+                ruleConfigs,
             };
         },
         applyConfig(config, enabled){
