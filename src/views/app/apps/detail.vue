@@ -472,6 +472,17 @@ export default {
                 return res;
             })
 
+            // 制品应用详情每次打开都重新请求制品 info；即使前端包已经下载到本地，
+            // 也能在试用期届满后收到 ZPK_TRIAL_EXPIRED。
+            const bindings = this.microApp?.spec?.bindings || [];
+            const isArtifactMenu = bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.menuActive));
+            if(data?.repoUrl && !isArtifactMenu){
+                await panelApi.get('/zpk/config', {
+                    params: { repoUrl: data.repoUrl },
+                    noAlert: true,
+                });
+            }
+
             
             try{
                 destroyApp(APP_DETAIL_MICRO_NAME);

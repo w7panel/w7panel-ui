@@ -4,7 +4,7 @@
 
 import axios from 'axios';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
-import { Notification } from '@arco-design/web-vue';
+import { Modal, Notification } from '@arco-design/web-vue';
 import { useLoadingStore } from '@/store';
 import { clearToken } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';
@@ -63,6 +63,7 @@ axios.get = function (url: string, config?: CustomAxiosRequestConfig) {
 
 
 const pendingRequests = new Map();
+let lastTrialExpiredNoticeAt = 0;
 
 const removeAppmicroFromHash = (hash: string) => {
     if(!hash || !hash.includes('?')){
@@ -194,7 +195,23 @@ axios.interceptors.response.use(
 
         if (error?.response?.status == 429) { return; }
         if (error?.response?.status == 408) { return; }
-        
+
+        // 已安装制品在运行期间可能才到试用期截止时间。静态资源状态接口和
+        // 前端资源代理都会返回此错误，统一在面板宿主层提示用户续费，不能被
+        // noAlert 请求选项静默吞掉。
+        if (error?.response?.data?.code === 'ZPK_TRIAL_EXPIRED') {
+            const now = Date.now();
+            if (now - lastTrialExpiredNoticeAt > 5000) {
+                lastTrialExpiredNoticeAt = now;
+                Modal.warning({
+                    title: '制品试用已到期',
+                    content: '试用已到期，请通过应用菜单中的“授权与续费”完成购买后继续使用。',
+                    okText: '知道了',
+                    hideCancel: true,
+                });
+            }
+        }
+
         if (error?.config?.noAlert){
             return Promise.reject(error);
         }

@@ -109,6 +109,14 @@ export default {
                         params: { version, releaseName },
                         noAlert: true,
                     });
+                    const bindings = status?.data?.bindings || this.microapp?.spec?.bindings || [];
+                    const isArtifactMenu = bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.route));
+                    if(status?.data?.repoUrl && !isArtifactMenu){
+                        await panelApi.get('/zpk/config', {
+                            params: { repoUrl: status.data.repoUrl },
+                            noAlert: true,
+                        });
+                    }
                     if(status?.data?.status === 'no_download'){
                         frontendUrl = status?.data?.proxyUrl || frontendUrl;
                         panelApi.post(`/static/${namespace}/download/${releaseName}`, null, { noAlert: true }).catch(()=>{});

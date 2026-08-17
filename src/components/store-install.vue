@@ -18,7 +18,13 @@
 					</a-popconfirm>
 				</div>
 			</div>
-		</a-modal>
+			</a-modal>
+			<a-modal v-model:visible="trialExpired.show" title="试用已到期" :footer="false" :mask-closable="false">
+				<a-alert type="warning">该制品的免费试用已到期，请通过应用菜单中的“授权与续费”完成购买后再继续操作。</a-alert>
+				<div class="mt-20 df jc-e">
+					<a-button class="mr-10" @click="trialExpired.show=false">知道了</a-button>
+				</div>
+			</a-modal>
         <div class="toptitle df jc-c" :style="{width:is_component?'800px':'1000px'}">
             <img v-if="info.icon" :src="info.icon" alt="" class="icon" @error="info.icon=''" />
             <icon-common v-else class="icon"  />
@@ -376,6 +382,7 @@ export default {
 				params: null,
 				retryConfig: false,
 			},
+			trialExpired: { show: false, marketUrl: '', orderSn: '', expireAt: '' },
 			reinstallConfirmed: false,
         }
     },
@@ -831,7 +838,8 @@ export default {
                 if(!this.releaseName && res?.data?.[0]?.releaseName){ this.releaseName = res.data[0].releaseName; }
 				return true;
 			}).catch(error=>{
-				if(this.handleInstallConflict(error, null, true)){return false}
+				if(this.handleTrialExpired(error)){return false}
+					if(this.handleInstallConflict(error, null, true)){return false}
 				this.$message.error(error?.response?.data?.error || error?.message || '获取安装配置失败');
 				return false;
             })
@@ -940,8 +948,9 @@ export default {
                 thirdpartyCDToken: this.$route.query.thirdpartyCDToken,
             },noAlert:true}).then(res=>{
                 return res.data?.[0]?.name;
-			}).catch(error=>{
-				if(!this.handleInstallConflict(error)){
+				}).catch(error=>{
+					if(this.handleTrialExpired(error)){return name}
+					if(!this.handleInstallConflict(error)){
 					this.$message.error(error?.response?.data?.error || error?.message || '获取依赖应用信息失败');
 				}
 				return name;
@@ -1142,12 +1151,13 @@ export default {
                         this.getStatus(releaseName);
                     });
                 }
-            }).catch(error=>{
-				if(this.handleInstallConflict(error, {...params})){return}
+			}).catch(error=>{
+					if(this.handleTrialExpired(error)){return}
+					if(this.handleInstallConflict(error, {...params})){return}
 				this.$message.error(error?.response?.data?.error || error?.message || '安装失败');
 			});
         },
-		handleInstallConflict(error, params = null, retryConfig = false){
+			handleInstallConflict(error, params = null, retryConfig = false){
 			let responseData = error?.response?.data;
 			let conflict = responseData?.data;
 			let isConflictResponse = error?.response?.status===409 || responseData?.code===409;
@@ -1164,7 +1174,14 @@ export default {
 				retryConfig,
 			};
 			return true;
-		},
+			},
+			handleTrialExpired(error){
+				const data = error?.response?.data || {};
+				if(data?.code !== 'ZPK_TRIAL_EXPIRED') return false;
+				const detail = data.data || {};
+				this.trialExpired = {show:true, marketUrl:detail.market_url || '', orderSn:detail.order_sn || '', expireAt:detail.trial_expire_at || ''};
+				return true;
+			},
 		openOriginalPanel(){
 			if(!this.installConflict.panelUrl){return}
 			let targetUrl = this.installConflict.panelUrl;
@@ -1200,8 +1217,9 @@ export default {
 				}else{
 					this.$router.push({query:{...this.$route.query,completeName:releaseName}}).then(()=>this.getStatus(releaseName));
 				}
-			}).catch(error=>{
-				if(this.handleInstallConflict(error, {...params, reinstall:true})){return}
+				}).catch(error=>{
+					if(this.handleTrialExpired(error)){return}
+					if(this.handleInstallConflict(error, {...params, reinstall:true})){return}
 				this.$message.error(error?.response?.data?.error || error?.message || '强制安装失败');
 			});
 		},
