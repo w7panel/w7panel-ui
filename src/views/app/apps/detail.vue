@@ -476,9 +476,10 @@ export default {
             // 也能在试用期届满后收到 ZPK_TRIAL_EXPIRED。
             const bindings = this.microApp?.spec?.bindings || [];
             const isArtifactMenu = bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.menuActive));
-            if(data?.repoUrl && !isArtifactMenu){
+            const repoUrl = data?.respoUrl;
+            if(repoUrl && !isArtifactMenu){
                 await panelApi.get('/zpk/config', {
-                    params: { repoUrl: data.repoUrl },
+                    params: { repoUrl },
                     noAlert: true,
                 });
             }

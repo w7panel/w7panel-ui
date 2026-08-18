@@ -111,9 +111,10 @@ export default {
                     });
                     const bindings = status?.data?.bindings || this.microapp?.spec?.bindings || [];
                     const isArtifactMenu = bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.route));
-                    if(status?.data?.repoUrl && !isArtifactMenu){
+                    const repoUrl = status?.data?.respoUrl;
+                    if(repoUrl && !isArtifactMenu){
                         await panelApi.get('/zpk/config', {
-                            params: { repoUrl: status.data.repoUrl },
+                            params: { repoUrl },
                             noAlert: true,
                         });
                     }

@@ -265,9 +265,10 @@ export default{
             })
 
             const isArtifactMenu = this.bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.page));
-            if(data?.repoUrl && !isArtifactMenu){
+            const repoUrl = data?.respoUrl;
+            if(repoUrl && !isArtifactMenu){
                 await panelApi.get('/zpk/config', {
-                    params: { repoUrl: data.repoUrl },
+                    params: { repoUrl },
                     noAlert: true,
                 });
             }
