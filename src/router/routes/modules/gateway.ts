@@ -17,17 +17,6 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         },
         children: [
             {
-                path: 'traffic',
-                name: 'gateway-traffic',
-                component: () => import('@/views/cluster/traffic/index.vue'),
-                meta: {
-                    locale: '统计分析',
-                    requiresAuth: true,
-                    roles: ['*'],
-                    key: 'gateway-traffic',
-                },
-            },
-            {
                 path: 'rvproxy',
                 name: 'gateway-rvproxy',
                 component: () => import('@/views/app/rvproxy/rvproxy.vue'),
