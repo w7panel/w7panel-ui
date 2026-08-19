@@ -264,6 +264,15 @@ export default{
                 return res;
             })
 
+            const isArtifactMenu = this.bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.page));
+            const repoUrl = data?.respoUrl;
+            if(repoUrl && !isArtifactMenu){
+                await panelApi.get('/zpk/config', {
+                    params: { repoUrl },
+                    noAlert: true,
+                });
+            }
+
             if(this.info.load_mode=='iframe'){
                 this.info.iframePath = this.getMicroAppBaseUrl();
                 this.info.iframeRoute = this.page || '';
