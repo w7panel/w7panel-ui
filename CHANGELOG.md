@@ -2,6 +2,12 @@
 
 ## 2026-08-19
 
+- 新增 `helm-cnb-publish` Codex 技能，封装使用 `CNB_TOKEN` 登录并将 Helm Chart 推送至 CNB OCI 制品库的同名与非同名仓库流程。
+- 影响模块：个人 Codex 技能 `/home/afan/.codex/skills/helm-cnb-publish`。
+- 验证：已完成静态结构检查与 `git diff --check`；`quick_validate.py` 因环境缺少 Python `yaml` 模块未能启动。
+
+## 2026-08-19
+
 - 移除网关管理下的统计分析菜单及 `/gateway/traffic` 路由，保留统计分析页面源码和公共图表组件供其他页面复用。
 - 影响模块：网关管理路由与左侧导航。
 - 验证：待执行前端生产构建。
