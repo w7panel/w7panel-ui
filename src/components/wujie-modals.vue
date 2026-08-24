@@ -183,6 +183,7 @@
         :show="storeInstallDrawer.show"
         :path="storeInstallDrawer.path"
         @needInstall="needStoreInstall"
+        @installedStatusSuccess="handleStoreInstallSuccess"
         @close="closeStoreInstallDrawer"
     />
 
@@ -308,6 +309,7 @@ export default {
             storeInstallDrawer: {
                 show: false,
                 path: '',
+                callback: null,
             },
             storeInstallDependencies: {},
             wujieEventHandlers: [],
@@ -845,7 +847,7 @@ export default {
             path = encodeURIComponent(path);
             return this.toStoreInstall(path);
         },
-        openStoreInstall(path) {
+        openStoreInstall(path, callback) {
             const installPath = this.normalizeStoreInstallPath(path);
             if(!installPath){
                 this.$message.warning('缺少应用安装地址');
@@ -854,12 +856,14 @@ export default {
             this.storeInstallDrawer = {
                 show: false,
                 path: '',
+                callback: null,
             };
             this.storeInstallDependencies = {};
             this.$nextTick(()=>{
                 this.storeInstallDrawer = {
                     show: true,
                     path: installPath,
+                    callback: typeof callback === 'function' ? callback : null,
                 };
             });
             return true;
@@ -874,8 +878,17 @@ export default {
             return value;
         },
         closeStoreInstallDrawer() {
-            this.storeInstallDrawer.show = false;
+            this.storeInstallDrawer = {
+                show: false,
+                path: '',
+                callback: null,
+            };
             this.storeInstallDependencies = {};
+        },
+        handleStoreInstallSuccess(moduleName) {
+            const callback = this.storeInstallDrawer.callback;
+            this.storeInstallDrawer.callback = null;
+            callback?.(moduleName);
         },
         needStoreInstall(moduleName, callback) {
             if(!moduleName){return}
