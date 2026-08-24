@@ -11,31 +11,25 @@
 
         <a-table v-if="!hideList" :data="list" class="cptable" :pagination="false" :bordered="false">
             <template #columns>
-                <a-table-column title="任务" :width="180">
-                    <template #cell="{ record }">{{record.name}}</template>
+                <a-table-column title="任务与目标镜像" :width="280">
+                    <template #cell="{ record }">
+                        <div>{{record.name}}</div>
+                        <div class="fs-12 c-99 task-image-name" :title="record.address">{{record.address}}</div>
+                    </template>
                 </a-table-column>
-                <a-table-column title="DockerfilePath">
-                    <template #cell="{ record }">{{record.dockerfilePath}}</template>
-                </a-table-column>
-                <a-table-column title="构建源">
-                    <template #cell="{ record }">{{record.downloadUrl}}</template>
-                </a-table-column>
-                <a-table-column title="状态">
+                <a-table-column title="状态" :width="110">
                     <template #cell="{ record }">
                         <span :class="record.statusClass">{{record.statusTxt}}</span>
                         <span v-if="record.maxRetries" class="fs-12 c-99 ml-6">{{record.retryCount}}/{{record.maxRetries}}</span>
                     </template>
                 </a-table-column>
-                <a-table-column title="目标镜像">
-                    <template #cell="{ record }">{{record.address}}</template>
-                </a-table-column>
                 <a-table-column title="完成时间" :width="180">
                     <template #cell="{ record }">{{record.completedAt || '-'}}</template>
                 </a-table-column>
-                <a-table-column title="原因">
-                    <template #cell="{ record }">{{record.reason || '-'}}</template>
+                <a-table-column title="原因" :width="200">
+                    <template #cell="{ record }"><div class="task-reason" :title="record.reason">{{record.reason || '-'}}</div></template>
                 </a-table-column>
-                <a-table-column title="操作">
+                <a-table-column title="操作" :width="140">
                     <template #cell="{ record }">
                         <a-tooltip v-if="debug" content="yaml">
                             <i class="opt-icon" @click="toYaml(record)"><icon-code /></i>
@@ -255,4 +249,10 @@ export default{
 }
 </script>
 <style scoped>
+.task-image-name,
+.task-reason {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 </style>

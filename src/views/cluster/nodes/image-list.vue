@@ -22,7 +22,7 @@
                     :nodeIp="nodeIp"
                 ></build-image>
 
-                <a-button class="ml-20" @click="buildImageTasks.show=true">镜像构建任务</a-button>
+                <a-button type="primary" class="ml-20" @click="buildImageTasks.show=true">镜像构建任务</a-button>
 
                 <a-button type="primary" class="ml-20" @click="openBuildContainer">打包容器镜像</a-button>
             </div>
@@ -68,7 +68,7 @@
 
         </div>
 
-        <a-drawer :width="800" :visible="buildImageTasks.show" title="镜像构建任务" @cancel="buildImageTasks.show=false">
+        <a-drawer :width="1100" :visible="buildImageTasks.show" title="镜像构建任务" @cancel="buildImageTasks.show=false">
             <build-image v-if="buildImageTasks.show" :hideList="false" :showCreateBtn="false"></build-image>
         </a-drawer>
 
