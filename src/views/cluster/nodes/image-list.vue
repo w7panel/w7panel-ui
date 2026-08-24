@@ -63,6 +63,9 @@
                     </a-table-column>
                 </template>
             </a-table>
+
+            <div class="mt-20 fs-16">镜像构建任务</div>
+            <build-image :hideList="false" :showCreateBtn="false"></build-image>
         </div>
 
         <a-modal :visible="importDialog.show" title="导入镜像" @ok="toImport" @cancel="importDialog.show=false" width="600px" >

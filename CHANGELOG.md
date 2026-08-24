@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2026-08-24
+
+- 镜像管理页新增 BuildImage CRD 构建任务列表，展示任务状态、重试进度、目标镜像、完成时间和失败原因，并自动刷新任务状态。
+
 ## 2026-08-19
 
 - 新增 `helm-cnb-publish` Codex 技能，封装使用 `CNB_TOKEN` 登录并将 Helm Chart 推送至 CNB OCI 制品库的同名与非同名仓库流程。

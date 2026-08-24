@@ -11,6 +11,9 @@
 
         <a-table v-if="!hideList" :data="list" class="cptable" :pagination="false" :bordered="false">
             <template #columns>
+                <a-table-column title="任务" :width="180">
+                    <template #cell="{ record }">{{record.name}}</template>
+                </a-table-column>
                 <a-table-column title="DockerfilePath">
                     <template #cell="{ record }">{{record.dockerfilePath}}</template>
                 </a-table-column>
@@ -18,7 +21,19 @@
                     <template #cell="{ record }">{{record.downloadUrl}}</template>
                 </a-table-column>
                 <a-table-column title="状态">
-                    <template #cell="{ record }"><span :class="record.statusClass">{{record.statusTxt}}</span></template>
+                    <template #cell="{ record }">
+                        <span :class="record.statusClass">{{record.statusTxt}}</span>
+                        <span v-if="record.maxRetries" class="fs-12 c-99 ml-6">{{record.retryCount}}/{{record.maxRetries}}</span>
+                    </template>
+                </a-table-column>
+                <a-table-column title="目标镜像">
+                    <template #cell="{ record }">{{record.address}}</template>
+                </a-table-column>
+                <a-table-column title="完成时间" :width="180">
+                    <template #cell="{ record }">{{record.completedAt || '-'}}</template>
+                </a-table-column>
+                <a-table-column title="原因">
+                    <template #cell="{ record }">{{record.reason || '-'}}</template>
                 </a-table-column>
                 <a-table-column title="操作">
                     <template #cell="{ record }">
@@ -123,10 +138,13 @@ export default{
         if(!this.hideList){
             this.getList();
         }
-        if(this.showCreateBtn){
+        if(this.showCreateBtn || !this.hideList){
             this.testIsBuilding();
             this.setInterval = setInterval(()=>{
                 this.testIsBuilding();
+                if(!this.hideList){
+                    this.getList();
+                }
             },5000)
         }
     },
@@ -153,6 +171,10 @@ export default{
                         username: i.spec?.targetImage?.auth?.username || '',
                         password: i.spec?.targetImage?.auth?.password || '',
                         status: i?.status?.status || '',
+                        reason: i?.status?.reason || '',
+                        retryCount: i?.status?.retryCount || 0,
+                        maxRetries: i?.status?.maxRetries || 0,
+                        completedAt: i?.status?.completedAt ? String(i.status.completedAt).replace('T', ' ').replace(/\.\d+Z$/, '') : '',
                         statusTxt: {
                             '': '未开始',
                             'Pending': '初始化中',
