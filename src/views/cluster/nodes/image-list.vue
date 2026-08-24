@@ -22,6 +22,8 @@
                     :nodeIp="nodeIp"
                 ></build-image>
 
+                <a-button class="ml-20" @click="buildImageTasks.show=true">镜像构建任务</a-button>
+
                 <a-button type="primary" class="ml-20" @click="openBuildContainer">打包容器镜像</a-button>
             </div>
             
@@ -64,9 +66,11 @@
                 </template>
             </a-table>
 
-            <div class="mt-20 fs-16">镜像构建任务</div>
-            <build-image :hideList="false" :showCreateBtn="false"></build-image>
         </div>
+
+        <a-drawer :width="800" :visible="buildImageTasks.show" title="镜像构建任务" @cancel="buildImageTasks.show=false">
+            <build-image v-if="buildImageTasks.show" :hideList="false" :showCreateBtn="false"></build-image>
+        </a-drawer>
 
         <a-modal :visible="importDialog.show" title="导入镜像" @ok="toImport" @cancel="importDialog.show=false" width="600px" >
             <a-form ref="importForm" :rules="rules" :model="importDialog" auto-label-width >
@@ -203,6 +207,9 @@ export default {
             },
 
             buildImageStatus: {
+                show: false,
+            },
+            buildImageTasks: {
                 show: false,
             },
             preAddress: 'registry.local.w7.cc/',
