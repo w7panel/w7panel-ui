@@ -179,6 +179,23 @@
         </a-spin>
     </a-modal>
 
+    <install-drawer
+        :show="storeInstallDrawer.show"
+        :path="storeInstallDrawer.path"
+        @needInstall="needStoreInstall"
+        @close="closeStoreInstallDrawer"
+    />
+
+    <template v-for="(dependency, moduleName) in storeInstallDependencies" :key="moduleName">
+        <install-drawer
+            :show="dependency.show"
+            :module_name="moduleName"
+            @needInstall="needStoreInstall"
+            @installed="dependency.callback"
+            @close="dependency.show = false"
+        />
+    </template>
+
 </template>
 
 <script>
@@ -201,6 +218,7 @@ import domainStrategy from '@/components/domain-strategy.vue';
 import containerPlugin from '@/components/container-plugin.vue';
 import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';
 import buyServiceDialog from '@/components/buy-service-dialog.vue';
+import installDrawer from '@/views/app/store/install-drawer.vue';
 
 export default {
     name: 'WujieModals',
@@ -287,6 +305,11 @@ export default {
                 list: [],
                 showLength: 5,
             },
+            storeInstallDrawer: {
+                show: false,
+                path: '',
+            },
+            storeInstallDependencies: {},
             wujieEventHandlers: [],
         };
     },
@@ -323,12 +346,14 @@ export default {
         containerPlugin,
         buildImageStatus,
         buyServiceDialog,
+        installDrawer,
     },
     methods: {
         registerHostWujieEvents() {
             const excludeEvents = new Set(this.excludeWujieEvents);
             const events = [
                 ['toStoreInstall', this.toStoreInstall],
+                ['openStoreInstall', this.openStoreInstall],
                 ['openPage', this.openPage],
                 ['openApp', this.openApp],
                 ['toFile', this.toFile],
@@ -364,9 +389,10 @@ export default {
         },
         iframeMessage(e){
             if(e?.data?.type=='zpk-store:open-install'){
-                let path = e.data.payload?.path + '?order_sn=' + e.data.payload?.orderSn;
-                path = encodeURIComponent(path);
-                this.toStoreInstall(path)
+                this.toStoreInstallWithOrder({
+                    path: e.data.payload?.path,
+                    orderSn: e.data.payload?.orderSn,
+                });
             }
             if(
                 e?.data?.type === 'payCallback'
@@ -812,12 +838,54 @@ export default {
 
         // ========== 应用商店安装 ==========
         toStoreInstall(path) {
-            this.$router.push('/app/store-install?path=' + path);
+            return this.$router.push('/app/store-install?path=' + path);
         },
         toStoreInstallWithOrder(data) {
             let path = data.path + '?order_sn=' + data.orderSn;
             path = encodeURIComponent(path);
-            this.toStoreInstall(path)
+            return this.toStoreInstall(path);
+        },
+        openStoreInstall(path) {
+            const installPath = this.normalizeStoreInstallPath(path);
+            if(!installPath){
+                this.$message.warning('缺少应用安装地址');
+                return false;
+            }
+            this.storeInstallDrawer = {
+                show: false,
+                path: '',
+            };
+            this.storeInstallDependencies = {};
+            this.$nextTick(()=>{
+                this.storeInstallDrawer = {
+                    show: true,
+                    path: installPath,
+                };
+            });
+            return true;
+        },
+        normalizeStoreInstallPath(path) {
+            let value = String(path || '').trim();
+            if(/^https?%3A%2F%2F/i.test(value)){
+                try{
+                    value = decodeURIComponent(value);
+                }catch{}
+            }
+            return value;
+        },
+        closeStoreInstallDrawer() {
+            this.storeInstallDrawer.show = false;
+            this.storeInstallDependencies = {};
+        },
+        needStoreInstall(moduleName, callback) {
+            if(!moduleName){return}
+            this.storeInstallDependencies[moduleName] = {
+                show: false,
+                callback,
+            };
+            this.$nextTick(()=>{
+                this.storeInstallDependencies[moduleName].show = true;
+            });
         },
     },
 };
