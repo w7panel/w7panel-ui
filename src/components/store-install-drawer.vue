@@ -6,7 +6,7 @@
         </a-drawer>
         
         <template v-for="(value,key) in idObj" :key="key">
-            <install-drawer :show="value.show" :module_name="key" @needInstall="needInstall" @installed="value.callback" @close="value.show=false;"></install-drawer>
+            <install-drawer :show="value.show" :module_name="key" :dependency="value.dependency" @needInstall="needInstall" @installed="value.callback" @close="value.show=false;"></install-drawer>
         </template>
     </div>
 </template>
@@ -50,13 +50,16 @@ export default {
         installedStatusSuccess(){
             this.$emit('installedStatusSuccess');
         },
-        needInstall(module_name, callback){
-            this.idObj[module_name] = {
+        needInstall(dependency, callback){
+            dependency = typeof dependency === 'string' ? {identifie:dependency, name:dependency} : dependency;
+            const key = dependency.releaseName || dependency.identifie || dependency.name;
+            this.idObj[key] = {
                 show: false,
                 callback: callback,
+                dependency,
             }
             this.$nextTick(()=>{
-                this.idObj[module_name].show = true;
+                this.idObj[key].show = true;
             });
         },
     },

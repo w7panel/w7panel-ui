@@ -64,16 +64,20 @@
                                 <div>
                                     <div v-for="item in installAlert[form.activeIdentifie]" :key="item.name" class="fs-14 c-99 mt-10">
                                         <!-- item.isInstall 是否已经安装某个依赖 -->
-                                        <span :class="(item.isInstall||item.allReplace)?'c-green':'c-red'" class="va-middle">检测到{{item.title || item.name}}，</span>
+                                        <span :class="(!item.releaseNameConflict&&(item.isInstall||item.allReplace))?'c-green':'c-red'" class="va-middle">检测到{{item.title || item.name}}，</span>
                                         <span>
-                                            <span v-if="item.isInstall" class="va-middle c-green">已安装</span>
+                                            <span v-if="item.releaseNameConflict" class="va-middle c-red">安装名称冲突，请重新加载安装配置</span>
+                                            <span v-else-if="item.isInstall" class="va-middle c-green">已安装</span>
                                             <span v-else-if="item.allReplace" class="va-middle c-green">无需安装</span>
                                             <span v-else class="va-middle c-red">未安装</span>
-                                            <icon-check-circle-fill v-if="(item.isInstall||item.allReplace)" class="va-middle ml-4 c-green fs-14" />
+                                            <icon-check-circle-fill v-if="!item.releaseNameConflict&&(item.isInstall||item.allReplace)" class="va-middle ml-4 c-green fs-14" />
                                             <icon-close-circle-fill v-else class="va-middle ml-4 c-red fs-14" />
                                             
-                                            <a-tooltip v-if="!item.isInstall" :content="item.required?'强制安装，必须先安装该应用后才可进行下一步操作':'不强制安装，可通过自定义填写对应的配置项来取消安装'">
-                                                <a-button size="mini" class="ml-10 super-mini-btn" type="outline" @click="$emit('needInstall',item.name,testModuleNames);">
+                                            <a-button v-if="item.releaseNameConflict" size="mini" class="ml-10 super-mini-btn" type="outline" @click="reloadInstallConfig">
+                                                重新加载
+                                            </a-button>
+                                            <a-tooltip v-else-if="!item.isInstall" :content="item.required?'强制安装，必须先安装该应用后才可进行下一步操作':'不强制安装，可通过自定义填写对应的配置项来取消安装'">
+                                                <a-button size="mini" class="ml-10 super-mini-btn" type="outline" @click="$emit('needInstall',item,reloadInstallConfig);">
                                                     <template #icon><icon-download /></template>
                                                     <span v-if="item.required">必选安装</span>
                                                     <span v-else>可选安装</span>
@@ -88,7 +92,7 @@
                                 <div class="fs-14 c-99 mt-10">
                                     <span class="c-red va-middle">未安装主应用</span>
                                     <icon-close-circle-fill class="va-middle ml-4 c-red fs-14" />
-                                    <a-button size="mini" class="ml-10 super-mini-btn" type="outline" @click="$emit('needInstall',item.parentIdentifie,mainAppTest);">
+                                    <a-button size="mini" class="ml-10 super-mini-btn" type="outline" @click="$emit('needInstall',item.parentIdentifie,reloadInstallConfig);">
                                         <template #icon><icon-download /></template>
                                         <span>去安装</span>
                                     </a-button>
@@ -149,7 +153,7 @@
                                     <a-select v-model="item.parentReleaseName" label="主应用" placeholder="请选择">
                                         <a-option v-for="opt in rpList[item.parentIdentifie]" :key="opt.name" :label="opt.title+'('+opt.name+')'" :value="opt.name"></a-option>
                                     </a-select>
-                                    <span v-if="!rpList[item.parentIdentifie]||!rpList[item.parentIdentifie].length" class="ml-20 c-blue cursor" style="flex-shrink:0;" @click="$emit('needInstall',item.parentIdentifie,testModuleNames);">去安装</span>
+                                    <span v-if="!rpList[item.parentIdentifie]||!rpList[item.parentIdentifie].length" class="ml-20 c-blue cursor" style="flex-shrink:0;" @click="$emit('needInstall',item.parentIdentifie,reloadInstallConfig);">去安装</span>
                                 </a-form-item> -->
 
                                 <a-form-item v-if="item.requirePvc" label="存储" field="pvcname" :rules="[{required:true,message:'请选择存储'}]">
@@ -192,7 +196,7 @@
                                 </a-form-item> -->
 
                                 <div v-for="(sp,index) in item.startParams" :key="sp.name">
-                                    <a-form-item v-if="sp.values_text!='%DOMAIN_HOST%' && sp.values_text!='%DOMAIN_URL%' && sp.values_text!='%DOMAIN_SSL_URL%'" @change="testInstallStatus" :label="sp.title" :field="'startParams['+index+'].value'" :rules="[{required:sp.required,message:'内容不能为空'}, validator(sp)]">
+                                    <a-form-item v-if="!sp.hidden && sp.values_text!='%DOMAIN_HOST%' && sp.values_text!='%DOMAIN_URL%' && sp.values_text!='%DOMAIN_SSL_URL%'" @change="testInstallStatus" :label="sp.title" :field="'startParams['+index+'].value'" :rules="[{required:sp.required,message:'内容不能为空'}, validator(sp)]">
                                         <template #label>
                                             <span class="form-label">{{sp.title}}</span>
                                         </template>
@@ -214,7 +218,7 @@
                                         </div>
                                     </a-form-item>
                                 </div>
-                                <a-empty v-if="(!item.startParams||!item.startParams.length) && !item.requirePvc && !item.requireBuild && !item.requireParentReleaseName" description="没有配置项" />
+                                <a-empty v-if="(!item.startParams||!item.startParams.some(sp=>!sp.hidden)) && !item.requirePvc && !item.requireBuild && !item.requireParentReleaseName" description="没有配置项" />
                             </a-form>
                         </div>
                     </a-tab-pane>
@@ -297,7 +301,7 @@ import { getUserInfo } from '@/utils/auth';
 import shortuuid from 'short-uuid';
 
 export default {
-    props: ['is_component','path_identifie','version'],
+    props: ['is_component','path_identifie','version','release_name','start_params'],
     emits: [ 'complete' ],
     data(){
         return {
@@ -422,6 +426,7 @@ export default {
 			}
             if(this.is_component){
                 this.path = this.path_identifie;
+                this.releaseName = this.release_name || '';
             }else{
                 this.releaseName = this.$route.query.releasename || '';
                 this.path = decodeURIComponent(this.$route.query.path);
@@ -657,6 +662,10 @@ export default {
                             value = options?.[0] || '';
                             j.type = 'select';
                         }
+                        const hasOverride = Object.prototype.hasOwnProperty.call(this.start_params || {}, j.name);
+                        if(hasOverride){
+                            value = String(this.start_params[j.name] ?? '');
+                        }
                         // 存储设备
                         if(j.values_text=='%STORAGE_SIZE%' || j.values_text=='%STORAGE_CLASS_NAME%' || j.values_text=='%STORAGE_RW_MODE%'){
                             let find = startParams.find(i=>i.type=='storage');
@@ -711,7 +720,7 @@ export default {
                             values_text: j.values_text || '',
                             module_name: j.module_name, // 模块名称
                             description: j.description,
-                            lock: j.lock,
+                            lock: j.lock || hasOverride,
                         });
                     })
                     let pvcname = i.requirePvc? (this.storages?.find(i=>i.isDefault)?.name || this.storages?.[0]?.name) : '';
@@ -898,9 +907,9 @@ export default {
         async startParamsFocus(sp){
             if(!sp.module_name||!/%\w+%/.test(sp.value)){return}
             if(sp.module_name!='w7_mysql5' && sp.module_name!='w7_mysql' && sp.module_name!='w7_redis'){return}
-            let install = await this.testRely(sp.module_name);
-            if(install===false){
-                this.$emit('needInstall',sp.module_name,this.testModuleNames);
+            let result = await this.testRely({identifie:sp.module_name, name:sp.module_name});
+            if(result.installed===false){
+                this.$emit('needInstall',{identifie:sp.module_name, name:sp.module_name},this.reloadInstallConfig);
             }
         },
         // 检测依赖
@@ -914,11 +923,14 @@ export default {
                     let name = i.outModuleNames[m];
                     if(/\./.test(name)){continue}
                     let title = await this.getTitleByMn(name);
-                    let isInstall = await this.testRely(name);
+                    let dependency = {identifie:name, name:title, required:false};
+                    let result = await this.testRely(dependency);
                     this.installAlert[i.identifie].push({
+                        ...dependency,
                         name: name,
                         title: title,
-                        isInstall: isInstall,
+                        isInstall: result.installed,
+                        releaseNameConflict: result.releaseNameConflict,
                         required: false,
                     });
                 }
@@ -931,11 +943,13 @@ export default {
                         title = item.subname;
                     }
                     if(/\./.test(name)){continue}
-                    let isInstall = await this.testRely(item.subidentifie || item.identifie);
+                    let result = await this.testRely(item);
                     this.installAlert[i.identifie].push({
+                        ...item,
                         name: name,
                         title: title,
-                        isInstall: isInstall,
+                        isInstall: result.installed,
+                        releaseNameConflict: result.releaseNameConflict,
                         required: item.required,
                     });
                 }
@@ -961,6 +975,10 @@ export default {
             if(!find || find.isInstall || ((!find.required)&&find.replaceAll)){return {}}
             return {
                 validator: (value,cb)=>{
+                    if(find.releaseNameConflict){
+                        cb('依赖安装名称冲突，请重新加载安装配置');
+                        return;
+                    }
                     if(!find.required){
                         value == sp.values_text? cb('请安装'+ (find.title || find.name) +'或输入正确的值') : cb();
                     }else{
@@ -970,26 +988,45 @@ export default {
             }
         },
         // 检测依赖
-        testRely(name){
+        testRely(dependency){
+            dependency = typeof dependency === 'string'
+                ? {identifie:dependency, name:dependency}
+                : (dependency || {});
+            const identify = dependency.subidentifie || dependency.identifie || dependency.name;
             return panelApi.get('/zpk/out-depends/env',{
                 params:{
-                    identifie: name,
+                    identifie: identify,
+                    releaseName: dependency.releaseName || '',
                     namespace: this.namespaceActive,
                 },
                 noAlert: true,
             }).then(res=>{
-                if(res.data?.installed){
+                const releaseNameConflict = Boolean(
+                    res.data?.installed
+                    && dependency.releaseName
+                    && dependency.releaseNameFixed === false
+                );
+                if(res.data?.installed && !releaseNameConflict){
                     // 如果安装，替换
                     let envs = res.data?.envs || {};
                     this.form.forms.forEach(i=>{
                         i.startParams?.forEach(sp=>{
-                            if(sp.module_name!=name){return}
-                            sp.value = sp.value.replace(/%([^%]+)%/g, (match, p1) => (envs[p1] || p1));
+                            if(sp.module_name!=dependency.identifie && sp.module_name!=identify){return}
+                            sp.value = sp.value.replace(/%([^%]+)%/g, (match, p1) => {
+                                return envs[p1] || p1;
+                            });
                         })
                     })
                 }
-                return res?.data?.installed;
+                return {
+                    installed: Boolean(res?.data?.installed) && !releaseNameConflict,
+                    releaseNameConflict,
+                };
             })
+        },
+        reloadInstallConfig(){
+            this.step = 1;
+            this.init();
         },
         // 前一项
         filterInstall(){
@@ -1036,7 +1073,7 @@ export default {
                     if(this.form.activeIdentifie==this.form.installForm?.[this.form.installForm.length-1]){
                         for(let i in this.installAlert[this.form.activeIdentifie]){
                             let item = this.installAlert[this.form.activeIdentifie][i];
-                            if(!item.isInstall && item.required){
+                            if(item.releaseNameConflict || (!item.isInstall && item.required)){
                                 this.$message.warning('请安装'+item.title);
                                 return;
                             }
