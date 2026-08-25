@@ -53,7 +53,7 @@
 
                                     <div v-if="record.resizeActive || record.isExpanding" class="ml-10 fs-12 c-66 df ai-c">
                                         <icon-loading />
-                                        <span class="ml-4">{{record.resizeText || '扩容中'}}</span>
+                                        <span class="ml-4">{{record.resizeMessage || record.resizeText || '扩容中'}}</span>
                                     </div>
                                     <a-tooltip v-else-if="record.resizeState=='failed'" :content="record.resizeMessage || '扩容失败'">
                                         <span class="ml-10 fs-12 c-red">扩容失败</span>

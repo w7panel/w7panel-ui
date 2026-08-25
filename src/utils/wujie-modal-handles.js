@@ -4,6 +4,7 @@ const WUJIE_MODAL_HANDLE_MAP = {
     podLog: 'openPodLog',
     openPage: 'openPage',
     toStoreInstall: 'toStoreInstall',
+    openStoreInstall: 'openStoreInstall',
     containerPlugin: 'openContainerPlugin',
     ingressEdit: 'openDomainEdit',
     ingressStrategy: 'openStrategy',
