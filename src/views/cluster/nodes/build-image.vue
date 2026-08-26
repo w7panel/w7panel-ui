@@ -27,7 +27,7 @@
                     <template #cell="{ record }">{{record.completedAt || '-'}}</template>
                 </a-table-column>
                 <a-table-column title="原因" :width="200">
-                    <template #cell="{ record }"><div class="task-reason" :title="record.reason">{{record.reason || '-'}}</div></template>
+                    <template #cell="{ record }"><div class="task-reason" :title="record.reason">{{record.reasonTxt}}</div></template>
                 </a-table-column>
                 <a-table-column title="操作" :width="140">
                     <template #cell="{ record }">
@@ -166,6 +166,16 @@ export default{
                         password: i.spec?.targetImage?.auth?.password || '',
                         status: i?.status?.status || '',
                         reason: i?.status?.reason || '',
+                        reasonTxt: {
+                            '': '-',
+                            'JobPending': '等待构建任务开始',
+                            'JobRunning': '正在构建镜像',
+                            'JobRetrying': '构建失败，正在重试',
+                            'JobCompleted': '构建完成',
+                            'JobSucceeded': '构建完成',
+                            'BackoffLimitExceeded': '重试次数已达上限',
+                            'DeadlineExceeded': '构建超时',
+                        }[i?.status?.reason] || '构建失败',
                         retryCount: i?.status?.retryCount || 0,
                         maxRetries: i?.status?.maxRetries || 0,
                         completedAt: i?.status?.completedAt ? String(i.status.completedAt).replace('T', ' ').replace(/\.\d+Z$/, '') : '',
