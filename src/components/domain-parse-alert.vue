@@ -10,23 +10,20 @@
     </div>
 </template>
 <script>
-import { k8sproxy } from '@/utils/api';
-import { useNamespaceStore } from '@/store';
+import { panelApi } from '@/utils/api';
 
 export default{
     data(){
         return {
-            namespaceActive: 'default',
             domainParse: {},
         }
     },
     created(){
-        this.namespaceActive = useNamespaceStore().namespace;
         this.init()
     },
     methods: {
         init(){
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/domainparseconfigs/domain-parse',{noAlert:true,loading:true}).then(res=>{
+            panelApi.get('/zpk/domain-parse',{noAlert:true,loading:true}).then(res=>{
                 let spec = res.data?.spec || {};
                 let ips = spec.ips || [];
                 this.domainParse = {
