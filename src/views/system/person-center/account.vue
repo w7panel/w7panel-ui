@@ -14,24 +14,32 @@
 
             <a-descriptions class="account-description mt-30" layout="horizontal" column="1" bordered>
                 <descriptions-item label="绑定账号">
-                    <div v-if="isRegister" class="df">
-                        <div class="df df-c ai-c changeuser cursor" @click="bindAccount">
-                            <div class="imgbox">
-                                <img v-if="cloudUserInfo.avatar" :src="cloudUserInfo.avatar" alt="" @error="cloudUserInfo.avatar='';" />
-                                <div v-else class="imgempty df df-c ai-c jc-c c-ff">
-                                    <icon-user />
-                                </div>
-                                <div class="btn df df-c ai-c jc-c c-ff">
-                                    <icon-sync class="fs-20" />
-                                    <span class="mt-4 fs-12">切换账号</span>
+                    <div class="df ai-c account-bind-row">
+                        <div v-if="isRegister" class="df">
+                            <div class="df df-c ai-c changeuser cursor" @click="bindAccount">
+                                <div class="imgbox">
+                                    <img v-if="cloudUserInfo.avatar" :src="cloudUserInfo.avatar" alt="" @error="cloudUserInfo.avatar='';" />
+                                    <div v-else class="imgempty df df-c ai-c jc-c c-ff">
+                                        <icon-user />
+                                    </div>
+                                    <div class="btn df df-c ai-c jc-c c-ff">
+                                        <icon-sync class="fs-20" />
+                                        <span class="mt-4 fs-12">切换账号</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <template v-else>
+                            <span>{{ bindStatusText }}</span>
+                            <span class="ml-20 c-blue cursor" @click="bindAccount">立即绑定</span>
+                        </template>
+                        <span class="ml-20 cluster-register-hint fs-12">
+                            <a-tooltip content="集群不存在，点击注册集群">
+                                <icon-question-circle-fill class="c-99 cursor" />
+                            </a-tooltip>
+                            <span class="ml-4 c-blue cursor" @click="registerCluster">注册集群</span>
+                        </span>
                     </div>
-                    <template v-else>
-                        <span>{{ bindStatusText }}</span>
-                        <span class="ml-20 c-blue cursor" @click="bindAccount">立即绑定</span>
-                    </template>
                 </descriptions-item>
                 <template v-if="isRegister">
                     <descriptions-item label="昵称">{{ cloudUserInfo.nickname || '-' }}</descriptions-item>
@@ -195,6 +203,15 @@ export default {
         bindAccount() {
             window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri=' + encodeURIComponent(window.location.origin + '/person/account');
         },
+        registerCluster() {
+            panelApi.post('/auth/console/register-to-console?offline_url=' + window.location.origin, {
+                offline_url: window.location.origin,
+                offlineUrl: window.location.origin,
+            }, { loading: true }).then(() => {
+                Message.success('注册集群成功');
+                this.getCloudInfo();
+            });
+        },
     },
 };
 </script>
@@ -209,6 +226,7 @@ export default {
 .changeuser:hover .imgbox .btn{display:flex;}
 .changeuser .imgbox img{display:block; width:100%; height:100%;}
 .imgempty{width:100%; height:100%; background:var(--color-fill-4); font-size:34px;}
+.cluster-register-hint{align-self:flex-end;margin-bottom:2px;white-space:nowrap;}
 </style>
 
 <style>

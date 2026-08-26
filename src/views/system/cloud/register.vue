@@ -35,7 +35,10 @@ export default {
                     }).catch(()=>{})
 
                     this.$message.success('注册集群成功');
-                    this.$router.replace('/system/cloud');
+                    const returnPath = typeof this.$route.query.return === 'string' && this.$route.query.return.startsWith('/')
+                        ? this.$route.query.return
+                        : '/system/cloud';
+                    this.$router.replace(returnPath);
                 })
             })
         },

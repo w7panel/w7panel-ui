@@ -331,6 +331,13 @@ export default {
         register(){
             panelApi.post('/auth/console/register-to-console?offline_url='+window.location.origin).then(res=>{
                 this.$message.success('注册集群成功');
+                const returnPath = typeof this.$route.query.return === 'string' && this.$route.query.return.startsWith('/')
+                    ? this.$route.query.return
+                    : '';
+                if(returnPath){
+                    this.$router.replace(returnPath);
+                    return;
+                }
                 this.getData();
             })
         },
