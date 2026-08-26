@@ -2,7 +2,16 @@
     <div class="app-detail-page padding-20 df df-c">
         <Breadcrumb v-if="$route.name=='group-micro'||$route.name=='group-micro2'" :routes="topbc" />
         <route-breadcrumb v-else class="df-s0" :data="{id:title || ($route.params.group || '')}" />
-        <a-layout class="fc">
+        <div v-if="appGroups.length > 1" class="df ai-c bg-white mb-6" style="padding:10px 14px;">
+            <span class="c-66 mr-10">应用</span>
+            <a-select v-model="activeGroup" size="small" style="width:240px" @change="changeGroup">
+                <a-option v-for="item in appGroups" :key="item.name" :value="item.name">{{ item.name }}</a-option>
+            </a-select>
+            <a-popconfirm :content="groupDeleteMessage" @ok="deleteCurrentGroup" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
+                <a-button class="ml-10" size="small" status="danger">删除应用</a-button>
+            </a-popconfirm>
+        </div>
+        <a-layout v-if="activeGroup" class="fc">
             <a-layout-sider v-if="!hideAppMenu" :width="160">
                 <div class="df df-c menu-absolute-div" style="position:absolute;inset:0;overflow:auto;">
                     <div v-if="topMenuRoles.length" style="width:100%;">
@@ -203,6 +212,8 @@ export default {
             groupTitle: '',
             appname: '',
             applist: [],
+            appGroups: [],
+            activeGroup: '',
 
             menukey: "",
             appMenu: [],
@@ -269,6 +280,15 @@ export default {
             }
             this.getData();
         },
+        '$route.params.group'(v,ov){
+            if(v===ov){return;}
+            this.groupTitle = v;
+            // When switching groups on the same detail route, Vue reuses this
+            // component and the route-name watcher does not run.
+            if(this.$route.name === 'app-detail-detail'){
+                this.getData();
+            }
+        },
         '$route.params.page'(v){
             let p = this.$route.fullPath.replace('/app/appgroup/'+this.$route.params.group+'/'+this.$route.params.kind+'/'+this.$route.params.id+'/micro/','');
             this.menukey = p || '';
@@ -315,6 +335,11 @@ export default {
                 height: this.microPanelHeight,
                 transform: 'translate(0,0)',
             };
+        },
+        groupDeleteMessage(){
+            return this.appGroups.length > 1
+                ? `确认要删除应用“${this.activeGroup}”吗？`
+                : '确认要删除当前应用吗';
         },
         modalExcludeWujieEvents(){
             const group = this.$route.params.group || '';
@@ -810,6 +835,23 @@ export default {
                 });
             }
         },
+        changeGroup(groupName){
+            const group = this.appGroups.find(item=>item.name===groupName);
+            const first = group?.apps?.find(item=>item.name && !item.isHelm);
+            if(first){
+                this.$router.push({name:'app-detail-detail', params:{...this.$route.params, group:groupName, kind:first.kind, id:first.name}});
+            }else if(group?.apps?.length){
+                this.$router.push({name:'group-helm', params:{...this.$route.params, group:groupName}});
+            }
+        },
+        deleteCurrentGroup(){
+            const groupName = this.activeGroup || this.$route.params.group;
+            if(!groupName){return}
+            k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/'+groupName).then(()=>{
+                this.$message.success('删除成功');
+                this.$router.push('/app/apps');
+            });
+        },
         // toMicro(v){
         //     // console.log(v);
         //     this.$router.push('/app/appgroup/'+this.$route.params.group+'/'+ this.$route.params.kind +'/'+ this.$route.params.id +'/micro/'+ v);
@@ -997,6 +1039,19 @@ export default {
             }).then(async res=>{
                 this.groupTitle = res?.data?.metadata?.annotations?.title || this.groupTitle;
                 let {helmTab,list} = this.arrangeList(res?.data);
+                const groupSections = [];
+                const addGroup = groupData => {
+                    if(!groupData?.metadata?.name){return}
+                    if(groupData?.metadata?.annotations?.['w7.cc/parent-root']==='true'){return}
+                    if(groupSections.some(item=>item.name===groupData.metadata.name)){return}
+                    const arranged = this.arrangeList(groupData);
+                    groupSections.push({
+                        name: groupData.metadata.name,
+                        title: groupData?.spec?.title || groupData.metadata.name,
+                        apps: arranged.helmTab.concat(arranged.list),
+                    });
+                };
+                addGroup(res?.data);
                 this.identifie = res?.data?.metadata?.annotations?.['w7.cc/identifie'];
                 this.isHelmApp = Boolean(helmTab?.length);
                 this.hasThirdpartyCd = false;
@@ -1018,14 +1073,10 @@ export default {
                             if(items[i]?.metadata?.name==this.$route.params.group){continue}
                             if(!items[i]?.spec?.isHelm){continue}
                             let subapp = this.arrangeList(items[i]);
+                            addGroup(items[i]);
                             helmTab = helmTab.concat(subapp.helmTab);
                             list = list.concat(subapp.list);
                         }
-                    })
-                    await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ res?.data?.metadata?.labels?.['w7.cc/parent']).then(res=>{
-                        let parentapp = this.arrangeList(res?.data);
-                        helmTab = parentapp.helmTab.concat(helmTab);
-                        list = parentapp.list.concat(list);
                     })
                 }else{
                     await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ this.$route.params.group).then(res=>{
@@ -1033,13 +1084,16 @@ export default {
                         for(let i in items){
                             if(!items[i]?.spec?.isHelm){continue}
                             let subapp = this.arrangeList(items[i]);
+                            addGroup(items[i]);
                             helmTab = helmTab.concat(subapp.helmTab);
                             list = list.concat(subapp.list);
                         }
                     })
                 }
 
-                this.applist = helmTab.concat(list);
+                this.appGroups = groupSections;
+                this.activeGroup = this.appGroups.find(item=>item.name===this.$route.params.group)?.name || this.appGroups[0]?.name || '';
+                this.applist = this.appGroups.find(item=>item.name===this.activeGroup)?.apps || helmTab.concat(list);
                 if(this.isMicroPage){
                     if(this.hasThirdpartyCd){
                         this.getFront(this.microApp);
