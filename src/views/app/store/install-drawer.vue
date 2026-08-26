@@ -1,5 +1,5 @@
 <template>
-    <a-drawer :width="1000" :visible="visible" @cancel="closeDrawer()" @open="init()" unmountOnClose :footer="false" :popup-container="$popupContainer">
+    <a-drawer :width="1000" :visible="visible" :mask-closable="false" @cancel="closeDrawer()" @open="init()" unmountOnClose :footer="false" :popup-container="$popupContainer">
         <template #title>安装应用</template>
         <store-install
             v-if="installPath"
@@ -70,7 +70,7 @@ export default {
             return base;
         },
         installKey(){
-            return `${this.installPath}:${this.dependencyConfig.releaseName || ''}`;
+            return `${this.installPath}:${this.dependencyConfig.releaseName || ''}:${this.dependencyConfig.order_sn || ''}`;
         },
     },
     methods: {
@@ -87,6 +87,9 @@ export default {
             this.module_identifie = this.dependencyConfig.identifie || this.module_name;
             this.installPath = this.normalizeInstallPath(this.path)
                 || (this.module_identifie ? this.dependencyPath : '');
+            if(this.dependencyConfig.order_sn){
+                this.installPath = this.appendOrderSn(this.installPath, this.dependencyConfig.order_sn);
+            }
         },
         normalizeInstallPath(path){
             let value = String(path || '').trim();
@@ -96,6 +99,18 @@ export default {
                 }catch{}
             }
             return value;
+        },
+        appendOrderSn(path, orderSn){
+            const value = String(path || '').trim();
+            const sn = String(orderSn || '').trim();
+            if(!value || !sn){return value;}
+            try{
+                const url = new URL(value, window.location.origin);
+                url.searchParams.set('order_sn', sn);
+                return /^https?:\/\//i.test(value) ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+            }catch{
+                return value;
+            }
         },
         getModuleName(){
             if(this.module_name){return this.module_name}

@@ -193,7 +193,7 @@
             :module_name="item.dependency.identifie || item.dependency.name"
             :dependency="item.dependency"
             @needInstall="needStoreInstall"
-            @installed="item.callback"
+            @installedStatusSuccess="item.callback"
             @close="item.show = false"
         />
     </template>

@@ -352,6 +352,7 @@ export default {
             },
 
             installAlert: {},
+            dependencyReleaseBindings: {},
             appGroup: '',
             isHelm: false,
 
@@ -593,6 +594,8 @@ export default {
                 reinstall,
             },noAlert:true}).then(async res=>{
                 if(!res?.data){return true}
+
+                this.applyDependencyReleaseBindings(res.data);
 
                 if(res?.data?.[0]){
                     let i = res.data?.[0];
@@ -919,12 +922,18 @@ export default {
             for(let index in this.form.forms){
                 let i = this.form.forms[index];
                 this.installAlert[i.identifie] = [];
+                const declaredDependencyNames = new Set((i.dependsOnes || []).map(item => {
+                    return item.subidentifie
+                        ? `${item.identifie}/${item.subidentifie}`
+                        : item.identifie;
+                }));
                 for(let m in i.outModuleNames){
                     let name = i.outModuleNames[m];
                     if(/\./.test(name)){continue}
-                    let title = await this.getTitleByMn(name);
-                    let dependency = {identifie:name, name:title, required:false};
+                    let dependency = {identifie:name, name:name, required:false};
                     let result = await this.testRely(dependency);
+                    if(declaredDependencyNames.has(name)){continue}
+                    let title = await this.getTitleByMn(name);
                     this.installAlert[i.identifie].push({
                         ...dependency,
                         name: name,
@@ -954,6 +963,32 @@ export default {
                     });
                 }
             }
+        },
+        dependencyReleaseBindingKey(form, dependency){
+            return [
+                form?.identifie || '',
+                dependency?.identifie || '',
+                dependency?.subidentifie || '',
+                dependency?.from || '',
+            ].join('\n');
+        },
+        applyDependencyReleaseBindings(configs){
+            (configs || []).forEach(form => {
+                (form?.dependsOnes || []).forEach(dependency => {
+                    if(!dependency?.releaseName){return}
+                    const key = this.dependencyReleaseBindingKey(form, dependency);
+                    const cached = this.dependencyReleaseBindings[key];
+                    if(dependency.releaseNameFixed || !cached){
+                        this.dependencyReleaseBindings[key] = {
+                            releaseName: dependency.releaseName,
+                            releaseNameFixed: Boolean(dependency.releaseNameFixed),
+                        };
+                        return;
+                    }
+                    dependency.releaseName = cached.releaseName;
+                    dependency.releaseNameFixed = cached.releaseNameFixed;
+                });
+            });
         },
         // 获取模块名称
         async getTitleByMn(name){
