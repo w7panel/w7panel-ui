@@ -1351,7 +1351,7 @@ export default {
                 this.complete.items[i].resourcesList[j].domain = domain;
 
                 let domainParse = {};
-                await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/domainparseconfigs/domain-parse',{noAlert:true}).then(res=>{
+                await panelApi.get('/zpk/domain-parse',{noAlert:true}).then(res=>{
                     domainParse = res?.data?.spec || {};
                 }).catch(()=>{})
 
