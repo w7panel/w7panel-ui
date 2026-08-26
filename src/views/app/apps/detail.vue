@@ -2,7 +2,7 @@
     <div class="app-detail-page padding-20 df df-c">
         <Breadcrumb v-if="$route.name=='group-micro'||$route.name=='group-micro2'" :routes="topbc" />
         <route-breadcrumb v-else class="df-s0" :data="{id:title || ($route.params.group || '')}" />
-        <div v-if="appGroups.length > 1" class="df ai-c bg-white mb-6" style="padding:10px 14px;">
+        <div v-if="appGroups.length > 1 && !groupRedirecting" class="df ai-c bg-white mb-6" style="padding:10px 14px;border-bottom:1px solid var(--color-neutral-3);">
             <span class="c-66 mr-10">应用</span>
             <a-select v-model="activeGroup" size="small" style="width:240px" @change="changeGroup">
                 <a-option v-for="item in appGroups" :key="item.name" :value="item.name">{{ item.name }}</a-option>
@@ -11,7 +11,7 @@
                 <a-button class="ml-10" size="small" status="danger">删除应用</a-button>
             </a-popconfirm>
         </div>
-        <a-layout v-if="activeGroup" class="fc">
+        <a-layout v-if="activeGroup && !groupRedirecting" class="fc">
             <a-layout-sider v-if="!hideAppMenu" :width="160">
                 <div class="df df-c menu-absolute-div" style="position:absolute;inset:0;overflow:auto;">
                     <div v-if="topMenuRoles.length" style="width:100%;">
@@ -214,6 +214,7 @@ export default {
             applist: [],
             appGroups: [],
             activeGroup: '',
+            groupRedirecting: true,
 
             menukey: "",
             appMenu: [],
@@ -242,6 +243,9 @@ export default {
 
             hasThirdpartyCd: false,
             microApp: null,
+            microAppGroup: '',
+            wujieInitPromise: null,
+            wujieReloadPending: false,
             downOk: true,
             hideAppMenu: false,
             userRole: '',
@@ -285,9 +289,7 @@ export default {
             this.groupTitle = v;
             // When switching groups on the same detail route, Vue reuses this
             // component and the route-name watcher does not run.
-            if(this.$route.name === 'app-detail-detail'){
-                this.getData();
-            }
+            this.getData();
         },
         '$route.params.page'(v){
             let p = this.$route.fullPath.replace('/app/appgroup/'+this.$route.params.group+'/'+this.$route.params.kind+'/'+this.$route.params.id+'/micro/','');
@@ -486,7 +488,21 @@ export default {
             };
             return bindingName;
         },
-        async wujieInit(){
+        wujieInit(){
+            if(this.wujieInitPromise){
+                this.wujieReloadPending = true;
+                return this.wujieInitPromise;
+            }
+            this.wujieInitPromise = this._wujieInit().finally(()=>{
+                this.wujieInitPromise = null;
+                if(this.wujieReloadPending){
+                    this.wujieReloadPending = false;
+                    this.wujieInit();
+                }
+            });
+            return this.wujieInitPromise;
+        },
+        async _wujieInit(){
             
             const {data} = await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
                 version: this.extra.version,
@@ -577,7 +593,8 @@ export default {
                     role: getK8sinfo()['w7.cc/role'],
                 })
                 : baseAppUrl;
-            startApp({
+            try{
+                await startApp({
                 name: APP_DETAIL_MICRO_NAME,
                 url: appUrl,
 // 测试
@@ -595,11 +612,11 @@ export default {
                 loadError: (url, error)=>{
                     console.log(`appdetail loadError`, url, error);
                 },
-            }).then(()=>{
+                });
                 console.log(`appdetail start success`, appUrl);
-            }).catch((error)=>{
+            }catch(error){
                 console.log(`appdetail start error`, appUrl, error);
-            })
+            }
             // startApp({name: APP_DETAIL_MICRO_NAME});
             
 // 测试
@@ -632,7 +649,7 @@ export default {
                     this.routeChange(v);
                 }
             }else{
-                this.$router.push('/app/appgroup/'+this.$route.params.group+'/micro?'+APP_DETAIL_MICRO_QUERY+'='+encodeURIComponent(this.menuActive)).then(res=>{
+                this.$router.push('/app/appgroup/'+(this.microAppGroup || this.$route.params.group)+'/micro?'+APP_DETAIL_MICRO_QUERY+'='+encodeURIComponent(this.menuActive)).then(res=>{
                     this.$nextTick(()=>{
                         this.wujieInit();
                     })
@@ -643,7 +660,7 @@ export default {
 
             // /apis/w7panel.w7.com/v1alpha1/namespaces/default/microapps/w7-sitemanager-htwgbayk
             // /apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+appgroup
-            const getMicroApp = microApp ? Promise.resolve({data: microApp}) : k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group,{noAlert:true});
+            const getMicroApp = microApp ? Promise.resolve({data: microApp}) : k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+(this.microAppGroup || this.$route.params.group),{noAlert:true});
             getMicroApp.then(res=>{
 
                 let item  = res?.data;
@@ -652,7 +669,7 @@ export default {
                 let roleConfig = item?.spec?.['config-v2']?.props?.roleConfig || {};
                 this.microAppRoleConfig = roleConfig;
                 this.microAppBaseInfo = {
-                    appgroup: this.$route.params.group,
+                    appgroup: this.microAppGroup || this.$route.params.group,
                     frontendUrl: item?.spec?.frontendUrl,
 // frontendUrl: 'http://localhost:8001',
                     backendUrl: item?.spec?.backendUrl,
@@ -669,7 +686,10 @@ export default {
 
                 this.getMenu(item?.spec?.bindings||[]);
                 if(this.isMicroPage){
-                    const appDetailMicro = this.normalizeMicroMenuRoute(this.$route.query?.[APP_DETAIL_MICRO_QUERY]);
+                    const routeMenu = this.microAppGroup === this.$route.params.group
+                        ? this.$route.query?.[APP_DETAIL_MICRO_QUERY]
+                        : '';
+                    const appDetailMicro = this.normalizeMicroMenuRoute(routeMenu);
                     this.menuActive = appDetailMicro || this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
                     this.selectMenu = [appDetailMicro];
                     if(!this.selectMenu[0] && this.menuActive){
@@ -683,6 +703,17 @@ export default {
             }).catch(()=>{
                 this.noMicroJump();
             })
+        },
+        loadMicroApp(groupName){
+            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+groupName,{noAlert:true})
+                .then(res=>{
+                    const microApp = res?.data;
+                    const hasThirdpartyCdMenu = (microApp?.spec?.bindings || []).some(binding=>
+                        binding?.support === 'thirdparty_cd' && Array.isArray(binding?.menu) && binding.menu.length > 0
+                    );
+                    return microApp && hasThirdpartyCdMenu ? microApp : null;
+                })
+                .catch(()=>null);
         },
         getMenu(bindings){
 
@@ -835,9 +866,14 @@ export default {
                 });
             }
         },
-        changeGroup(groupName){
+        async changeGroup(groupName){
             const group = this.appGroups.find(item=>item.name===groupName);
             const first = group?.apps?.find(item=>item.name && !item.isHelm);
+            const microApp = await this.loadMicroApp(groupName);
+            if(microApp){
+                this.$router.push({name:'group-micro', params:{...this.$route.params, group:groupName}});
+                return;
+            }
             if(first){
                 this.$router.push({name:'app-detail-detail', params:{...this.$route.params, group:groupName, kind:first.kind, id:first.name}});
             }else if(group?.apps?.length){
@@ -1054,24 +1090,11 @@ export default {
                 addGroup(res?.data);
                 this.identifie = res?.data?.metadata?.annotations?.['w7.cc/identifie'];
                 this.isHelmApp = Boolean(helmTab?.length);
-                this.hasThirdpartyCd = false;
-                this.microApp = null;
-                await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps/'+this.$route.params.group,{noAlert:true}).then(res=>{
-                    const hasThirdpartyCdMenu = (res?.data?.spec?.bindings || []).some(binding=>
-                        binding?.support === 'thirdparty_cd' && Array.isArray(binding?.menu) && binding.menu.length > 0
-                    );
-                    if(res?.data && hasThirdpartyCdMenu){
-                        this.hasThirdpartyCd = true;
-                        this.microApp = res.data;
-                    }
-                }).catch(()=>{});
-                
                 if(res?.data?.metadata?.labels?.['w7.cc/parent']){
                     await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ res?.data?.metadata?.labels?.['w7.cc/parent']).then(res=>{
                         let items = res.data?.items || [];
                         for(let i in items){
                             if(items[i]?.metadata?.name==this.$route.params.group){continue}
-                            if(!items[i]?.spec?.isHelm){continue}
                             let subapp = this.arrangeList(items[i]);
                             addGroup(items[i]);
                             helmTab = helmTab.concat(subapp.helmTab);
@@ -1082,7 +1105,6 @@ export default {
                     await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ this.$route.params.group).then(res=>{
                         let items = res.data?.items || [];
                         for(let i in items){
-                            if(!items[i]?.spec?.isHelm){continue}
                             let subapp = this.arrangeList(items[i]);
                             addGroup(items[i]);
                             helmTab = helmTab.concat(subapp.helmTab);
@@ -1094,6 +1116,33 @@ export default {
                 this.appGroups = groupSections;
                 this.activeGroup = this.appGroups.find(item=>item.name===this.$route.params.group)?.name || this.appGroups[0]?.name || '';
                 this.applist = this.appGroups.find(item=>item.name===this.activeGroup)?.apps || helmTab.concat(list);
+                this.hasThirdpartyCd = false;
+                this.microApp = null;
+                this.microAppGroup = '';
+                const currentGroup = this.$route.params.group;
+                const currentIsChild = Boolean(res?.data?.metadata?.labels?.['w7.cc/parent']);
+                const firstChild = this.appGroups.find(group=>group.name!==currentGroup);
+                if(!currentIsChild && firstChild){
+                    const firstApp = firstChild.apps.find(app=>app.name && !app.isHelm);
+                    const firstChildMicroApp = await this.loadMicroApp(firstChild.name);
+                    this.activeGroup = firstChild.name;
+                    await this.$router.replace({
+                        name: firstChildMicroApp ? 'group-micro' : (firstApp ? 'app-detail-detail' : 'group-helm'),
+                        params: {
+                            ...this.$route.params,
+                            group: firstChild.name,
+                            ...(firstApp ? {kind:firstApp.kind, id:firstApp.name} : {}),
+                        },
+                    });
+                    return;
+                }
+                this.groupRedirecting = false;
+                const microApp = await this.loadMicroApp(this.activeGroup);
+                if(microApp){
+                    this.microApp = microApp;
+                    this.microAppGroup = this.activeGroup;
+                    this.hasThirdpartyCd = true;
+                }
                 if(this.isMicroPage){
                     if(this.hasThirdpartyCd){
                         this.getFront(this.microApp);
