@@ -2,6 +2,7 @@
     <div class="padding-20">
         <route-breadcrumb />
         <div class="bg-white padding-20">
+            <div v-if="tpcdtoken">
             <a-tabs v-model:active-key="tabAct">
                 <a-tab-pane key="1" title="已购买云端应用">
                     <div>
@@ -44,6 +45,14 @@
                     </div>
                 </a-tab-pane>
             </a-tabs>
+            </div>
+            <div v-else class="cloudstore-unbound df df-c ai-c jc-c">
+                <a-empty description="请先绑定云端账号后使用云端应用商店">
+                    <template #extra>
+                        <a-button type="primary" @click="$router.push('/person/account')">去绑定</a-button>
+                    </template>
+                </a-empty>
+            </div>
         </div>
         
         <a-modal :visible="adminItem.dialog" width="640px">
@@ -475,6 +484,10 @@ export default {
     },
 }
 </script>
+
+<style scoped>
+.cloudstore-unbound{min-height:360px;}
+</style>
 
 <style scoped>
 .list .item{margin-right:20px; margin-bottom:20px;}

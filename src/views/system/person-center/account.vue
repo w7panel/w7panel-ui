@@ -37,6 +37,9 @@
                     <descriptions-item label="昵称">{{ cloudUserInfo.nickname || '-' }}</descriptions-item>
                     <descriptions-item label="云端UID">{{ cloudUserInfo.user_id || '-' }}</descriptions-item>
                 </template>
+                <descriptions-item label="集群注册">
+                    <span class="c-blue cursor" @click="$router.push('/system/cloud')">注册集群</span>
+                </descriptions-item>
             </a-descriptions>
         </div>
 
