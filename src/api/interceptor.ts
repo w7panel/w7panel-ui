@@ -99,7 +99,14 @@ axios.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`;
         }
         if(config?.customToken){
-            config.headers.Authorization = `Bearer ${config.customToken}`;
+            if(config.url?.startsWith('/k8s-proxy')){
+                // Keep the panel session in Authorization and pass cluster
+                // credentials through their dedicated header.
+                config.headers['X-W7Panel-K8s-Token'] = config.customToken;
+            }else{
+                // External services still use their own bearer credential.
+                config.headers.Authorization = `Bearer ${config.customToken}`;
+            }
         }
         if(config?.loading){
             useLoadingStore().loading = true;
