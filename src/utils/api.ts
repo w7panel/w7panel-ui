@@ -11,15 +11,6 @@ export const k8sproxy = {
     delete: (path: string, config?: any) => axios.delete(`${K8S_PROXY_PREFIX}${path}`, config),
 };
 
-const CLUSTER_PANEL_API_PREFIX = '/k8s-proxy/panel/v1';
-export const clusterPanelApi = {
-    get: (path: string, config?: any) => axios.get(`${CLUSTER_PANEL_API_PREFIX}${path}`, config),
-    post: (path: string, data?: any, config?: any) => axios.post(`${CLUSTER_PANEL_API_PREFIX}${path}`, data, config),
-    patch: (path: string, data?: any, config?: any) => axios.patch(`${CLUSTER_PANEL_API_PREFIX}${path}`, data, config),
-    put: (path: string, data?: any, config?: any) => axios.put(`${CLUSTER_PANEL_API_PREFIX}${path}`, data, config),
-    delete: (path: string, config?: any) => axios.delete(`${CLUSTER_PANEL_API_PREFIX}${path}`, config),
-};
-
 export const panelApi = {
     get: (path: string, config?: any) => axios.get(`${PANEL_API_PREFIX}${path}`, config),
     post: (path: string, data?: any, config?: any) => axios.post(`${PANEL_API_PREFIX}${path}`, data, config),
