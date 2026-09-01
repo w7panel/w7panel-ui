@@ -629,9 +629,14 @@ export default {
 
         // ========== 应用弹窗 ==========
         openApp(data) {
+            const token = data?.paneltoken || getToken();
+            const appPath = encodeURIComponent(data?.path || '');
+            const panelTokenQuery = token
+                ? '&paneltoken=' + encodeURIComponent(token)
+                : '';
             this.appDialog = {
                 show: true,
-                src: '/dialog/appgroup/' + data.appgroup + '/micro?do=' + encodeURIComponent(data?.path || ''),
+                src: '/dialog/appgroup/' + data.appgroup + '/micro?do=' + appPath + panelTokenQuery,
                 title: data?.title || '',
                 fullscreen: false,
             };

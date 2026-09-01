@@ -12,7 +12,22 @@ const WEBSHELL_KEY = 'w7panel-webshell';
 const K8SINFO_KEY = 'w7panel-k8sinfo';
 const isSubapp = (window as any).__POWERED_BY_WUJIE__;
 
+const getDialogPanelToken = () => {
+    if (typeof window === 'undefined' || !window.location.pathname.includes('/dialog/appgroup/')) {
+        return '';
+    }
+
+    try {
+        return new URLSearchParams(window.location.search).get('paneltoken') || '';
+    } catch {
+        return '';
+    }
+};
+
 const isLogin = () => {
+    if (getDialogPanelToken()) {
+        return true;
+    }
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
         return true;
     }
@@ -23,6 +38,10 @@ const isLogin = () => {
 };
 
 const getToken = () => {
+    const dialogPanelToken = getDialogPanelToken();
+    if (dialogPanelToken) {
+        return dialogPanelToken;
+    }
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
         if((window as any)?.$wujie?.props?.closeSubaccountPanel && localStorage.getItem('iframe-w7panel-token')) {
             return localStorage.getItem('iframe-w7panel-token') || ''
