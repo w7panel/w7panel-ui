@@ -678,6 +678,9 @@ export default {
 
         // ========== 页面弹窗 ==========
         openPage(data) {
+            if(data.src?.includes('pod-webshell')) {
+                data.src = data.src + '&api_token=' + getToken()
+            }
             this.pageDialog = {
                 show: true,
                 src: data.src,
