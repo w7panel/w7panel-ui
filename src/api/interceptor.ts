@@ -64,7 +64,6 @@ axios.get = function (url: string, config?: CustomAxiosRequestConfig) {
 
 const pendingRequests = new Map();
 let lastTrialExpiredNoticeAt = 0;
-let lastCkmInitializingNoticeAt = 0;
 
 const removeAppmicroFromHash = (hash: string) => {
     if(!hash || !hash.includes('?')){
@@ -196,23 +195,6 @@ axios.interceptors.response.use(
 
         if (error?.response?.status == 429) { return; }
         if (error?.response?.status == 408) { return; }
-
-        // CKM 创建 Agent 时需要先拉取初始化镜像。此期间子集群面板的
-        // CRD API 可能暂时返回 404，给用户明确的状态提示，避免误以为
-        // 应用或资源不存在。
-        const requestUrl = error?.config?.url || '';
-        if (error?.response?.status === 404 &&
-            requestUrl.includes('/apis/w7panel.w7.com/')) {
-            const now = Date.now();
-            if (now - lastCkmInitializingNoticeAt > 5000) {
-                lastCkmInitializingNoticeAt = now;
-                Notification.warning({
-                    title: '子集群正在初始化',
-                    content: 'CKM 正在拉取初始化镜像，资源接口暂未就绪，请稍后再试。',
-                    duration: 5000,
-                });
-            }
-        }
 
         // 已安装制品在运行期间可能才到试用期截止时间。静态资源状态接口和
         // 前端资源代理都会返回此错误，统一在面板宿主层提示用户续费，不能被
