@@ -154,6 +154,7 @@ const getK8sinfo = () => {
 };
 const setK8sinfo = (v) => {
     localStorage.setItem((isSubapp? PRE : '' ) + K8SINFO_KEY, JSON.stringify(v));
+    window.dispatchEvent(new CustomEvent('w7panel-k8sinfo-change'));
 };
 
 export { isLogin, getToken, setToken, clearToken,
