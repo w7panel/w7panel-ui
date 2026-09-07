@@ -565,7 +565,6 @@ export default {
             
             k8sproxy.get("/apis/metrics.k8s.io/v1beta1/namespaces/"+ namespace +"/pods",{params:{
                 labelSelector: label,
-                ...(this.userInfo?.['k3k.io/cluster-mode']=="virtual"?{}:{local: 1}),
             }}).then(res=>{
                 let items = res?.data?.items || [];
                 items.forEach(item=>{

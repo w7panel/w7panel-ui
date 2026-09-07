@@ -12,7 +12,22 @@ const WEBSHELL_KEY = 'w7panel-webshell';
 const K8SINFO_KEY = 'w7panel-k8sinfo';
 const isSubapp = (window as any).__POWERED_BY_WUJIE__;
 
+const getDialogPanelToken = () => {
+    if (typeof window === 'undefined' || !window.location.pathname.includes('/dialog/appgroup/')) {
+        return '';
+    }
+
+    try {
+        return new URLSearchParams(window.location.search).get('paneltoken') || '';
+    } catch {
+        return '';
+    }
+};
+
 const isLogin = () => {
+    if (getDialogPanelToken()) {
+        return true;
+    }
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
         return true;
     }
@@ -23,8 +38,16 @@ const isLogin = () => {
 };
 
 const getToken = () => {
+    const dialogPanelToken = getDialogPanelToken();
+    if (dialogPanelToken) {
+        return dialogPanelToken;
+    }
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
-        return (window as any)?.$wujie?.props?.paneltoken;
+        if((window as any)?.$wujie?.props?.closeSubaccountPanel && localStorage.getItem('iframe-w7panel-token')) {
+            return localStorage.getItem('iframe-w7panel-token') || ''
+        }else {
+            return (window as any)?.$wujie?.props?.paneltoken;
+        }
     }
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return (window as any)?.microApp?.getData()?.token;
@@ -131,6 +154,7 @@ const getK8sinfo = () => {
 };
 const setK8sinfo = (v) => {
     localStorage.setItem((isSubapp? PRE : '' ) + K8SINFO_KEY, JSON.stringify(v));
+    window.dispatchEvent(new CustomEvent('w7panel-k8sinfo-change'));
 };
 
 export { isLogin, getToken, setToken, clearToken,

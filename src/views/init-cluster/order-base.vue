@@ -4,7 +4,7 @@
             
             <div v-if="!isRenew&&!isExpand" class="steps mt-60">
                 <a-steps v-model:current="step" class="order-base-step" label-placement="vertical">
-                    <a-step >注册云端</a-step>
+                    <a-step >绑定云端账号</a-step>
                     <a-step>费用清单</a-step>
                     <a-step>配置任务</a-step>
                 </a-steps>
@@ -19,10 +19,9 @@
                     
                     <icon-empty class="c-99" style="font-size:50px;" />
                     <span class="c-99 mt-20">
-                        <span>您尚未注册云端，必须注册云端后才能配置确认操作。点击</span>
-                        <span class="c-blue cursor" @click="toRegister()">注册云端</span>
+                        <span>您尚未绑定云端账号，请先绑定账号再确认配置。点击</span>
+                        <span class="c-blue cursor" @click="toRegister()">绑定云端账号</span>
                     </span>
-                    <!-- <a-button type="primary" @click="toRegister()">注册云端</a-button> -->
                 </div>
                 <div v-if="step==2">
                     <div v-if="isNew" class="mb-20 df ai-c">
@@ -723,10 +722,6 @@ export default {
                 }).then(res=>{
                     this.getData();
                 });
-                // panelApi.post('/auth/console/register-to-console?offline_url='+window.location.origin,{
-                //     offline_url: window.location.origin,
-                //     offlineUrl: window.location.origin,
-                // },{loading:true})
             })
         },
         expand(){

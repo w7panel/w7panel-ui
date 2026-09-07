@@ -15,7 +15,7 @@
             <a-descriptions class="account-description mt-30" layout="horizontal" column="1" bordered>
                 <descriptions-item label="绑定账号">
                     <div class="df ai-c account-bind-row">
-                        <div v-if="isRegister" class="df">
+                        <div v-if="isBound" class="df">
                             <div class="df df-c ai-c changeuser cursor" @click="bindAccount">
                                 <div class="imgbox">
                                     <img v-if="cloudUserInfo.avatar" :src="cloudUserInfo.avatar" alt="" @error="cloudUserInfo.avatar='';" />
@@ -33,15 +33,9 @@
                             <span>{{ bindStatusText }}</span>
                             <span class="ml-20 c-blue cursor" @click="bindAccount">立即绑定</span>
                         </template>
-                        <span class="ml-20 cluster-register-hint fs-12">
-                            <a-tooltip content="集群不存在，点击注册集群">
-                                <icon-question-circle-fill class="c-99 cursor" />
-                            </a-tooltip>
-                            <span class="ml-4 c-blue cursor" @click="registerCluster">注册集群</span>
-                        </span>
                     </div>
                 </descriptions-item>
-                <template v-if="isRegister">
+                <template v-if="isBound">
                     <descriptions-item label="昵称">{{ cloudUserInfo.nickname || '-' }}</descriptions-item>
                     <descriptions-item label="云端UID">{{ cloudUserInfo.user_id || '-' }}</descriptions-item>
                 </template>
@@ -92,7 +86,7 @@ export default {
                 licenseEndTime: '-',
             },
             cloudUserInfo: {},
-            isRegister: false,
+            isBound: false,
             hasPwd: getK8sinfo()['w7.cc/has-password'],
             changePwd: {
                 show: false,
@@ -113,7 +107,7 @@ export default {
     },
     computed: {
         bindStatusText() {
-            return this.isRegister ? '已绑定' : '未绑定';
+            return this.isBound ? '已绑定' : '未绑定';
         },
     },
     created() {
@@ -164,7 +158,7 @@ export default {
                     data = data.data;
                 }
                 const licenseType = data?.license_type || '';
-                this.isRegister = !!data?.is_register;
+                this.isBound = data?.require_oauth === false && !!data?.userinfo;
                 this.cloudInfo = {
                     offlineUrl: data?.offline_url || '-',
                     licenseType,
@@ -203,15 +197,6 @@ export default {
         bindAccount() {
             window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri=' + encodeURIComponent(window.location.origin + '/person/account');
         },
-        registerCluster() {
-            panelApi.post('/auth/console/register-to-console?offline_url=' + window.location.origin, {
-                offline_url: window.location.origin,
-                offlineUrl: window.location.origin,
-            }, { loading: true }).then(() => {
-                Message.success('注册集群成功');
-                this.getCloudInfo();
-            });
-        },
     },
 };
 </script>
@@ -226,7 +211,6 @@ export default {
 .changeuser:hover .imgbox .btn{display:flex;}
 .changeuser .imgbox img{display:block; width:100%; height:100%;}
 .imgempty{width:100%; height:100%; background:var(--color-fill-4); font-size:34px;}
-.cluster-register-hint{align-self:flex-end;margin-bottom:2px;white-space:nowrap;}
 </style>
 
 <style>

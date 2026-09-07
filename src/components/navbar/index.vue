@@ -83,9 +83,9 @@
                                 </div>
                                 <div class="user-popover-card__info">
                                     <div class="user-popover-card__name">{{ displayUsername }}</div>
-                                    <div class="user-popover-card__status" :class="{ 'is-bound': isRegister }">
+                                    <div class="user-popover-card__status" :class="{ 'is-bound': isBound }">
                                         <icon-exclamation-circle-fill />
-                                        <span>{{ isRegister ? '已绑定账号' : '未绑定账号' }}</span>
+                                        <span>{{ isBound ? '已绑定账号' : '未绑定账号' }}</span>
                                     </div>
                                 </div>
                                 <a-button type="outline" @click="router.push('/person/account')">个人中心 ></a-button>
@@ -171,7 +171,7 @@ const router = useRouter();
 const webshell = ref(getWebshell());
 const userInfo = ref(getUserInfo());
 const displayUsername = computed(() => userInfo.value?.['w7.cc/nickname'] || userInfo.value?.['w7.cc/username'] || '');
-const isRegister = ref(false);
+const isBound = ref(false);
 const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png');
 const isMicroAppDirect = Boolean((window as any)?.w7_microapp?.name);
 const permissions = ref(getPermission());
@@ -316,7 +316,7 @@ const getConsoleInfo = () => {
         if (data && data.code === 200 && data.data) {
             data = data.data;
         }
-        isRegister.value = !!data?.is_register;
+        isBound.value = data?.require_oauth === false && !!data?.userinfo;
     }).catch(() => {});
 };
 

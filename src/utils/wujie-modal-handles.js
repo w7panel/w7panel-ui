@@ -1,5 +1,6 @@
 const WUJIE_MODAL_HANDLE_MAP = {
     openFile: 'openFile',
+    openApp: 'openApp',
     domainCert: 'setDomainCert',
     podLog: 'openPodLog',
     openPage: 'openPage',
