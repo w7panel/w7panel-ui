@@ -74,12 +74,14 @@ cp -r dist/* $BASE_DIR/dist/kodata/
 
 ZPK 安装页会在读取配置和提交安装时识别结构化订单绑定冲突：域名冲突展示原绑定域名；应用引用冲突支持跳转原面板应用列表，按唯一应用标识定位并标记待卸载应用，或在风险确认后通过原有 `reinstall` 流程强制覆盖旧安装记录。
 
+多应用 ZPK 的安装页按 `dependencySource.identifie/name` 解析启动参数。依赖应用会排在消费方之前；普通参数按参数名精确匹配并继承前序表单值，`PVC_NAME` 继承前序应用选择的存储，存储容量统一在提交时补充 `Gi`，缺少来源时阻止安装。
+
 | 模块 | 路由 | 说明 |
 |------|------|------|
 | 集群概览 | `/cluster/overview` | 集群资源监控 |
 | 节点管理 | `/cluster/nodes` | K8s 节点管理 |
 | 应用列表 | `/app/apps` | 应用部署和管理 |
-| 应用详情 | `/app/appgroup/{id}` | 应用资源管理；MicroApp 菜单按所属 Binding 读取同名 `roleConfig`，并将制品提供的 `zpk-market` 服务中心统一展示 |
+| 应用详情 | `/app/appgroup/{id}` | 应用资源管理；兼容同名 MicroApp，并按 `w7.cc/group-name` 展示 AppGroup 下全部 MicroApp 菜单，各菜单按所属 Binding 读取同名 `roleConfig` |
 | 顶部微应用 | `/appgroup/{id}` | 顶部应用菜单按所属 Binding 切换同名 `roleConfig`，依据 `load_mode` 和 `serverUrl` 加载对应页面 |
 | 容器列表 | `/app/appgroup/{id}/pod` | Pod/容器管理 |
 | 存储设备 | `/storage/disk` | Longhorn 存储 |

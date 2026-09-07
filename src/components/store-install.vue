@@ -162,10 +162,10 @@
                                     </template>
                                     <div class="df df-c" style="flex:1;">
                                         <div class="df ai-c">
-                                            <a-select v-model="item.pvcname" :disabled="item.pvcDisabled" placeholder="请选择存储">
+                                            <a-select v-model="item.pvcname" :disabled="item.pvcDisabled || item.pvcDependencySource" placeholder="请选择存储">
                                                 <a-option v-for="item in storages" :key="item.name" :value="item.name">{{item.name}}</a-option>
                                             </a-select>
-                                            <span @click="sdShow=true;" class="ml-10 c-blue cursor" style="flex-shrink:0;">新建</span>
+                                            <span v-if="!item.pvcDependencySource" @click="sdShow=true;" class="ml-10 c-blue cursor" style="flex-shrink:0;">新建</span>
                                         </div>
                                         <table v-if="item.volumesMounts&&item.volumesMounts.length" class="com-table mt-16"><tbody>
                                             <tr>
@@ -539,6 +539,102 @@ export default {
                 this.installAlert[this.form.activeIdentifie][index].allReplace = allReplace;
             });
         },
+        normalizeDependencyIdentifie(value){
+            return String(value || '').trim().toLowerCase().replaceAll('_','-');
+        },
+        normalizeDependencyParamName(value){
+            return String(value || '').trim();
+        },
+        isDependencyPVCName(value){
+            return this.normalizeDependencyParamName(value).toUpperCase()=='PVC_NAME';
+        },
+        getFormStartParamFields(form){
+            let result = [];
+            (form?.startParams || []).forEach(param=>{
+                if(param?.type=='storage' && param.form){
+                    result.push(...Object.values(param.form));
+                    return;
+                }
+                result.push(param);
+            });
+            return result;
+        },
+        getDependencySourceValue(form,name){
+            const sourceName = this.normalizeDependencyParamName(name);
+            if(this.isDependencyPVCName(sourceName)){
+                return form?.pvcname;
+            }
+            const param = this.getFormStartParamFields(form).find(item=>{
+                return this.normalizeDependencyParamName(item?.name)==sourceName;
+            });
+            if(!param){return undefined}
+            if(param.values_text=='%STORAGE_SIZE%'){
+                return param.value ? String(param.value).replace(/Gi$/i,'') : param.value;
+            }
+            return param.value;
+        },
+        setDependencyTargetValue(form,param,value){
+            if(this.isDependencyPVCName(param?.name)){
+                form.pvcname = String(value);
+                return;
+            }
+            param.value = String(value);
+            param.lock = true;
+        },
+        sortFormsByDependencySources(forms){
+            const allForms = forms || [];
+            const pending = [...allForms];
+            const ordered = [];
+            const allIdentifies = new Set(allForms.map(item=>this.normalizeDependencyIdentifie(item?.identifie)));
+            while(pending.length){
+                const orderedIdentifies = new Set(ordered.map(item=>this.normalizeDependencyIdentifie(item?.identifie)));
+                const readyIndex = pending.findIndex(form=>{
+                    return this.getFormStartParamFields(form).every(param=>{
+                        const sourceIdentifie = this.normalizeDependencyIdentifie(param?.dependencySource?.identifie);
+                        return !sourceIdentifie || !allIdentifies.has(sourceIdentifie) || orderedIdentifies.has(sourceIdentifie);
+                    });
+                });
+                if(readyIndex<0){
+                    ordered.push(...pending);
+                    break;
+                }
+                ordered.push(pending.splice(readyIndex,1)[0]);
+            }
+            ordered.forEach((item,index)=>item.index=index);
+            return ordered;
+        },
+        syncDependencyStartParams(showMessage = true, endIndex = null){
+            const forms = this.form.forms || [];
+            const lastIndex = endIndex===null ? forms.length-1 : endIndex;
+            for(let index=0; index<=lastIndex; index++){
+                const current = forms[index];
+                if(!current || (!current.requireInstall && !current.isInstall)){continue}
+                for(const param of this.getFormStartParamFields(current)){
+                    const source = param?.dependencySource;
+                    if(!source?.identifie || !source?.name){continue}
+                    const sourceIndex = forms.findIndex(item=>{
+                        return this.normalizeDependencyIdentifie(item?.identifie)==this.normalizeDependencyIdentifie(source.identifie);
+                    });
+                    const sourceForm = forms[sourceIndex];
+                    let message = '';
+                    if(sourceIndex<0 || sourceIndex>=index){
+                        message = `${current.name || current.identifie} 的 ${param.name} 依赖 ${source.identifie}.${source.name}，依赖应用必须位于当前应用之前`;
+                    }else if(!sourceForm.requireInstall && !sourceForm.isInstall){
+                        message = `${current.name || current.identifie} 依赖的 ${sourceForm.name || sourceForm.identifie} 尚未启用`;
+                    }
+                    const value = message ? undefined : this.getDependencySourceValue(sourceForm,source.name);
+                    if(!message && (value===undefined || value===null || value==='')){
+                        message = `${sourceForm.name || sourceForm.identifie} 未提供启动参数 ${source.name}`;
+                    }
+                    if(message){
+                        if(showMessage){this.$message.warning(message)}
+                        return false;
+                    }
+                    this.setDependencyTargetValue(current,param,value);
+                }
+            }
+            return true;
+        },
         openLog(diItem){
             if(diItem.kind=="Deployment"){
                 this.$router.push('/app/appgroup/'+ this.appGroup + (this.isHelm?'/helm/detail':''))
@@ -687,7 +783,8 @@ export default {
                                     name: j.name,
                                     value: defaultVal[j.values_text],
                                     values_text: j.values_text,
-                                    lock: j.lock,
+                                    lock: j.lock || Boolean(j.dependencySource),
+                                    dependencySource: j.dependencySource,
                                 }
                                 find.value = find.form?.storageClassName?.value + find.form?.storageSize?.value;
                             }else{
@@ -696,7 +793,8 @@ export default {
                                     name: j.name,
                                     value: defaultVal[j.values_text],
                                     values_text: j.values_text,
-                                    lock: j.lock,
+                                    lock: j.lock || Boolean(j.dependencySource),
+                                    dependencySource: j.dependencySource,
                                 }
                                 startParams.push({
                                     ...j,
@@ -723,10 +821,13 @@ export default {
                             values_text: j.values_text || '',
                             module_name: j.module_name, // 模块名称
                             description: j.description,
-                            lock: j.lock || hasOverride,
+                            lock: j.lock || hasOverride || Boolean(j.dependencySource),
                         });
                     })
                     let pvcname = i.requirePvc? (this.storages?.find(i=>i.isDefault)?.name || this.storages?.[0]?.name) : '';
+                    const pvcDependencySource = startParams.find(param=>{
+                        return this.isDependencyPVCName(param?.name) && param?.dependencySource;
+                    })?.dependencySource || null;
                     let registry = i.requireBuild? this.mirror?.[0]?.value : '';
 
                     let volumes = i?.volumes || [];
@@ -756,6 +857,7 @@ export default {
                         requireBuild: i.requireBuild, // 必须有镜像仓库
                         registry: registry, // 镜像仓库
                         pvcname: pvcname, // 存储
+                        pvcDependencySource: pvcDependencySource,
                         volumesMounts: volumesMounts,
                         volumes: volumes,
                         isUpgrade: i.isUpgrade,
@@ -768,6 +870,7 @@ export default {
                         dependsOnes: i.dependsOnes || [],
                     };
                 }) || [];
+                forms = this.sortFormsByDependencySources(forms);
                 this.form.forms = forms;
                 console.log('form.forms',this.form.forms)
 
@@ -846,6 +949,7 @@ export default {
                         }
                     }
                 }
+                this.syncDependencyStartParams(false);
                 // 更新应用，替换env
                 if(!this.releaseName && res?.data?.[0]?.releaseName){ this.releaseName = res.data[0].releaseName; }
 				return true;
@@ -906,6 +1010,7 @@ export default {
             if(this.form.activeIdentifie==identifie && !isInstall){
                 this.filterInstall();
             }
+            this.syncDependencyStartParams(false);
         },
         async startParamsFocus(sp){
             if(!sp.module_name||!/%\w+%/.test(sp.value)){return}
@@ -1102,6 +1207,8 @@ export default {
                 this.step = 2;
                 this.form.activeIdentifie = this.form.installForm?.[0];
             }else if(this.step==2){
+                const activeIndex = this.form.forms.findIndex(item=>item.identifie==this.form.activeIdentifie);
+                if(!this.syncDependencyStartParams(true,activeIndex)){return}
                 // this.domainTest();
                 this.$refs['form-'+this.form.activeIdentifie][0].validate((valid)=>{
                     if(valid){return}
@@ -1116,13 +1223,17 @@ export default {
                         this.install();
                     }else{
                         let index = this.form.installForm.findIndex(i=>i==this.form.activeIdentifie);
-                        this.form.activeIdentifie = this.form.installForm[index+1];
+                        const nextIdentifie = this.form.installForm[index+1];
+                        const nextIndex = this.form.forms.findIndex(item=>item.identifie==nextIdentifie);
+                        if(!this.syncDependencyStartParams(true,nextIndex)){return}
+                        this.form.activeIdentifie = nextIdentifie;
                     }
                 });
             }
         },
         // 安装
         install(){
+            if(!this.syncDependencyStartParams(true)){return}
             let installOptions = this.form.forms.map(i=>{
                 let registry = this.mirror.find(m=>m.value==i.registry)
                 registry = {
@@ -1133,12 +1244,15 @@ export default {
                 }
                 let envKv = [];
                 i.startParams.map(j=>{
+                    if(this.isDependencyPVCName(j.name) && j.dependencySource){return}
                     if(j.type=='storage'){
                         for(let si in j.form){
                             let fi = j.form[si];
                             envKv.push({
                                 name: fi.name,
-                                value: fi.values_text=='%STORAGE_SIZE%'? (fi.value + 'Gi') : fi.value,
+                                value: fi.values_text=='%STORAGE_SIZE%'
+                                    ? (String(fi.value || '').replace(/Gi$/i,'') + 'Gi')
+                                    : fi.value,
                             })
                         }
                         return;
@@ -1487,6 +1601,7 @@ export default {
                             i.pvcname = this.storages?.find(i=>i.isDefault)?.name || this.storages?.[0]?.name;
                         }
                     })
+                    this.syncDependencyStartParams(false);
                 }
             });
         },
