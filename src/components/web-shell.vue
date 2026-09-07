@@ -21,6 +21,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import {FitAddon} from '@xterm/addon-fit';
 import { getToken } from '@/utils/auth';
+import { createPanelWebSocket } from '@/utils/panel-websocket';
 import { AdventureTime } from 'xterm-theme';
 
 export default {
@@ -179,7 +180,7 @@ export default {
             const shellPath = this.normalizeShellPath(this.type);
             return [shellPath, '-c', input];
         },
-        initSocket(callback){
+        async initSocket(callback){
             this.ready = false;
             this.manualClose = false;
 
@@ -224,7 +225,7 @@ export default {
                 params.set('api-token', this.token || '');
                 src = `${baseURL.replace(/\/$/,'')}${this.socketUrl}?${params.toString()}`;
             }
-            this.socket = new WebSocket(src);
+            this.socket = await createPanelWebSocket(src);
             // this.socket = new WebSocket("wss://iwd2s3pd-pfcthd7s-0dsjeiz8pcg0.c2.mcprev.cn/k8s/exec?podName=tradition-php-app-cfyqghij0a-66d4d6c8b9-vm7jd&namespace=default&containerName=app-cfyqghij0a&command=/bin/sh&tty=true");
             this.socket.onopen = () => {
                 this.socketClose = false;

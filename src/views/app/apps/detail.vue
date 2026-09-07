@@ -173,6 +173,7 @@ import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
+import { createOpenCkmPanel } from '@/utils/ckm-panel-session';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import AppDirect from '@/views/topapp/app-direct.vue';
@@ -576,6 +577,7 @@ export default {
                 runningFirstPod,
                 podShell,
                 microappProxy: createMicroappProxy(proxyBackendUrl),
+                openCkmPanel: createOpenCkmPanel(),
                 k8sproxy: createK8sProxy(),
                 panelProxy: createPanelProxy(),
                 navigateMicro: (payload) => this.navigateMicro(payload),

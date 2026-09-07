@@ -1027,7 +1027,7 @@ export default {
             //     const token = getToken();
             //     window.open('/panel-api/v1/download/'+row.name+'?api-token='+token).focus()
             // })
-            if(row.size < 50 * 1024 * 1024 ){
+            if(row.size < 50 * 1024 * 1024 || typeof window.$wujie?.props?.getCkmPanelToken === 'function'){
                 axios.get(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}`,{
                     responseType: 'blob'
                 }).then(async res=>{

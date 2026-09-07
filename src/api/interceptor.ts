@@ -161,6 +161,21 @@ axios.interceptors.response.use(
         }catch{}
         if (error?.response?.status == 401) {
 
+            const ckm = (window as any).$wujie?.props;
+            if (typeof ckm?.getCkmPanelToken === 'function') {
+                if (error.config?._ckmRetried || typeof ckm.refreshCkmPanelSession !== 'function') {
+                    ckm.closeSubaccountPanel?.();
+                    return Promise.reject(error);
+                }
+                try {
+                    await ckm.refreshCkmPanelSession();
+                    return axios({ ...error.config, _ckmRetried: true, signal: undefined });
+                } catch (refreshError) {
+                    ckm.closeSubaccountPanel?.();
+                    return Promise.reject(refreshError);
+                }
+            }
+
             try{
                 for (let [key, controller] of pendingRequests) {
                     controller.abort();
