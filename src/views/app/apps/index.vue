@@ -323,9 +323,9 @@ export default {
         getClusterInfo(){
             panelApi.get("/auth/console/info").then(res=>{
                 this.clusterId = res?.data?.cluster_id;
-                this.clusterInfo.exist = res?.data?.is_register;
+                this.clusterInfo.exist = res?.data?.require_oauth === false && !!res?.data?.userinfo;
                 this.clusterInfo.token = res?.data?.thirdparty_cd_token;
-                if(!res?.data?.is_register){return}
+                if(!this.clusterInfo.exist){return}
                 axios.get('https://console.w7.cc/api/thirdparty-cd/userinfo',{customToken:this.clusterInfo.token}).then(res=>{
                     this.clusterInfo.valid = res?.data?.is_valid;
                 });

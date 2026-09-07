@@ -13,7 +13,7 @@
             </div>
             <div class="steps mt-20">
                 <a-steps current="3" label-placement="vertical">
-                    <a-step>注册云端</a-step>
+                    <a-step>绑定云端账号</a-step>
                     <a-step>费用清单</a-step>
                     <a-step>配置任务</a-step>
                 </a-steps>
@@ -403,16 +403,6 @@ export default {
                 
                 if(this.status == 'running' || this.weihuStatus == 'running' || (this.status!=='complete' && this.weihuStatus=='complete')){
                     this.interval = setTimeout(this.getInfo,5000);
-                }else if(this.status == 'complete'){
-                    panelApi.get("/auth/console/info?code=test").then(res=>{
-                        let data = res?.data;
-                        if(data.cluster_id == "" && data.thirdparty_cd_token !=""){
-                            panelApi.post('/auth/console/register-to-console?offline_url='+window.location.origin,{
-                                offline_url: window.location.origin,
-                                offlineUrl: window.location.origin,
-                            }).then(()=>{}).catch(()=>{})
-                        }
-                    })
                 }
             })
         },

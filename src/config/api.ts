@@ -71,7 +71,6 @@ export const API_PATHS = {
   CONSOLE_INFO: '/console/info',
   CONSOLE_OAUTH: '/console/oauth',
   CONSOLE_LOGIN: '/console/login',
-  CONSOLE_REGISTER: '/console/register-to-console',
   
   // 微应用 API
   MICROAPP_TOP: '/microapp/top',

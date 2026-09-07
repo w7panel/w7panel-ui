@@ -187,7 +187,7 @@
     "key": "system",
     "route": "system",
     "children": [{
-        "title": "云端注册",
+        "title": "云端账号",
         "key": "system-cloud",
         "route": "system/cloud"
     },{
