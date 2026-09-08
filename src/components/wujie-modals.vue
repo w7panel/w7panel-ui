@@ -182,6 +182,7 @@
     <install-drawer
         :show="storeInstallDrawer.show"
         :path="storeInstallDrawer.path"
+        :params="storeInstallDrawer.params"
         @needInstall="needStoreInstall"
         @installedStatusSuccess="handleStoreInstallSuccess"
         @close="closeStoreInstallDrawer"
@@ -310,6 +311,7 @@ export default {
             storeInstallDrawer: {
                 show: false,
                 path: '',
+                params: {},
                 callback: null,
             },
             storeInstallDependencies: {},
@@ -856,15 +858,27 @@ export default {
             path = encodeURIComponent(path);
             return this.toStoreInstall(path);
         },
-        openStoreInstall(path, callback) {
-            const installPath = this.normalizeStoreInstallPath(path);
+        openStoreInstall(pathOrOptions, optionsOrCallback, callback) {
+            const firstOptions = pathOrOptions && typeof pathOrOptions === 'object'
+                ? pathOrOptions
+                : {path: pathOrOptions};
+            const secondOptions = optionsOrCallback && typeof optionsOrCallback === 'object'
+                ? optionsOrCallback
+                : {};
+            const options = {...firstOptions, ...secondOptions};
+            let installPath = this.normalizeStoreInstallPath(options.path || options.repoUrl);
             if(!installPath){
                 this.$message.warning('缺少应用安装地址');
                 return false;
             }
+            installPath = this.appendStoreInstallOrder(installPath, options.orderSn || options.order_sn);
+            const successCallback = typeof optionsOrCallback === 'function'
+                ? optionsOrCallback
+                : (typeof callback === 'function' ? callback : null);
             this.storeInstallDrawer = {
                 show: false,
                 path: '',
+                params: {},
                 callback: null,
             };
             this.storeInstallDependencies = {};
@@ -872,7 +886,8 @@ export default {
                 this.storeInstallDrawer = {
                     show: true,
                     path: installPath,
-                    callback: typeof callback === 'function' ? callback : null,
+                    params: {...options, path: installPath},
+                    callback: successCallback,
                 };
             });
             return true;
@@ -886,10 +901,22 @@ export default {
             }
             return value;
         },
+        appendStoreInstallOrder(path, orderSn) {
+            const sn = String(orderSn || '').trim();
+            if(!path || !sn){return path}
+            try{
+                const url = new URL(path, window.location.origin);
+                url.searchParams.set('order_sn', sn);
+                return /^https?:\/\//i.test(path) ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+            }catch{
+                return path;
+            }
+        },
         closeStoreInstallDrawer() {
             this.storeInstallDrawer = {
                 show: false,
                 path: '',
+                params: {},
                 callback: null,
             };
             this.storeInstallDependencies = {};

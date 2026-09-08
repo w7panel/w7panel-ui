@@ -206,13 +206,13 @@
                                                 <a-option v-for="opt in sp.options" :key="opt" :label="opt" :value="opt" />
                                             </a-select>
                                             <div v-if="sp.type=='storage'" class="df">
-                                                <a-select v-if="sp.form&&sp.form.storageClassName" v-model="sp.form.storageClassName.value" :disabled="sp.lock" @change="sp.value=sp.form.storageClassName.value+sp.form.storageSize.value" placeholder="请选择">
+                                                <a-select v-if="sp.form&&sp.form.storageClassName" v-model="sp.form.storageClassName.value" :disabled="sp.form.storageClassName.lock" @change="sp.value=sp.form.storageClassName.value+sp.form.storageSize.value" placeholder="请选择">
                                                     <a-option v-for="opt in storageClassNames" :key="opt" :label="opt" :value="opt"></a-option>
                                                 </a-select>
-                                                <a-input v-if="sp.form&&sp.form.storageSize" v-model="sp.form.storageSize.value" :disabled="sp.lock" type="number" :spellcheck="false" placeholder="请填写存储大小" class="ml-20">
+                                                <a-input v-if="sp.form&&sp.form.storageSize" v-model="sp.form.storageSize.value" :disabled="sp.form.storageSize.lock" type="number" :spellcheck="false" placeholder="请填写存储大小" class="ml-20">
                                                     <template #append>Gi</template>
                                                 </a-input>
-                                                <custom-checkbox v-if="sp.form&&sp.form.storageRwMode" v-model="sp.form.storageRwMode.value" :disabled="sp.lock" checked-value="ReadWriteMany" unchecked-value="ReadWriteOnce" class="ml-20 df-s0">多写</custom-checkbox>
+                                                <custom-checkbox v-if="sp.form&&sp.form.storageRwMode" v-model="sp.form.storageRwMode.value" :disabled="sp.form.storageRwMode.lock" checked-value="ReadWriteMany" unchecked-value="ReadWriteOnce" class="ml-20 df-s0">多写</custom-checkbox>
                                             </div>
                                             <div v-if="sp.description" class="mt-4 c-aa">{{sp.description}}</div>
                                         </div>
@@ -301,7 +301,7 @@ import { getUserInfo } from '@/utils/auth';
 import shortuuid from 'short-uuid';
 
 export default {
-    props: ['is_component','path_identifie','version','release_name','start_params'],
+    props: ['is_component','path_identifie','version','release_name','start_params','install_params'],
     emits: [ 'complete' ],
     data(){
         return {
@@ -404,7 +404,83 @@ export default {
     unmounted(){
         clearInterval(this.interval);
     },
+    computed: {
+        installInputParams(){
+            return this.is_component ? (this.install_params || {}) : (this.$route.query || {});
+        },
+    },
     methods: {
+        hasOwn(object, key){
+            return Object.prototype.hasOwnProperty.call(object || {}, key);
+        },
+        decodeInstallParam(value){
+            let result = String(value ?? '');
+            try{
+                result = decodeURIComponent(result);
+            }catch{}
+            return result;
+        },
+        parseModuleInstallParams(value){
+            if(value && typeof value === 'object' && !Array.isArray(value)){
+                return value;
+            }
+            if(typeof value !== 'string' || !value){return {}}
+            try{
+                return JSON.parse(this.decodeInstallParam(value));
+            }catch{
+                return {};
+            }
+        },
+        moduleInstallParams(identifie, index){
+            const input = this.installInputParams || {};
+            const modules = input.modules && typeof input.modules === 'object' ? input.modules : {};
+            const hasDirect = this.hasOwn(input, identifie);
+            const hasModule = this.hasOwn(modules, identifie);
+            const direct = this.parseModuleInstallParams(hasDirect ? input[identifie] : null);
+            const module = this.parseModuleInstallParams(hasModule ? modules[identifie] : null);
+            const values = {...direct, ...module};
+            let provided = (this.is_component ? hasDirect : Boolean(input[identifie])) || hasModule;
+            if(Number(index) === 0){
+                ['pvcName','preSubPath'].forEach(key=>{
+                    if(this.hasOwn(input, key)){
+                        values[key] = input[key];
+                        provided = true;
+                    }
+                });
+            }
+            return {
+                provided,
+                enabled: values.enabled !== false,
+                values,
+            };
+        },
+        startParamOverrides(identifie, index){
+            const input = this.installInputParams || {};
+            const moduleParams = this.moduleInstallParams(identifie, index).values;
+            const inputStartParams = input.startParams || input.start_params || {};
+            const moduleStartParams = moduleParams.startParams || moduleParams.start_params || {};
+            return {
+                ...(this.start_params || {}),
+                ...(inputStartParams && typeof inputStartParams === 'object' ? inputStartParams : {}),
+                ...(moduleStartParams && typeof moduleStartParams === 'object' ? moduleStartParams : {}),
+            };
+        },
+        applyStartParamOverrides(form, index){
+            const overrides = this.startParamOverrides(form.identifie, index);
+            form.startParams?.forEach(param=>{
+                if(param.type === 'storage'){
+                    Object.values(param.form || {}).forEach(storageParam=>{
+                        if(!this.hasOwn(overrides, storageParam.name)){return}
+                        storageParam.value = String(overrides[storageParam.name] ?? '');
+                        storageParam.lock = true;
+                    });
+                    return;
+                }
+                if(!this.hasOwn(overrides, param.name)){return}
+                param.value = String(overrides[param.name] ?? '');
+                param.lock = true;
+            });
+        },
         async mainAppTest(){
             this.testModuleNames();
             await this.getAppgroups();
@@ -427,7 +503,7 @@ export default {
 			}
             if(this.is_component){
                 this.path = this.path_identifie;
-                this.releaseName = this.release_name || '';
+                this.releaseName = this.release_name || this.installInputParams.releaseName || this.installInputParams.releasename || '';
             }else{
                 this.releaseName = this.$route.query.releasename || '';
                 this.path = decodeURIComponent(this.$route.query.path);
@@ -447,8 +523,8 @@ export default {
             await this.getMirror();
             await this.getIngressclassList();
             // 第一步域名
-            if(this.$route.query.domain && !this.is_component){
-                let domain = decodeURIComponent(this.$route.query.domain);
+            if(this.installInputParams.domain){
+                let domain = this.decodeInstallParam(this.installInputParams.domain);
                 let match = domain.match(/^(http(s)?:\/\/)(.*)$/)
                 if(match){
                     this.form.ingressHostPre = match[1];
@@ -460,6 +536,7 @@ export default {
                 this.whiteList = [];
                 this.domainRules = [this.domainRules[0]];
                 this.form.ingressDisabled = true;
+                this.configConsole.isSelect = false;
             }else{
                 if(this.form.requireDomain && this.whiteList?.length && this.whiteList?.[this.form.whiteDomain]?.prefixRandom && !this.form.ingressHost){
                     this.form.ingressHost = this.createShortUuid();
@@ -685,7 +762,7 @@ export default {
             }
             return panelApi.get('/zpk/config',{params:{
                 repoUrl: this.path,
-                thirdpartyCDToken: this.$route.query.thirdpartyCDToken,
+                thirdpartyCDToken: this.installInputParams.thirdpartyCDToken,
                 releaseName: this.releaseName,
                 reinstall,
             },noAlert:true}).then(async res=>{
@@ -752,6 +829,7 @@ export default {
                             }
                         }]
                     }
+                    const overrides = this.startParamOverrides(i.identifie, index);
                     let startParams = [];
                     i?.startParams?.map(j=>{
                         let options = [];
@@ -761,9 +839,9 @@ export default {
                             value = options?.[0] || '';
                             j.type = 'select';
                         }
-                        const hasOverride = Object.prototype.hasOwnProperty.call(this.start_params || {}, j.name);
+                        const hasOverride = this.hasOwn(overrides, j.name);
                         if(hasOverride){
-                            value = String(this.start_params[j.name] ?? '');
+                            value = String(overrides[j.name] ?? '');
                         }
                         // 存储设备
                         if(j.values_text=='%STORAGE_SIZE%' || j.values_text=='%STORAGE_CLASS_NAME%' || j.values_text=='%STORAGE_RW_MODE%'){
@@ -781,9 +859,9 @@ export default {
                             if(find){
                                 find.form[names[j.values_text]] = {
                                     name: j.name,
-                                    value: defaultVal[j.values_text],
+                                    value: hasOverride ? value : defaultVal[j.values_text],
                                     values_text: j.values_text,
-                                    lock: j.lock || Boolean(j.dependencySource),
+                                    lock: j.lock || hasOverride || Boolean(j.dependencySource),
                                     dependencySource: j.dependencySource,
                                 }
                                 find.value = find.form?.storageClassName?.value + find.form?.storageSize?.value;
@@ -791,9 +869,9 @@ export default {
                                 let form = {};
                                 form[names[j.values_text]] = {
                                     name: j.name,
-                                    value: defaultVal[j.values_text],
+                                    value: hasOverride ? value : defaultVal[j.values_text],
                                     values_text: j.values_text,
-                                    lock: j.lock || Boolean(j.dependencySource),
+                                    lock: j.lock || hasOverride || Boolean(j.dependencySource),
                                     dependencySource: j.dependencySource,
                                 }
                                 startParams.push({
@@ -846,7 +924,8 @@ export default {
                         return i;
                     })
                     // 勾选可选安装
-                    let isInstall = (!this.is_component) && Boolean(this.$route.query[i.identifie]);
+                    const moduleParams = this.moduleInstallParams(i.identifie, index);
+                    let isInstall = moduleParams.provided && moduleParams.enabled;
                     return {
                         index: index,
                         requireParentReleaseName: i.requireParentReleaseName, // 需要主应用
@@ -935,11 +1014,9 @@ export default {
                     }
                     
                     // 从参数获取 pvcname , presubpath
-                    if(!this.is_component && this.$route.query?.[identifie] ){
-                        let querys = {};
-                        try{
-                            querys = JSON.parse( decodeURIComponent( this.$route.query?.[identifie] ));
-                        }catch{}
+                    const moduleParams = this.moduleInstallParams(identifie, i).values;
+                    if(Object.keys(moduleParams).length){
+                        let querys = moduleParams;
                         if(querys.pvcName){
                             f.pvcname = querys.pvcName;
                             f.pvcDisabled = true;
@@ -948,6 +1025,7 @@ export default {
                             f.preSubPath = querys.preSubPath;
                         }
                     }
+                    this.applyStartParamOverrides(f, i);
                 }
                 this.syncDependencyStartParams(false);
                 // 更新应用，替换env
@@ -1099,7 +1177,7 @@ export default {
         async getTitleByMn(name){
             return panelApi.get('/zpk/config',{params:{
                 repoUrl: 'https://zpk.w7.cc/zpk/respo/info/'+name,
-                thirdpartyCDToken: this.$route.query.thirdpartyCDToken,
+                thirdpartyCDToken: this.installInputParams.thirdpartyCDToken,
             },noAlert:true}).then(res=>{
                 return res.data?.[0]?.name;
 				}).catch(error=>{
@@ -1308,14 +1386,14 @@ export default {
                 ingressClass: this.form.ingressclass,
                 ingressSeletorName: this.form.ingressSeletorName,
                 installOptions: installOptions,
-                clusterId: this.$route.query.insClusterId || '',
-                thirdpartyCDToken: this.$route.query.thirdpartyCDToken || this.thirdparty_cd_token,
+                clusterId: this.installInputParams.insClusterId || this.installInputParams.clusterId || '',
+                thirdpartyCDToken: this.installInputParams.thirdpartyCDToken || this.thirdparty_cd_token,
                 panelUrl: window.location.origin,
             }
 
-            if(!this.is_component && this.$route.query.isTrandition){
+            if(this.installInputParams.isTrandition){
                 params.isTrandition = true;
-                params.zipUrl = decodeURIComponent(this.$route.query.zipUrl);
+                params.zipUrl = this.decodeInstallParam(this.installInputParams.zipUrl);
             }
 			if(this.reinstallConfirmed){
 				params.reinstall = true;
