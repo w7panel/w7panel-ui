@@ -16,7 +16,7 @@
     </div>
 </template>
 <script>
-import { panelApi } from '@/utils/api';
+import { panelApi, k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import { getToken, getK8sinfo } from '@/utils/auth';
 import { bus, startApp, destroyApp } from "wujie";
@@ -30,10 +30,11 @@ import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
+import { RESOURCE_GROUP_LABEL, resourceListWithLabelSelector } from '@/utils/w7panel-resource';
 
 export default{
     props: ['menuActive','appgroup'],
-    emits: ['getBindings', 'getinfo', 'changeAppMenu'],
+    emits: ['getMicroApps', 'getinfo', 'menuResolved', 'changeAppMenu'],
     data(){
         return {
             namespaceActive: '',
@@ -41,6 +42,9 @@ export default{
             microAppBaseInfo: {},
             microAppRoleConfig: {},
             bindings: [],
+            microApps: [],
+            activeMicroAppName: '',
+            loadingMicroApps: false,
             extra: {},
             page: '',
             downOk: true,
@@ -70,18 +74,8 @@ export default{
             })
         },
         menuActive(v){
-            if(!v || this.page==v){return}
-            const previousBinding = this.getMenuBindingName(this.page);
-            this.page = v;
-            this.rememberMicroRoute(v);
-            const currentBinding = this.applyMenuRuntimeConfig(v);
-            this.$emit('getinfo',{...this.info});
-            if(previousBinding !== currentBinding){
-                this.destroyMicro();
-                this.wujieInit();
-                return;
-            }
-            this.routeChange(v);
+            if(!v || this.loadingMicroApps){return}
+            this.selectMicroMenu(v);
         },
         '$route.query.appmicro'(){
             this.rememberCurrentMicroRoute();
@@ -150,8 +144,38 @@ export default{
             this.wujieInit();
             return true;
         },
-        getMenuBindingName(route){
-            return this.bindings.find(binding=>(binding.menu || []).some(menu=>menu.do === route))?.name || '';
+        findMenuInTree(menus, value, microAppName){
+            for(const menu of menus || []){
+                const key = `${microAppName}:${menu.do}`;
+                if(key === value || menu.do === value){ return menu; }
+                const child = this.findMenuInTree(menu.children, value, microAppName);
+                if(child){ return child; }
+            }
+            return null;
+        },
+        findMicroMenu(value, microAppName = ''){
+            const userRole = getK8sinfo()['w7.cc/role'];
+            for(const item of this.microApps){
+                const itemName = item?.metadata?.name || '';
+                if(microAppName && itemName !== microAppName){ continue; }
+                for(const binding of item?.spec?.bindings || []){
+                    if(binding?.support !== 'thirdparty_cd'){ continue; }
+                    if(userRole !== 'founder' && binding?.name !== userRole){ continue; }
+                    const menu = this.findMenuInTree(binding.menu, value, itemName);
+                    if(menu){
+                        return {
+                            ...menu,
+                            key: `${itemName}:${menu.do}`,
+                            microAppName: itemName,
+                            bindingName: binding.name,
+                        };
+                    }
+                }
+            }
+            return null;
+        },
+        getMenuBindingName(value){
+            return this.findMicroMenu(value, this.activeMicroAppName)?.bindingName || '';
         },
         normalizeMicroMenuRoute(value){
             const bases = [
@@ -199,6 +223,9 @@ export default{
             this.microAppBaseInfo = {};
             this.microAppRoleConfig = {};
             this.bindings = [];
+            this.microApps = [];
+            this.activeMicroAppName = '';
+            this.loadingMicroApps = false;
             this.extra = {};
             this.page = '';
             this.downOk = true;
@@ -211,47 +238,122 @@ export default{
             if(!route){ return; }
             this.lastMicroRoute = route;
         },
-        getFront(appgroup){
+        syncMicroAppQuery(){
+            if(!this.activeMicroAppName || this.$route.query?.microapp === this.activeMicroAppName){ return; }
+            this.$router.replace({
+                query: {
+                    ...this.$route.query,
+                    microapp: this.activeMicroAppName,
+                },
+            }).catch(()=>{});
+        },
+        applyMicroApp(item){
+            if(!item){ return; }
+            const microAppName = item?.metadata?.name || '';
+            const groupName = item?.metadata?.labels?.[RESOURCE_GROUP_LABEL] || this.appgroup;
+            this.activeMicroAppName = microAppName;
+            this.bindings = item?.spec?.bindings || [];
+            this.microAppRoleConfig = item?.spec?.['config-v2']?.props?.roleConfig || {};
+            this.microAppBaseInfo = {
+                appgroup: microAppName,
+                frontendUrl: (item?.spec?.frontendUrl || '').replace(/\/index\.html$/, '/'),
+                backendUrl: item?.spec?.backendUrl,
+                username: item?.spec?.config?.props?.username,
+                password: item?.spec?.config?.props?.password,
+                appImage: item?.spec?.config?.props?.image,
+                ...item?.spec?.config?.props,
+            };
+            this.extra = {
+                identifie: item.metadata?.labels?.['w7.cc/identifie'] || '',
+                version: item.metadata?.labels?.['w7.cc/version'] || '',
+                name: groupName,
+                namespace: item.metadata?.namespace,
+            };
+            this.applyMenuRuntimeConfig('');
+            this.$emit('getinfo', {...this.info});
+        },
+        async loadMicroApps(appgroup){
+            const selected = await panelApi.get(`/microapp/${appgroup}/info`).then(res=>res?.data);
+            if(!selected){ return []; }
+            const groupName = selected?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
+                || String(selected?.metadata?.name || appgroup).replace(/-root$/, '');
+            const api = `/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/microapps`;
+            const [namedResponse, groupedResponse] = await Promise.all([
+                k8sproxy.get(`${api}/${encodeURIComponent(groupName)}`, {noAlert:true}).catch(()=>null),
+                k8sproxy.get(resourceListWithLabelSelector(api, `${RESOURCE_GROUP_LABEL}=${groupName}`), {noAlert:true}).catch(()=>null),
+            ]);
+            const resources = [selected, namedResponse?.data, ...(groupedResponse?.data?.items || [])];
+            const result = [];
+            const names = new Set();
+            resources.forEach(item=>{
+                const name = item?.metadata?.name;
+                const normalizedName = item === selected && item?.metadata?.labels?.['microapp.w7.cc/from'] === 'root'
+                    ? String(name || '').replace(/-root$/, '')
+                    : String(name || '');
+                const hasMenu = (item?.spec?.bindings || []).some(binding=>
+                    binding?.support === 'thirdparty_cd' && Array.isArray(binding?.menu) && binding.menu.length > 0
+                );
+                if(!name || names.has(normalizedName) || !hasMenu){ return; }
+                names.add(normalizedName);
+                result.push(item);
+            });
+            return result;
+        },
+        async getFront(appgroup){
+            this.loadingMicroApps = true;
+            const items = await this.loadMicroApps(appgroup).catch(()=>[]);
+            if(!items.length){
+                this.loadingMicroApps = false;
+                return;
+            }
+            this.microApps = items;
+            const requestedMicroAppName = this.$route.query?.microapp;
+            let item = items.find(item=>item?.metadata?.name===requestedMicroAppName)
+                || items.find(item=>item?.metadata?.name===appgroup)
+                || items[0];
+            this.applyMicroApp(item);
+            this.$emit('getMicroApps', items);
+            await this.$nextTick();
 
-            panelApi.get(`/microapp/${appgroup}/info`).then(res=>{
-                let item  = res?.data;
-                if(!item){return}
-
-                let roleConfig = item?.spec?.['config-v2']?.props?.roleConfig || {};
-                this.microAppRoleConfig = roleConfig;
-                this.bindings = item?.spec?.bindings || [];
-                this.microAppBaseInfo = {
-                    appgroup: appgroup,
-                    // frontendUrl: item?.spec?.frontendUrl,
-                    // 测试短路径
-                    frontendUrl: item?.spec?.frontendUrl.replace(/\/index\.html$/, '/'),
-                    backendUrl: item?.spec?.backendUrl,
-                    username: item?.spec?.config?.props?.username,
-                    password: item?.spec?.config?.props?.password,
-                    appImage: item?.spec?.config?.props?.image,
-                    ...item?.spec?.config?.props,
-                };
-                this.applyMenuRuntimeConfig('');
-                this.extra = {
-                    identifie: item.metadata?.labels?.['w7.cc/identifie'] || '',
-                    version: item.metadata?.labels?.['w7.cc/version'] || '',
-                    name: item.metadata.name,
-                    namespace: item.metadata.namespace,
-                }
-                this.$emit('getBindings',this.bindings)
-                this.$emit('getinfo',{...this.info})
-                this.rememberCurrentMicroRoute();
-                this.$nextTick(()=>{
-                    const appmicro = this.ignoreAppmicroOnce ? '' : this.normalizeMicroMenuRoute(this.$route.query?.appmicro);
-                    this.ignoreAppmicroOnce = false;
-                    this.page = appmicro || this.menuActive || '';
-                    this.applyMenuRuntimeConfig(this.page);
-                    this.$emit('getinfo',{...this.info});
-                    this.rememberMicroRoute(this.page);
-
-                    this.wujieInit();
-                })
-            })
+            const appmicro = this.ignoreAppmicroOnce ? '' : this.normalizeMicroMenuRoute(this.$route.query?.appmicro);
+            this.ignoreAppmicroOnce = false;
+            const requestedMenu = appmicro || this.menuActive || '';
+            const menu = this.findMicroMenu(requestedMenu, requestedMicroAppName)
+                || this.findMicroMenu(requestedMenu, this.activeMicroAppName)
+                || this.findMicroMenu(requestedMenu);
+            if(menu && menu.microAppName !== this.activeMicroAppName){
+                item = items.find(item=>item?.metadata?.name===menu?.microAppName) || item;
+                this.applyMicroApp(item);
+            }
+            this.page = menu?.do || requestedMenu;
+            this.applyMenuRuntimeConfig(menu?.key || this.page);
+            this.syncMicroAppQuery();
+            this.$emit('menuResolved', menu?.key || this.page);
+            this.$emit('getinfo', {...this.info});
+            this.rememberMicroRoute(this.page);
+            this.loadingMicroApps = false;
+            this.wujieInit();
+        },
+        selectMicroMenu(value){
+            const menu = this.findMicroMenu(value, this.activeMicroAppName) || this.findMicroMenu(value);
+            if(!menu || (this.page === menu.do && this.activeMicroAppName === menu.microAppName)){ return; }
+            const previousMicroAppName = this.activeMicroAppName;
+            const previousBinding = this.getMenuBindingName(this.page);
+            if(menu.microAppName !== this.activeMicroAppName){
+                this.applyMicroApp(this.microApps.find(item=>item?.metadata?.name===menu.microAppName));
+            }
+            this.page = menu.do;
+            this.rememberMicroRoute(this.page);
+            const currentBinding = this.applyMenuRuntimeConfig(menu.key);
+            this.syncMicroAppQuery();
+            this.$emit('menuResolved', menu.key);
+            this.$emit('getinfo', {...this.info});
+            if(previousMicroAppName !== this.activeMicroAppName || previousBinding !== currentBinding){
+                this.destroyMicro();
+                this.wujieInit();
+                return;
+            }
+            this.routeChange(this.page);
         },
         async wujieInit(){
             let is_register = false;

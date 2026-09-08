@@ -773,7 +773,6 @@ export default {
                 const items = Array.isArray(microApps) ? microApps : [];
                 items.forEach(item=>{
                     const microAppName = item?.metadata?.name || '';
-                    const microAppTitle = item?.spec?.title || microAppName;
                     let rl = (item?.spec?.bindings || []).filter(i=>i.support == "thirdparty_cd");
                     rl.forEach((i, roleIndex)=>{
                         let menus = i.menu || [];
@@ -788,7 +787,7 @@ export default {
 
                         roles.push({
                             key: `${microAppName}:${i.name}:${roleIndex}`,
-                            title: items.length > 1 ? microAppTitle : (i.title || ROLE_NAME[i.name] || i.name),
+                            title: i.title || ROLE_NAME[i.name] || i.name,
                             name: i.name,
                             microAppName,
                             menus: menus,

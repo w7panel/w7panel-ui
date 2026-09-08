@@ -24,14 +24,14 @@
                 v-model:selected-keys="selectMenu"
                 @menu-item-click="handelMicroMenu"
             >
-                <template v-for="role in topMenuRoles" :key="role.name">
+                <template v-for="role in topMenuRoles" :key="role.key || role.name">
                     <div v-if="role.menus && role.menus.length" class="role-header c-aa">
                         <IconUserGroup />
                         <span v-if="!collapsed" class="role-title">{{ role.title }}端</span>
                     </div>
                     <template v-if="role.menus && role.menus.length">
-                        <template v-for="menu in role.menus" :key="menu.do">
-                            <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
+                        <template v-for="menu in role.menus" :key="menu.key || menu.do">
+                            <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.key || menu.do">
                                 <template #icon>
                                     <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                                     <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
@@ -39,21 +39,21 @@
                                 </template>
                                 <span>{{menu.title}}</span>
                             </a-menu-item>
-                            <a-sub-menu v-else :key="menu.do">
+                            <a-sub-menu v-else :key="menu.key || menu.do">
                                 <template #icon>
                                     <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                                     <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
                                     <IconMenu v-else />
                                 </template>
                                 <template #title>{{menu.title}}</template>
-                                <a-menu-item v-for="submenu in menu.children" :key="submenu.do">{{submenu.title}}</a-menu-item>
+                                <a-menu-item v-for="submenu in menu.children" :key="submenu.key || submenu.do">{{submenu.title}}</a-menu-item>
                             </a-sub-menu>
                         </template>
                     </template>
                 </template>
                 <a-divider v-if="topMenuRoles.length && bottomMenus.length" class="menu-location-divider" />
-                <template v-for="menu in bottomMenus" :key="menu.do">
-                    <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
+                <template v-for="menu in bottomMenus" :key="menu.key || menu.do">
+                    <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.key || menu.do">
                         <template #icon>
                             <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                             <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
@@ -61,14 +61,14 @@
                         </template>
                         <span>{{menu.title}}</span>
                     </a-menu-item>
-                    <a-sub-menu v-else :key="menu.do">
+                    <a-sub-menu v-else :key="menu.key || menu.do">
                         <template #icon>
                             <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                             <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
                             <IconMenu v-else />
                         </template>
                         <template #title>{{menu.title}}</template>
-                        <a-menu-item v-for="submenu in menu.children" :key="submenu.do">{{submenu.title}}</a-menu-item>
+                        <a-menu-item v-for="submenu in menu.children" :key="submenu.key || submenu.do">{{submenu.title}}</a-menu-item>
                     </a-sub-menu>
                 </template>
             </a-menu>
@@ -94,14 +94,14 @@
             v-model:selected-keys="selectMenu"
             @menu-item-click="handelMicroMenu"
         >
-            <template v-for="role in topMenuRoles" :key="role.name">
+            <template v-for="role in topMenuRoles" :key="role.key || role.name">
                 <div class="role-header c-aa">
                     <IconUserGroup />
                     <span class="role-title">{{ role.title }}端</span>
                 </div>
                 <template v-if="role.menus && role.menus.length">
-                    <template v-for="menu in role.menus" :key="menu.do">
-                        <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
+                    <template v-for="menu in role.menus" :key="menu.key || menu.do">
+                        <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.key || menu.do">
                             <template #icon>
                                 <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                                 <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
@@ -109,21 +109,21 @@
                             </template>
                             <span>{{menu.title}}</span>
                         </a-menu-item>
-                        <a-sub-menu v-else :key="menu.do">
+                        <a-sub-menu v-else :key="menu.key || menu.do">
                             <template #icon>
                                 <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                                 <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
                                 <IconMenu v-else />
                             </template>
                             <template #title>{{menu.title}}</template>
-                            <a-menu-item v-for="submenu in menu.children" :key="submenu.do">{{submenu.title}}</a-menu-item>
+                            <a-menu-item v-for="submenu in menu.children" :key="submenu.key || submenu.do">{{submenu.title}}</a-menu-item>
                         </a-sub-menu>
                     </template>
                 </template>
             </template>
             <a-divider v-if="topMenuRoles.length && bottomMenus.length" class="menu-location-divider" />
-            <template v-for="menu in bottomMenus" :key="menu.do">
-                <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.do">
+            <template v-for="menu in bottomMenus" :key="menu.key || menu.do">
+                <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.key || menu.do">
                     <template #icon>
                         <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                         <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
@@ -131,14 +131,14 @@
                     </template>
                     <span>{{menu.title}}</span>
                 </a-menu-item>
-                <a-sub-menu v-else :key="menu.do">
+                <a-sub-menu v-else :key="menu.key || menu.do">
                     <template #icon>
                         <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                         <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
                         <IconMenu v-else />
                     </template>
                     <template #title>{{menu.title}}</template>
-                    <a-menu-item v-for="submenu in menu.children" :key="submenu.do">{{submenu.title}}</a-menu-item>
+                    <a-menu-item v-for="submenu in menu.children" :key="submenu.key || submenu.do">{{submenu.title}}</a-menu-item>
                 </a-sub-menu>
             </template>
         </a-menu>
@@ -194,11 +194,12 @@ const filterMenu = ()=>{
         return menuArray.map(item => {
             // 过滤当前元素的menus，只保留未出现过的路径
             const filteredMenus = item.menus.filter(menu => {
-                // 确保do字段存在，避免报错
-                if (!menu.do) return false;
+                // 确保菜单标识存在，避免报错
+                if (!menu.key && !menu.do) return false;
+                const menuKey = menu.key || menu.do;
                 // 如果路径未出现过，则保留并记录
-                if (!existedPaths.has(menu.do)) {
-                    existedPaths.add(menu.do);
+                if (!existedPaths.has(menuKey)) {
+                    existedPaths.add(menuKey);
                     return true;
                 }
                 // 路径已存在，过滤掉
@@ -237,7 +238,7 @@ const handelMicroMenu = (v)=>{
 const defaultSelectMenu = ()=>{
     const activeDo = Array.isArray(route.query?.do) ? route.query.do[0] : route.query?.do;
     const appmicro = normalizeWujieSyncRoute(route.query?.appmicro, getWujieRoutePrefix(props?.info?.frontendUrl));
-    let active = props?.menuActive || activeDo || appmicro || props?.roles?.[0]?.menus?.[0]?.do || '';
+    let active = props?.menuActive || activeDo || appmicro || props?.roles?.[0]?.menus?.[0]?.key || props?.roles?.[0]?.menus?.[0]?.do || '';
     selectMenu.value = [active];
 }
 
