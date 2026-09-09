@@ -247,6 +247,7 @@ export default {
             microApp: null,
             microApps: [],
             microAppGroup: '',
+            appGroupName: '',
             activeMicroAppName: '',
             wujieInitPromise: null,
             wujieReloadPending: false,
@@ -492,6 +493,9 @@ export default {
                 ...this.microAppBaseInfo,
                 ...roleProps,
                 ...(roleProps.frontend_props || {}),
+                appgroup: this.appGroupName,
+                group: this.appGroupName,
+                microappName: this.activeMicroAppName,
             };
             return bindingName;
         },
@@ -503,10 +507,13 @@ export default {
                 || this.activeGroup
                 || this.$route.params.group;
             this.microApp = item;
+            this.appGroupName = groupName;
             this.activeMicroAppName = microAppName;
             this.microAppRoleConfig = item?.spec?.['config-v2']?.props?.roleConfig || {};
             this.microAppBaseInfo = {
-                appgroup: microAppName,
+                appgroup: groupName,
+                group: groupName,
+                microappName: microAppName,
                 frontendUrl: item?.spec?.frontendUrl,
                 backendUrl: item?.spec?.backendUrl,
                 appImage: item?.spec?.config?.props?.image,
@@ -515,7 +522,7 @@ export default {
             this.extra = {
                 identifie: item.metadata?.labels?.['w7.cc/identifie'] || '',
                 version: item.metadata?.labels?.['w7.cc/version'] || '',
-                name: groupName,
+                releaseName: groupName,
                 namespace: item.metadata?.namespace,
             };
             this.applyMenuRuntimeConfig('');
@@ -538,7 +545,7 @@ export default {
             
             const {data} = await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
                 version: this.extra.version,
-                releaseName: this.extra.name,
+                releaseName: this.extra.releaseName,
             }}).then(res=>{
                 this.downOk = res.data?.status !== 'no_download';
                 return res;
@@ -566,7 +573,7 @@ export default {
             if(!this.downOk){
                 this.info.frontendUrl = data.proxyUrl;
                 this.downOk = true;
-                panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.name}`)
+                panelApi.post(`/static/${this.extra.namespace}/download/${this.extra.releaseName}`)
                 // this.extra.setTimeout = setTimeout(()=>{
                 //     this.wujieInit();
                 // }, 5000)
@@ -578,15 +585,22 @@ export default {
                 thirdparty_cd_token = data?.thirdparty_cd_token;
             });
             let frontProps = {};
-            await panelApi.get(`/microapp/${this.info.appgroup}/frontprops`, { noAlert: true }).then(res=>{
+            await panelApi.get(`/microapp/${this.activeMicroAppName}/frontprops`, { noAlert: true }).then(res=>{
                 frontProps = res?.data || {};
             }).catch(()=>{});
+            const microappName = this.activeMicroAppName;
+            const appGroupName = this.appGroupName;
             if(this.info.frontend_props) {
                 this.info.frontend_props = {
                     ...this.info.frontend_props,
-                    ...frontProps
+                    ...frontProps,
+                    group: appGroupName,
                 }
             }
+            const runtimeFrontProps = {
+                ...frontProps,
+                group: appGroupName,
+            };
             const loginCloud = (componentAppId)=>{
                 const appId = typeof componentAppId === 'object' ? componentAppId?.componentAppId : componentAppId;
                 return panelApi.get('/js-cloud-code', {
@@ -604,6 +618,9 @@ export default {
                 paneltoken: getToken(),
                 ...this.info,
                 ...frontProps,
+                appgroup: appGroupName,
+                group: appGroupName,
+                microappName,
                 loginCloud,
                 runningFirstPod,
                 podShell,
@@ -619,9 +636,9 @@ export default {
             const appUrl = this.info.load_mode === 'iframe'
                 ? appendWujieProxyRequestQuery(baseAppUrl, {
                     proxyRequest: this.info.proxy_request,
-                    frontProps,
+                    frontProps: runtimeFrontProps,
                     backendUrl: proxyBackendUrl,
-                    group: this.info.appgroup,
+                    group: appGroupName,
                     role: getK8sinfo()['w7.cc/role'],
                 })
                 : baseAppUrl;
@@ -1175,6 +1192,7 @@ export default {
                 this.microApp = null;
                 this.microApps = [];
                 this.microAppGroup = '';
+                this.appGroupName = '';
                 this.activeMicroAppName = '';
                 const currentGroup = this.$route.params.group;
                 const currentIsChild = Boolean(res?.data?.metadata?.labels?.['w7.cc/parent']);

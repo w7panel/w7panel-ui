@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-09-09
+
+- 修复应用详情和顶部菜单在同一 AppGroup 包含多个 MicroApp 时，Wujie `appgroup/group` 被错误注入为当前 MicroApp 资源名的问题；两个字段现固定使用真实 AppGroup 名，并新增 `microappName` 标识当前 MicroApp。
+- iframe `proxy_request` 的 `${system.group}` 同步使用真实 AppGroup 名。
+- 影响模块：应用详情、顶部微应用、Wujie 宿主 props 协议。
+- 验证：`LOCAL_MOCK=true npm run build` 生产构建与 `git diff --check` 通过。
+
 ## 2026-09-07
 
 - 应用详情左侧菜单除兼容读取与 AppGroup 同名的 MicroApp 外，会按 `w7.cc/group-name` 定向读取并展示同组全部 MicroApp；切换菜单时同步切换对应前端包和运行配置。
