@@ -179,7 +179,7 @@
         </a-spin>
     </a-modal>
 
-    <install-drawer
+    <store-install-drawer
         :show="storeInstallDrawer.show"
         :path="storeInstallDrawer.path"
         :params="storeInstallDrawer.params"
@@ -221,6 +221,7 @@ import domainStrategy from '@/components/domain-strategy.vue';
 import containerPlugin from '@/components/container-plugin.vue';
 import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';
 import buyServiceDialog from '@/components/buy-service-dialog.vue';
+import storeInstallDrawer from '@/components/store-install-drawer.vue';
 import installDrawer from '@/views/app/store/install-drawer.vue';
 
 export default {
@@ -351,6 +352,7 @@ export default {
         containerPlugin,
         buildImageStatus,
         buyServiceDialog,
+        storeInstallDrawer,
         installDrawer,
     },
     methods: {
