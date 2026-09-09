@@ -162,10 +162,10 @@
                                     </template>
                                     <div class="df df-c" style="flex:1;">
                                         <div class="df ai-c">
-                                            <a-select v-model="item.pvcname" :disabled="item.pvcDisabled || item.pvcDependencySource" placeholder="请选择存储">
+                                            <a-select v-model="item.pvcname" :disabled="item.pvcDisabled" placeholder="请选择存储">
                                                 <a-option v-for="item in storages" :key="item.name" :value="item.name">{{item.name}}</a-option>
                                             </a-select>
-                                            <span v-if="!item.pvcDependencySource" @click="sdShow=true;" class="ml-10 c-blue cursor" style="flex-shrink:0;">新建</span>
+                                            <span @click="sdShow=true;" class="ml-10 c-blue cursor" style="flex-shrink:0;">新建</span>
                                         </div>
                                         <table v-if="item.volumesMounts&&item.volumesMounts.length" class="com-table mt-16"><tbody>
                                             <tr>
@@ -636,7 +636,7 @@ export default {
             });
             return result;
         },
-        getDependencySourceValue(form,name){
+        getModuleStartParamValue(form,name){
             const sourceName = this.normalizeDependencyParamName(name);
             if(this.isDependencyPVCName(sourceName)){
                 return form?.pvcname;
@@ -650,64 +650,49 @@ export default {
             }
             return param.value;
         },
-        setDependencyTargetValue(form,param,value){
-            if(this.isDependencyPVCName(param?.name)){
-                form.pvcname = String(value);
-                return;
-            }
-            param.value = String(value);
-            param.lock = true;
+        findConfigModuleForm(moduleName,currentForm = null){
+            const normalizedModuleName = this.normalizeDependencyIdentifie(moduleName);
+            if(!normalizedModuleName){return null}
+            return (this.form.forms || []).find(item=>{
+                return item!==currentForm
+                    && this.normalizeDependencyIdentifie(item?.identifie)==normalizedModuleName;
+            }) || null;
         },
-        sortFormsByDependencySources(forms){
-            const allForms = forms || [];
-            const pending = [...allForms];
-            const ordered = [];
-            const allIdentifies = new Set(allForms.map(item=>this.normalizeDependencyIdentifie(item?.identifie)));
-            while(pending.length){
-                const orderedIdentifies = new Set(ordered.map(item=>this.normalizeDependencyIdentifie(item?.identifie)));
-                const readyIndex = pending.findIndex(form=>{
-                    return this.getFormStartParamFields(form).every(param=>{
-                        const sourceIdentifie = this.normalizeDependencyIdentifie(param?.dependencySource?.identifie);
-                        return !sourceIdentifie || !allIdentifies.has(sourceIdentifie) || orderedIdentifies.has(sourceIdentifie);
-                    });
-                });
-                if(readyIndex<0){
-                    ordered.push(...pending);
-                    break;
-                }
-                ordered.push(pending.splice(readyIndex,1)[0]);
-            }
-            ordered.forEach((item,index)=>item.index=index);
-            return ordered;
-        },
-        syncDependencyStartParams(showMessage = true, endIndex = null){
+        syncModuleStartParams(showMessage = true, endIndex = null){
             const forms = this.form.forms || [];
             const lastIndex = endIndex===null ? forms.length-1 : endIndex;
             for(let index=0; index<=lastIndex; index++){
                 const current = forms[index];
                 if(!current || (!current.requireInstall && !current.isInstall)){continue}
                 for(const param of this.getFormStartParamFields(current)){
-                    const source = param?.dependencySource;
-                    if(!source?.identifie || !source?.name){continue}
-                    const sourceIndex = forms.findIndex(item=>{
-                        return this.normalizeDependencyIdentifie(item?.identifie)==this.normalizeDependencyIdentifie(source.identifie);
-                    });
-                    const sourceForm = forms[sourceIndex];
+                    if(!param?.module_name){continue}
+                    const sourceForm = this.findConfigModuleForm(param.module_name,current);
+                    if(!sourceForm){continue}
+                    const template = String(param.values_text || '');
+                    const placeholders = [...template.matchAll(/%([^%]+)%/g)];
+                    if(!placeholders.length){continue}
                     let message = '';
-                    if(sourceIndex<0 || sourceIndex>=index){
-                        message = `${current.name || current.identifie} 的 ${param.name} 依赖 ${source.identifie}.${source.name}，依赖应用必须位于当前应用之前`;
-                    }else if(!sourceForm.requireInstall && !sourceForm.isInstall){
+                    if(!sourceForm.requireInstall && !sourceForm.isInstall){
                         message = `${current.name || current.identifie} 依赖的 ${sourceForm.name || sourceForm.identifie} 尚未启用`;
                     }
-                    const value = message ? undefined : this.getDependencySourceValue(sourceForm,source.name);
-                    if(!message && (value===undefined || value===null || value==='')){
-                        message = `${sourceForm.name || sourceForm.identifie} 未提供启动参数 ${source.name}`;
+                    let missingName = '';
+                    const value = template.replace(/%([^%]+)%/g,(match,name)=>{
+                        const sourceValue = this.getModuleStartParamValue(sourceForm,name);
+                        if(sourceValue===undefined || sourceValue===null || sourceValue===''){
+                            missingName = name;
+                            return match;
+                        }
+                        return String(sourceValue);
+                    });
+                    if(!message && missingName){
+                        message = `${sourceForm.name || sourceForm.identifie} 未提供启动参数 ${missingName}`;
                     }
                     if(message){
                         if(showMessage){this.$message.warning(message)}
                         return false;
                     }
-                    this.setDependencyTargetValue(current,param,value);
+                    param.value = value;
+                    param.lock = true;
                 }
             }
             return true;
@@ -861,8 +846,7 @@ export default {
                                     name: j.name,
                                     value: hasOverride ? value : defaultVal[j.values_text],
                                     values_text: j.values_text,
-                                    lock: j.lock || hasOverride || Boolean(j.dependencySource),
-                                    dependencySource: j.dependencySource,
+                                    lock: j.lock || hasOverride,
                                 }
                                 find.value = find.form?.storageClassName?.value + find.form?.storageSize?.value;
                             }else{
@@ -871,8 +855,7 @@ export default {
                                     name: j.name,
                                     value: hasOverride ? value : defaultVal[j.values_text],
                                     values_text: j.values_text,
-                                    lock: j.lock || hasOverride || Boolean(j.dependencySource),
-                                    dependencySource: j.dependencySource,
+                                    lock: j.lock || hasOverride,
                                 }
                                 startParams.push({
                                     ...j,
@@ -899,13 +882,10 @@ export default {
                             values_text: j.values_text || '',
                             module_name: j.module_name, // 模块名称
                             description: j.description,
-                            lock: j.lock || hasOverride || Boolean(j.dependencySource),
+                            lock: j.lock || hasOverride,
                         });
                     })
                     let pvcname = i.requirePvc? (this.storages?.find(i=>i.isDefault)?.name || this.storages?.[0]?.name) : '';
-                    const pvcDependencySource = startParams.find(param=>{
-                        return this.isDependencyPVCName(param?.name) && param?.dependencySource;
-                    })?.dependencySource || null;
                     let registry = i.requireBuild? this.mirror?.[0]?.value : '';
 
                     let volumes = i?.volumes || [];
@@ -936,7 +916,6 @@ export default {
                         requireBuild: i.requireBuild, // 必须有镜像仓库
                         registry: registry, // 镜像仓库
                         pvcname: pvcname, // 存储
-                        pvcDependencySource: pvcDependencySource,
                         volumesMounts: volumesMounts,
                         volumes: volumes,
                         isUpgrade: i.isUpgrade,
@@ -949,7 +928,6 @@ export default {
                         dependsOnes: i.dependsOnes || [],
                     };
                 }) || [];
-                forms = this.sortFormsByDependencySources(forms);
                 this.form.forms = forms;
                 console.log('form.forms',this.form.forms)
 
@@ -1027,7 +1005,7 @@ export default {
                     }
                     this.applyStartParamOverrides(f, i);
                 }
-                this.syncDependencyStartParams(false);
+                this.syncModuleStartParams(false);
                 // 更新应用，替换env
                 if(!this.releaseName && res?.data?.[0]?.releaseName){ this.releaseName = res.data[0].releaseName; }
 				return true;
@@ -1088,7 +1066,7 @@ export default {
             if(this.form.activeIdentifie==identifie && !isInstall){
                 this.filterInstall();
             }
-            this.syncDependencyStartParams(false);
+            this.syncModuleStartParams(false);
         },
         async startParamsFocus(sp){
             if(!sp.module_name||!/%\w+%/.test(sp.value)){return}
@@ -1105,17 +1083,22 @@ export default {
             for(let index in this.form.forms){
                 let i = this.form.forms[index];
                 this.installAlert[i.identifie] = [];
-                const declaredDependencyNames = new Set((i.dependsOnes || []).map(item => {
-                    return item.subidentifie
-                        ? `${item.identifie}/${item.subidentifie}`
-                        : item.identifie;
-                }));
+                const declaredDependencyNames = new Set();
+                (i.dependsOnes || []).forEach(item=>{
+                    [
+                        item.identifie,
+                        item.subidentifie,
+                        item.subidentifie ? `${item.identifie}/${item.subidentifie}` : '',
+                    ].filter(Boolean).forEach(name=>{
+                        declaredDependencyNames.add(this.normalizeDependencyIdentifie(name));
+                    });
+                });
                 for(let m in i.outModuleNames){
                     let name = i.outModuleNames[m];
                     if(/\./.test(name)){continue}
+                    if(declaredDependencyNames.has(this.normalizeDependencyIdentifie(name))){continue}
                     let dependency = {identifie:name, name:name, required:false};
                     let result = await this.testRely(dependency);
-                    if(declaredDependencyNames.has(name)){continue}
                     let title = await this.getTitleByMn(name);
                     this.installAlert[i.identifie].push({
                         ...dependency,
@@ -1211,6 +1194,14 @@ export default {
                 ? {identifie:dependency, name:dependency}
                 : (dependency || {});
             const identify = dependency.subidentifie || dependency.identifie || dependency.name;
+            if(!String(dependency.releaseName || '').trim()){
+                const configModule = this.findConfigModuleForm(identify);
+                if(configModule){
+                    const installed = Boolean(configModule.requireInstall || configModule.isInstall);
+                    if(installed){this.syncModuleStartParams(false)}
+                    return Promise.resolve({installed, releaseNameConflict:false});
+                }
+            }
             return panelApi.get('/zpk/out-depends/env',{
                 params:{
                     identifie: identify,
@@ -1227,11 +1218,17 @@ export default {
                 if(res.data?.installed && !releaseNameConflict){
                     // 如果安装，替换
                     let envs = res.data?.envs || {};
+                    const dependencyModuleNames = new Set([
+                        dependency.identifie,
+                        identify,
+                    ].filter(Boolean).map(name=>this.normalizeDependencyIdentifie(name)));
                     this.form.forms.forEach(i=>{
                         i.startParams?.forEach(sp=>{
-                            if(sp.module_name!=dependency.identifie && sp.module_name!=identify){return}
-                            sp.value = sp.value.replace(/%([^%]+)%/g, (match, p1) => {
-                                return envs[p1] || p1;
+                            const moduleName = this.normalizeDependencyIdentifie(sp.module_name);
+                            if(!dependencyModuleNames.has(moduleName)){return}
+                            const template = String(sp.values_text || sp.value || '');
+                            sp.value = template.replace(/%([^%]+)%/g, (match, p1) => {
+                                return envs[p1] ?? match;
                             });
                         })
                     })
@@ -1286,7 +1283,7 @@ export default {
                 this.form.activeIdentifie = this.form.installForm?.[0];
             }else if(this.step==2){
                 const activeIndex = this.form.forms.findIndex(item=>item.identifie==this.form.activeIdentifie);
-                if(!this.syncDependencyStartParams(true,activeIndex)){return}
+                if(!this.syncModuleStartParams(true,activeIndex)){return}
                 // this.domainTest();
                 this.$refs['form-'+this.form.activeIdentifie][0].validate((valid)=>{
                     if(valid){return}
@@ -1303,7 +1300,7 @@ export default {
                         let index = this.form.installForm.findIndex(i=>i==this.form.activeIdentifie);
                         const nextIdentifie = this.form.installForm[index+1];
                         const nextIndex = this.form.forms.findIndex(item=>item.identifie==nextIdentifie);
-                        if(!this.syncDependencyStartParams(true,nextIndex)){return}
+                        if(!this.syncModuleStartParams(true,nextIndex)){return}
                         this.form.activeIdentifie = nextIdentifie;
                     }
                 });
@@ -1311,7 +1308,7 @@ export default {
         },
         // 安装
         install(){
-            if(!this.syncDependencyStartParams(true)){return}
+            if(!this.syncModuleStartParams(true)){return}
             let installOptions = this.form.forms.map(i=>{
                 let registry = this.mirror.find(m=>m.value==i.registry)
                 registry = {
@@ -1322,7 +1319,6 @@ export default {
                 }
                 let envKv = [];
                 i.startParams.map(j=>{
-                    if(this.isDependencyPVCName(j.name) && j.dependencySource){return}
                     if(j.type=='storage'){
                         for(let si in j.form){
                             let fi = j.form[si];
@@ -1679,7 +1675,7 @@ export default {
                             i.pvcname = this.storages?.find(i=>i.isDefault)?.name || this.storages?.[0]?.name;
                         }
                     })
-                    this.syncDependencyStartParams(false);
+                    this.syncModuleStartParams(false);
                 }
             });
         },
