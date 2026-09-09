@@ -1158,6 +1158,10 @@ export default {
         },
         // 获取模块名称
         async getTitleByMn(name){
+            const configModule = this.findConfigModuleForm(name);
+            if(configModule){
+                return configModule.name || configModule.identifie || name;
+            }
             return panelApi.get('/zpk/config',{params:{
                 repoUrl: 'https://zpk.w7.cc/zpk/respo/info/'+name,
                 thirdpartyCDToken: this.installInputParams.thirdpartyCDToken,
