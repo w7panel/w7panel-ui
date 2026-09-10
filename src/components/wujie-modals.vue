@@ -185,6 +185,7 @@
         :params="storeInstallDrawer.params"
         @needInstall="needStoreInstall"
         @installedStatusSuccess="handleStoreInstallSuccess"
+        @configured="handleStoreInstallConfigured"
         @close="closeStoreInstallDrawer"
     />
 
@@ -926,7 +927,20 @@ export default {
         handleStoreInstallSuccess(moduleName) {
             const callback = this.storeInstallDrawer.callback;
             this.storeInstallDrawer.callback = null;
-            callback?.(moduleName);
+            try {
+                callback?.(moduleName);
+            } finally {
+                this.closeStoreInstallDrawer();
+            }
+        },
+        handleStoreInstallConfigured(result) {
+            const callback = this.storeInstallDrawer.callback;
+            this.storeInstallDrawer.callback = null;
+            try {
+                callback?.(result);
+            } finally {
+                this.closeStoreInstallDrawer();
+            }
         },
         needStoreInstall(dependency, callback) {
             dependency = typeof dependency === 'string'

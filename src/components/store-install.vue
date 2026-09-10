@@ -7,13 +7,14 @@
 				<div class="mt-20 txt-r"><a-button type="primary" @click="installConflict.show=false">知道了</a-button></div>
 			</div>
 			<div v-else-if="installConflict.reason==='app_identify_exists'">
-				<a-alert v-if="installConflict.params || installConflict.retryConfig" type="warning">该订单已有应用安装记录，请先卸载原应用，或强制清除旧记录后重新安装。</a-alert>
+				<a-alert v-if="isCaptureMode" type="warning">该订单已有应用安装记录，采集模式不会强制清除或重新安装；请先在原面板卸载后重试。</a-alert>
+				<a-alert v-else-if="installConflict.params || installConflict.retryConfig" type="warning">该订单已有应用安装记录，请先卸载原应用，或强制清除旧记录后重新安装。</a-alert>
 				<a-alert v-else type="warning">该订单已有应用安装记录，请先卸载原应用后重试。</a-alert>
 				<div class="mt-10">原面板地址：<strong>{{ installConflict.panelUrl || '未知' }}</strong></div>
 				<div class="mt-20 df jc-e">
 					<a-button class="mr-10" @click="installConflict.show=false">取消</a-button>
 					<a-button class="mr-10" :disabled="!installConflict.panelUrl" @click="openOriginalPanel">前往原面板卸载</a-button>
-					<a-popconfirm v-if="installConflict.params || installConflict.retryConfig" content="强制清除会覆盖旧应用的安装记录，可能导致老应用状态丢失、无法继续升级。确定继续吗？" type="warning" position="bottom" @ok="forceReinstall">
+					<a-popconfirm v-if="!isCaptureMode && (installConflict.params || installConflict.retryConfig)" content="强制清除会覆盖旧应用的安装记录，可能导致老应用状态丢失、无法继续升级。确定继续吗？" type="warning" position="bottom" @ok="forceReinstall">
 						<a-button status="danger">强制清除并安装</a-button>
 					</a-popconfirm>
 				</div>
@@ -45,7 +46,7 @@
             <div class="line" :class="{active:step>2}"></div>
             <div class="df ai-c" :class="{'c-blue':step==3}">
                 <div class="no">2</div>
-                <div class="fs-14 lh-1">安装</div>
+                <div class="fs-14 lh-1">{{ isCaptureMode ? '保存配置' : '安装' }}</div>
             </div>
         </div>
 
@@ -64,19 +65,20 @@
                                 <div>
                                     <div v-for="item in installAlert[form.activeIdentifie]" :key="item.name" class="fs-14 c-99 mt-10">
                                         <!-- item.isInstall 是否已经安装某个依赖 -->
-                                        <span :class="(!item.releaseNameConflict&&(item.isInstall||item.allReplace))?'c-green':'c-red'" class="va-middle">检测到{{item.title || item.name}}，</span>
+                                        <span :class="isCaptureMode||(!item.releaseNameConflict&&(item.isInstall||item.allReplace))?'c-green':'c-red'" class="va-middle">检测到{{item.title || item.name}}，</span>
                                         <span>
-                                            <span v-if="item.releaseNameConflict" class="va-middle c-red">安装名称冲突，请重新加载安装配置</span>
+                                            <span v-if="isCaptureMode" class="va-middle c-green">将在初始化时按依赖顺序安装</span>
+                                            <span v-else-if="item.releaseNameConflict" class="va-middle c-red">安装名称冲突，请重新加载安装配置</span>
                                             <span v-else-if="item.isInstall" class="va-middle c-green">已安装</span>
                                             <span v-else-if="item.allReplace" class="va-middle c-green">无需安装</span>
                                             <span v-else class="va-middle c-red">未安装</span>
-                                            <icon-check-circle-fill v-if="!item.releaseNameConflict&&(item.isInstall||item.allReplace)" class="va-middle ml-4 c-green fs-14" />
+                                            <icon-check-circle-fill v-if="isCaptureMode||(!item.releaseNameConflict&&(item.isInstall||item.allReplace))" class="va-middle ml-4 c-green fs-14" />
                                             <icon-close-circle-fill v-else class="va-middle ml-4 c-red fs-14" />
                                             
-                                            <a-button v-if="item.releaseNameConflict" size="mini" class="ml-10 super-mini-btn" type="outline" @click="reloadInstallConfig">
+                                            <a-button v-if="!isCaptureMode&&item.releaseNameConflict" size="mini" class="ml-10 super-mini-btn" type="outline" @click="reloadInstallConfig">
                                                 重新加载
                                             </a-button>
-                                            <a-tooltip v-else-if="!item.isInstall" :content="item.required?'强制安装，必须先安装该应用后才可进行下一步操作':'不强制安装，可通过自定义填写对应的配置项来取消安装'">
+                                            <a-tooltip v-else-if="!isCaptureMode&&!item.isInstall" :content="item.required?'强制安装，必须先安装该应用后才可进行下一步操作':'不强制安装，可通过自定义填写对应的配置项来取消安装'">
                                                 <a-button size="mini" class="ml-10 super-mini-btn" type="outline" @click="$emit('needInstall',item,reloadInstallConfig);">
                                                     <template #icon><icon-download /></template>
                                                     <span v-if="item.required">必选安装</span>
@@ -92,7 +94,7 @@
                                 <div class="fs-14 c-99 mt-10">
                                     <span class="c-red va-middle">未安装主应用</span>
                                     <icon-close-circle-fill class="va-middle ml-4 c-red fs-14" />
-                                    <a-button size="mini" class="ml-10 super-mini-btn" type="outline" @click="$emit('needInstall',item.parentIdentifie,reloadInstallConfig);">
+                                    <a-button v-if="!isCaptureMode" size="mini" class="ml-10 super-mini-btn" type="outline" @click="$emit('needInstall',item.parentIdentifie,reloadInstallConfig);">
                                         <template #icon><icon-download /></template>
                                         <span>去安装</span>
                                     </a-button>
@@ -165,7 +167,7 @@
                                             <a-select v-model="item.pvcname" :disabled="item.pvcDisabled" placeholder="请选择存储">
                                                 <a-option v-for="item in storages" :key="item.name" :value="item.name">{{item.name}}</a-option>
                                             </a-select>
-                                            <span @click="sdShow=true;" class="ml-10 c-blue cursor" style="flex-shrink:0;">新建</span>
+                                            <span v-if="!isCaptureMode" @click="sdShow=true;" class="ml-10 c-blue cursor" style="flex-shrink:0;">新建</span>
                                         </div>
                                         <table v-if="item.volumesMounts&&item.volumesMounts.length" class="com-table mt-16"><tbody>
                                             <tr>
@@ -225,7 +227,7 @@
                 </a-tabs>
                 <div class="df ai-c jc-b mt-30">
                     <a-button @click="prevStep">上一步</a-button>
-                    <a-button type="primary" @click="nextStep">下一步</a-button>
+                    <a-button type="primary" @click="nextStep">{{ isCaptureMode && form.activeIdentifie==form.installForm?.[form.installForm.length-1] ? '保存配置' : '下一步' }}</a-button>
                 </div>
             </div>
             <div v-else-if="step==3">
@@ -302,7 +304,7 @@ import shortuuid from 'short-uuid';
 
 export default {
     props: ['is_component','path_identifie','version','release_name','start_params','install_params'],
-    emits: [ 'complete' ],
+    emits: [ 'complete', 'configured' ],
     data(){
         return {
             namespaceActive: '',
@@ -392,7 +394,9 @@ export default {
         }
     },
     async created(){
-        this.namespaceActive = useNamespaceStore().namespace;
+        this.namespaceActive = this.isCaptureMode && this.installInputParams.namespace
+            ? this.installInputParams.namespace
+            : useNamespaceStore().namespace;
         this.init();
     },
     components: {
@@ -407,6 +411,9 @@ export default {
     computed: {
         installInputParams(){
             return this.is_component ? (this.install_params || {}) : (this.$route.query || {});
+        },
+        isCaptureMode(){
+            return this.installInputParams.mode === 'capture';
         },
     },
     methods: {
@@ -431,15 +438,36 @@ export default {
                 return {};
             }
         },
+        capturedInstallOption(identifie){
+            if(!this.isCaptureMode){return null}
+            return (this.installInputParams.installOptions || []).find(item=>{
+                return this.normalizeDependencyIdentifie(item?.identifie) === this.normalizeDependencyIdentifie(identifie);
+            }) || null;
+        },
+        capturedStartParamValues(identifie){
+            const option = this.capturedInstallOption(identifie);
+            return Object.fromEntries((option?.envKv || option?.envkv || []).map(item=>[item.name,item.value]));
+        },
         moduleInstallParams(identifie, index){
             const input = this.installInputParams || {};
             const modules = input.modules && typeof input.modules === 'object' ? input.modules : {};
+            const capturedOption = this.capturedInstallOption(identifie);
+            const captured = capturedOption ? {
+                enabled: Number(capturedOption.replicas || 0) > 0,
+                pvcName: capturedOption.pvcname || '',
+                parentReleaseName: capturedOption.parentReleaseName || '',
+                dockerRegistrySecretName: capturedOption.dockerRegistrySecretName || '',
+                preSubPath: capturedOption.preSubPath,
+                volumes: capturedOption.volumes,
+                volumesMounts: capturedOption.volumesMounts,
+                annotations: capturedOption.annotations,
+            } : {};
             const hasDirect = this.hasOwn(input, identifie);
             const hasModule = this.hasOwn(modules, identifie);
             const direct = this.parseModuleInstallParams(hasDirect ? input[identifie] : null);
             const module = this.parseModuleInstallParams(hasModule ? modules[identifie] : null);
-            const values = {...direct, ...module};
-            let provided = (this.is_component ? hasDirect : Boolean(input[identifie])) || hasModule;
+            const values = {...captured, ...direct, ...module};
+            let provided = Boolean(capturedOption) || (this.is_component ? hasDirect : Boolean(input[identifie])) || hasModule;
             if(Number(index) === 0){
                 ['pvcName','preSubPath'].forEach(key=>{
                     if(this.hasOwn(input, key)){
@@ -450,7 +478,7 @@ export default {
             }
             return {
                 provided,
-                enabled: values.enabled !== false,
+                enabled: capturedOption ? Boolean(values.enabled) : values.enabled !== false,
                 values,
             };
         },
@@ -523,8 +551,9 @@ export default {
             await this.getMirror();
             await this.getIngressclassList();
             // 第一步域名
-            if(this.installInputParams.domain){
-                let domain = this.decodeInstallParam(this.installInputParams.domain);
+            const configuredDomain = this.installInputParams.domain || this.installInputParams.ingressHost;
+            if(configuredDomain){
+                let domain = this.decodeInstallParam(configuredDomain);
                 let match = domain.match(/^(http(s)?:\/\/)(.*)$/)
                 if(match){
                     this.form.ingressHostPre = match[1];
@@ -532,15 +561,23 @@ export default {
                     this.form.auto_ssl = this.form.ingressHostPre == 'https://';
                 }else{
                     this.form.ingressHost = domain;
+                    this.form.ingressHostPre = this.installInputParams.ingressForceHttps ? 'https://' : 'http://';
+                    this.form.auto_ssl = Boolean(this.installInputParams.ingressForceHttps);
                 }
                 this.whiteList = [];
                 this.domainRules = [this.domainRules[0]];
-                this.form.ingressDisabled = true;
+                this.form.ingressDisabled = !this.isCaptureMode;
                 this.configConsole.isSelect = false;
             }else{
                 if(this.form.requireDomain && this.whiteList?.length && this.whiteList?.[this.form.whiteDomain]?.prefixRandom && !this.form.ingressHost){
                     this.form.ingressHost = this.createShortUuid();
                 }
+            }
+            if(this.installInputParams.ingressSeletorName){
+                this.form.ingressSeletorName = this.installInputParams.ingressSeletorName;
+            }
+            if(this.installInputParams.ingressClass){
+                this.form.ingressclass = this.installInputParams.ingressClass;
             }
             this.nextStep();
         },
@@ -748,7 +785,10 @@ export default {
             return panelApi.get('/zpk/config',{params:{
                 repoUrl: this.path,
                 thirdpartyCDToken: this.installInputParams.thirdpartyCDToken,
-                releaseName: this.releaseName,
+                // Configuration capture describes a future installation. Do
+                // not let a same-named application in the management panel
+                // turn this request into an upgrade or conflict check.
+                releaseName: this.isCaptureMode ? '' : this.releaseName,
                 reinstall,
             },noAlert:true}).then(async res=>{
                 if(!res?.data){return true}
@@ -815,6 +855,7 @@ export default {
                         }]
                     }
                     const overrides = this.startParamOverrides(i.identifie, index);
+                    const capturedValues = this.capturedStartParamValues(i.identifie);
                     let startParams = [];
                     i?.startParams?.map(j=>{
                         let options = [];
@@ -825,8 +866,14 @@ export default {
                             j.type = 'select';
                         }
                         const hasOverride = this.hasOwn(overrides, j.name);
+                        const hasCapturedValue = this.hasOwn(capturedValues, j.name);
                         if(hasOverride){
                             value = String(overrides[j.name] ?? '');
+                        }else if(hasCapturedValue){
+                            value = String(capturedValues[j.name] ?? '');
+                            if(j.values_text === '%STORAGE_SIZE%'){
+                                value = value.replace(/Gi$/i,'');
+                            }
                         }
                         // 存储设备
                         if(j.values_text=='%STORAGE_SIZE%' || j.values_text=='%STORAGE_CLASS_NAME%' || j.values_text=='%STORAGE_RW_MODE%'){
@@ -844,7 +891,7 @@ export default {
                             if(find){
                                 find.form[names[j.values_text]] = {
                                     name: j.name,
-                                    value: hasOverride ? value : defaultVal[j.values_text],
+                                    value: hasOverride || hasCapturedValue ? value : defaultVal[j.values_text],
                                     values_text: j.values_text,
                                     lock: j.lock || hasOverride,
                                 }
@@ -853,7 +900,7 @@ export default {
                                 let form = {};
                                 form[names[j.values_text]] = {
                                     name: j.name,
-                                    value: hasOverride ? value : defaultVal[j.values_text],
+                                    value: hasOverride || hasCapturedValue ? value : defaultVal[j.values_text],
                                     values_text: j.values_text,
                                     lock: j.lock || hasOverride,
                                 }
@@ -995,12 +1042,27 @@ export default {
                     const moduleParams = this.moduleInstallParams(identifie, i).values;
                     if(Object.keys(moduleParams).length){
                         let querys = moduleParams;
-                        if(querys.pvcName){
+                        if(this.hasOwn(querys,'pvcName')){
                             f.pvcname = querys.pvcName;
-                            f.pvcDisabled = true;
+                            f.pvcDisabled = !this.isCaptureMode;
                         }
-                        if(querys.preSubPath){
+                        if(this.hasOwn(querys,'parentReleaseName')){
+                            f.parentReleaseName = querys.parentReleaseName;
+                        }
+                        if(this.hasOwn(querys,'dockerRegistrySecretName')){
+                            f.registry = querys.dockerRegistrySecretName;
+                        }
+                        if(this.hasOwn(querys,'preSubPath')){
                             f.preSubPath = querys.preSubPath;
+                        }
+                        if(Array.isArray(querys.volumes)){
+                            f.volumes = querys.volumes;
+                        }
+                        if(Array.isArray(querys.volumesMounts)){
+                            f.volumesMounts = querys.volumesMounts;
+                        }
+                        if(querys.annotations && typeof querys.annotations === 'object'){
+                            this.svAnnotations[identifie] = querys.annotations;
                         }
                     }
                     this.applyStartParamOverrides(f, i);
@@ -1176,6 +1238,7 @@ export default {
             })
         },
         validator(sp){
+            if(this.isCaptureMode){return {}}
             let find = this.installAlert[this.form.activeIdentifie]?.find(i=>i.name==sp.module_name);
             if(!find || find.isInstall || ((!find.required)&&find.replaceAll)){return {}}
             return {
@@ -1292,11 +1355,13 @@ export default {
                 this.$refs['form-'+this.form.activeIdentifie][0].validate((valid)=>{
                     if(valid){return}
                     if(this.form.activeIdentifie==this.form.installForm?.[this.form.installForm.length-1]){
-                        for(let i in this.installAlert[this.form.activeIdentifie]){
-                            let item = this.installAlert[this.form.activeIdentifie][i];
-                            if(item.releaseNameConflict || (!item.isInstall && item.required)){
-                                this.$message.warning('请安装'+item.title);
-                                return;
+                        if(!this.isCaptureMode){
+                            for(let i in this.installAlert[this.form.activeIdentifie]){
+                                let item = this.installAlert[this.form.activeIdentifie][i];
+                                if(item.releaseNameConflict || (!item.isInstall && item.required)){
+                                    this.$message.warning('请安装'+item.title);
+                                    return;
+                                }
                             }
                         }
                         this.install();
@@ -1399,6 +1464,18 @@ export default {
 				params.reinstall = true;
 			}
 
+            if(this.isCaptureMode){
+                const allowedKeys = ['repoUrl','namespace','releaseName','ingressHost','ingressForceHttps','ingressClass','ingressSeletorName','isTrandition','zipUrl'];
+                const spec = Object.fromEntries(allowedKeys.filter(key=>params[key]!==undefined).map(key=>[key,params[key]]));
+                spec.installOptions = params.installOptions.map(option=>{
+                    const captured = {...option};
+                    delete captured.registry;
+                    return captured;
+                });
+                this.$emit('configured', {spec});
+                return;
+            }
+
             panelApi.put('/zpk/install',params,{loading:true,noAlert:true}).then(res=>{
                 this.step = 3;
 
@@ -1462,6 +1539,7 @@ export default {
 			this.installConflict.show = false;
 		},
 		forceReinstall(){
+			if(this.isCaptureMode){return}
 			if(this.installConflict.retryConfig){
 				this.reinstallConfirmed = true;
 				this.installConflict.show = false;
