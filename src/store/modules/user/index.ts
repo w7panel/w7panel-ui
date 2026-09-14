@@ -68,13 +68,6 @@ const useUserStore = defineStore('user', {
                 // }
                 // let license_type = consoleData?.license_type;
 
-                // if (consoleData.cluster_id == "" && consoleData.thirdparty_cd_token != "") {
-                //     axios.post('/panel-api/v1/auth/console/register-to-console?offline_url=' + window.location.origin, {
-                //         offline_url: window.location.origin,
-                //         offlineUrl: window.location.origin,
-                //     }).then(() => { }).catch(() => { })
-                // }
-
                 // if (license_type == 'free') {
                 //     arr = arr.filter(i => i != 'system-user' && i != 'system-usergroup')
                 // }

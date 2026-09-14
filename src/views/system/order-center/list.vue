@@ -67,7 +67,7 @@ export default {
     },
     async created() {
         await panelApi.get("/auth/console/info").then(res=>{
-            this.clusterInfo.exist = res?.data?.is_register;
+            this.clusterInfo.exist = res?.data?.require_oauth === false && !!res?.data?.userinfo;
             this.clusterInfo.token = res?.data?.thirdparty_cd_token;
             if(this.clusterInfo.exist){
                 this.getList()

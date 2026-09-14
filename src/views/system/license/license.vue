@@ -152,7 +152,7 @@ export default {
         }
     },
     async created(){
-        await this.testRegister();
+        await this.checkAccountBinding();
         await this.getToken();
         this.getList();
     },
@@ -170,12 +170,12 @@ export default {
         }
     },
     methods: {
-        testRegister(){
+        checkAccountBinding(){
             return panelApi.get("/auth/console/info?code=test").then(res=>{
                 let data = res.data;
-                let is_register = data?.is_register;
-                if(!is_register){
-                    this.$message.error('请先完成注册')
+                const isBound = data?.require_oauth === false && !!data?.userinfo;
+                if(!isBound){
+                    this.$message.error('请先绑定云端账号')
                     this.$router.push('/system/cloud')
                     return Promise.reject();
                 }

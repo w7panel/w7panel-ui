@@ -74,13 +74,15 @@ cp -r dist/* $BASE_DIR/dist/kodata/
 
 ZPK 安装页会在读取配置和提交安装时识别结构化订单绑定冲突：域名冲突展示原绑定域名；应用引用冲突支持跳转原面板应用列表，按唯一应用标识定位并标记待卸载应用，或在风险确认后通过原有 `reinstall` 流程强制覆盖旧安装记录。
 
+多应用 ZPK 的安装页按启动参数的 `module_name` 解析依赖。安装器优先在 `/panel-api/v1/zpk/config` 返回的应用列表中匹配模块并替换 `%参数名%`，列表中没有时再查询已安装的外部依赖；`PVC_NAME` 同样使用这套规则。
+
 | 模块 | 路由 | 说明 |
 |------|------|------|
 | 集群概览 | `/cluster/overview` | 集群资源监控 |
 | 节点管理 | `/cluster/nodes` | K8s 节点管理 |
 | 应用列表 | `/app/apps` | 应用部署和管理 |
-| 应用详情 | `/app/appgroup/{id}` | 应用资源管理；MicroApp 菜单按所属 Binding 读取同名 `roleConfig`，并将制品提供的 `zpk-market` 服务中心统一展示 |
-| 顶部微应用 | `/appgroup/{id}` | 顶部应用菜单按所属 Binding 切换同名 `roleConfig`，依据 `load_mode` 和 `serverUrl` 加载对应页面 |
+| 应用详情 | `/app/appgroup/{id}` | 应用资源管理；兼容同名 MicroApp，并按 `w7.cc/group-name` 展示 AppGroup 下全部 MicroApp 菜单，各菜单按所属 Binding 读取同名 `roleConfig`；Wujie `group/appgroup` 保持为 AppGroup 名，`microappName` 标识当前 MicroApp |
+| 顶部微应用 | `/appgroup/{id}` | 兼容同名 MicroApp，并按 `w7.cc/group-name` 聚合同组全部 MicroApp 菜单；点击菜单时切换所属 MicroApp 和 Binding 运行配置，同时保持 Wujie AppGroup 上下文稳定 |
 | 容器列表 | `/app/appgroup/{id}/pod` | Pod/容器管理 |
 | 存储设备 | `/storage/disk` | Longhorn 存储 |
 | 资源浏览器 | `/cluster/resource` | K8s 资源浏览 |

@@ -23,7 +23,6 @@ export default {
   '* /panel-api/v1/auth/console/proxy/*path': '代理控制台请求',
   'GET /panel-api/v1/auth/userinfo': '获取登录用户信息',
   'GET /panel-api/v1/auth/permissions/routes': '获取 API 权限路由列表',
-  'POST /panel-api/v1/auth/console/register-to-console': '注册到控制台',
   'POST /panel-api/v1/auth/console/import-cert': '导入证书',
   'POST /panel-api/v1/auth/console/verify-cert': '校验证书',
   'POST /panel-api/v1/auth/console/import-cert-console': '导入控制台证书',

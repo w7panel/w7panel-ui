@@ -11,6 +11,41 @@
 ## 2026-08-28
 
 - 开发环境 Vite 代理默认指向本机 W7Panel 服务端 `http://172.16.1.18:18000`，便于本地联调。
+## 2026-09-10
+
+- 应用安装抽屉新增只采集配置、不调用安装接口的 `capture` 模式，并复用普通安装的参数初始化、表单校验和请求组装流程；配置结果经 Wujie 宿主回调返回给 CKM，编辑时可从已保存的 `installOptions`、域名和发布名称回填且保持可修改，避免回填值误用外部预设参数的锁定语义。
+- 采集模式不再跳转安装外部依赖、创建存储资源或在订单冲突时执行强制清除与重装，依赖由 CKM 初始化流程按拓扑顺序投递；返回结果会移除镜像仓库明文凭据以及集群 Token、面板地址等即时安装字段，避免采集过程改变现有安装状态，也避免未来安装配置携带管理面板会话数据。
+- 影响模块：ZPK 应用安装表单、应用安装抽屉与 Wujie 微应用宿主能力。
+- 验证：`npm run build` 生产构建与 `git diff --check` 通过。
+
+## 2026-09-09
+
+- 修复应用详情和顶部菜单在同一 AppGroup 包含多个 MicroApp 时，Wujie `appgroup/group` 被错误注入为当前 MicroApp 资源名的问题；两个字段现固定使用真实 AppGroup 名，并新增 `microappName` 标识当前 MicroApp。
+- iframe `proxy_request` 的 `${system.group}` 同步使用真实 AppGroup 名。
+- 影响模块：应用详情、顶部微应用、Wujie 宿主 props 协议。
+- 验证：`LOCAL_MOCK=true npm run build` 生产构建与 `git diff --check` 通过。
+
+## 2026-09-07
+
+- 应用详情左侧菜单除兼容读取与 AppGroup 同名的 MicroApp 外，会按 `w7.cc/group-name` 定向读取并展示同组全部 MicroApp；切换菜单时同步切换对应前端包和运行配置。
+- 影响模块：应用详情 MicroApp 菜单与前端包加载。
+- 验证：前端生产构建与 `git diff --check`。
+- 多应用 ZPK 安装页统一按启动参数 `module_name` 解析普通参数和 `PVC_NAME`，优先读取当前安装配置中的应用，再查询已安装的外部依赖。
+- 修正依赖参数名忽略大小写导致的误匹配，以及存储容量依赖值重复追加 `Gi` 的问题。
+- 影响模块：ZPK 安装配置表单。
+- 验证：前端生产构建与 `git diff --check`。
+
+## 2026-09-03
+
+- 容器列表展开或收起时获取 Pod 指标不再携带 `local=1` 查询参数。
+- 影响模块：应用详情容器列表 metrics 请求。
+- 验证：已检查展开触发的请求参数并通过 `git diff --check`。
+
+## 2026-08-31
+
+- 应用详情 Pod 列表展开行获取指标时移除 `local=1` 查询参数，避免展开操作携带本地集群限定参数。
+- 影响模块：应用详情 Pod 列表指标请求。
+- 验证：已检查展开事件触发的 metrics 请求参数。
 
 ## 2026-08-26
 
@@ -161,3 +196,4 @@
 - 补齐网关管理“统计分析”路由 `/gateway/traffic`，复用现有流量统计页面，修复静态菜单配置指向不存在页面的问题；待浏览器联调验证。
 
 - 按产品约定撤销上述统计分析路由：该入口处于有意停用状态，保持不在网关路由中注册。
+2026-09-14: Updated repository ignore rules to retain only `.mcp.json`, `opencode.jsonc`, `AGENTS.md`, and `.gitignore` among untracked files; verified with Git ignore checks.

@@ -2,21 +2,14 @@
     <div class="df df-c padding-20" style="height:100%;">
         <route-breadcrumb />
         <div class="bg-white padding-20 fc">
-            <!-- <div class="steps mt-60">
-                <a-steps :current="step" label-placement="vertical">
-                    <a-step>登录云端</a-step>
-                    <a-step>云端注册</a-step>
-                </a-steps>
-            </div> -->
-            <div v-if="step==0||step==1" class="df df-c ai-c" style="margin-top:100px;">
+            <div v-if="step==0" class="df df-c ai-c" style="margin-top:100px;">
                 <img v-if="userInfo.avatar" :src="userInfo.avatar" alt="" @error="userInfo.avatar='';" class="img" />
                 <div v-else class="img imgempty df df-c ai-c jc-c c-ff" style="font-size:60px;">
                     <icon-user />
                 </div>
                 <div class="df df-c mt-40">
-                    <a-button v-if="step==0" type="primary" @click="oauth()">登录云端</a-button>
-                    <a-button v-else :disabled="true" type="primary">正在注册中</a-button>
-                    <div class="mt-10 c-99">登录微擎云端账号并注册集群</div>
+                    <a-button type="primary" @click="oauth()">登录云端</a-button>
+                    <div class="mt-10 c-99">绑定微擎云端账号</div>
                 </div>
             </div>
             <div v-if="step==2">
@@ -49,10 +42,6 @@
                                 </div>
                             </div>
                         </div>
-                    </descriptions-item>
-                    <descriptions-item label="注册地址">{{offline_url}}</descriptions-item>
-                    <descriptions-item v-if="userMode!=='cluster'" label="云端集群管理">
-                        <a href="https://c.w7.com/api/deploy/thirdparty_cd/redirect" target="_blank" class="c-blue cursor">点击批量管理集群<icon-launch class="ml-4" /></a>
                     </descriptions-item>
                     <descriptions-item v-if="userMode!=='cluster'" label="云端应用商店">
                         <a href="javascript:;" class="c-blue cursor" @click="$router.push('/app/cloudstore')">进入云端应用商店<icon-launch class="ml-4" /></a>
@@ -117,11 +106,8 @@ import { clearToken, getUserInfo } from '@/utils/auth';
 export default {
     data(){
         return {
-            is_register: false,
             require_oauth: true,
-            access_token: '',
             userInfo: {},
-            offline_url: '',
             step: 0,
             version: '',
             descriptions: [{
@@ -291,8 +277,6 @@ export default {
         getData(){
             panelApi.get("/auth/console/info?code=test").then(res=>{
                 let data = res.data;
-                this.offline_url = data?.offline_url;
-                this.is_register = data?.is_register;
                 this.require_oauth = data?.require_oauth;
 
                 this.license_type = data.license_type;
@@ -300,17 +284,13 @@ export default {
                 this.license_type_text = {'team':"团队版",'company':"企业版",'free':"免费版"}[data?.license_type] || data?.license_type || '';
                 
                 this.userInfo = data?.userinfo || {};
-                this.access_token = data?.access_token || '';
-                if(this.is_register){
+                if(data?.require_oauth === false && data?.userinfo){
                     this.step = 2;
                     panelApi.get('/app-info').then(res=>{
                         this.version = res?.data?.helmVersion;
                     })
-                }else if(this.require_oauth){
-                    this.step = 0;
                 }else{
-                    this.register();
-                    this.step = 1;
+                    this.step = 0;
                 }
             }).then(()=>{
                 // if(this.$route.query.forcebind=='true'){
@@ -327,19 +307,6 @@ export default {
                 window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+(window.location.href.replace('forcebind=true','forcebind=false'));
                 return;
             }
-        },
-        register(){
-            panelApi.post('/auth/console/register-to-console?offline_url='+window.location.origin).then(res=>{
-                this.$message.success('注册集群成功');
-                const returnPath = typeof this.$route.query.return === 'string' && this.$route.query.return.startsWith('/')
-                    ? this.$route.query.return
-                    : '';
-                if(returnPath){
-                    this.$router.replace(returnPath);
-                    return;
-                }
-                this.getData();
-            })
         },
     },
 

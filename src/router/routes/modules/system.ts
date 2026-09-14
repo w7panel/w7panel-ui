@@ -21,7 +21,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             name: 'cloud-cloud',
             component: () => import('@/views/system/cloud/cloud.vue'),
             meta: {
-                locale: '云端注册',
+                locale: '云端账号',
                 requiresAuth: true,
                 roles: ['*'],
                 key: 'system-cloud',
@@ -32,7 +32,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             name: 'cloud-register',
             component: () => import('@/views/system/cloud/register.vue'),
             meta: {
-                locale: '云端注册',
+                locale: '云端账号',
                 hideInMenu: true,
                 requiresAuth: true,
                 roles: ['*'],

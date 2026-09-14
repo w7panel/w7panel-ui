@@ -21,7 +21,8 @@
                         :appgroup="groupName"
                         :menuActive="menuActive"
                         @getinfo="v=>info=v"
-                        @getBindings="v=>bindings=v"
+                        @getMicroApps="v=>microApps=v"
+                        @menuResolved="v=>menuActive=v"
                         @changeAppMenu="changeAppMenu"
                     ></micro-container>
                 </div>
@@ -55,7 +56,7 @@ export default{
             menuActive: '',
             identifieList: [],
             info: {},
-            bindings: [],
+            microApps: [],
             groupName: '',
             hideAppMenu: false,
         }
@@ -73,7 +74,7 @@ export default{
             this.menuActive = v || this.$route.query.do || '';
             this.redirectLegacyAppDirect(this.menuActive);
         },
-        bindings(v){
+        microApps(v){
             this.getMenu(v)
         },
         group(v, oldV){
@@ -98,7 +99,7 @@ export default{
             this.identifie = '';
             this.identifieList = [];
             this.info = {};
-            this.bindings = [];
+            this.microApps = [];
             this.hideAppMenu = this.isHideMenu();
             this.groupName = this.group || this.$route.params.group;
             this.menuActive = this.do || this.$route.query.do || '';
@@ -117,7 +118,8 @@ export default{
         syncQueryDoMenu(){
             const routeDo = this.getRouteDo();
             if(routeDo){
-                this.menuActive = routeDo;
+                const activeMicroAppName = this.findMenu(this.menuActive)?.microAppName || '';
+                this.menuActive = this.findMenu(routeDo, activeMicroAppName)?.key || this.findMenu(routeDo)?.key || routeDo;
                 this.redirectLegacyAppDirect(routeDo);
                 return;
             }
@@ -126,11 +128,13 @@ export default{
         syncAppmicroMenu(){
             const appmicro = this.getAppmicroMenu();
             if(!appmicro){ return; }
-            this.menuActive = appmicro;
+            const activeMicroAppName = this.findMenu(this.menuActive)?.microAppName || '';
+            this.menuActive = this.findMenu(appmicro, activeMicroAppName)?.key || this.findMenu(appmicro)?.key || appmicro;
         },
         routeChange(v){
-            this.menuActive = v || '';
-            this.redirectLegacyAppDirect(this.menuActive);
+            const menu = this.findMenu(v);
+            this.menuActive = menu?.key || v || '';
+            this.redirectLegacyAppDirect(menu?.do || v);
         },
         redirectLegacyAppDirect(value){
             if(value !== LEGACY_APP_DIRECT_DO || !this.groupName){ return false; }
@@ -145,22 +149,32 @@ export default{
             });
             return true;
         },
-        getMenu(bindings){
+        getMenu(microApps){
 
             let userRole = getK8sinfo()['w7.cc/role'];
             
             let roles = []
             try{
-                let rl = bindings || [];
-                rl = rl.filter(i=>i.support == "thirdparty_cd")
-                rl.map(i=>{
-                    let menus = i.menu || [];
-                    menus.sort((a,b)=>b.displayorder-a.displayorder);
-                    menus = this.transformMenu(menus)
-                    roles.push({
-                        title: i.title || ROLE_NAME[i.name] || i.name,
-                        name: i.name,
-                        menus: menus,
+                const items = Array.isArray(microApps) ? microApps : [];
+                items.forEach(item=>{
+                    const microAppName = item?.metadata?.name || '';
+                    const bindings = (item?.spec?.bindings || []).filter(i=>i.support == "thirdparty_cd");
+                    bindings.forEach((binding, roleIndex)=>{
+                        let menus = (binding.menu || []).map(menu=>({
+                            ...menu,
+                            key: `${microAppName}:${menu.do}`,
+                            microAppName,
+                            location: menu.location || (binding.location === 'bottom' ? 'back' : binding.location),
+                        }));
+                        menus.sort((a,b)=>b.displayorder-a.displayorder);
+                        menus = this.transformMenu(menus)
+                        roles.push({
+                            key: `${microAppName}:${binding.name}:${roleIndex}`,
+                            title: binding.title || ROLE_NAME[binding.name] || binding.name,
+                            name: binding.name,
+                            microAppName,
+                            menus,
+                        })
                     })
                 })
             }catch{}
@@ -170,16 +184,34 @@ export default{
             if(userRole=='founder'){
                 this.roles = roles;
             }else{
-                let find = roles.find(i=>i.name==userRole)
-                this.roles = find?[find]:[];
+                this.roles = roles.filter(i=>i.name==userRole);
             }
-            if(this.do || this.$route.query.do){
-                this.menuActive = this.do || this.$route.query.do;
-            }else{
-                this.menuActive = this.getAppmicroMenu() || this.roles?.[0]?.menus?.find(i=>i.is_default==1)?.do || this.roles?.[0]?.menus?.[0]?.do || '';
-            }
-            this.redirectLegacyAppDirect(this.menuActive);
+            const requestedMicroAppName = this.$route.query?.microapp;
+            const requestedMenu = this.do || this.getRouteDo() || this.getAppmicroMenu() || this.menuActive;
+            const selectedMenu = this.findMenu(requestedMenu, requestedMicroAppName)
+                || this.roles.flatMap(role=>role.menus || []).find(menu=>menu.microAppName===requestedMicroAppName && menu.is_default==1)
+                || this.roles.flatMap(role=>role.menus || []).find(menu=>menu.microAppName===requestedMicroAppName)
+                || this.roles?.[0]?.menus?.find(i=>i.is_default==1)
+                || this.roles?.[0]?.menus?.[0];
+            this.menuActive = selectedMenu?.key || requestedMenu || '';
+            this.redirectLegacyAppDirect(selectedMenu?.do || requestedMenu);
 
+        },
+        findMenu(value, microAppName = ''){
+            const findInMenus = (menus = []) => {
+                for(const menu of menus){
+                    const matchesApp = !microAppName || menu.microAppName === microAppName;
+                    if(matchesApp && (menu.key === value || menu.do === value)){ return menu; }
+                    const child = findInMenus(menu.children);
+                    if(child){ return child; }
+                }
+                return null;
+            };
+            for(const role of this.roles){
+                const menu = findInMenus(role.menus);
+                if(menu){ return menu; }
+            }
+            return null;
         },
         isHideMenu(){
             const showMenu = this.showMenu ?? this.$route.query.showMenu;

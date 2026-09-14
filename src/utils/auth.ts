@@ -15,8 +15,23 @@ const ckmSession = () => (window as any).$wujie?.props;
 const isCkmSession = () => typeof ckmSession()?.getCkmPanelToken === 'function';
 const authPrefix = () => isCkmSession() ? ckmSession().getCkmPanelStoragePrefix() : (isSubapp ? PRE : '');
 
+const getDialogPanelToken = () => {
+    if (typeof window === 'undefined' || !window.location.pathname.includes('/dialog/appgroup/')) {
+        return '';
+    }
+
+    try {
+        return new URLSearchParams(window.location.search).get('paneltoken') || '';
+    } catch {
+        return '';
+    }
+};
+
 const isLogin = () => {
     if (isCkmSession()) return !!ckmSession().getCkmPanelToken();
+    if (getDialogPanelToken()) {
+        return true;
+    }
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
         return true;
     }
@@ -28,8 +43,16 @@ const isLogin = () => {
 
 const getToken = () => {
     if (isCkmSession()) return ckmSession().getCkmPanelToken();
+    const dialogPanelToken = getDialogPanelToken();
+    if (dialogPanelToken) {
+        return dialogPanelToken;
+    }
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
-        return (window as any)?.$wujie?.props?.paneltoken;
+        if((window as any)?.$wujie?.props?.closeSubaccountPanel && localStorage.getItem('iframe-w7panel-token')) {
+            return localStorage.getItem('iframe-w7panel-token') || ''
+        }else {
+            return (window as any)?.$wujie?.props?.paneltoken;
+        }
     }
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return (window as any)?.microApp?.getData()?.token;
@@ -144,6 +167,7 @@ const getK8sinfo = () => {
 };
 const setK8sinfo = (v) => {
     localStorage.setItem(authPrefix() + K8SINFO_KEY, JSON.stringify(v));
+    window.dispatchEvent(new CustomEvent('w7panel-k8sinfo-change'));
 };
 
 export { isLogin, getToken, setToken, clearToken,

@@ -60,14 +60,6 @@ export default async function useK3kinfo(){
             }
             let license_type = cData?.license_type;
 
-            let data = cData;
-            if (data.cluster_id == "" && data.thirdparty_cd_token != "") {
-                axios.post('/panel-api/v1/auth/console/register-to-console?offline_url=' + window.location.origin, {
-                    offline_url: window.location.origin,
-                    offlineUrl: window.location.origin,
-                }).then(() => { }).catch(() => { })
-            }
-
             if (license_type == 'free') {
                 arr = arr.filter(i => !['system-usergroup', 'usermanage/usergroup'].includes(i))
             }

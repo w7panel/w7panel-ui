@@ -1,5 +1,5 @@
 <script lang="tsx">
-  import { defineComponent, ref, h, compile, computed, watch } from 'vue';
+  import { defineComponent, ref, h, compile, computed, watch, onMounted, onUnmounted } from 'vue';
   import { useRoute, useRouter, RouteRecordRaw } from 'vue-router';
   import type { RouteMeta } from 'vue-router';
   import { useAppStore } from '@/store';
@@ -193,7 +193,17 @@
         return travel(menuTree.value as RouteRecordRaw[], [], true);
       };
 
-      const ckmname = getK8sinfo()['w7.cc/ckm-name'];
+      const ckmname = ref(getK8sinfo()['w7.cc/ckm-name'] || '');
+      const updateCkmName = () => {
+        ckmname.value = getK8sinfo()['w7.cc/ckm-name'] || '';
+      };
+
+      onMounted(() => {
+        window.addEventListener('w7panel-k8sinfo-change', updateCkmName);
+      });
+      onUnmounted(() => {
+        window.removeEventListener('w7panel-k8sinfo-change', updateCkmName);
+      });
       return () => (
         <div class="menu-panel">
           {showMicroBack.value ? (
@@ -201,7 +211,7 @@
               <icon-arrow-left class="c-blue" />
               <div class="ml-10">
                 <div class="b fs-16" style="line-height:18px;">云主机列表</div>
-                <div class="mt-8 fs-12 c-66">{ckmname}</div>
+                <div class="mt-8 fs-12 c-66">{ckmname.value}</div>
               </div>
             </div>
           ) : null}

@@ -179,11 +179,13 @@
         </a-spin>
     </a-modal>
 
-    <install-drawer
+    <store-install-drawer
         :show="storeInstallDrawer.show"
         :path="storeInstallDrawer.path"
+        :params="storeInstallDrawer.params"
         @needInstall="needStoreInstall"
         @installedStatusSuccess="handleStoreInstallSuccess"
+        @configured="handleStoreInstallConfigured"
         @close="closeStoreInstallDrawer"
     />
 
@@ -220,6 +222,7 @@ import domainStrategy from '@/components/domain-strategy.vue';
 import containerPlugin from '@/components/container-plugin.vue';
 import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';
 import buyServiceDialog from '@/components/buy-service-dialog.vue';
+import storeInstallDrawer from '@/components/store-install-drawer.vue';
 import installDrawer from '@/views/app/store/install-drawer.vue';
 
 export default {
@@ -310,6 +313,7 @@ export default {
             storeInstallDrawer: {
                 show: false,
                 path: '',
+                params: {},
                 callback: null,
             },
             storeInstallDependencies: {},
@@ -349,6 +353,7 @@ export default {
         containerPlugin,
         buildImageStatus,
         buyServiceDialog,
+        storeInstallDrawer,
         installDrawer,
     },
     methods: {
@@ -629,9 +634,14 @@ export default {
 
         // ========== 应用弹窗 ==========
         openApp(data) {
+            const token = data?.paneltoken || getToken();
+            const appPath = encodeURIComponent(data?.path || '');
+            const panelTokenQuery = token
+                ? '&paneltoken=' + encodeURIComponent(token)
+                : '';
             this.appDialog = {
                 show: true,
-                src: '/dialog/appgroup/' + data.appgroup + '/micro?do=' + encodeURIComponent(data?.path || ''),
+                src: '/dialog/appgroup/' + data.appgroup + '/micro?do=' + appPath + panelTokenQuery,
                 title: data?.title || '',
                 fullscreen: false,
             };
@@ -678,6 +688,9 @@ export default {
 
         // ========== 页面弹窗 ==========
         openPage(data) {
+            if(data.src?.includes('pod-webshell')) {
+                data.src = data.src + '&api_token=' + getToken()
+            }
             this.pageDialog = {
                 show: true,
                 src: data.src,
@@ -848,15 +861,27 @@ export default {
             path = encodeURIComponent(path);
             return this.toStoreInstall(path);
         },
-        openStoreInstall(path, callback) {
-            const installPath = this.normalizeStoreInstallPath(path);
+        openStoreInstall(pathOrOptions, optionsOrCallback, callback) {
+            const firstOptions = pathOrOptions && typeof pathOrOptions === 'object'
+                ? pathOrOptions
+                : {path: pathOrOptions};
+            const secondOptions = optionsOrCallback && typeof optionsOrCallback === 'object'
+                ? optionsOrCallback
+                : {};
+            const options = {...firstOptions, ...secondOptions};
+            let installPath = this.normalizeStoreInstallPath(options.path || options.repoUrl);
             if(!installPath){
                 this.$message.warning('缺少应用安装地址');
                 return false;
             }
+            installPath = this.appendStoreInstallOrder(installPath, options.orderSn || options.order_sn);
+            const successCallback = typeof optionsOrCallback === 'function'
+                ? optionsOrCallback
+                : (typeof callback === 'function' ? callback : null);
             this.storeInstallDrawer = {
                 show: false,
                 path: '',
+                params: {},
                 callback: null,
             };
             this.storeInstallDependencies = {};
@@ -864,7 +889,8 @@ export default {
                 this.storeInstallDrawer = {
                     show: true,
                     path: installPath,
-                    callback: typeof callback === 'function' ? callback : null,
+                    params: {...options, path: installPath},
+                    callback: successCallback,
                 };
             });
             return true;
@@ -878,10 +904,22 @@ export default {
             }
             return value;
         },
+        appendStoreInstallOrder(path, orderSn) {
+            const sn = String(orderSn || '').trim();
+            if(!path || !sn){return path}
+            try{
+                const url = new URL(path, window.location.origin);
+                url.searchParams.set('order_sn', sn);
+                return /^https?:\/\//i.test(path) ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+            }catch{
+                return path;
+            }
+        },
         closeStoreInstallDrawer() {
             this.storeInstallDrawer = {
                 show: false,
                 path: '',
+                params: {},
                 callback: null,
             };
             this.storeInstallDependencies = {};
@@ -889,7 +927,20 @@ export default {
         handleStoreInstallSuccess(moduleName) {
             const callback = this.storeInstallDrawer.callback;
             this.storeInstallDrawer.callback = null;
-            callback?.(moduleName);
+            try {
+                callback?.(moduleName);
+            } finally {
+                this.closeStoreInstallDrawer();
+            }
+        },
+        handleStoreInstallConfigured(result) {
+            const callback = this.storeInstallDrawer.callback;
+            this.storeInstallDrawer.callback = null;
+            try {
+                callback?.(result);
+            } finally {
+                this.closeStoreInstallDrawer();
+            }
         },
         needStoreInstall(dependency, callback) {
             dependency = typeof dependency === 'string'
