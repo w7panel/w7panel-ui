@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-09-14
+
+- 修复制品安装子应用的 `PVC_NAME` 已指定 `module_name`、但 `values_text` 为空时未完整继承来源应用 PVC 的问题；空值现在按 `%PVC_NAME%` 处理，并同时写入子应用的 `envKv` 和安装选项 `pvcname`。
+- 影响模块：多应用 ZPK 安装参数同步与提交。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
+
 ## 2026-09-09
 
 - 修复应用详情和顶部菜单在同一 AppGroup 包含多个 MicroApp 时，Wujie `appgroup/group` 被错误注入为当前 MicroApp 资源名的问题；两个字段现固定使用真实 AppGroup 名，并新增 `microappName` 标识当前 MicroApp。

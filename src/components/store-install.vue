@@ -668,7 +668,10 @@ export default {
                     if(!param?.module_name){continue}
                     const sourceForm = this.findConfigModuleForm(param.module_name,current);
                     if(!sourceForm){continue}
-                    const template = String(param.values_text || '');
+                    let template = String(param.values_text || '');
+                    if(!template.trim() && this.isDependencyPVCName(param.name)){
+                        template = '%PVC_NAME%';
+                    }
                     const placeholders = [...template.matchAll(/%([^%]+)%/g)];
                     if(!placeholders.length){continue}
                     let message = '';
@@ -693,6 +696,10 @@ export default {
                     }
                     param.value = value;
                     param.lock = true;
+                    if(this.isDependencyPVCName(param.name)){
+                        current.pvcname = value;
+                        current.pvcDisabled = true;
+                    }
                 }
             }
             return true;
