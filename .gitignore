@@ -1,16 +1,7 @@
 
-node_modules
-.DS_Store
-dist
-static
-dist-ssr
-*.local
-node_modules
-.DS_Store
-dist
-dist-ssr
-*.local
-pnpm-lock.yaml
-package-lock.json
-.gitconfig
-certs/
+# Ignore all untracked files except the explicitly retained agent configuration.
+*
+!.gitignore
+!.mcp.json
+!opencode.jsonc
+!AGENTS.md

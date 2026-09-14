@@ -6,6 +6,13 @@
 - 影响模块：多应用 ZPK 安装参数同步与提交。
 - 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
 
+## 2026-09-10
+
+- 应用安装抽屉新增只采集配置、不调用安装接口的 `capture` 模式，并复用普通安装的参数初始化、表单校验和请求组装流程；配置结果经 Wujie 宿主回调返回给 CKM，编辑时可从已保存的 `installOptions`、域名和发布名称回填且保持可修改，避免回填值误用外部预设参数的锁定语义。
+- 采集模式不再跳转安装外部依赖、创建存储资源或在订单冲突时执行强制清除与重装，依赖由 CKM 初始化流程按拓扑顺序投递；返回结果会移除镜像仓库明文凭据以及集群 Token、面板地址等即时安装字段，避免采集过程改变现有安装状态，也避免未来安装配置携带管理面板会话数据。
+- 影响模块：ZPK 应用安装表单、应用安装抽屉与 Wujie 微应用宿主能力。
+- 验证：`npm run build` 生产构建与 `git diff --check` 通过。
+
 ## 2026-09-09
 
 - 修复应用详情和顶部菜单在同一 AppGroup 包含多个 MicroApp 时，Wujie `appgroup/group` 被错误注入为当前 MicroApp 资源名的问题；两个字段现固定使用真实 AppGroup 名，并新增 `microappName` 标识当前 MicroApp。
@@ -167,3 +174,4 @@
 - 个人中心注册提示改为问号图标悬浮提示，并将“注册集群”保留为单行小字热点；已完成前端构建验证。
 - 个人中心注册提示调整为头像底部对齐，避免悬浮图标出现在头像中间；已完成前端构建验证。
 - 注册集群回跳逻辑支持携带站内返回地址，个人中心发起的注册完成后返回账号页；已完成前端构建验证。
+2026-09-14: Updated repository ignore rules to retain only `.mcp.json`, `opencode.jsonc`, `AGENTS.md`, and `.gitignore` among untracked files; verified with Git ignore checks.

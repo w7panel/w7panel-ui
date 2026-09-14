@@ -1,7 +1,7 @@
 <template>
     <div>
         <a-drawer :width="1000" :visible="visible" :mask-closable="false" @cancel="closeDrawer()" @open="init()" unmountOnClose :footer="false" :popup-container="$popupContainer">
-            <template #title>安装应用</template>
+            <template #title>{{ installParams.mode === 'capture' ? '配置应用' : '安装应用' }}</template>
             <store-install
                 v-if="zpkUrl"
                 :is_component="true"
@@ -12,6 +12,7 @@
                 @needInstall="needInstall"
                 @installed="installed"
                 @installedStatusSuccess="installedStatusSuccess"
+                @configured="configured"
                 @close="closeDrawer"
             />
         </a-drawer>
@@ -91,6 +92,9 @@ export default {
         },
         installedStatusSuccess(moduleName){
             this.$emit('installedStatusSuccess',moduleName);
+        },
+        configured(result){
+            this.$emit('configured',result);
         },
         needInstall(dependency, callback){
             dependency = typeof dependency === 'string' ? {identifie:dependency, name:dependency} : dependency;
