@@ -168,3 +168,4 @@
 - 个人中心注册提示改为问号图标悬浮提示，并将“注册集群”保留为单行小字热点；已完成前端构建验证。
 - 个人中心注册提示调整为头像底部对齐，避免悬浮图标出现在头像中间；已完成前端构建验证。
 - 注册集群回跳逻辑支持携带站内返回地址，个人中心发起的注册完成后返回账号页；已完成前端构建验证。
+2026-09-14: Updated repository ignore rules to retain only `.mcp.json`, `opencode.jsonc`, `AGENTS.md`, and `.gitignore` among untracked files; verified with Git ignore checks.
