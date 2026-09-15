@@ -58,6 +58,10 @@ const router = createRouter(({
         requiresAuth: false,
       },
     },
+    {
+      path: '/',
+      redirect: { name: 'cluster-panel' },
+    },
     ...appRoutes,
     REDIRECT_MAIN,
     NOT_FOUND_ROUTE,
