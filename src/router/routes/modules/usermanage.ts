@@ -36,16 +36,6 @@ const DASHBOARD: any = [{
             key: 'system-permission'
         },
     },{
-        path: 'user-resource',
-        name: 'user-resource',
-        component: ()=>import('@/views/system/users/user-resource.vue'),
-        meta: {
-            locale: '查看资源',
-            hideInMenu: true,
-            requireAuth: true,
-            rules: ['*'],
-        }
-    },{
     //     path: 'resource',
     //     name: 'system-resource',
     //     component: () => import('@/views/system/resource/list.vue'),

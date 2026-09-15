@@ -83,27 +83,6 @@ const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + 
 const microLogin = (window as any)?.w7_microapp?.site?.login || {};
 const isMicroAppDirect = Boolean((window as any)?.w7_microapp?.name);
 
-if(microLogin?.indexPage){
-    if(microLogin.indexPage=='resource' && !sessionStorage.getItem('passResourcePage')){
-        router.push({
-            path: '/',
-            query: router?.currentRoute?.value?.query || {},
-        });
-    }
-}else{
-    panelApi.get('/noauth/site/k3k-config',{
-        noAlert: true,
-        noTokenRequired: true,
-    }).then(res=>{
-        if(res?.data?.data?.indexpage=='resource' && !sessionStorage.getItem('passResourcePage')){
-            router.push({
-                path: '/',
-                query: router?.currentRoute?.value?.query || {},
-            });
-        }
-    }).catch(()=>{})
-}
-
 if(getToken()){
     panelApi.get('/k3k/info',{noAlert:true}).then(res=>{
         // already login
@@ -234,19 +213,12 @@ const beforeTest = async ()=>{
         timeout: LOGIN_REQUEST_TIMEOUT,
     }).then(async ()=>{
         let boo = await testWeihu()
-        if(boo){
-            router.push('/init-cluster')
-            return;
-        };
         const { redirect } = router.currentRoute.value.query;
         router.push(isMicroAppDirect ? '/' : (redirect? redirect : {name:'cluster-panel'} as any));
         Message.success({
             content: '登录成功',
         });
-    }).catch(()=>{
-        router.push('/init-cluster')
-        // router.push('/resource-loading')
-    });
+    }).catch(()=> router.push({name:'cluster-panel'}));
 }
 
 const submit = async ({ errors, values, })=>{
@@ -316,19 +288,7 @@ const handleSubmit = async (am?:any) => {
         if(k3kInfo?.['w7.cc/role']=='normal'){
             router.push('/appgroup/w7panel-ckm-root/micro')
         }else{
-            if(!loginData.isK3kUser){
-                await beforeTest();
-            }else{
-                let couponCode = router?.currentRoute?.value?.query?.couponCode || '';
-                
-                if(k3kInfo?.['w7.cc/need-create-order']=='true' || k3kInfo?.['w7.cc/need-renew']=='true'){
-                    router.push('/order-base?couponCode=' + couponCode);
-                }else if(k3kInfo?.['w7.cc/k3k-job-status']=='complete'){
-                    await beforeTest();
-                }else{
-                    router.push('/init-cluster')
-                }
-            }
+            await beforeTest();
         }
         const { rememberPassword } = loginConfig.value;
         const { username, password } = userInfo;

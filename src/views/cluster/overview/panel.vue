@@ -73,10 +73,6 @@
             <div class="bg-white padding-20 ml-20" style="width:400px;">
                 <div class="df ai-s jc-b">
                     <div class="title fs-16">系统信息</div>
-                    <div class="df ai-c">
-                        <a-button :href="'/order-base?expand=true'+cvmInfo.expandQuery" target="_blank" v-if="!inMicro&&((isCkmRequest&&cvmInfo.canExpandBuy && !cvmInfo.isExpired)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-expand']=='true'))" size="small" type="primary">扩容</a-button>
-                        <!-- <a-button size="small" type="primary" @click="submitExpand">扩容</a-button> -->
-                    </div>
                 </div>
                 <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || isCkmRequest" :model="quotsInfo" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="CPU" style="margin-bottom:0;">
@@ -97,7 +93,7 @@
                     </a-form-item>
                     <a-form-item v-if="quotsInfo.expiretime" label="到期时间" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.expiretime}}</span>
-                        <a v-if="!inMicro&&((isCkmRequest&&cvmInfo.canRenewBuy)||(userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-renew']=='true'))" class="c-blue cursor ml-20" target="_blank" :href="'/order-base?renew=true'+cvmInfo.renewQuery">续费</a>                    </a-form-item>
+                    </a-form-item>
                 </a-form>
                 <a-form v-else :model="info" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="集群版本" style="margin-bottom:0;">
@@ -569,10 +565,6 @@ export default {
         this.getDomain();
         this.getConfig();
 
-        panelApi.get('/k3k/overselling/current-resource').then(res=>{
-            this.maxBandwidth = res?.data?.bandwidth;
-        }).catch(()=>{})
-
         this.webshell = getWebshell();
         let webshelllink = '';
         if(window?.__POWERED_BY_WUJIE__){
@@ -587,10 +579,8 @@ export default {
     mounted(){
         this.mounted = true;
         this.getInfo();
-        window.addEventListener('message', this.paySuccess);
     },
     beforeUnmount(){
-        window.removeEventListener('message', this.paySuccess);
         Object.values(this.chartInstances).forEach(chart => {
             chart?.dispose();
         });
@@ -719,13 +709,6 @@ export default {
                 current += step;
             }
             return ticks;
-        },
-        paySuccess(e){
-            if(e?.data?.type!='paysuccess'){return}
-            this.payDrawer.show = false;
-        },
-        submitExpand(){
-            this.$router.push(`/order-base?expand=true`);
         },
         initInfo(){
             return panelApi.get('/k3k/info').then(res=>{

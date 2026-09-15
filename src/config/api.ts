@@ -45,7 +45,6 @@ export const API_PATHS = {
   // 集群管理 API
   CLUSTER_NODES: '/cluster/nodes',
   CLUSTER_K3K_INFO: '/k3k/info',
-  CLUSTER_K3K_INIT: '/k3k/init',
   CLUSTER_GPU_CONFIG: '/gpu/config',
   CLUSTER_LONGHORN_STATUS: '/longhorn/volumes/status',
   
