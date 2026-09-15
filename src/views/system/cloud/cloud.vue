@@ -21,11 +21,9 @@
                     <descriptions-item label="系统类型">
                         <span>{{license_type_text}}</span>
                         <!-- <span v-if="userMode!=='cluster'" class="ml-20 c-blue cursor" @click="openInputLicense">导入授权码</span> -->
-                        <span v-if="userMode!=='cluster'&&license_type=='free'" class="ml-20 c-blue cursor" @click="openBuyLicense">购买授权</span>
                     </descriptions-item>
                     <descriptions-item v-if="userMode!=='cluster'&&license_type!='free'" label="到期时间">
                         <span>{{license_end_time}}</span>
-                        <span v-if="userMode!=='cluster'" class="ml-20 c-blue cursor" @click="openBuyLicense">续费</span>
                     </descriptions-item>
                     <descriptions-item label="绑定账号">
                         <div class="df">
@@ -73,34 +71,11 @@
         </a-modal>
 
         
-        <a-modal :width="1000" title="支付" @cancel="payDrawer.show=false;" :visible="payDrawer.show" :footer="false" :mask-closable="false" class="pay-modal">
-            <iframe :src="payDrawer.url" frameborder="0" style="width:100%;height:660px;"></iframe>
-        </a-modal>
-        
-        <a-modal :visible="buyLicense.show" @ok="submitBuyLicense" @cancel="buyLicense.show = false" width="600px">
-            <template #title>购买授权</template>
-            <a-form ref="buylicense" :model="buyLicense" :rules="rules" auto-label-width="">
-                <a-form-item label="授权类型"  field="lt">
-                    <a-select v-model="buyLicense.lt" placeholder="请选择" @change="changeLt" size="large">
-                        <a-option v-for="(item,index) in buyLicense.license" :key="index" :label="item.license_text" :value="index"></a-option>
-                    </a-select>
-                </a-form-item>
-                <a-form-item label="授权时间" field="pid">
-                    <a-select v-model="buyLicense.pid" placeholder="请选择" size="large">
-                        <template v-if="buyLicense.lt>-1">
-                            <a-option v-for="(item,index) in buyLicense.license[buyLicense.lt].children" :key="index" :label="item.month_text" :value="item.product_id"></a-option>
-                        </template>
-                    </a-select>
-                </a-form-item>
-                <a-form-item label="价格">{{ buyLicensePrice }}</a-form-item>
-            </a-form>
-        </a-modal>
     </div>
 </template>
 
 <script>
 import { panelApi } from '@/utils/api';
-import axios from 'axios'
 import { clearToken, getUserInfo } from '@/utils/auth';
 
 export default {
@@ -134,23 +109,6 @@ export default {
             userMode: '',
 
             
-            payDrawer: {
-                show: false,
-                ticket: '',
-                url: '',
-            },
-            buyLicense: {
-                show: false,
-                license: [],
-                lt: -1,
-                pid: '',
-            },
-            
-            rules:{
-                lt: [{required:true, trigger:'blur', message:"请选择授权类型"}],
-                pid: [{required:true, trigger:'blur', message:"请选择授权时间"}],
-                cluster: [{required:true, trigger:'blur', message:"请选择集群"}],
-            },
         }
     },
     created(){
@@ -166,19 +124,6 @@ export default {
             })
         }
     },
-    mounted(){
-        window.addEventListener('message', this.paySuccess);
-    },
-    beforeUnmount(){
-        window.removeEventListener('message', this.paySuccess);
-    },
-    computed: {
-        buyLicensePrice(){
-            if(!this.buyLicense.pid){ return ''; }
-            let find = this.buyLicense?.license[this.buyLicense?.lt]?.children?.find(i=>i.product_id == this.buyLicense.pid)
-            return find?.price || '';
-        }
-    },
     methods:{
         
         getToken(){
@@ -186,64 +131,6 @@ export default {
                 let thirdparty_cd_token = res?.data?.thirdparty_cd_token;
                 this.token = thirdparty_cd_token;
             });
-        },
-        openBuyLicense(){
-            axios.get('https://console.w7.cc/api/thirdparty-cd/k8s-offline/license/config',{
-                customToken: this.token,
-            }).then(res=>{
-                let data = res.data;
-                let license = [];
-                for(let i in data){
-                    let item = data[i];
-                    let o = {
-                        "product_id": item.product_id,
-                        "month": item.month,
-                        "month_text": item.month>=1200? '永久' : (item.month + '个月'),
-                        "price": item.price,
-                    }
-                    let find = license.find(li=>li.license_type==item.license_type);
-                    if(find){
-                        find.children.push(o);
-                    }else{
-                        license.push({
-                            license_type: item.license_type,
-                            license_text: {'team':"团队版",'company':"企业版",'free':"免费版"}[item.license_type] || item.license_type,
-                            children: [o],
-                        })
-                    }
-                }
-                this.buyLicense.license = license;
-                this.buyLicense.show = true;
-                if(license.length){
-                    this.buyLicense.lt = 0;
-                    this.changeLt();
-                }
-            })
-        },
-        changeLt(){
-            this.buyLicense.pid = this.buyLicense?.license?.[this.buyLicense?.lt]?.children?.[0]?.product_id || '';
-        },
-        submitBuyLicense(){
-            this.$refs.buylicense.validate((err) => {
-                if (err) { return; }
-                this.buyLicense.show = false;
-                panelApi.post('/k3k/order/license',{
-                    productId: this.buyLicense.pid,
-                },{loading: true}).then(res=>{
-                    let ticket = res?.data?.payinfo?.ticket;
-                    this.payDrawer = {
-                        show: true,
-                        ticket: ticket,
-                        url: `https://ip.w7.cc/pay/${ticket}?header=false&footer=false&paid_callback=https%3A%2F%2Fuser.w7.cc%2Forder`
-                    }
-                })
-            })
-        },
-        paySuccess(e){
-            if(e?.data?.type!='paysuccess'){return}
-            this.$message.success('操作成功');
-            this.payDrawer.show = false;
-            this.getData();
         },
 
 

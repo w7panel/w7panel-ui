@@ -29,65 +29,7 @@ const DASHBOARD: any = [
                 roles: ['*'],
             },
         },
-        {
-            path: "usermanage-resource",
-            name: "fp-usermanage-resource",
-            component: () => import('@/views/system/resource/list.vue'),
-            meta: {
-                requiresAuth: false,
-                roles: ['*'],
-            },
-        },
-        {
-            path: 'user-resource',
-            name: 'fp-user-resource',
-            component: ()=>import('@/views/system/users/user-resource.vue'),
-            meta: {
-                requiresAuth: false,
-                roles: ['*'],
-            },
-        }
     ],
-},{
-    path: "/init-cluster",
-    name: "init-cluster",
-    component: HEADER_LAYOUT,
-    redirect: '/init-cluster/index',
-    meta: {
-        hideInMenu: true,
-        requiresAuth: true,
-    },
-    children: [
-        {
-            path: 'index',
-            name: 'init-cluster-index',
-            component: () => import('@/views/init-cluster/index.vue'),
-            meta: {
-                requiresAuth: true,
-                roles: ['*'],
-            },
-        },
-    ]
-},{
-    path: "/order-base",
-    name: "order-base",
-    component: HEADER_LAYOUT,
-    redirect: '/order-base/index',
-    meta: {
-        hideInMenu: true,
-        requiresAuth: true,
-    },
-    children: [
-        {
-            path: 'index',
-            name: 'order-base-index',
-            component: () => import('@/views/init-cluster/order-base.vue'),
-            meta: {
-                requiresAuth: true,
-                roles: ['*'],
-            },
-        },
-    ]
 },{
     path: "/allow-register",
     name: "allow-register",
@@ -114,14 +56,6 @@ const DASHBOARD: any = [
 
         }
     ]
-},{
-    path: "/",
-    name: "cloud-resource",
-    component: () => import('@/views/init-cluster/cloud-resource.vue'),
-    meta: {
-        hideInMenu: true,
-        requiresAuth: false,
-    },
 },
 ];
 

@@ -197,3 +197,7 @@
 
 - 按产品约定撤销上述统计分析路由：该入口处于有意停用状态，保持不在网关路由中注册。
 2026-09-14: Updated repository ignore rules to retain only `.mcp.json`, `opencode.jsonc`, `AGENTS.md`, and `.gitignore` among untracked files; verified with Git ignore checks.
+## 2026-09-15
+
+- 独立子集群入口移除集群初始化、资源购买、超卖和 CVM 资源页面；登录成功后直接进入集群概览。
+- 保留 CKM 管理及 K3K 配置 CRD 的前端配置入口。

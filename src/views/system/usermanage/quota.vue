@@ -2,7 +2,6 @@
     <div class="df df-c padding-20" style="height:100%;">
         <div>
             <a-button type="primary" @click="add"><template #icon><icon-plus /></template>添加配额</a-button>
-            <a-button type="outline" @click="openOversold" class="ml-20">超卖配置</a-button>
         </div>
         
         <div class="mt-20">
@@ -65,89 +64,12 @@
             ></quota-config>
         </a-drawer>
 
-        <a-drawer
-            :visible="oversold.show"
-            direction="rtl"
-            :width="800"
-            title="超卖"
-            @ok="submitOversold"
-            @cancel="oversold.show=false;"
-        >
-            <a-form :model="oversold" auto-label-width>
-                <a-form-item label="CPU">
-                    <div class="df fc">
-                        <a-form-item label="节点资源">
-                            <a-input v-model="oversold.cpu" disabled>
-                                <template #append>核</template>
-                            </a-input>
-                        </a-form-item>
-                    </div>
-                    <div class="df fc ml-20">
-                        <a-form-item label="超卖比例">
-                            <a-input-number v-model="oversold.cpuPercent" :min="100">
-                                <template #append>%</template>
-                            </a-input-number>
-                        </a-form-item>
-                    </div>
-                </a-form-item>
-                <a-form-item label="内存">
-                    <div class="df fc">
-                        <a-form-item label="节点资源">
-                            <a-input v-model="oversold.memory" disabled>
-                                <template #append>Gi</template>
-                            </a-input>
-                        </a-form-item>
-                    </div>
-                    <div class="df fc ml-20">
-                        <a-form-item label="超卖比例">
-                            <a-input-number v-model="oversold.memoryPercent" :min="100">
-                                <template #append>%</template>
-                            </a-input-number>
-                        </a-form-item>
-                    </div>
-                </a-form-item>
-                <a-form-item label="存储">
-                    <div class="df fc">
-                        <a-form-item label="节点资源">
-                            <a-input v-model="oversold.storage" disabled>
-                                <template #append>Gi</template>
-                            </a-input>
-                        </a-form-item>
-                    </div>
-                    <div class="df fc ml-20">
-                        <a-form-item label="超卖比例">
-                            <a-input-number v-model="oversold.storagePercent" :min="100">
-                                <template #append>%</template>
-                            </a-input-number>
-                        </a-form-item>
-                    </div>
-                </a-form-item>
-                <a-form-item label="带宽">
-                    <div class="df fc">
-                        <a-form-item label="节点资源">
-                            <a-input v-model="oversold.bandwidth">
-                                <template #append>Mbps</template>
-                            </a-input>
-                        </a-form-item>
-                    </div>
-                    <div class="df fc ml-20">
-                        <a-form-item label="超卖比例">
-                            <a-input-number v-model="oversold.bandwidthPercent" :min="100">
-                                <template #append>%</template>
-                            </a-input-number>
-                        </a-form-item>
-                    </div>
-                </a-form-item>
-            </a-form>
-        </a-drawer>
-
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
 
     </div>
 </template>
 
 <script>
-import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 
 import axios from 'axios';
@@ -207,18 +129,6 @@ export default {
             storageLs: [],
             debug: false,
 
-            oversold: {
-                show: false,
-                exist: false,
-                cpu: 16,
-                cpuPercent: 100,
-                memory: 16,
-                memoryPercent: 100,
-                storage: 16,
-                storagePercent: 100,
-                bandwidth: 16,
-                bandwidthPercent: 100,
-            },
         }
     },
     created(){
@@ -232,89 +142,6 @@ export default {
         quotaConfig,
     },
     methods:{
-        async openOversold(){
-            
-            await panelApi.get('/metrics/usage/normal',{loading:true}).then(res=>{
-                let data = res.data;
-
-                let cpu = data?.cpu?.total || 0;
-                cpu = cpu / 1000;
-                cpu = Number(cpu.toFixed(2));
-                this.oversold.cpu = cpu;
-                
-                let memory = data?.memory?.total || 0;
-                memory = memory / 1024 / 1024 / 1024;
-                memory = Number(memory.toFixed(2));
-                this.oversold.memory = memory;
-
-            })
-            
-            await panelApi.get('/metrics/usage/disk').then(res=>{
-                let data = res?.data;
-
-                let fs = data?.disk?.total || 0;
-                fs = fs / 1024 / 1024 / 1024;
-                fs = Number(fs.toFixed(2));
-                this.oversold.storage = fs;
-            });
-            
-            this.oversold = {
-                ...this.oversold,
-                cpuPercent: 1000,
-                memoryPercent: 1000,
-                storagePercent: 1000,
-                bandwidth: 1000,
-                bandwidthPercent: 1000,
-            };
-            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/config',{noAlert:true,loading:true}).then(res=>{
-                this.oversold.exist = true;
-                let spec = res.data.spec;
-                this.oversold.cpuPercent = Number(spec.cpu);
-                this.oversold.memoryPercent = Number(spec.memory);
-                this.oversold.storagePercent = Number(spec.storage);
-                this.oversold.bandwidthPercent = Number(spec.bandwidth);
-                this.oversold.bandwidth = Number(spec.bandwidthNum);
-            }).catch(()=>{
-                this.oversold.exist = false;
-            });
-
-            this.oversold.show = true;
-        },
-        async submitOversold(){
-            let exist = this.oversold.exist;
-            
-            let spec = {
-                cpu: Number(this.oversold.cpuPercent),
-                memory: Number(this.oversold.memoryPercent),
-                storage: Number(this.oversold.storagePercent),
-                bandwidth: Number(this.oversold.bandwidthPercent),
-                bandwidthNum: Number(this.oversold.bandwidth),
-            }
-
-            if(exist){
-                k8sproxy.patch("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/config",{spec},{
-                    loading: true,
-                    headers: {'Content-Type': 'application/merge-patch+json'},
-                }).then(()=>{
-                    this.$message.success('操作成功');
-                    this.oversold.show = false;
-                })
-            }else{
-                k8sproxy.post("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs", {
-                    apiVersion: 'w7panel.w7.com/v1alpha1',
-                    kind: 'OverSellingConfig',
-                    metadata: {
-                        name: 'config',
-                        labels: {},
-                        annotations: {},
-                    },
-                    spec,
-                },{loading:true}).then(res=>{
-                    this.$message.success('操作成功');
-                    this.oversold.show = false;
-                });
-            }
-        },
         getList(){
             k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps?labelSelector=type=quota",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
