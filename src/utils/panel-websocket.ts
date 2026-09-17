@@ -1,11 +1,20 @@
-// Browsers cannot set Authorization on a WebSocket handshake. Carry the scoped
+import { getToken } from './auth';
+
+// Browsers cannot set Authorization on a WebSocket handshake. Carry the panel
 // session in the offered protocols, never in the URL or the host cookie.
 export async function createPanelWebSocket(url: string) {
     const ckm = (window as any).$wujie?.props;
-    if (typeof ckm?.getCkmPanelToken !== 'function') return new WebSocket(url);
-    if (ckm.getCkmPanelExpiresAt() <= Date.now() / 1000 + 30) await ckm.refreshCkmPanelSession();
+    const isCkmSession = typeof ckm?.getCkmPanelToken === 'function';
+    if (isCkmSession && ckm.getCkmPanelExpiresAt() <= Date.now() / 1000 + 30) {
+        await ckm.refreshCkmPanelSession();
+    }
     const target = new URL(url, window.location.href);
     target.searchParams.delete('api-token');
     target.protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return new WebSocket(target.toString(), ['w7panel-ckm', 'w7panel-bearer.' + ckm.getCkmPanelToken()]);
+    const token = getToken();
+    if (!token) return new WebSocket(target.toString());
+
+    const protocols = ['w7panel-bearer.' + token];
+    if (isCkmSession) protocols.unshift('w7panel-ckm');
+    return new WebSocket(target.toString(), protocols);
 }

@@ -68,9 +68,23 @@ test('WebSocket keeps scoped token out of URL and renews without host refresh', 
         getCkmPanelToken: () => 'scoped', getCkmPanelExpiresAt: () => 1,
         refreshCkmPanelSession: async () => { renewed++; },
     } } };
-    const api = load('src/utils/panel-websocket.ts', { window, URL, WebSocket: class { constructor(url, protocols) { socket = { url, protocols }; } } });
+    const api = load('src/utils/panel-websocket.ts', { window, URL, WebSocket: class { constructor(url, protocols) { socket = { url, protocols }; } } }, { './auth': { getToken: () => 'scoped' } });
     await api.createPanelWebSocket('/panel-api/v1/exec?api-token=old&podName=test');
     assert.equal(renewed, 1);
     assert.equal(socket.url, 'wss://panel.test/panel-api/v1/exec?podName=test');
     assert.equal(socket.protocols[1], 'w7panel-bearer.scoped');
+});
+
+test('WebSocket authenticates a normal panel session without relying on cookies', async () => {
+    let socket;
+    const window = { location: { href: 'http://panel.test/app/apps', protocol: 'http:' } };
+    const api = load('src/utils/panel-websocket.ts', {
+        window, URL,
+        WebSocket: class { constructor(url, protocols) { socket = { url, protocols }; } },
+    }, { './auth': { getToken: () => 'panel-token' } });
+
+    await api.createPanelWebSocket('/panel-api/v1/exec?api-token=legacy&podName=test');
+    assert.equal(socket.url, 'ws://panel.test/panel-api/v1/exec?podName=test');
+    assert.equal(socket.protocols.length, 1);
+    assert.equal(socket.protocols[0], 'w7panel-bearer.panel-token');
 });

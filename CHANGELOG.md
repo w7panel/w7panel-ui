@@ -2,6 +2,10 @@
 
 ## 2026-09-17
 
+- 修复容器列表和 CKM 子面板 WebShell 在移除 `w7panel_session` Cookie 后无法建立连接的问题：所有终端 WebSocket 统一从当前面板会话取 token，通过 `w7panel-bearer.*` 子协议认证，并从 URL 清除遗留 `api-token`。
+- 影响模块：容器终端、节点终端与 CKM 子面板终端。
+- 验证：`node --test scripts/ckm-panel-session.test.cjs`、`npm run build` 与 `git diff --check`。
+
 - 应用列表点击应用时改用面板 `GET /microapp/:name/info` 判定 MicroApp，避免子用户因 Kubernetes RBAC 缺少 MicroApp 读取权限而无法继续跳转。
 - 影响模块：应用列表详情跳转。
 - 验证：`npm run build` 与 `git diff --check` 通过。
