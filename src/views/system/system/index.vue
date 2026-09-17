@@ -85,26 +85,32 @@
                 <contact-us></contact-us>
             </div>
             <div v-else-if="tab=='6'" class="padding-20">
-                <a-card title="微擎云端登录" :bordered="false" class="login-provider-card">
-                    <a-form auto-label-width>
-                        <a-form-item label="状态">
-                            <a-switch :model-value="true" disabled />
-                            <span class="ml-10 c-99">内置登录方式，默认开启且不可修改</span>
-                        </a-form-item>
-                    </a-form>
-                </a-card>
-                <a-card title="OIDC 登录" :bordered="false" class="login-provider-card mt-20">
-                    <a-form :model="loginConfig.oidc" auto-label-width>
-                        <a-form-item label="启用 OIDC"><a-switch v-model="loginConfig.oidc.enabled" /></a-form-item>
-                        <template v-if="loginConfig.oidc.enabled">
-                            <a-form-item label="Discovery URL" required><a-input v-model="loginConfig.oidc.discoveryUrl" placeholder="https://主集群/panel-api/v1/oidc/.well-known/openid-configuration" /></a-form-item>
-                            <a-form-item label="Client ID" required><a-input v-model="loginConfig.oidc.clientId" placeholder="主集群预先创建的 OIDC Client ID" /></a-form-item>
-                            <a-form-item label="Scopes"><a-input v-model="loginConfig.oidc.scopesText" placeholder="openid profile" /></a-form-item>
-                            <a-alert type="info">请在主集群 OIDCClient 中预先登记 callback URL：{{ oidcCallbackUrl }}</a-alert>
-                        </template>
-                        <a-form-item class="mt-20"><a-button type="primary" @click="submitLoginConfig">保存</a-button></a-form-item>
-                    </a-form>
-                </a-card>
+                <a-tabs v-model:active-key="loginTab" type="card-gutter">
+                    <a-tab-pane key="we7-cloud" title="微擎云端登录">
+                        <a-card :bordered="false" class="login-provider-card">
+                            <a-form auto-label-width>
+                                <a-form-item label="状态">
+                                    <a-switch :model-value="true" disabled />
+                                    <span class="ml-10 c-99">内置登录方式，默认开启且不可修改</span>
+                                </a-form-item>
+                            </a-form>
+                        </a-card>
+                    </a-tab-pane>
+                    <a-tab-pane key="oidc" title="OIDC 登录">
+                        <a-card :bordered="false" class="login-provider-card">
+                            <a-form :model="loginConfig.oidc" auto-label-width>
+                                <a-form-item label="启用 OIDC"><a-switch v-model="loginConfig.oidc.enabled" /></a-form-item>
+                                <template v-if="loginConfig.oidc.enabled">
+                                    <a-form-item label="Discovery URL" required><a-input v-model="loginConfig.oidc.discoveryUrl" placeholder="https://主集群/panel-api/v1/oidc/.well-known/openid-configuration" /></a-form-item>
+                                    <a-form-item label="Client ID" required><a-input v-model="loginConfig.oidc.clientId" placeholder="主集群预先创建的 OIDC Client ID" /></a-form-item>
+                                    <a-form-item label="Scopes"><a-input v-model="loginConfig.oidc.scopesText" placeholder="openid profile" /></a-form-item>
+                                    <a-alert type="info">请在主集群 OIDCClient 中预先登记 callback URL：{{ oidcCallbackUrl }}</a-alert>
+                                </template>
+                                <a-form-item class="mt-20"><a-button type="primary" @click="submitLoginConfig">保存</a-button></a-form-item>
+                            </a-form>
+                        </a-card>
+                    </a-tab-pane>
+                </a-tabs>
             </div>
         </div>
     </div>
@@ -122,6 +128,7 @@ export default{
         return {
             namespaceActive: 'default',
             tab: '4',
+            loginTab: 'we7-cloud',
             register: {},
             filing: {},
             domainParse: {},
