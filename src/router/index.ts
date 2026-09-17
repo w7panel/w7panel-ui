@@ -12,7 +12,7 @@ import useK3kinfo from '@/hooks/k3k-info';
 NProgress.configure({ showSpinner: false });
 
 const DYNAMIC_IMPORT_RELOAD_KEY = 'w7panel-dynamic-import-reloaded';
-const MICRO_APP_ALLOWED_ROUTE_NAMES = ['login', 'console-login'];
+const MICRO_APP_ALLOWED_ROUTE_NAMES = ['login', 'console-login', 'oidc-login-callback'];
 
 const isMicroAppDirect = () => Boolean((window as any)?.w7_microapp?.name);
 
@@ -54,6 +54,14 @@ const router = createRouter(({
       path: '/console-login',
       name: 'console-login',
       component: () => import('@/views/login/console-login.vue'),
+      meta: {
+        requiresAuth: false,
+      },
+    },
+    {
+      path: '/login/oidc/callback',
+      name: 'oidc-login-callback',
+      component: () => import('@/views/login/oidc-callback.vue'),
       meta: {
         requiresAuth: false,
       },

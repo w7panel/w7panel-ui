@@ -156,7 +156,7 @@ export default{
         }
     },
     methods: {
-        oidcCallbackUrl(){ return window.location.origin + '/panel-api/v1/auth/oidc/callback'; },
+        oidcCallbackUrl(){ return window.location.origin + '/login/oidc/callback'; },
         initLoginConfig(){
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/loginconfigs/default',{noAlert:true}).then(res=>{
                 const providers = res.data?.spec?.providers || [];
