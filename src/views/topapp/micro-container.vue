@@ -16,7 +16,7 @@
     </div>
 </template>
 <script>
-import { panelApi, k8sproxy } from '@/utils/api';
+import { panelApi } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import { getToken, getK8sinfo } from '@/utils/auth';
 import { bus, startApp, destroyApp } from "wujie";
@@ -31,7 +31,7 @@ import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { createOpenCkmPanel } from '@/utils/ckm-panel-session';
-import { RESOURCE_GROUP_LABEL, resourceListWithLabelSelector } from '@/utils/w7panel-resource';
+import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -285,29 +285,10 @@ export default{
         async loadMicroApps(appgroup){
             const selected = await panelApi.get(`/microapp/${appgroup}/info`).then(res=>res?.data);
             if(!selected){ return []; }
-            const groupName = selected?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
-                || String(selected?.metadata?.name || appgroup).replace(/-root$/, '');
-            const api = `/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/microapps`;
-            const [namedResponse, groupedResponse] = await Promise.all([
-                k8sproxy.get(`${api}/${encodeURIComponent(groupName)}`, {noAlert:true}).catch(()=>null),
-                k8sproxy.get(resourceListWithLabelSelector(api, `${RESOURCE_GROUP_LABEL}=${groupName}`), {noAlert:true}).catch(()=>null),
-            ]);
-            const resources = [selected, namedResponse?.data, ...(groupedResponse?.data?.items || [])];
-            const result = [];
-            const names = new Set();
-            resources.forEach(item=>{
-                const name = item?.metadata?.name;
-                const normalizedName = item === selected && item?.metadata?.labels?.['microapp.w7.cc/from'] === 'root'
-                    ? String(name || '').replace(/-root$/, '')
-                    : String(name || '');
-                const hasMenu = (item?.spec?.bindings || []).some(binding=>
-                    binding?.support === 'thirdparty_cd' && Array.isArray(binding?.menu) && binding.menu.length > 0
-                );
-                if(!name || names.has(normalizedName) || !hasMenu){ return; }
-                names.add(normalizedName);
-                result.push(item);
-            });
-            return result;
+            const hasMenu = (selected?.spec?.bindings || []).some(binding=>
+                binding?.support === 'thirdparty_cd' && Array.isArray(binding?.menu) && binding.menu.length > 0
+            );
+            return hasMenu ? [selected] : [];
         },
         async getFront(appgroup){
             this.loadingMicroApps = true;
