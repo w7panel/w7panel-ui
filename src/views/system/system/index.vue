@@ -4,6 +4,7 @@
         <div class="padding-20 bg-white">
             <a-tabs v-model:active-key="tab">
                 <a-tab-pane key="4" title="域名解析记录"></a-tab-pane>
+                <a-tab-pane v-if="isChildCluster" key="6" title="登录配置"></a-tab-pane>
             </a-tabs>
             <div v-if="tab=='1'">
                 <a-form ref="register" :model="register" auto-label-width class="padding-20">
@@ -83,6 +84,28 @@
             <div v-else-if="tab=='5'">
                 <contact-us></contact-us>
             </div>
+            <div v-else-if="tab=='6'" class="padding-20">
+                <a-card title="微擎云端登录" :bordered="false" class="login-provider-card">
+                    <a-form auto-label-width>
+                        <a-form-item label="状态">
+                            <a-switch :model-value="true" disabled />
+                            <span class="ml-10 c-99">内置登录方式，默认开启且不可修改</span>
+                        </a-form-item>
+                    </a-form>
+                </a-card>
+                <a-card title="OIDC 登录" :bordered="false" class="login-provider-card mt-20">
+                    <a-form :model="loginConfig.oidc" auto-label-width>
+                        <a-form-item label="启用 OIDC"><a-switch v-model="loginConfig.oidc.enabled" /></a-form-item>
+                        <template v-if="loginConfig.oidc.enabled">
+                            <a-form-item label="Discovery URL" required><a-input v-model="loginConfig.oidc.discoveryUrl" placeholder="https://主集群/panel-api/v1/oidc/.well-known/openid-configuration" /></a-form-item>
+                            <a-form-item label="Client ID" required><a-input v-model="loginConfig.oidc.clientId" placeholder="主集群预先创建的 OIDC Client ID" /></a-form-item>
+                            <a-form-item label="Scopes"><a-input v-model="loginConfig.oidc.scopesText" placeholder="openid profile" /></a-form-item>
+                            <a-alert type="info">请在主集群 OIDCClient 中预先登记 callback URL：{{ oidcCallbackUrl }}</a-alert>
+                        </template>
+                        <a-form-item class="mt-20"><a-button type="primary" @click="submitLoginConfig">保存</a-button></a-form-item>
+                    </a-form>
+                </a-card>
+            </div>
         </div>
     </div>
 </template>
@@ -102,12 +125,19 @@ export default{
             register: {},
             filing: {},
             domainParse: {},
+            loginConfig: {exist: false, providers: [], oidc: {enabled: false, discoveryUrl: '', clientId: '', scopesText: 'openid profile'}},
+            isChildCluster: false,
             permissionPackageList: [],
         }
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
         this.initDomainparse();
+        this.initLoginConfig();
+        panelApi.get('/noauth/site/login-config',{noAlert:true}).then(res=>{
+            const data = res.data?.data || res.data || {};
+            this.isChildCluster = data.childCluster === true || data.childCluster === 'true';
+        }).catch(()=>{});
     },
     components: {
         ContactUs,
@@ -115,9 +145,30 @@ export default{
     watch: {
         tab(v){
             if(v=='4'){this.initDomainparse()}
+            if(v=='6'){this.initLoginConfig()}
         }
     },
     methods: {
+        oidcCallbackUrl(){ return window.location.origin + '/panel-api/v1/auth/oidc/callback'; },
+        initLoginConfig(){
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/loginconfigs/default',{noAlert:true}).then(res=>{
+                const providers = res.data?.spec?.providers || [];
+                const oidc = providers.find(item=>item.type === 'oidc') || {};
+                this.loginConfig = {exist: true, providers, oidc: {enabled: Boolean(oidc.enabled), discoveryUrl: oidc.discoveryUrl || '', clientId: oidc.clientId || '', scopesText: (oidc.scopes || ['openid','profile']).join(' ')}};
+            }).catch(()=>{ this.loginConfig = {exist: false, providers: [], oidc: {enabled: false, discoveryUrl: '', clientId: '', scopesText: 'openid profile'}}; });
+        },
+        submitLoginConfig(){
+            const oidc = this.loginConfig.oidc;
+            if(oidc.enabled && (!oidc.discoveryUrl || !oidc.clientId)){ this.$message.error('启用 OIDC 时请填写 Discovery URL 和 Client ID'); return; }
+            const provider = {type: 'oidc', enabled: Boolean(oidc.enabled), discoveryUrl: oidc.discoveryUrl, clientId: oidc.clientId, scopes: oidc.scopesText.split(/[\s,]+/).filter(Boolean)};
+            const providers = (this.loginConfig.providers || []).filter(item=>item.type !== 'oidc');
+            providers.push(provider);
+            const body = {spec: {providers}};
+            const request = this.loginConfig.exist
+                ? k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/loginconfigs/default', body, {headers: {'Content-Type': 'application/merge-patch+json'}})
+                : k8sproxy.post('/apis/w7panel.w7.com/v1alpha1/loginconfigs', {apiVersion: 'w7panel.w7.com/v1alpha1', kind: 'LoginConfig', metadata: {name: 'default'}, ...body});
+            request.then(()=>{ this.$message.success('操作成功'); this.initLoginConfig(); }).catch(()=>{});
+        },
         selectFile(event){
             let files = event.target.files;
             if(!files.length){return}
@@ -379,4 +430,7 @@ export default{
 .upload{position:relative;}
 .upload input[type='file']{min-width:0; position:absolute; top:0; left:0; right:0; bottom:0; z-index:1; opacity:0; cursor:pointer;}
 
+</style>
+<style scoped>
+.login-provider-card{max-width:760px;}
 </style>

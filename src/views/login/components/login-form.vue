@@ -26,6 +26,7 @@
                     <div v-if="canInitUser.allowConsoleRegister" class="cursor c-blue" @click="consoleLogin">控制台登录</div>
                 </div>
                 <a-button type="primary" :disabled="$route.query.consolelogin=='1'" html-type="submit" long :loading="loading">登录</a-button>
+                <a-button v-if="canInitUser.oidcEnabled" long :loading="loading" @click="oidcLogin">使用 OIDC 登录</a-button>
             </a-space>
         </a-form>
         <a-form v-else ref="initForm" :model="canInitUser" class="login-form" layout="vertical" @submit="toInit">
@@ -98,6 +99,7 @@ const canInitUser = reactive({
     checkpwd: '',
     allowConsoleRegister: false,
     captchaEnabled: true,
+    oidcEnabled: false,
     configLoaded: false, // 配置是否已加载
 });
 const toInit = ({ errors, values, })=>{
@@ -147,13 +149,22 @@ const loadLoginConfig = () => {
 const waitLoginConfig = () => loadLoginConfigPromise || loadLoginConfig();
 loadLoginConfig();
 
+panelApi.get('/noauth/site/login-config', {noTokenRequired: true, noAlert: true, timeout: LOGIN_REQUEST_TIMEOUT}).then(res => {
+    let data:any = res.data?.data || res.data || {};
+    canInitUser.oidcEnabled = data.oidcEnabled === true || data.oidcEnabled === 'true';
+}).catch(()=>{});
+
 const consoleLogin = ()=>{
     let policyName = router?.currentRoute?.value?.query?.policyName || '';
     let couponCode = router?.currentRoute?.value?.query?.couponCode || '';
     window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+encodeURIComponent(window.location.origin + '/console-login?policyName=' + policyName + '&couponCode=' + couponCode);
 }
+const oidcLogin = ()=>{ window.location.href = '/panel-api/v1/auth/oidc/start'; }
 if(router?.currentRoute?.value?.query?.consolelogin=='1'){
     consoleLogin();
+}
+if(router?.currentRoute?.value?.query?.oidc_error){
+    errorMessage.value = String(router.currentRoute.value.query.oidc_error);
 }
 
 const loginConfig = useStorage('login-config', {
