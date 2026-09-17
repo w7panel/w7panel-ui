@@ -4,7 +4,7 @@
         <div class="padding-20 bg-white">
             <a-tabs v-model:active-key="tab">
                 <a-tab-pane key="4" title="域名解析记录"></a-tab-pane>
-                <a-tab-pane v-if="isChildCluster" key="6" title="登录配置"></a-tab-pane>
+                <a-tab-pane key="6" title="登录配置"></a-tab-pane>
             </a-tabs>
             <div v-if="tab=='1'">
                 <a-form ref="register" :model="register" auto-label-width class="padding-20">
@@ -116,7 +116,6 @@
     </div>
 </template>
 <script>
-import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 
 import axios from 'axios';
@@ -133,7 +132,6 @@ export default{
             filing: {},
             domainParse: {},
             loginConfig: {exist: false, providers: [], oidc: {enabled: false, discoveryUrl: '', clientId: '', scopesText: 'openid profile'}},
-            isChildCluster: false,
             permissionPackageList: [],
         }
     },
@@ -141,10 +139,6 @@ export default{
         this.namespaceActive = useNamespaceStore().namespace;
         this.initDomainparse();
         this.initLoginConfig();
-        panelApi.get('/noauth/site/login-config',{noAlert:true}).then(res=>{
-            const data = res.data?.data || res.data || {};
-            this.isChildCluster = data.childCluster === true || data.childCluster === 'true';
-        }).catch(()=>{});
     },
     components: {
         ContactUs,
