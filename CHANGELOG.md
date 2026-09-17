@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-09-17
+
+- 应用列表点击应用时改用面板 `GET /microapp/:name/info` 判定 MicroApp，避免子用户因 Kubernetes RBAC 缺少 MicroApp 读取权限而无法继续跳转。
+- 影响模块：应用列表详情跳转。
+- 验证：`npm run build` 与 `git diff --check` 通过。
+
 ## 2026-09-14
 
 - 修复制品安装子应用的 `PVC_NAME` 已指定 `module_name`、但 `values_text` 为空时未完整继承来源应用 PVC 的问题；空值现在按 `%PVC_NAME%` 处理，并同时写入子应用的 `envKv` 和安装选项 `pvcname`。

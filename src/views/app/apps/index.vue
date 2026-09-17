@@ -354,7 +354,7 @@ export default {
             let group = item.groupName || app?.group;
             if(!group){return}
             let microApp = null;
-            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps/'+ item.groupName, {noAlert:true}).then(res=>{
+            await panelApi.get('/microapp/'+ encodeURIComponent(item.groupName) +'/info', {noAlert:true}).then(res=>{
                 microApp = res?.data;
             }).catch(()=>{});
             if(microApp){
