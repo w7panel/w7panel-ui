@@ -21,51 +21,40 @@
                                 <IconUserGroup />
                                 <span class="ml-10">{{ role.title }}</span>
                             </div>
-                            <a-menu v-if="role.menus && role.menus.length" style="width:100%;" :level-indent="34" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
-                                <template v-for="menu in role.menus" :key="menu.key || menu.do">
-                                    <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.key || menu.do">
-                                        <template #icon>
-                                            <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                                            <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                                            <IconMenu v-else />
-                                        </template>
-                                        <span>{{menu.title}}</span>
-                                    </a-menu-item>
-                                    <a-sub-menu v-else :key="menu.key || menu.do">
-                                        <template #icon>
-                                            <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                                            <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                                            <IconMenu v-else />
-                                        </template>
-                                        <template #title>{{menu.title}}</template>
-                                        <a-menu-item v-for="submenu in menu.children" :key="submenu.key || submenu.do">{{submenu.title}}</a-menu-item>
+                            <a-menu v-if="role.menus && role.menus.length" style="width:100%;" :level-indent="role.isMultiMicroApp ? 20 : 34" :default-open-keys="role.isMultiMicroApp ? role.microApps.map(item => item.key) : []" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
+                                <template v-if="role.isMultiMicroApp">
+                                    <a-sub-menu v-for="microApp in role.microApps" :key="microApp.key">
+                                        <template #icon><IconApps /></template>
+                                        <template #title>{{ microApp.title }}</template>
+                                        <MicroappMenuItems :menus="microApp.menus" />
                                     </a-sub-menu>
                                 </template>
+                                <MicroappMenuItems v-else :menus="role.menus" />
                             </a-menu>
                         </div>
                     </div>
                     
                     <a-divider v-if="topMenuRoles.length && (bottomMenus.length || $route.name!='group-micro2')" style="margin:10px;width:auto;min-width:auto;" />
-                    <a-menu v-if="bottomMenus.length" style="width:100%;" :level-indent="34" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
-                        <template v-for="menu in bottomMenus" :key="menu.key || menu.do">
-                            <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.key || menu.do">
-                                <template #icon>
-                                    <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                                    <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                                    <IconMenu v-else />
+                    <template v-if="hasGroupedBottomRoles">
+                        <div v-for="role in bottomMenuRoles" :key="role.key || role.name">
+                            <div v-if="role.isMultiMicroApp" class="c-aa ml-20" style="padding:10px 0;">
+                                <IconUserGroup />
+                                <span class="ml-10">{{ role.title }}</span>
+                            </div>
+                            <a-menu style="width:100%;" :level-indent="role.isMultiMicroApp ? 20 : 34" :default-open-keys="role.isMultiMicroApp ? role.microApps.map(item => item.key) : []" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
+                                <template v-if="role.isMultiMicroApp">
+                                    <a-sub-menu v-for="microApp in role.microApps" :key="microApp.key">
+                                        <template #icon><IconApps /></template>
+                                        <template #title>{{ microApp.title }}</template>
+                                        <MicroappMenuItems :menus="microApp.menus" />
+                                    </a-sub-menu>
                                 </template>
-                                <span>{{menu.title}}</span>
-                            </a-menu-item>
-                            <a-sub-menu v-else :key="menu.key || menu.do">
-                                <template #icon>
-                                    <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                                    <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                                    <IconMenu v-else />
-                                </template>
-                                <template #title>{{menu.title}}</template>
-                                <a-menu-item v-for="submenu in menu.children" :key="submenu.key || submenu.do">{{submenu.title}}</a-menu-item>
-                            </a-sub-menu>
-                        </template>
+                                <MicroappMenuItems v-else :menus="role.menus" />
+                            </a-menu>
+                        </div>
+                    </template>
+                    <a-menu v-else-if="bottomMenus.length" style="width:100%;" :level-indent="34" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
+                        <MicroappMenuItems :menus="bottomMenus" />
                     </a-menu>
 
                     <div v-if="$route.name!='group-micro2'">
@@ -171,13 +160,14 @@ import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
-import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
+import { sortMicroAppsByOrder, splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { createOpenCkmPanel } from '@/utils/ckm-panel-session';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { RESOURCE_GROUP_LABEL, resourceListWithLabelSelector } from '@/utils/w7panel-resource';
 import AppDirect from '@/views/topapp/app-direct.vue';
+import MicroappMenuItems from '@/components/microapp-menu-items.vue';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -319,6 +309,12 @@ export default {
         topMenuRoles(){
             return this.menuLocationGroups.topRoles;
         },
+        bottomMenuRoles(){
+            return this.menuLocationGroups.bottomRoles;
+        },
+        hasGroupedBottomRoles(){
+            return this.menuLocationGroups.hasGroupedBottomRoles;
+        },
         bottomMenus(){
             return this.menuLocationGroups.bottomMenus;
         },
@@ -349,6 +345,7 @@ export default {
         formDrawer,
         wujieModals,
         AppDirect,
+        MicroappMenuItems,
     },
     beforeUnmount(){
         if(this.watchInterval){
@@ -789,9 +786,10 @@ export default {
 
             let roles = []
             try{
-                const items = Array.isArray(microApps) ? microApps : [];
+                const items = sortMicroAppsByOrder(Array.isArray(microApps) ? microApps : []);
                 items.forEach(item=>{
                     const microAppName = item?.metadata?.name || '';
+                    const microAppTitle = item?.spec?.title || microAppName;
                     let rl = (item?.spec?.bindings || []).filter(i=>i.support == "thirdparty_cd");
                     rl.forEach((i, roleIndex)=>{
                         let menus = i.menu || [];
@@ -799,6 +797,7 @@ export default {
                             ...menu,
                             key: `${microAppName}:${menu.do}`,
                             microAppName,
+                            microAppTitle,
                             location: menu.location || (i.location === 'bottom' ? 'back' : i.location),
                         }));
                         menus.sort((a,b)=>b.displayorder-a.displayorder);
@@ -806,9 +805,10 @@ export default {
 
                         roles.push({
                             key: `${microAppName}:${i.name}:${roleIndex}`,
-                            title: i.title || ROLE_NAME[i.name] || i.name,
+                            title: ROLE_NAME[i.name] || i.title || i.name,
                             name: i.name,
                             microAppName,
+                            microAppTitle,
                             menus: menus,
                         })
                     })

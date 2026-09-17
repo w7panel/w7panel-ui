@@ -35,6 +35,7 @@ import TopappMenu from '@/components/topapp-menu.vue';
 import { useNamespaceStore } from '@/store';
 import { getK8sinfo } from '@/utils/auth';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
+import { sortMicroAppsByOrder } from '@/utils/microapp-menu';
 import microContainer from './micro-container.vue'
 
 const LEGACY_APP_DIRECT_DO = '__topapp_app_direct__';
@@ -155,24 +156,27 @@ export default{
             
             let roles = []
             try{
-                const items = Array.isArray(microApps) ? microApps : [];
+                const items = sortMicroAppsByOrder(Array.isArray(microApps) ? microApps : []);
                 items.forEach(item=>{
                     const microAppName = item?.metadata?.name || '';
+                    const microAppTitle = item?.spec?.title || microAppName;
                     const bindings = (item?.spec?.bindings || []).filter(i=>i.support == "thirdparty_cd");
                     bindings.forEach((binding, roleIndex)=>{
                         let menus = (binding.menu || []).map(menu=>({
                             ...menu,
                             key: `${microAppName}:${menu.do}`,
                             microAppName,
+                            microAppTitle,
                             location: menu.location || (binding.location === 'bottom' ? 'back' : binding.location),
                         }));
                         menus.sort((a,b)=>b.displayorder-a.displayorder);
                         menus = this.transformMenu(menus)
                         roles.push({
                             key: `${microAppName}:${binding.name}:${roleIndex}`,
-                            title: binding.title || ROLE_NAME[binding.name] || binding.name,
+                            title: ROLE_NAME[binding.name] || binding.title || binding.name,
                             name: binding.name,
                             microAppName,
+                            microAppTitle,
                             menus,
                         })
                     })

@@ -1,7 +1,12 @@
 
-# Ignore all untracked files except the explicitly retained agent configuration.
+# Ignore all untracked files except explicitly retained project files.
 *
 !.gitignore
 !.mcp.json
 !opencode.jsonc
 !AGENTS.md
+!src/
+src/*
+!src/components/
+src/components/*
+!src/components/microapp-menu-items.vue

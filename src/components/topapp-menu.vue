@@ -19,9 +19,11 @@
             <a-menu
                 :show-collapse-button="appStore.device !== 'mobile'"
                 @collapse="setCollapse"
-                :level-indent="34"
+                :level-indent="hasGroupedMenuRoles ? 20 : 34"
                 style="width:100%;height:100%;"
                 v-model:selected-keys="selectMenu"
+                :open-keys="openMenuKeys"
+                @update:open-keys="setOpenMenuKeys"
                 @menu-item-click="handelMicroMenu"
             >
                 <template v-for="role in topMenuRoles" :key="role.key || role.name">
@@ -30,47 +32,34 @@
                         <span v-if="!collapsed" class="role-title">{{ role.title }}端</span>
                     </div>
                     <template v-if="role.menus && role.menus.length">
-                        <template v-for="menu in role.menus" :key="menu.key || menu.do">
-                            <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.key || menu.do">
-                                <template #icon>
-                                    <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                                    <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                                    <IconMenu v-else />
-                                </template>
-                                <span>{{menu.title}}</span>
-                            </a-menu-item>
-                            <a-sub-menu v-else :key="menu.key || menu.do">
-                                <template #icon>
-                                    <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                                    <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                                    <IconMenu v-else />
-                                </template>
-                                <template #title>{{menu.title}}</template>
-                                <a-menu-item v-for="submenu in menu.children" :key="submenu.key || submenu.do">{{submenu.title}}</a-menu-item>
+                        <template v-if="role.isMultiMicroApp">
+                            <a-sub-menu v-for="microApp in role.microApps" :key="microApp.key">
+                                <template #icon><IconApps /></template>
+                                <template #title>{{ microApp.title }}</template>
+                                <MicroappMenuItems :menus="microApp.menus" />
                             </a-sub-menu>
                         </template>
+                        <MicroappMenuItems v-else :menus="role.menus" />
                     </template>
                 </template>
                 <a-divider v-if="topMenuRoles.length && bottomMenus.length" class="menu-location-divider" />
-                <template v-for="menu in bottomMenus" :key="menu.key || menu.do">
-                    <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.key || menu.do">
-                        <template #icon>
-                            <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                            <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                            <IconMenu v-else />
+                <template v-if="hasGroupedBottomRoles">
+                    <template v-for="role in bottomMenuRoles" :key="`bottom:${role.key || role.name}`">
+                        <div v-if="role.isMultiMicroApp" class="role-header c-aa">
+                            <IconUserGroup />
+                            <span v-if="!collapsed" class="role-title">{{ role.title }}端</span>
+                        </div>
+                        <template v-if="role.isMultiMicroApp">
+                            <a-sub-menu v-for="microApp in role.microApps" :key="microApp.key">
+                                <template #icon><IconApps /></template>
+                                <template #title>{{ microApp.title }}</template>
+                                <MicroappMenuItems :menus="microApp.menus" />
+                            </a-sub-menu>
                         </template>
-                        <span>{{menu.title}}</span>
-                    </a-menu-item>
-                    <a-sub-menu v-else :key="menu.key || menu.do">
-                        <template #icon>
-                            <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                            <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                            <IconMenu v-else />
-                        </template>
-                        <template #title>{{menu.title}}</template>
-                        <a-menu-item v-for="submenu in menu.children" :key="submenu.key || submenu.do">{{submenu.title}}</a-menu-item>
-                    </a-sub-menu>
+                        <MicroappMenuItems v-else :menus="role.menus" />
+                    </template>
                 </template>
+                <MicroappMenuItems v-else :menus="bottomMenus" />
             </a-menu>
         </div>
     </a-layout-sider>
@@ -90,8 +79,11 @@
         <a-menu
             :show-collapse-button="appStore.device !== 'mobile'"
             @collapse="setCollapse"
+            :level-indent="20"
             style="width:100%;height:100%;"
             v-model:selected-keys="selectMenu"
+            :open-keys="openMenuKeys"
+            @update:open-keys="setOpenMenuKeys"
             @menu-item-click="handelMicroMenu"
         >
             <template v-for="role in topMenuRoles" :key="role.key || role.name">
@@ -100,47 +92,34 @@
                     <span class="role-title">{{ role.title }}端</span>
                 </div>
                 <template v-if="role.menus && role.menus.length">
-                    <template v-for="menu in role.menus" :key="menu.key || menu.do">
-                        <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.key || menu.do">
-                            <template #icon>
-                                <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                                <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                                <IconMenu v-else />
-                            </template>
-                            <span>{{menu.title}}</span>
-                        </a-menu-item>
-                        <a-sub-menu v-else :key="menu.key || menu.do">
-                            <template #icon>
-                                <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                                <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                                <IconMenu v-else />
-                            </template>
-                            <template #title>{{menu.title}}</template>
-                            <a-menu-item v-for="submenu in menu.children" :key="submenu.key || submenu.do">{{submenu.title}}</a-menu-item>
+                    <template v-if="role.isMultiMicroApp">
+                        <a-sub-menu v-for="microApp in role.microApps" :key="microApp.key">
+                            <template #icon><IconApps /></template>
+                            <template #title>{{ microApp.title }}</template>
+                            <MicroappMenuItems :menus="microApp.menus" />
                         </a-sub-menu>
                     </template>
+                    <MicroappMenuItems v-else :menus="role.menus" />
                 </template>
             </template>
             <a-divider v-if="topMenuRoles.length && bottomMenus.length" class="menu-location-divider" />
-            <template v-for="menu in bottomMenus" :key="menu.key || menu.do">
-                <a-menu-item v-if="!menu.children||!menu.children.length" :key="menu.key || menu.do">
-                    <template #icon>
-                        <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                        <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                        <IconMenu v-else />
+            <template v-if="hasGroupedBottomRoles">
+                <template v-for="role in bottomMenuRoles" :key="`bottom:${role.key || role.name}`">
+                    <div v-if="role.isMultiMicroApp" class="role-header c-aa">
+                        <IconUserGroup />
+                        <span class="role-title">{{ role.title }}端</span>
+                    </div>
+                    <template v-if="role.isMultiMicroApp">
+                        <a-sub-menu v-for="microApp in role.microApps" :key="microApp.key">
+                            <template #icon><IconApps /></template>
+                            <template #title>{{ microApp.title }}</template>
+                            <MicroappMenuItems :menus="microApp.menus" />
+                        </a-sub-menu>
                     </template>
-                    <span>{{menu.title}}</span>
-                </a-menu-item>
-                <a-sub-menu v-else :key="menu.key || menu.do">
-                    <template #icon>
-                        <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                        <span v-else-if="menu.icon" class="wi" :class="'wi-'+menu.icon"></span>
-                        <IconMenu v-else />
-                    </template>
-                    <template #title>{{menu.title}}</template>
-                    <a-menu-item v-for="submenu in menu.children" :key="submenu.key || submenu.do">{{submenu.title}}</a-menu-item>
-                </a-sub-menu>
+                    <MicroappMenuItems v-else :menus="role.menus" />
+                </template>
             </template>
+            <MicroappMenuItems v-else :menus="bottomMenus" />
         </a-menu>
     </a-drawer>
 </template>
@@ -151,6 +130,7 @@ import useResponsive from '@/hooks/responsive';
 import { useRoute } from 'vue-router'
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
+import MicroappMenuItems from '@/components/microapp-menu-items.vue';
 
 const props = defineProps([
     'roles',
@@ -223,7 +203,21 @@ filterMenu();
 watch(()=>props.roles,filterMenu)
 const menuLocationGroups = computed(() => splitMicroAppMenuRoles(roles.value));
 const topMenuRoles = computed(() => menuLocationGroups.value.topRoles);
+const bottomMenuRoles = computed(() => menuLocationGroups.value.bottomRoles);
+const hasGroupedBottomRoles = computed(() => menuLocationGroups.value.hasGroupedBottomRoles);
+const hasGroupedMenuRoles = computed(() => menuLocationGroups.value.isMultiMicroApp);
 const bottomMenus = computed(() => menuLocationGroups.value.bottomMenus);
+const groupedMicroAppKeys = computed(() => [
+    ...topMenuRoles.value,
+    ...bottomMenuRoles.value,
+].flatMap(role => role.isMultiMicroApp ? role.microApps.map(item => item.key) : []));
+const openMenuKeys = ref([]);
+watch(() => groupedMicroAppKeys.value.join('|'), () => {
+    openMenuKeys.value = [...groupedMicroAppKeys.value];
+}, { immediate: true });
+const setOpenMenuKeys = (keys) => {
+    openMenuKeys.value = keys;
+};
 // watch(()=>props.identifieList,()=>{
 //     showMenu.value = props.identifieList?.length>1 || roles.value?.length>1 || roles.value?.[0]?.menus?.length>1;
 // })
@@ -248,93 +242,6 @@ watch(()=>props.menuActive,defaultSelectMenu)
 watch(()=>route.params.group,defaultSelectMenu)
 watch(()=>route.query.do,defaultSelectMenu)
 watch(()=>route.query.appmicro,defaultSelectMenu)
-
-
-const elementsToSvg = (elementsArray, options = {})=>{
-    try {
-        // 校验输入格式（空数组也允许，后续自动创建默认svg）
-        if (!Array.isArray(elementsArray)) {
-            throw new Error('输入必须是数组');
-        }
-
-        // 1. 查找数组中的svg元素（任意位置）
-        const svgElementIndex = elementsArray.findIndex(item => item?.type === 'svg');
-        let svgRoot = null;
-        
-        // 有svg元素则取出并深拷贝，无则创建默认svg根元素
-        if (svgElementIndex !== -1) {
-            svgRoot = { ...elementsArray[svgElementIndex] };
-            // 从原数组中移除svg元素（避免后续重复处理）
-            elementsArray = [...elementsArray.slice(0, svgElementIndex), ...elementsArray.slice(svgElementIndex + 1)];
-        } else {
-            // 创建默认svg根元素
-            svgRoot = {
-                type: 'svg',
-                xmlns: 'http://www.w3.org/2000/svg', // 默认添加命名空间，保证兼容性
-                viewBox: '0 0 48 48' // 默认视图框，适配多数图标
-            };
-        }
-
-        // 2. 应用宽高（优先级：自定义 > svg元素原有值 > 默认24）
-        const defaultSize = 16;
-        svgRoot.width = options.width ?? svgRoot.width ?? defaultSize;
-        svgRoot.height = options.height ?? svgRoot.height ?? defaultSize;
-
-        // 3. 构建SVG根标签的属性字符串
-        const svgAttrs = [];
-        for (const [key, value] of Object.entries(svgRoot)) {
-            // 跳过type属性（已用于识别标签类型）
-            if (key === 'type') continue;
-            // 属性值转字符串（处理Number类型）
-            svgAttrs.push(`${key}="${String(value)}"`);
-        }
-        const svgStartTag = `<svg ${svgAttrs.join(' ')}>`;
-        const svgEndTag = `</svg>`;
-
-        // 4. 构建所有子元素的标签字符串（剩余所有元素都是子元素）
-        const childElementsStr = [];
-        for (const element of elementsArray) {
-            // 跳过无效元素（避免空值/非对象导致报错）
-            if (!element || typeof element !== 'object' || !element.type) {
-                console.warn('跳过无效元素：', element);
-                continue;
-            }
-
-            const { type, content, ...attrs } = element;
-
-            // 构建子元素属性字符串
-            const elementAttrs = [];
-            for (const [key, value] of Object.entries(attrs)) {
-                elementAttrs.push(`${key}="${String(value)}"`);
-            }
-
-            // 生成元素标签（区分有文本内容和无文本内容的元素）
-            if (content) {
-                // 有文本内容的元素（如text/title）
-                childElementsStr.push(`  <${type} ${elementAttrs.join(' ')}>${content}</${type}>`);
-            } else {
-                // 无文本内容的自闭合元素（如circle/path）
-                childElementsStr.push(`  <${type} ${elementAttrs.join(' ')} />`);
-            }
-        }
-
-        // 5. 拼接完整的SVG字符串（格式化缩进，便于阅读）
-        const svgContent = [
-            svgStartTag,
-            ...childElementsStr,
-            svgEndTag
-        ].join('\n');
-
-        return svgContent;
-
-    } catch (error) {
-        console.error('生成SVG失败:', error);
-        // 返回默认的SVG模板（使用自定义宽高或默认值24）
-        const defaultWidth = options.width ?? 16;
-        const defaultHeight = options.height ?? 16;
-        return `<svg width="${defaultWidth}" height="${defaultHeight}" xmlns="http://www.w3.org/2000/svg"></svg>`;
-    }
-}
 
 
 const drawerVisible = ref(false);
