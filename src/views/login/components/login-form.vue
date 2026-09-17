@@ -152,6 +152,9 @@ loadLoginConfig();
 panelApi.get('/noauth/site/login-config', {noTokenRequired: true, noAlert: true, timeout: LOGIN_REQUEST_TIMEOUT}).then(res => {
     let data:any = res.data?.data || res.data || {};
     canInitUser.oidcEnabled = data.oidcEnabled === true || data.oidcEnabled === 'true';
+    if(router?.currentRoute?.value?.query?.panellogin === '1' && canInitUser.oidcEnabled && !getToken()){
+        oidcLogin();
+    }
 }).catch(()=>{});
 
 const consoleLogin = ()=>{
