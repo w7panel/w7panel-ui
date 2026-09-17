@@ -226,3 +226,4 @@
 
 - CKM 微应用宿主仅通过 Panel API 查询唯一的 MicroApp，移除加载菜单时对 MicroApp CRD 的两条 `k8s-proxy` 请求。
 - 登录页支持 `?panellogin=1`：OIDC 已启用的子集群会自动进入既有 OIDC 授权流程。
+- 修复 OIDC 回调仅保存 token 而未初始化 `k3k/info`：普通用户现按角色进入 CKM，缺失本地 K8s 信息时不再导致导航与菜单读取 role/ckm-name 发生空值崩溃。

@@ -163,7 +163,7 @@ const getK8sinfo = () => {
     try{
         k8sinfo = JSON.parse(localStorage.getItem(authPrefix() + K8SINFO_KEY));
     }catch{}
-    return k8sinfo
+    return k8sinfo || {};
 };
 const setK8sinfo = (v) => {
     localStorage.setItem(authPrefix() + K8SINFO_KEY, JSON.stringify(v));

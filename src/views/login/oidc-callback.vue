@@ -7,6 +7,7 @@ import { onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { panelApi } from '@/utils/api';
 import { setRefreshToken, setToken } from '@/utils/auth';
+import useK3kinfo from '@/hooks/k3k-info';
 
 const route = useRoute();
 const router = useRouter();
@@ -28,7 +29,12 @@ onMounted(async () => {
     if (!data.token) throw new Error('OIDC 登录未返回 Panel Token');
     setToken(data.token);
     if (data.refreshToken) setRefreshToken(data.refreshToken);
-    router.replace({ name: 'cluster-panel' });
+    const { data: k3kInfo = {} } = await useK3kinfo().catch(() => ({ data: {} }));
+    router.replace({
+      path: k3kInfo?.['w7.cc/role'] === 'normal'
+        ? '/appgroup/w7panel-ckm-root/micro'
+        : '/cluster/panel',
+    });
   } catch (err: any) {
     router.replace({ name: 'login', query: { oidc_error: err?.response?.data?.error || err?.message || 'OIDC 登录失败' } });
   }
