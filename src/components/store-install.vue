@@ -705,10 +705,7 @@ export default {
                     if(!param?.module_name){continue}
                     const sourceForm = this.findConfigModuleForm(param.module_name,current);
                     if(!sourceForm){continue}
-                    let template = String(param.values_text || '');
-                    if(!template.trim() && this.isDependencyPVCName(param.name)){
-                        template = '%PVC_NAME%';
-                    }
+                    const template = param.name ? `%${param.name}%` : '';
                     const placeholders = [...template.matchAll(/%([^%]+)%/g)];
                     if(!placeholders.length){continue}
                     let message = '';
@@ -901,6 +898,7 @@ export default {
                                     value: hasOverride || hasCapturedValue ? value : defaultVal[j.values_text],
                                     values_text: j.values_text,
                                     lock: j.lock || hasOverride,
+                                    module_name: j.module_name,
                                 }
                                 find.value = find.form?.storageClassName?.value + find.form?.storageSize?.value;
                             }else{
@@ -910,6 +908,7 @@ export default {
                                     value: hasOverride || hasCapturedValue ? value : defaultVal[j.values_text],
                                     values_text: j.values_text,
                                     lock: j.lock || hasOverride,
+                                    module_name: j.module_name,
                                 }
                                 startParams.push({
                                     ...j,

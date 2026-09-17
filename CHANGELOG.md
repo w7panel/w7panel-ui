@@ -6,6 +6,10 @@
 - 影响模块：应用列表详情跳转。
 - 验证：`npm run build` 与 `git diff --check` 通过。
 
+- 制品安装页中带 `module_name` 的启动参数统一按自身 `name` 匹配配置接口应用列表中的同名来源参数，不再使用 `values_text` 决定同制品应用间的参数映射。
+- 影响模块：多应用 ZPK 安装参数同步与表单展示。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
+
 ## 2026-09-14
 
 - 修复制品安装子应用的 `PVC_NAME` 已指定 `module_name`、但 `values_text` 为空时未完整继承来源应用 PVC 的问题；空值现在按 `%PVC_NAME%` 处理，并同时写入子应用的 `envKv` 和安装选项 `pvcname`。
