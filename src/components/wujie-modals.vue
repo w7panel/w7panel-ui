@@ -846,10 +846,8 @@ export default {
             }
             return panelApi.post('/cp', params.toString(), {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            }).then(res => {
-                const token = getToken();
-                return '/panel-api/v1/download/' + data.name + '?api-token=' + token;
-            });
+            }).then(() => panelApi.post('/download-grants', {path: data.name}))
+              .then(grant => grant.data.url);
         },
 
         // ========== 应用商店安装 ==========

@@ -110,7 +110,7 @@ export default {
   'POST /panel-api/v1/longhorn/volumes/:volumeName/snapshot-purge': '清理 Longhorn 快照',
   'GET /panel-api/v1/static/:identifie/status': '获取静态资源状态',
   'POST /panel-api/v1/static/:namespace/download/:name': '下载静态资源',
-  'GET /panel-api/v1/static/proxy/:zpkUrl/:identifie/:version/frontend/*path': '代理访问静态前端资源',
+  'GET /panel-api/v1/static/proxy/:identifie/:version/frontend/*path': '代理访问静态前端资源',
   'DELETE /panel-api/v1/cluster/nodes/:name': '删除集群节点',
   'GET /panel-api/v1/cluster/nodes/:name/longhorn-replicas': '获取节点 Longhorn 副本',
   'POST /panel-api/v1/cluster/nodes/:name/longhorn-replicas/delete': '删除节点 Longhorn 副本',

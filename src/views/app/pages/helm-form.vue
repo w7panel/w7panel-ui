@@ -76,7 +76,6 @@ import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import axios from 'axios';
-import { getToken } from '@/utils/auth';
 import jsyaml from "js-yaml";
 
 export default {
@@ -172,10 +171,11 @@ export default {
             data.append('key', 'upload/helm/'+this.upload.filename);
 
             this.upload.uploading = true;
-            axios.post('/s3bucket',data).then(res=>{
+            axios.post('/s3bucket',data).then(async res=>{
                 this.upload.uploading = false;
                 let host = window?.microApp?.getData()?.baseURL || window.location.origin;
-                let url = host + '/panel-api/v1/download/upload/helm/' + this.upload.filename + '?api-token=' + getToken();
+                let grant = await panelApi.post('/download-grants', {path: 'upload/helm/' + this.upload.filename});
+                let url = host + grant.data.url;
                 this.form.chart = url;
             }).catch(()=>{this.upload.uploading = false;})
         },

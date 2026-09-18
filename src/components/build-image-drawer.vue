@@ -41,9 +41,8 @@
     </a-drawer>
 </template>
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import {useLoadingStore, useNamespaceStore} from "@/store";
-import { getToken } from '@/utils/auth';
 
 let templateData = {
     apiVersion: "w7panel.w7.com/v1alpha1",
@@ -167,7 +166,8 @@ export default{
                 const { handleFileUpload } = await import('@/views/app/pages/files.upload.js');
                 await handleFileUpload(this);
                 
-                this.form.downloadUrl = `${window.location.origin}/panel-api/v1/download/${this.upload.filename}?api-token=${getToken()}`
+                const grant = await panelApi.post('/download-grants', { path: this.upload.filename });
+                this.form.downloadUrl = window.location.origin + grant.data.url;
 
                 useLoadingStore().loading = false;
             }catch(err){
