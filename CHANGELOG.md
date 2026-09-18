@@ -2,6 +2,10 @@
 
 ## 2026-09-17
 
+- WebShell 增加固定 `w7panel-terminal` 子协议，认证凭据继续使用独立的 `w7panel-bearer.*`；Server 可明确协商终端协议，避免经 Vite/反向代理时握手无响应。
+- 影响模块：容器、节点和 CKM 子面板终端握手。
+- 验证：本地 Server/UI 实际 Pod Shell 握手返回 101。
+
 - 修复容器列表和 CKM 子面板 WebShell 在移除 `w7panel_session` Cookie 后无法建立连接的问题：所有终端 WebSocket 统一从当前面板会话取 token，通过 `w7panel-bearer.*` 子协议认证，并从 URL 清除遗留 `api-token`。
 - 影响模块：容器终端、节点终端与 CKM 子面板终端。
 - 验证：`node --test scripts/ckm-panel-session.test.cjs`、`npm run build` 与 `git diff --check`。

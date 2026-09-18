@@ -14,7 +14,9 @@ export async function createPanelWebSocket(url: string) {
     const token = getToken();
     if (!token) return new WebSocket(target.toString());
 
-    const protocols = ['w7panel-bearer.' + token];
+    // A fixed application protocol lets the Server complete subprotocol
+    // negotiation; the bearer protocol is consumed only by panel auth.
+    const protocols = ['w7panel-terminal', 'w7panel-bearer.' + token];
     if (isCkmSession) protocols.unshift('w7panel-ckm');
     return new WebSocket(target.toString(), protocols);
 }

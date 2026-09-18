@@ -72,7 +72,8 @@ test('WebSocket keeps scoped token out of URL and renews without host refresh', 
     await api.createPanelWebSocket('/panel-api/v1/exec?api-token=old&podName=test');
     assert.equal(renewed, 1);
     assert.equal(socket.url, 'wss://panel.test/panel-api/v1/exec?podName=test');
-    assert.equal(socket.protocols[1], 'w7panel-bearer.scoped');
+    assert.equal(socket.protocols[1], 'w7panel-terminal');
+    assert.equal(socket.protocols[2], 'w7panel-bearer.scoped');
 });
 
 test('WebSocket authenticates a normal panel session without relying on cookies', async () => {
@@ -85,6 +86,7 @@ test('WebSocket authenticates a normal panel session without relying on cookies'
 
     await api.createPanelWebSocket('/panel-api/v1/exec?api-token=legacy&podName=test');
     assert.equal(socket.url, 'ws://panel.test/panel-api/v1/exec?podName=test');
-    assert.equal(socket.protocols.length, 1);
-    assert.equal(socket.protocols[0], 'w7panel-bearer.panel-token');
+    assert.equal(socket.protocols.length, 2);
+    assert.equal(socket.protocols[0], 'w7panel-terminal');
+    assert.equal(socket.protocols[1], 'w7panel-bearer.panel-token');
 });
