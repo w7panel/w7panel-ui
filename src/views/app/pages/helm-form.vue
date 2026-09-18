@@ -132,8 +132,8 @@ export default {
         getYaml(){
             if(!this.form.repo){return;}
             // /k8s/v1/https:project-hami.github.io:443/proxy/HAMi/index.yaml
-            panelApi.get('/proxy-url/',{
-                params: {proxyUrl:this.form.repo.replace(/\/$/,'')+'/index.yaml'},
+            panelApi.get('/artifacts/helm-index',{
+                params: {repository:this.form.repo.replace(/\/$/,'')},
                 noAlert: true
             }).then(res=>{
                 let data = {};

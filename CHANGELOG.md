@@ -2,6 +2,9 @@
 
 ## 2026-09-17
 
+- Helm 仓库索引改用已认证的受限制品 API，传统代码包安装改为先签发短时下载票据；前端不再拼接可长期重放的下载 JWT URL。
+- 验证：待本次 `npm run build`。
+
 - 开发代理支持通过 `W7PANEL_PROXY_URL` 指定本地源码 Server，避免 Vite 在切换本地测试端口时继续使用旧的代理配置。
 - 影响模块：本地 UI/Server 联调。
 - 验证：待重启 Vite 后进行 Pod Shell 联调。

@@ -85,11 +85,13 @@ export default {
                 useLoadingStore().loading = true;
                 axios.post('/s3bucket',data,).then(res=>{
                     useLoadingStore().loading = false;
-                    let origin = window.origin;
-                    if(window.__MICRO_APP_ENVIRONMENT__){origin = window.microApp?.getData()?.requestUrl?.replace(/\/$/,'') || '';}
-                    let zip = origin + '/panel-api/v1/download/'+ 'upload/' + upname;
-                    let zpkUrl = this.envs[this.form.env].zpkUrl;
-                    this.$router.push(`/app/store-install?path=${encodeURIComponent(zpkUrl)}&zipUrl=${encodeURIComponent(zip)}&isTrandition=true`)
+                    panelApi.post('/download-grants', {path: 'upload/' + upname}).then(grant=>{
+                        let origin = window.origin;
+                        if(window.__MICRO_APP_ENVIRONMENT__){origin = window.microApp?.getData()?.requestUrl?.replace(/\/$/,'') || '';}
+                        let zip = origin + grant.data.url;
+                        let zpkUrl = this.envs[this.form.env].zpkUrl;
+                        this.$router.push(`/app/store-install?path=${encodeURIComponent(zpkUrl)}&zipUrl=${encodeURIComponent(zip)}&isTrandition=true`)
+                    }).catch(()=>this.$message.error('创建下载票据失败'))
                 }).catch(()=>{
                     useLoadingStore().loading = false;
                     this.$message.error('上传失败');
