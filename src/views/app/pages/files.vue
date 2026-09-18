@@ -888,7 +888,8 @@ export default {
         },
         fetchWebdavUrl(url, options={}){
             const headers = {
-                'Authorization': `Bearer ${this.outEditorInfo?.webdavToken || getToken()}`,
+                // webdavToken 是获取 PID 时的 Token 快照；登录 Token 刷新后应优先使用最新值。
+                'Authorization': `Bearer ${getToken() || this.outEditorInfo?.webdavToken}`,
                 ...(options.headers || {}),
             };
             return fetch(url, {
