@@ -886,6 +886,28 @@ export default {
         buildWebdavRequestUrl(path, trimTrailing=false){
             return `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${this.encodeWebdavPath(path, trimTrailing)}`;
         },
+        fetchWebdavUrl(url, options={}){
+            const headers = {
+                'Authorization': `Bearer ${this.outEditorInfo?.webdavToken || getToken()}`,
+                ...(options.headers || {}),
+            };
+            return fetch(url, {
+                ...options,
+                headers,
+                // 容器内文件可能随时被其他进程修改，禁止复用浏览器 HTTP 缓存。
+                cache: 'no-store',
+            });
+        },
+        fetchWebdav(path, options={}, trimTrailing=false){
+            return this.fetchWebdavUrl(this.buildWebdavRequestUrl(path, trimTrailing), options);
+        },
+        async readWebdavText(path){
+            const response = await this.fetchWebdav(path);
+            if(!response.ok){
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.text();
+        },
         buildDestinationHeader(path){
             const base = ('/' + (this.outEditorInfo?.webdavBasePath || '')).replace(/^\/+/, '/').replace(/\/$/, '');
             const normalizedPath = this.encodeWebdavPath(path);
@@ -932,10 +954,15 @@ export default {
         //         this.getUserByWebDAV();
         //     }
         // },
-        getUserByWebDAV(){
-            let url = `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}/etc/passwd`;
-            axios.get(url, { timeout: 5000, noAlert: true }).then(res=>{
-                const data = res?.data || '';
+        async getUserByWebDAV(){
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            try{
+                const response = await this.fetchWebdav('/etc/passwd', {signal: controller.signal});
+                if(!response.ok){
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.text();
                 if(data.includes('No such file') || data.includes('<!DOCTYPE') || data.includes('<html') || !data.includes(':') || data.length < 10){
                     console.warn('WebDAV returned invalid data for /etc/passwd');
                     return;
@@ -945,9 +972,11 @@ export default {
                     i.user = this.userArr.find?.(item=>item.id==Number(i.user))?.name || i.user;
                     return i;
                 })
-            }).catch(err => {
+            }catch(err){
                 console.error('获取用户列表失败:', err);
-            });
+            }finally{
+                clearTimeout(timeoutId);
+            }
         },
         // 是挂载目录 / 属于挂载目录
         testForever(path, isNotFile){
@@ -1028,11 +1057,12 @@ export default {
             //     window.open('/panel-api/v1/download/'+row.name+'?api-token='+token).focus()
             // })
             if(row.size < 50 * 1024 * 1024 || typeof window.$wujie?.props?.getCkmPanelToken === 'function'){
-                axios.get(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}`,{
-                    responseType: 'blob'
-                }).then(async res=>{
+                this.fetchWebdav(this.getTransportPath(row)).then(async response=>{
                     try{
-                        const urlObj = URL.createObjectURL(res.data);
+                        if(!response.ok){
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        const urlObj = URL.createObjectURL(await response.blob());
                         const a = document.createElement('a');
                         a.href = urlObj;
                         a.download = row.name; // 自定义文件名（带后缀，如test.xlsx）
@@ -1043,8 +1073,11 @@ export default {
                     }
                 })
             }else{
-                let src = `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}?api-token=${getToken()}`
-                window.open(src).focus();
+                const src = new URL(this.buildWebdavRequestUrl(this.getTransportPath(row)));
+                src.searchParams.set('api-token', getToken());
+                // window.open 无法设置 Request.cache，使用唯一查询参数绕过 HTTP 缓存。
+                src.searchParams.set('_', Date.now().toString());
+                window.open(src.toString())?.focus();
             }
 
         },
@@ -1235,15 +1268,13 @@ export default {
             })
         },
         getDir(){
-            let token = getToken();
             let sendPropfindRequest = async (url)=>{
                 useLoadingStore().loading = true;
                 try {
-                    const response = await fetch(url, {
+                    const response = await this.fetchWebdavUrl(url, {
                         method: 'PROPFIND',
                         headers: {
                             'Content-Type': 'text/xml; charset=utf-8',
-                            Authorization: `Bearer ${token}`,
                             Depth: '1'
                         },
                     });
@@ -1593,9 +1624,7 @@ export default {
                 }
                 
                 // if(this.$route.name==fileRouteName){
-                    axios.get(`${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodeURI(this.partPath+row.name)}`).then(res=>{
-                        let data = res?.data;
-                        
+                    this.readWebdavText(this.getTransportPath(row)).then(data=>{
                         this.file.dialog = true;
                         this.file.row = row;
                         this.file.title = row.name;
@@ -1604,16 +1633,7 @@ export default {
                         this.file.forever = row.mf || this.form.isMount || false;
                         this.file.sidebarPath = '';
                         this.init(()=>{
-                            if(typeof data=='object'){
-                                try{
-                                    data = JSON.stringify(data,false,4);                            
-                                    this.inputContent(data);
-                                }catch(e){
-                                    console.log(e)
-                                }
-                            }else{
-                                this.inputContent(data);
-                            }
+                            this.inputContent(data);
                         });
                     }).catch((e)=>{
                         console.log(e)
@@ -1623,8 +1643,7 @@ export default {
                 const toname = this.getTransportName(row);
                 const fp = this.getTransportPath(row);
                 if(row.is_dir){ this.form.path = fp; return; }
-                axios.get(this.buildWebdavRequestUrl(fp)).then(res=>{
-                    let data = res?.data;
+                this.readWebdavText(fp).then(data=>{
                     this.file.dialog = true;
                     this.file.row = row;
                     this.file.title = toname.replace(/^\//,'');
@@ -1636,16 +1655,7 @@ export default {
                     this.file.mf = this.findMfByPath(file)?.mountPath || '';
 
                     this.init(()=>{
-                        if(typeof data=='object'){
-                            try{
-                                data = JSON.stringify(data,false,4);
-                                this.inputContent(data);
-                            }catch(e){
-                                console.log(e)
-                            }
-                        }else{
-                            this.inputContent(data);
-                        }
+                        this.inputContent(data);
                     });
                 }).catch((e)=>{
                     console.log(e)
@@ -2434,12 +2444,11 @@ export default {
                 
                 // 使用 sidebarPath 进行请求
                 const encodedPath = targetPath.split('/').map(p => p ? encodeURIComponent(p) : '').join('/');
-                const response = await fetch(
+                const response = await this.fetchWebdavUrl(
                     `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodedPath}`,
                     {
                         method: 'PROPFIND',
                         headers: {
-                            'Authorization': `Bearer ${this.outEditorInfo.webdavToken}`,
                             'Depth': '1',
                             'Content-Type': 'text/xml; charset=utf-8'
                         },
@@ -2613,20 +2622,7 @@ export default {
                 }else if(mountFile){
                     content = await this.getMfContent(filePath);
                 }else{
-                    const response = await fetch(
-                        `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${filePath}`,
-                        {
-                            headers: {
-                                'Authorization': `Bearer ${this.outEditorInfo.webdavToken}`
-                            }
-                        }
-                    );
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-
-                    content = await response.text();
+                    content = await this.readWebdavText(filePath);
                 }
                 let readOnly = false;
                 // 挂载文件
@@ -2677,12 +2673,11 @@ export default {
             
             try {
                 const encodedPath = parentPath.split('/').map(p => p ? encodeURIComponent(p) : '').join('/');
-                const response = await fetch(
+                const response = await this.fetchWebdavUrl(
                     `${this.outEditorInfo.origin}${this.outEditorInfo.webdavUrl}${encodedPath}`,
                     {
                         method: 'PROPFIND',
                         headers: {
-                            'Authorization': `Bearer ${this.outEditorInfo.webdavToken}`,
                             'Depth': '1',
                             'Content-Type': 'text/xml; charset=utf-8'
                         }
