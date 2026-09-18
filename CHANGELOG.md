@@ -9,6 +9,9 @@
 
 ## 2026-09-17
 
+- 修复 Helm 下载包与传统代码包上传仍使用旧 `/s3bucket` 相对路径导致 401/跳转登录；统一改用认证的 `/panel-api/v1/s3bucket` 调用。
+- 验证：`npm run build`。
+
 - 修复构建镜像、Helm 上传 Chart 和微应用文件下载仍在 URL 中携带 `api-token` 的遗漏：改为统一申请短时下载票据，避免构建 Job 下载 ZIP/TGZ 时被服务端的新认证边界拒绝。
 - 验证：`npm run build`。
 

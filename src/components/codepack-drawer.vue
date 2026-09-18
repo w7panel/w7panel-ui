@@ -83,7 +83,7 @@ export default {
                 data.append('key', 'upload/' + upname );
                 
                 useLoadingStore().loading = true;
-                axios.post('/s3bucket',data,).then(res=>{
+                panelApi.post('/s3bucket',data,).then(res=>{
                     useLoadingStore().loading = false;
                     panelApi.post('/download-grants', {path: 'upload/' + upname}).then(grant=>{
                         let origin = window.origin;

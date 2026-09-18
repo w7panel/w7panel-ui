@@ -75,7 +75,6 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
-import axios from 'axios';
 import jsyaml from "js-yaml";
 
 export default {
@@ -171,7 +170,7 @@ export default {
             data.append('key', 'upload/helm/'+this.upload.filename);
 
             this.upload.uploading = true;
-            axios.post('/s3bucket',data).then(async res=>{
+            panelApi.post('/s3bucket',data).then(async res=>{
                 this.upload.uploading = false;
                 let host = window?.microApp?.getData()?.baseURL || window.location.origin;
                 let grant = await panelApi.post('/download-grants', {path: 'upload/helm/' + this.upload.filename});
