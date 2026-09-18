@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-09-18
+
+- 网关插件子 MicroApp 的静态资源状态查询与下载改用 `w7.cc/group-name` 定位父 AppGroup，前端属性仍按子 MicroApp 资源名读取，确保父制品回源信息可正确缓存。
+- 网关插件 MicroApp 明确拆分资源名与 AppGroup 名：`frontprops` 按 `metadata.name` 查询，注入的 `group/appgroup` 固定使用 `w7.cc/group-name`。
+- 影响模块：网关插件 MicroApp 静态资源加载。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check`。
+
 ## 2026-09-17
 
 - 制品安装页中带 `module_name` 的启动参数统一按自身 `name` 匹配配置接口应用列表中的同名来源参数，不再使用 `values_text` 决定同制品应用间的参数映射。

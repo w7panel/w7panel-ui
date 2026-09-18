@@ -85,9 +85,10 @@ export default {
             const spec = item?.spec || {};
             const identifie = item?.metadata?.labels?.['w7.cc/identifie'] || '';
             const version = item?.metadata?.labels?.['w7.cc/version'] || '';
-            const releaseName = item?.metadata?.name || '';
+            const microappName = item?.metadata?.name || '';
+            const appgroup = item?.metadata?.labels?.['w7.cc/group-name'] || microappName;
+            const releaseName = appgroup;
             const namespace = item?.metadata?.namespace || '';
-            const appgroup = releaseName;
 
             let frontendUrl = String(spec.frontendUrl || '').replace(/\/index\.html$/, '/');
             const userRole = this.contextProps?.microappRole || getK8sinfo()?.['w7.cc/role'];
@@ -126,7 +127,7 @@ export default {
 
                 const [consoleInfo, frontProps] = await Promise.all([
                     panelApi.get('/auth/console/info', { noAlert: true }).then(res=>res?.data || {}).catch(()=>({})),
-                    panelApi.get(`/microapp/${appgroup}/frontprops`, { noAlert: true }).then(res=>res?.data || {}).catch(()=>({})),
+                    panelApi.get(`/microapp/${microappName}/frontprops`, { noAlert: true }).then(res=>res?.data || {}).catch(()=>({})),
                 ]);
 
                 const backendUrl = spec?.backendUrl || '';
@@ -159,12 +160,13 @@ export default {
                     isRegister: Boolean(consoleInfo?.is_register),
                     w7PanelToken: consoleInfo?.thirdparty_cd_token || '',
                     paneltoken: getToken(),
-                    appgroup,
                     ...configProps,
                     ...roleProps,
                     ...(roleProps.frontend_props || {}),
                     ...frontProps,
                     ...this.contextProps,
+                    group: appgroup,
+                    appgroup,
                     // 网关插件配置前端的 Wujie 宿主协议。
                     pluginConfig: pluginConfig && typeof pluginConfig === 'object'
                         ? JSON.parse(JSON.stringify(pluginConfig))
