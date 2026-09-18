@@ -180,6 +180,16 @@ const APP_DETAIL_MICRO_NAME = 'app-detail-micro';
 const APP_DETAIL_MICRO_EL = '#app-detail-micro';
 const APP_DETAIL_MICRO_QUERY = APP_DETAIL_MICRO_NAME;
 const APP_DETAIL_MICRO_RESOURCE_QUERY = 'microapp';
+const SYSTEM_FRONT_PROP_TEMPLATE = /^\$\{system\.([A-Za-z0-9_]+)\}$/;
+
+function resolveFrontendPropTemplates(frontendProps, frontProps) {
+    return Object.fromEntries(Object.entries(frontendProps || {}).map(([name, value])=>{
+        const match = typeof value === 'string' ? value.match(SYSTEM_FRONT_PROP_TEMPLATE) : null;
+        if(!match){ return [name, value]; }
+        const resolvedValue = frontProps?.[match[1]];
+        return [name, resolvedValue !== undefined && resolvedValue !== null && resolvedValue !== '' ? resolvedValue : value];
+    }));
+}
 
 export default {
     data(){
@@ -590,7 +600,7 @@ export default {
             const appGroupName = this.appGroupName;
             if(this.info.frontend_props) {
                 this.info.frontend_props = {
-                    ...this.info.frontend_props,
+                    ...resolveFrontendPropTemplates(this.info.frontend_props, frontProps),
                     ...frontProps,
                     group: appGroupName,
                 }

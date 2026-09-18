@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-09-18
+
+- 网关插件子 MicroApp 的静态资源状态查询与下载改用 `w7.cc/group-name` 定位父 AppGroup，前端属性仍按子 MicroApp 资源名读取，确保父制品回源信息可正确缓存。
+- 网关插件 MicroApp 明确拆分资源名与 AppGroup 名：`frontprops` 按 `metadata.name` 查询，注入的 `group/appgroup` 固定使用 `w7.cc/group-name`。
+- 影响模块：网关插件 MicroApp 静态资源加载。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check`。
+
 ## 2026-09-17
 
 - Helm 仓库索引改用已认证的受限制品 API，传统代码包安装改为先签发短时下载票据；前端不再拼接可长期重放的下载 JWT URL。
