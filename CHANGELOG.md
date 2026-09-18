@@ -2,6 +2,10 @@
 
 ## 2026-09-17
 
+- 开发代理支持通过 `W7PANEL_PROXY_URL` 指定本地源码 Server，避免 Vite 在切换本地测试端口时继续使用旧的代理配置。
+- 影响模块：本地 UI/Server 联调。
+- 验证：待重启 Vite 后进行 Pod Shell 联调。
+
 - WebShell 增加固定 `w7panel-terminal` 子协议，认证凭据继续使用独立的 `w7panel-bearer.*`；Server 可明确协商终端协议，避免经 Vite/反向代理时握手无响应。
 - 影响模块：容器、节点和 CKM 子面板终端握手。
 - 验证：本地 Server/UI 实际 Pod Shell 握手返回 101。

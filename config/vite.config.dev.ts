@@ -12,7 +12,9 @@ import baseConfig from './vite.config.base';
 
 // const proxyUrl =  'http://218.23.2.55:9090';
 
-const proxyUrl = 'http://172.16.1.3:18000';
+// Local verification can point Vite at a separately started source Server
+// without editing this file again (for example W7PANEL_PROXY_URL=http://172.16.1.3:18004).
+const proxyUrl = process.env.W7PANEL_PROXY_URL || 'http://172.16.1.3:18000';
 
 const localhostKeyPath = resolve(__dirname, '../certs/localhost-key.pem');
 const localhostCertPath = resolve(__dirname, '../certs/localhost.pem');
