@@ -1,4 +1,10 @@
 <template>
+    <div v-if="groupTitle" class="microapp-menu-header" :class="{ 'is-collapsed': collapsed }">
+        <span class="microapp-menu-header__icon">
+            <IconApps />
+        </span>
+        <span v-if="!collapsed" class="microapp-menu-header__title">{{ groupTitle }}</span>
+    </div>
     <template v-for="menu in menus" :key="menu.key || menu.do">
         <a-menu-item v-if="!menu.children || !menu.children.length" :key="menu.key || menu.do">
             <template #icon>
@@ -27,6 +33,14 @@ export default {
         menus: {
             type: Array,
             default: () => [],
+        },
+        groupTitle: {
+            type: String,
+            default: '',
+        },
+        collapsed: {
+            type: Boolean,
+            default: false,
         },
     },
     methods: {
@@ -65,3 +79,69 @@ export default {
     },
 };
 </script>
+
+<style scoped lang="less">
+.microapp-menu-header {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 40px;
+    margin-bottom: 4px;
+    padding: 0 12px;
+    overflow: hidden;
+    color: var(--color-text-3);
+    font-size: 13px;
+    line-height: 40px;
+    white-space: nowrap;
+    cursor: default;
+
+    &__icon {
+        display: inline-flex;
+        flex: 0 0 32px;
+        align-items: center;
+        width: 32px;
+    }
+
+    &__title {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    :deep(.arco-icon) {
+        width: 16px;
+        margin-right: 0;
+        color: var(--color-text-3);
+        font-size: 16px;
+    }
+
+    &.is-collapsed {
+        justify-content: center;
+        padding: 0;
+
+        .microapp-menu-header__icon {
+            justify-content: center;
+        }
+    }
+}
+
+:deep(.arco-menu-icon) {
+    display: inline-flex;
+    flex: 0 0 32px;
+    align-items: center;
+    width: 32px;
+    margin-right: 0 !important;
+}
+
+:deep(.arco-menu-icon > *) {
+    flex: 0 0 16px;
+    width: 16px;
+}
+
+:deep(.arco-menu-icon svg) {
+    width: 16px !important;
+    height: 16px !important;
+}
+</style>

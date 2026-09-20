@@ -188,3 +188,11 @@
 - 个人中心注册提示调整为头像底部对齐，避免悬浮图标出现在头像中间；已完成前端构建验证。
 - 注册集群回跳逻辑支持携带站内返回地址，个人中心发起的注册完成后返回账号页；已完成前端构建验证。
 2026-09-14: Updated repository ignore rules to retain only `.mcp.json`, `opencode.jsonc`, `AGENTS.md`, and `.gitignore` among untracked files; verified with Git ignore checks.
+
+## 2026-09-20
+
+- 统一应用详情页与 root 级应用的左侧菜单样式：端名称移除图标和左侧间距；应用名称改为 `var(--color-text-3)`、13px 的不可折叠静态标题并默认展示菜单；各层级图标和文字取消二级缩进、保持对齐。影响模块：微应用菜单项、应用详情侧栏、root 级应用侧栏。
+- 验证：`npm run build` 生产构建通过；`npm run type:check` 仍被仓库已有的缺失 `route-listener`、`replaceAll` 编译目标及其他存量类型错误阻塞，本次修改文件未产生新增类型错误。
+- 调整：根据本地页面实测，端名称移除图标与额外外边距后保留基础内边距，使标题与下方应用、菜单的图标列对齐；再次执行 `npm run build` 验证通过。
+- 调整：微应用标题与各级菜单项统一使用 32px 固定图标列，图标本体约束为 16px，文字起点不再依赖 SVG 或字体图标自身宽度与 margin；`npm run build` 验证通过。
+- 验证：`npm run build` 通过，`git diff --check` 通过；`npm run type:check` 仍仅包含仓库已有类型错误，本次修改文件没有新增报错。

@@ -17,17 +17,17 @@
                     <div v-if="topMenuRoles.length" style="width:100%;">
                         <div v-for="role in topMenuRoles" :key="role.key || role.name">
                             <!-- <div v-if="roles.length>1" class="c-99 ml-16" style="padding:10px 0;">{{ role.title }}</div> -->
-                            <div v-if="role.menus && role.menus.length" class="c-aa ml-20" style="padding:10px 0;">
-                                <IconUserGroup />
-                                <span class="ml-10">{{ role.title }}</span>
+                            <div v-if="role.menus && role.menus.length" class="microapp-role-header">
+                                <span>{{ role.title }}</span>
                             </div>
-                            <a-menu v-if="role.menus && role.menus.length" style="width:100%;" :level-indent="role.isMultiMicroApp ? 20 : 34" :default-open-keys="role.isMultiMicroApp ? role.microApps.map(item => item.key) : []" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
+                            <a-menu v-if="role.menus && role.menus.length" style="width:100%;" :level-indent="0" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
                                 <template v-if="role.isMultiMicroApp">
-                                    <a-sub-menu v-for="microApp in role.microApps" :key="microApp.key">
-                                        <template #icon><IconApps /></template>
-                                        <template #title>{{ microApp.title }}</template>
-                                        <MicroappMenuItems :menus="microApp.menus" />
-                                    </a-sub-menu>
+                                    <MicroappMenuItems
+                                        v-for="microApp in role.microApps"
+                                        :key="microApp.key"
+                                        :menus="microApp.menus"
+                                        :group-title="microApp.title"
+                                    />
                                 </template>
                                 <MicroappMenuItems v-else :menus="role.menus" />
                             </a-menu>
@@ -37,43 +37,73 @@
                     <a-divider v-if="topMenuRoles.length && (bottomMenus.length || $route.name!='group-micro2')" style="margin:10px;width:auto;min-width:auto;" />
                     <template v-if="hasGroupedBottomRoles">
                         <div v-for="role in bottomMenuRoles" :key="role.key || role.name">
-                            <div v-if="role.isMultiMicroApp" class="c-aa ml-20" style="padding:10px 0;">
-                                <IconUserGroup />
-                                <span class="ml-10">{{ role.title }}</span>
+                            <div v-if="role.isMultiMicroApp" class="microapp-role-header">
+                                <span>{{ role.title }}</span>
                             </div>
-                            <a-menu style="width:100%;" :level-indent="role.isMultiMicroApp ? 20 : 34" :default-open-keys="role.isMultiMicroApp ? role.microApps.map(item => item.key) : []" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
+                            <a-menu style="width:100%;" :level-indent="0" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
                                 <template v-if="role.isMultiMicroApp">
-                                    <a-sub-menu v-for="microApp in role.microApps" :key="microApp.key">
-                                        <template #icon><IconApps /></template>
-                                        <template #title>{{ microApp.title }}</template>
-                                        <MicroappMenuItems :menus="microApp.menus" />
-                                    </a-sub-menu>
+                                    <MicroappMenuItems
+                                        v-for="microApp in role.microApps"
+                                        :key="microApp.key"
+                                        :menus="microApp.menus"
+                                        :group-title="microApp.title"
+                                    />
                                 </template>
                                 <MicroappMenuItems v-else :menus="role.menus" />
                             </a-menu>
                         </div>
                     </template>
-                    <a-menu v-else-if="bottomMenus.length" style="width:100%;" :level-indent="34" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
+                    <a-menu v-else-if="bottomMenus.length" style="width:100%;" :level-indent="0" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
                         <MicroappMenuItems :menus="bottomMenus" />
                     </a-menu>
 
                     <div v-if="$route.name!='group-micro2'">
                         <a-divider v-if="bottomMenus.length" style="margin:10px;width:auto;min-width:auto;" />
                         <div v-if="$route.name!=''">
-                            <a-menu v-if="isHelmPage || ((isMicroPage||isAppDirectPage)&&isHelmApp)" v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
-                                <a-menu-item key="group-helm-detail" ><icon-apps />应用详情</a-menu-item>
-                                <a-menu-item key="group-helm-domain" ><icon-cloud />域名管理</a-menu-item>
-                                <a-menu-item v-if="showAppDirect" key="group-app-direct"><icon-launch />应用直达</a-menu-item>
+                            <a-menu v-if="isHelmPage || ((isMicroPage||isAppDirectPage)&&isHelmApp)" v-model:selected-keys="selectMenu" class="app-detail-native-menu" style="width:100%;" @menu-item-click="changeKey">
+                                <a-menu-item key="group-helm-detail">
+                                    <template #icon><icon-apps /></template>
+                                    应用详情
+                                </a-menu-item>
+                                <a-menu-item key="group-helm-domain">
+                                    <template #icon><icon-cloud /></template>
+                                    域名管理
+                                </a-menu-item>
+                                <a-menu-item v-if="showAppDirect" key="group-app-direct">
+                                    <template #icon><icon-launch /></template>
+                                    应用直达
+                                </a-menu-item>
                             </a-menu>
-                            <a-menu v-else v-model:selected-keys="selectMenu" style="width:100%;" @menu-item-click="changeKey">
-                                <a-menu-item key="app-detail-detail"><icon-apps />应用详情</a-menu-item>
-                                <a-menu-item key="app-detail-pod"><icon-nav />容器列表</a-menu-item>
+                            <a-menu v-else v-model:selected-keys="selectMenu" class="app-detail-native-menu" style="width:100%;" @menu-item-click="changeKey">
+                                <a-menu-item key="app-detail-detail">
+                                    <template #icon><icon-apps /></template>
+                                    应用详情
+                                </a-menu-item>
+                                <a-menu-item key="app-detail-pod">
+                                    <template #icon><icon-nav /></template>
+                                    容器列表
+                                </a-menu-item>
                                  <!-- v-if="permission.includes('app-apps-files')" -->
-                                <a-menu-item v-if="fileeditor" key="app-detail-files"><icon-folder />文件管理</a-menu-item>
-                                <a-menu-item key="app-detail-domain"><icon-cloud />域名管理</a-menu-item>
-                                <a-menu-item key="app-detail-job"><icon-code-square />执行脚本</a-menu-item>
-                                <a-menu-item key="app-detail-version"><icon-select-all />历史版本</a-menu-item>
-                                <a-menu-item key="app-detail-moniter"><icon-bar-chart />运行状态</a-menu-item>
+                                <a-menu-item v-if="fileeditor" key="app-detail-files">
+                                    <template #icon><icon-folder /></template>
+                                    文件管理
+                                </a-menu-item>
+                                <a-menu-item key="app-detail-domain">
+                                    <template #icon><icon-cloud /></template>
+                                    域名管理
+                                </a-menu-item>
+                                <a-menu-item key="app-detail-job">
+                                    <template #icon><icon-code-square /></template>
+                                    执行脚本
+                                </a-menu-item>
+                                <a-menu-item key="app-detail-version">
+                                    <template #icon><icon-select-all /></template>
+                                    历史版本
+                                </a-menu-item>
+                                <a-menu-item key="app-detail-moniter">
+                                    <template #icon><icon-bar-chart /></template>
+                                    运行状态
+                                </a-menu-item>
                             </a-menu>
                         </div>
                     </div>
@@ -1466,6 +1496,25 @@ export default {
 
 .routerviewbox{border:1px solid var(--color-neutral-3);border-top:0;}
 .app-detail-page{height:100%;}
+.microapp-role-header{
+    padding:10px 20px;
+    color:var(--color-text-3);
+}
+:deep(.app-detail-native-menu .arco-menu-icon){
+    display:inline-flex;
+    flex:0 0 32px;
+    align-items:center;
+    width:32px;
+    margin-right:0 !important;
+}
+:deep(.app-detail-native-menu .arco-menu-icon > *){
+    flex:0 0 16px;
+    width:16px;
+}
+:deep(.app-detail-native-menu .arco-menu-icon svg){
+    width:16px !important;
+    height:16px !important;
+}
 .content{height:100%;}
 /* .appheader{height:50px; background:var(--color-bg-2); border-bottom:1px solid var(--color-border-1); padding:0 20px;} */
 .appheader .apps{background: var(--color-fill-2); height: 36px; padding: 0 8px; border-radius: 20px;}
