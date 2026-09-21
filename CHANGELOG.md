@@ -236,3 +236,14 @@
 - 2026-09-21 修复：根级顶部应用切换菜单时恢复旧版 `routeChange` 单参数事件格式，仅在面板本身作为无界子应用运行时附带嵌套来源标记，避免限流应用将普通菜单切换误判为子面板事件而只更新 URL、不切换页面。影响模块：顶部应用微应用菜单路由；验证结果见本次构建及浏览器回归。
 - 2026-09-21 更正：连续双向回归确认限流微应用切换页面后会丢失后续路由总线监听，因此撤回单参数事件兼容方案；顶部应用菜单改为按目标路由重新初始化无界实例，浏览器前进后退同步也采用相同策略，普通应用详情仍保留原总线路由与嵌套来源标记。影响模块：顶部应用微应用菜单路由；验证结果见本次构建及双向切换回归。
 - 2026-09-21 验证：限流应用已在 Chrome 中连续完成“通用设置 → 限流管理 → 通用设置 → 限流管理”双向切换，URL 与右侧内容均同步更新；`npm run build` 和 `git diff --check` 通过，构建仅保留项目既有的 Vue 深度选择器弃用警告。
+
+## 2026-09-21（AppGroup 级联卸载）
+
+- 新增通用 AppGroup 级联卸载方法：卸载前通过 `w7.cc/depends-<releaseName>` 和 `spec.dependencies` 生成完整反向依赖顺序，先卸载依赖应用并等待 finalizer、卸载 Hook 完成，再卸载目标应用；查询失败、循环依赖、卸载失败或等待超时均停止后续删除。
+- 应用列表、应用详情、网关插件页和 Wujie 卸载 handler 统一复用该方法，避免直接删除主应用后遗留关联应用。
+- 验证：`LOCAL_MOCK=true ./node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；级联顺序、查询失败零删除和循环依赖零删除桩测试通过；`pnpm run type:check` 受仓库现有 TypeScript 4.8 与 `@types/node` 26 语法不兼容阻断。
+
+## 2026-09-21（TSX Vue 导入修复）
+
+- 修复 `components/menu/index.vue` 在旧版 Vue JSX 插件转换时丢失 `defineComponent`、`ref`、`computed` 等 named imports，导致菜单 chunk 加载后偶发 `defineComponent is not defined` 的问题；组件改用不会被错误移除的 Vue namespace import。
+- 验证：`LOCAL_MOCK=true ./node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建产物的菜单 chunk 已使用绑定后的 Vue helper，不再包含裸 `defineComponent`、`ref`、`computed` 等调用。

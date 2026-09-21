@@ -1,6 +1,8 @@
 import { getMicroAppOrder } from './microapp-menu';
 import {
+  APPGROUP_DEPENDENCY_LABEL_PREFIX,
   APP_PLUGIN_APPLICATION_TYPE,
+  appGroupDependsOn,
   getAppGroupApplicationType,
 } from './appgroup';
 import {
@@ -10,10 +12,7 @@ import {
   resourceListWithLabelSelector,
 } from './w7panel-resource';
 
-export const APPGROUP_DEPENDENCY_LABEL_PREFIX = 'w7.cc/depends-';
-export { APP_PLUGIN_APPLICATION_TYPE } from './appgroup';
 export const DEPENDENT_PLUGIN_ORDER_BASE = 200;
-export { getAppGroupApplicationType } from './appgroup';
 
 export interface ReverseDependentAppItem {
   appgroup: string;
@@ -63,18 +62,6 @@ async function loadAppGroup(k8sClient: any, namespace: string, name: string) {
     { noAlert: true },
   ).catch(()=>null);
   return response?.data || null;
-}
-
-export function appGroupDependsOn(appGroup: any, target: any) {
-  const targetNamespace = target?.metadata?.namespace || W7PANEL_RESOURCE_NAMESPACE;
-  const targetName = target?.metadata?.name || '';
-  return (appGroup?.spec?.dependencies || []).some((dependency: any) => {
-    const dependencyNamespace = dependency?.namespace
-      || appGroup?.metadata?.namespace
-      || W7PANEL_RESOURCE_NAMESPACE;
-    return dependencyNamespace === targetNamespace
-      && dependency?.name === targetName;
-  });
 }
 
 export async function loadAppGroupReverseDependentContext(

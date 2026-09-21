@@ -1,5 +1,5 @@
 <script lang="tsx">
-  import { defineComponent, ref, h, compile, computed, watch, onMounted, onUnmounted } from 'vue';
+  import * as Vue from 'vue';
   import { useRoute, useRouter, RouteRecordRaw } from 'vue-router';
   import type { RouteMeta } from 'vue-router';
   import { useAppStore } from '@/store';
@@ -7,7 +7,7 @@
   import useMenuTree from './use-menu-tree';
   import { getK8sinfo } from '@/utils/auth';
 
-  export default defineComponent({
+  export default Vue.defineComponent({
     emit: ['collapse'],
     setup() {
       const appStore = useAppStore();
@@ -15,7 +15,7 @@
       const route = useRoute();
       const { menuTree } = useMenuTree();
 
-      const collapsed = computed({
+      const collapsed = Vue.computed({
         get() {
           if (appStore.device === 'desktop') return appStore.menuCollapse;
           return false;
@@ -25,20 +25,20 @@
         },
       });
 
-      const topMenu = computed(() => appStore.topMenu);
-      const openKeys = ref<string[]>([]);
-      const selectedKey = ref<string[]>([]);
-      const isMicroFrontend = computed(() => {
+      const topMenu = Vue.computed(() => appStore.topMenu);
+      const openKeys = Vue.ref<string[]>([]);
+      const selectedKey = Vue.ref<string[]>([]);
+      const isMicroFrontend = Vue.computed(() => {
         const win = window as any;
         return !!(win.__POWERED_BY_WUJIE__ || win.__MICRO_APP_ENVIRONMENT__);
       });
-      const showMicroBack = computed(() => isMicroFrontend.value && !topMenu.value);
+      const showMicroBack = Vue.computed(() => isMicroFrontend.value && !topMenu.value);
 
       const syncSelectedKey = () => {
         selectedKey.value = route.name ? [String(route.name)] : [];
       };
 
-      watch(
+      Vue.watch(
         () => route.name,
         () => {
           syncSelectedKey();
@@ -150,7 +150,7 @@
               }
 
               const icon = element?.meta?.icon
-                ? () => h(compile(`<${element?.meta?.icon}/>`))
+                ? () => Vue.h(Vue.compile(`<${element?.meta?.icon}/>`))
                 : null;
 
               const node =
@@ -159,7 +159,7 @@
                     key={element?.name}
                     v-slots={{
                       icon,
-                      title: () => h(compile(getMenuTitle(element))),
+                      title: () => Vue.h(Vue.compile(getMenuTitle(element))),
                     }}
                   >
                     <span>{travel(element?.children as RouteRecordRaw[])}</span>
@@ -193,15 +193,15 @@
         return travel(menuTree.value as RouteRecordRaw[], [], true);
       };
 
-      const ckmname = ref(getK8sinfo()['w7.cc/ckm-name'] || '');
+      const ckmname = Vue.ref(getK8sinfo()['w7.cc/ckm-name'] || '');
       const updateCkmName = () => {
         ckmname.value = getK8sinfo()['w7.cc/ckm-name'] || '';
       };
 
-      onMounted(() => {
+      Vue.onMounted(() => {
         window.addEventListener('w7panel-k8sinfo-change', updateCkmName);
       });
-      onUnmounted(() => {
+      Vue.onUnmounted(() => {
         window.removeEventListener('w7panel-k8sinfo-change', updateCkmName);
       });
       return () => (
