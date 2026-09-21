@@ -9,6 +9,11 @@ export const RESOURCE_IDENTIFIE_ANNOTATION = 'w7.cc/identifie';
 export const OFFICIAL_APP_ANNOTATION = 'w7.cc/official-app';
 export const DENY_DELETE_ANNOTATION = 'w7.cc/deny-delete';
 
+export const getTopAppGroupName = (resource: any) => (
+  getResourceGroupName(resource)
+  || String(resource?.metadata?.name || '').replace(/-root$/, '')
+);
+
 export function resourceListWithLabelSelector(api: string, selector: string) {
   return `${api}?labelSelector=${encodeURIComponent(selector)}`;
 }
