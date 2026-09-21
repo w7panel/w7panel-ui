@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-09-21
+
+- Helm 下载包上传改用与构建镜像一致的认证分片上传和短时 `download-ticket` 流程，移除旧 `/s3bucket` 上传路径，避免两套上传行为不一致。
+- 影响模块：应用列表 Helm 创建。
+- 验证：`npm run build` 与 `git diff --check`。
+
 ## 2026-09-18
 
 - 网关插件子 MicroApp 的静态资源状态查询与下载改用 `w7.cc/group-name` 定位父 AppGroup，前端属性仍按子 MicroApp 资源名读取，确保父制品回源信息可正确缓存。
