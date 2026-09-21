@@ -213,7 +213,11 @@ import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-crede
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
-import { loadVisibleAppGroupMicroApps, sortVisibleAppGroupMicroApps } from '@/utils/appgroup-microapps';
+import {
+    loadAppGroupReverseDependentContext,
+    loadVisibleAppGroupContext,
+    sortVisibleAppGroupMicroApps,
+} from '@/utils/appgroup-microapps';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
@@ -302,6 +306,8 @@ export default {
             microAppGroup: '',
             appGroupName: '',
             activeMicroAppName: '',
+            reverseDependentAppCache: {},
+            reverseDependentAppRequests: {},
             wujieInitPromise: null,
             wujieReloadPending: false,
             downOk: true,
@@ -882,6 +888,7 @@ export default {
             }).catch(()=>{});
             const microappName = this.activeMicroAppName;
             const appGroupName = this.appGroupName;
+            const reverseDependentApps = await this.loadReverseDependentApps(appGroupName).catch(()=>[]);
             if(this.info.frontend_props) {
                 this.info.frontend_props = {
                     ...resolveFrontendPropTemplates(this.info.frontend_props, frontProps),
@@ -913,6 +920,7 @@ export default {
                 appgroup: appGroupName,
                 group: appGroupName,
                 microappName,
+                reverseDependentApps,
                 loginCloud,
                 runningFirstPod,
                 podShell,
@@ -1073,7 +1081,9 @@ export default {
             })
         },
         loadMicroApps(groupName){
-            return loadVisibleAppGroupMicroApps(k8sproxy, this.namespaceActive, groupName).then(resources=>{
+            return loadVisibleAppGroupContext(k8sproxy, this.namespaceActive, groupName).then(context=>{
+                this.reverseDependentAppCache[groupName] = context?.reverseDependentApps || [];
+                const resources = context?.microApps || [];
                 const result = [];
                 const names = new Set();
                 resources.forEach(microApp=>{
@@ -1090,6 +1100,28 @@ export default {
         },
         loadMicroApp(groupName){
             return this.loadMicroApps(groupName).then(items=>items[0] || null);
+        },
+        loadReverseDependentApps(appGroupName){
+            if(!appGroupName){return Promise.resolve([])}
+            if(Object.prototype.hasOwnProperty.call(this.reverseDependentAppCache, appGroupName)){
+                return Promise.resolve(this.reverseDependentAppCache[appGroupName]);
+            }
+            if(this.reverseDependentAppRequests[appGroupName]){
+                return this.reverseDependentAppRequests[appGroupName];
+            }
+            const request = loadAppGroupReverseDependentContext(
+                k8sproxy,
+                this.namespaceActive,
+                appGroupName,
+            ).then(context=>{
+                const reverseDependentApps = context?.reverseDependentApps || [];
+                this.reverseDependentAppCache[appGroupName] = reverseDependentApps;
+                return reverseDependentApps;
+            }).finally(()=>{
+                delete this.reverseDependentAppRequests[appGroupName];
+            });
+            this.reverseDependentAppRequests[appGroupName] = request;
+            return request;
         },
         getMenu(microApps){
 
@@ -1459,6 +1491,8 @@ export default {
         },
         async getData(){
             useLoadingStore().loading = true;
+            this.reverseDependentAppCache = {};
+            this.reverseDependentAppRequests = {};
 
             this.isHelmPage = /^group\-helm(\-|$)/.test(this.$route.name);
             if(this.isHelmPage){

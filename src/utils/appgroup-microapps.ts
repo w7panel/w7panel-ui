@@ -15,6 +15,56 @@ export { APP_PLUGIN_APPLICATION_TYPE } from './appgroup';
 export const DEPENDENT_PLUGIN_ORDER_BASE = 200;
 export { getAppGroupApplicationType } from './appgroup';
 
+export interface ReverseDependentAppItem {
+  appgroup: string;
+  identifie: string;
+  type: string;
+  packageType: string;
+  title: string;
+  version: string;
+}
+
+function getAppGroupApi(namespace: string) {
+  return `/apis/w7panel.w7.com/v1alpha1/namespaces/${encodeURIComponent(namespace)}/appgroups`;
+}
+
+function toReverseDependentAppItem(appGroup: any): ReverseDependentAppItem {
+  const metadata = appGroup?.metadata || {};
+  const spec = appGroup?.spec || {};
+  const applicationType = getAppGroupApplicationType(appGroup);
+  const appgroup = metadata?.name || '';
+  return {
+    appgroup,
+    identifie: spec?.identifie
+      || metadata?.labels?.['w7.cc/identifie']
+      || metadata?.annotations?.['w7.cc/identifie']
+      || '',
+    type: applicationType,
+    packageType: spec?.type || '',
+    title: spec?.title || metadata?.annotations?.title || appgroup,
+    version: spec?.version || metadata?.labels?.['w7.cc/version'] || '',
+  };
+}
+
+function dedupeReverseDependentApps(items: ReverseDependentAppItem[]) {
+  const result = new Map<string, ReverseDependentAppItem>();
+  items.forEach(item => {
+    if(!item.appgroup){return}
+    const key = item.appgroup;
+    if(!result.has(key)){result.set(key, item)}
+  });
+  return [...result.values()];
+}
+
+async function loadAppGroup(k8sClient: any, namespace: string, name: string) {
+  if(!name){return null}
+  const response = await k8sClient.get(
+    `${getAppGroupApi(namespace)}/${encodeURIComponent(name)}`,
+    { noAlert: true },
+  ).catch(()=>null);
+  return response?.data || null;
+}
+
 export function appGroupDependsOn(appGroup: any, target: any) {
   const targetNamespace = target?.metadata?.namespace || W7PANEL_RESOURCE_NAMESPACE;
   const targetName = target?.metadata?.name || '';
@@ -27,35 +77,71 @@ export function appGroupDependsOn(appGroup: any, target: any) {
   });
 }
 
-export async function loadVisibleAppGroupMicroApps(
+export async function loadAppGroupReverseDependentContext(
   k8sClient: any,
   namespace: string,
   appGroupName: string,
 ) {
   const resolvedNamespace = namespace || W7PANEL_RESOURCE_NAMESPACE;
-  const encodedNamespace = encodeURIComponent(resolvedNamespace);
-  const appGroupApi = `/apis/w7panel.w7.com/v1alpha1/namespaces/${encodedNamespace}/appgroups`;
-  const microAppApi = `/apis/w7panel.w7.com/v1alpha1/namespaces/${encodedNamespace}/microapps`;
-  const targetResponse = await k8sClient.get(
-    `${appGroupApi}/${encodeURIComponent(appGroupName)}`,
+  const target = await loadAppGroup(k8sClient, resolvedNamespace, appGroupName);
+  if(!target){
+    return {
+      target: null,
+      dependentAppGroups: [],
+      reverseDependentApps: [] as ReverseDependentAppItem[],
+    };
+  }
+
+  const targetNamespace = target?.metadata?.namespace || resolvedNamespace;
+  const selector = `${APPGROUP_DEPENDENCY_LABEL_PREFIX}${appGroupName}=true`;
+  const dependentResponse = await k8sClient.get(
+    resourceListWithLabelSelector(getAppGroupApi(targetNamespace), selector),
     { noAlert: true },
   ).catch(()=>null);
-  const target = targetResponse?.data;
+  const dependentAppGroups = (dependentResponse?.data?.items || []).filter((candidate: any) => (
+    candidate?.metadata?.name !== appGroupName
+    && !candidate?.metadata?.deletionTimestamp
+    && appGroupDependsOn(candidate, target)
+  ));
+
+  return {
+    target,
+    dependentAppGroups,
+    reverseDependentApps: dedupeReverseDependentApps(dependentAppGroups.map(toReverseDependentAppItem)),
+  };
+}
+
+export async function loadVisibleAppGroupContext(
+  k8sClient: any,
+  namespace: string,
+  appGroupName: string,
+) {
+  const resolvedNamespace = namespace || W7PANEL_RESOURCE_NAMESPACE;
+  const dependentContext = await loadAppGroupReverseDependentContext(
+    k8sClient,
+    resolvedNamespace,
+    appGroupName,
+  );
   const groupNames = [appGroupName];
-  if(target){
-    const selector = `${APPGROUP_DEPENDENCY_LABEL_PREFIX}${appGroupName}=true`;
-    const dependentResponse = await k8sClient.get(
-      resourceListWithLabelSelector(appGroupApi, selector),
-      { noAlert: true },
-    ).catch(()=>null);
-    (dependentResponse?.data?.items || []).forEach((candidate: any) => {
-      if(getAppGroupApplicationType(candidate) !== APP_PLUGIN_APPLICATION_TYPE){return}
-      if(!appGroupDependsOn(candidate, target)){return}
-      if(candidate?.metadata?.deletionTimestamp){return}
-      if(candidate?.metadata?.name){groupNames.push(candidate.metadata.name)}
-    });
-  }
-  return loadResourcesByGroupNames(k8sClient, microAppApi, groupNames, true);
+  dependentContext.dependentAppGroups.forEach((candidate: any) => {
+    if(getAppGroupApplicationType(candidate) !== APP_PLUGIN_APPLICATION_TYPE){return}
+    if(candidate?.metadata?.name){groupNames.push(candidate.metadata.name)}
+  });
+  const microAppApi = `/apis/w7panel.w7.com/v1alpha1/namespaces/${encodeURIComponent(resolvedNamespace)}/microapps`;
+  const microApps = await loadResourcesByGroupNames(k8sClient, microAppApi, groupNames, true);
+  return {
+    ...dependentContext,
+    microApps,
+  };
+}
+
+export async function loadVisibleAppGroupMicroApps(
+  k8sClient: any,
+  namespace: string,
+  appGroupName: string,
+) {
+  const context = await loadVisibleAppGroupContext(k8sClient, namespace, appGroupName);
+  return context.microApps;
 }
 
 const getMicroAppGroupName = (microApp: any) => microApp?.metadata?.labels?.[RESOURCE_GROUP_LABEL]

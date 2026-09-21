@@ -8,6 +8,8 @@
 
 插件应用仍持有自己的 MicroApp。传统应用页面根据 AppGroup `spec.dependencies` 及 `w7.cc/depends-<releaseName>` 反向索引查找依赖它的 `w7.cc/manifest-type=app-plugin` AppGroup，再聚合这些插件的 MicroApp；单数 `w7.cc/group-name` 仅处理同一 Release 内资源归属，不使用复数 `w7.cc/group-names`。
 
+应用详情和顶部菜单启动 MicroApp 时，Wujie props 通过 `reverseDependentApps` 注入所有依赖当前 AppGroup 的应用摘要；该字段不包含当前 AppGroup 自身依赖的应用。
+
 Wujie 通用宿主 handles 包含关联插件的升级检测、前往升级和卸载能力。升级检测复用应用列表的 `/panel-api/v1/zpk/upgrade-info` 参数与逻辑，确认存在新版本后才进入面板安装升级页；卸载通过面板权限下的 AppGroup 删除流程执行。
 
 ## 技术栈
