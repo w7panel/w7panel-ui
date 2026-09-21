@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-09-21
+
+- ZPK 安装请求根据启用模块提交依赖 Release，供后端写入 AppGroup 通用依赖关系。
+- 传统应用通过 `w7.cc/depends-<releaseName>` 反查插件 AppGroup，并聚合插件自身的 MicroApp 菜单；插件 MicroApp 仍归属于插件 AppGroup。
+- AppGroup 依赖反查按 namespace 和 releaseName 校验逻辑应用关系，同名 Release 重装后无需插件重新安装即可继续聚合菜单。
+- 安装请求中的依赖项只提交 namespace、releaseName 和应用标识；后端对每个提交项进行强校验，不再传递可选的 `required` 状态。
+- 移除复数 `w7.cc/group-names` 方案，保留单数 `w7.cc/group-name` 处理同一 Release 内多个 MicroApp。
+- 顶部菜单和应用详情对依赖插件 MicroApp 的展示顺序统一增加 `200` 基数，并使用 AppGroup、MicroApp 名称稳定处理同序项；菜单生成、默认 MicroApp 和默认菜单统一使用排序结果，不修改资源原始 `w7.cc/order`。
+- AppGroup 依赖反查、插件 MicroApp 聚合及 `+200` 展示排序从通用资源和菜单工具中拆为独立领域模块，顶部菜单与应用详情复用同一份已排序结果，避免页面重复排序。
+- 影响模块：制品安装、应用列表、应用详情和顶部 MicroApp 容器。
+- 验证：Vite 生产构建与 `git diff --check` 通过。
+
 ## 2026-09-18
 
 - 网关插件子 MicroApp 的静态资源状态查询与下载改用 `w7.cc/group-name` 定位父 AppGroup，前端属性仍按子 MicroApp 资源名读取，确保父制品回源信息可正确缓存。

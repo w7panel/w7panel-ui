@@ -7,6 +7,9 @@
 !AGENTS.md
 !src/
 src/*
+!src/utils/
+src/utils/*
+!src/utils/appgroup-microapps.ts
 !src/components/
 src/components/*
 !src/components/microapp-menu-items.vue

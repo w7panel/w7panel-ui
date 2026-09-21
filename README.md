@@ -6,6 +6,8 @@
 
 微应用试用状态检查使用静态状态接口返回的完整 `respoUrl` 请求制品配置，保留订单等查询参数，不根据仓库根地址自行拼接。
 
+插件应用仍持有自己的 MicroApp。传统应用页面根据 AppGroup `spec.dependencies` 及 `w7.cc/depends-<releaseName>` 反向索引查找依赖它的 `w7.cc/manifest-type=app-plugin` AppGroup，再聚合这些插件的 MicroApp；单数 `w7.cc/group-name` 仅处理同一 Release 内资源归属，不使用复数 `w7.cc/group-names`。
+
 ## 技术栈
 
 - **Vue 3.5** - 响应式框架

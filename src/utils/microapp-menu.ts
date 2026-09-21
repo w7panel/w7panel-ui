@@ -1,7 +1,7 @@
 export const BOTTOM_MENU_LOCATION = 'back';
 export const MICRO_APP_ORDER_LABEL = 'w7.cc/order';
 
-const getMicroAppOrder = (microApp: any) => {
+export const getMicroAppOrder = (microApp: any) => {
   const value = microApp?.metadata?.labels?.[MICRO_APP_ORDER_LABEL];
   if (value === undefined || value === null || String(value).trim() === '') {
     return Number.MAX_SAFE_INTEGER;

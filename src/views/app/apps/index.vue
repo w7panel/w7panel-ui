@@ -218,6 +218,7 @@ import codepackDrawer from '@/components/codepack-drawer.vue';
 import helmForm from '../pages/helm-form.vue';
 import { getPermission,getFileEditor,getUserInfo } from '@/utils/auth';
 import { filterAppGroupWorkloadItems, isGatewayPluginAppGroup } from '@/utils/appgroup';
+import { loadVisibleAppGroupMicroApps } from '@/utils/appgroup-microapps';
 
 export default {
     data(){
@@ -353,11 +354,8 @@ export default {
             let app = item?.childrenApp?.[0];
             let group = item.groupName || app?.group;
             if(!group){return}
-            let microApp = null;
-            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/microapps/'+ item.groupName, {noAlert:true}).then(res=>{
-                microApp = res?.data;
-            }).catch(()=>{});
-            if(microApp){
+            const microApps = await loadVisibleAppGroupMicroApps(k8sproxy, this.namespaceActive, item.groupName).catch(()=>[]);
+            if(microApps.length){
                 this.$router.push({path:'/app/appgroup/'+item.groupName+'/micro'});
                 return;
             }

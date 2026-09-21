@@ -30,7 +30,8 @@ import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
-import { RESOURCE_GROUP_LABEL, resourceListWithLabelSelector } from '@/utils/w7panel-resource';
+import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
+import { loadVisibleAppGroupMicroApps, sortVisibleAppGroupMicroApps } from '@/utils/appgroup-microapps';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -282,16 +283,11 @@ export default{
             this.$emit('getinfo', {...this.info});
         },
         async loadMicroApps(appgroup){
-            const selected = await panelApi.get(`/microapp/${appgroup}/info`).then(res=>res?.data);
-            if(!selected){ return []; }
+            const selected = await panelApi.get(`/microapp/${appgroup}/info`, {noAlert:true}).then(res=>res?.data).catch(()=>null);
             const groupName = selected?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
                 || String(selected?.metadata?.name || appgroup).replace(/-root$/, '');
-            const api = `/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/microapps`;
-            const [namedResponse, groupedResponse] = await Promise.all([
-                k8sproxy.get(`${api}/${encodeURIComponent(groupName)}`, {noAlert:true}).catch(()=>null),
-                k8sproxy.get(resourceListWithLabelSelector(api, `${RESOURCE_GROUP_LABEL}=${groupName}`), {noAlert:true}).catch(()=>null),
-            ]);
-            const resources = [selected, namedResponse?.data, ...(groupedResponse?.data?.items || [])];
+            const related = await loadVisibleAppGroupMicroApps(k8sproxy, this.namespaceActive, groupName).catch(()=>[]);
+            const resources = [selected, ...related];
             const result = [];
             const names = new Set();
             resources.forEach(item=>{
@@ -310,7 +306,8 @@ export default{
         },
         async getFront(appgroup){
             this.loadingMicroApps = true;
-            const items = await this.loadMicroApps(appgroup).catch(()=>[]);
+            const loadedItems = await this.loadMicroApps(appgroup).catch(()=>[]);
+            const items = sortVisibleAppGroupMicroApps(loadedItems, appgroup);
             if(!items.length){
                 this.loadingMicroApps = false;
                 return;

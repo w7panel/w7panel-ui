@@ -160,11 +160,12 @@ import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
-import { sortMicroAppsByOrder, splitMicroAppMenuRoles } from '@/utils/microapp-menu';
+import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
+import { loadVisibleAppGroupMicroApps, sortVisibleAppGroupMicroApps } from '@/utils/appgroup-microapps';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
-import { RESOURCE_GROUP_LABEL, resourceListWithLabelSelector } from '@/utils/w7panel-resource';
+import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
 import AppDirect from '@/views/topapp/app-direct.vue';
 import MicroappMenuItems from '@/components/microapp-menu-items.vue';
 
@@ -734,12 +735,16 @@ export default {
                 : this.loadMicroApps(this.microAppGroup || this.$route.params.group);
             getMicroApps.then(items=>{
                 if(!items.length){ return; }
-                this.microApps = items;
-                this.getMenu(items);
+                const sortedItems = sortVisibleAppGroupMicroApps(
+                    items,
+                    this.microAppGroup || this.$route.params.group,
+                );
+                this.microApps = sortedItems;
+                this.getMenu(sortedItems);
                 const requestedMicroAppName = this.$route.query?.[APP_DETAIL_MICRO_RESOURCE_QUERY];
-                const item = items.find(item=>item?.metadata?.name===requestedMicroAppName)
-                    || items.find(item=>item?.metadata?.name===this.activeMicroAppName)
-                    || items[0];
+                const item = sortedItems.find(item=>item?.metadata?.name===requestedMicroAppName)
+                    || sortedItems.find(item=>item?.metadata?.name===this.activeMicroAppName)
+                    || sortedItems[0];
                 this.applyMicroApp(item);
                 if(this.isMicroPage){
                     const routeMenu = this.microAppGroup === this.$route.params.group
@@ -751,7 +756,7 @@ export default {
                         || this.roles.flatMap(role=>role.menus || []).find(menu=>menu.microAppName===this.activeMicroAppName)
                         || this.roles?.[0]?.menus?.[0];
                     if(selectedMenu?.microAppName !== this.activeMicroAppName){
-                        this.applyMicroApp(items.find(item=>item?.metadata?.name===selectedMenu?.microAppName));
+                        this.applyMicroApp(sortedItems.find(item=>item?.metadata?.name===selectedMenu?.microAppName));
                     }
                     this.menuActive = selectedMenu?.do || appDetailMicro || '';
                     this.selectMenu = [selectedMenu?.key || this.menuActive];
@@ -765,12 +770,7 @@ export default {
             })
         },
         loadMicroApps(groupName){
-            const api = '/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/microapps';
-            return Promise.all([
-                k8sproxy.get(api+'/'+encodeURIComponent(groupName), {noAlert:true}).catch(()=>null),
-                k8sproxy.get(resourceListWithLabelSelector(api, `${RESOURCE_GROUP_LABEL}=${groupName}`), {noAlert:true}).catch(()=>null),
-            ]).then(([namedResponse, groupedResponse])=>{
-                const resources = [namedResponse?.data, ...(groupedResponse?.data?.items || [])];
+            return loadVisibleAppGroupMicroApps(k8sproxy, this.namespaceActive, groupName).then(resources=>{
                 const result = [];
                 const names = new Set();
                 resources.forEach(microApp=>{
@@ -794,7 +794,7 @@ export default {
 
             let roles = []
             try{
-                const items = sortMicroAppsByOrder(Array.isArray(microApps) ? microApps : []);
+                const items = Array.isArray(microApps) ? microApps : [];
                 items.forEach(item=>{
                     const microAppName = item?.metadata?.name || '';
                     const microAppTitle = item?.spec?.title || microAppName;
@@ -1222,7 +1222,10 @@ export default {
                     return;
                 }
                 this.groupRedirecting = false;
-                const microApps = await this.loadMicroApps(this.activeGroup);
+                const microApps = sortVisibleAppGroupMicroApps(
+                    await this.loadMicroApps(this.activeGroup),
+                    this.activeGroup,
+                );
                 if(microApps.length){
                     this.microApps = microApps;
                     this.microApp = microApps[0];
