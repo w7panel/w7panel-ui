@@ -22,7 +22,7 @@
                     </div>
                 </a-layout-sider>
                 <a-drawer
-                    v-if="hideMenu"
+                    v-if="renderMenu && hideMenu"
                     :visible="drawerVisible"
                     placement="left"
                     :footer="false"
@@ -69,7 +69,7 @@
     const navbarHeight = `60px`;
     const navbar = computed(() => appStore.navbar && !isInIframe && !(window as any).__POWERED_BY_WUJIE__);
     const isInIframe = window.self !== window.top;
-    const renderMenu = computed(() => appStore.menu && !appStore.topMenu);
+    const renderMenu = computed(() => appStore.menu && !appStore.topMenu && !route.meta.replaceRootMenu);
     const hideMenu = computed(() => appStore.hideMenu);
     const footer = computed(() => appStore.footer);
     const menuWidth = computed(() => {

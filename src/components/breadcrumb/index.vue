@@ -2,7 +2,7 @@
     <a-breadcrumb :routes="routes" class="container-breadcrumb">
         <!-- <a-breadcrumb-item><icon-apps /></a-breadcrumb-item> -->
         <template #item-render="{route}">
-            <span class="cursor" @click="$router.push({name:route.name, params:route.params})">
+            <span class="cursor" @click="navigate(route)">
                 <icon-apps v-if="route.name=='root'" />
                 <span v-else >{{route.label}}</span>
             </span>
@@ -15,6 +15,19 @@
 </template>
 
 <script setup>
+  import { useRouter } from 'vue-router';
+
+  const router = useRouter();
+
+  const navigate = (route) => {
+    if (!route?.name && !route?.path) return;
+    router.push({
+      ...(route.name ? { name: route.name } : { path: route.path }),
+      ...(route.params ? { params: route.params } : {}),
+      ...(route.query ? { query: route.query } : {}),
+    });
+  };
+
   defineProps({
     items: {
       default() {

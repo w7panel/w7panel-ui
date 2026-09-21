@@ -1,127 +1,137 @@
 <template>
-    <div class="app-detail-page padding-20 df df-c">
-        <Breadcrumb v-if="$route.name=='group-micro'||$route.name=='group-micro2'" :routes="topbc" />
-        <route-breadcrumb v-else class="df-s0" :data="{id:title || ($route.params.group || '')}" />
-        <div v-if="appGroups.length > 1 && !groupRedirecting" class="df ai-c bg-white mb-6" style="padding:10px 14px;border-bottom:1px solid var(--color-neutral-3);">
-            <span class="c-66 mr-10">应用</span>
-            <a-select v-model="activeGroup" size="small" style="width:240px" @change="changeGroup">
-                <a-option v-for="item in appGroups" :key="item.name" :value="item.name">{{ item.name }}</a-option>
-            </a-select>
-            <a-popconfirm :content="groupDeleteMessage" @ok="deleteCurrentGroup" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                <a-button class="ml-10" size="small" status="danger">删除应用</a-button>
-            </a-popconfirm>
-        </div>
-        <a-layout v-if="activeGroup && !groupRedirecting" class="fc">
-            <a-layout-sider v-if="!hideAppMenu" :width="160">
-                <div class="df df-c menu-absolute-div" style="position:absolute;inset:0;overflow:auto;">
-                    <div v-if="topMenuRoles.length" style="width:100%;">
-                        <div v-for="role in topMenuRoles" :key="role.key || role.name">
-                            <!-- <div v-if="roles.length>1" class="c-99 ml-16" style="padding:10px 0;">{{ role.title }}</div> -->
-                            <div v-if="role.menus && role.menus.length" class="microapp-role-header">
+    <div class="app-detail-page" :style="{minHeight: appDetailMinHeight}">
+        <a-layout class="app-detail-layout">
+            <component
+                :is="appMenuContainer"
+                v-if="activeGroup && !groupRedirecting && !hideAppMenu"
+                v-bind="appMenuContainerProps"
+                :class="['app-detail-menu-container', {'app-detail-menu-container--drawer': appStore.hideMenu}]"
+                @collapse="setAppMenuCollapsed"
+                @cancel="appMenuDrawerVisible=false"
+            >
+                <div class="df df-c menu-absolute-div app-detail-menu-scroll" :style="appMenuScrollStyle">
+                    <a-menu
+                        v-model:collapsed="appMenuCollapsed"
+                        v-model:selected-keys="selectMenu"
+                        :show-collapse-button="!appStore.hideMenu && appStore.device !== 'mobile'"
+                        :level-indent="34"
+                        style="width:100%;height:100%;"
+                        @collapse="setAppMenuCollapsed"
+                        @menu-item-click="handleAppMenuClick"
+                    >
+                        <template v-for="role in topMenuRoles" :key="role.key || role.name">
+                            <div v-if="role.menus && role.menus.length && !appMenuCollapsed" class="microapp-role-header">
                                 <span>{{ role.title }}</span>
                             </div>
-                            <a-menu v-if="role.menus && role.menus.length" style="width:100%;" :level-indent="0" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
+                            <template v-if="role.menus && role.menus.length">
                                 <template v-if="role.isMultiMicroApp">
                                     <MicroappMenuItems
                                         v-for="microApp in role.microApps"
                                         :key="microApp.key"
                                         :menus="microApp.menus"
                                         :group-title="microApp.title"
+                                        :collapsed="appMenuCollapsed"
                                     />
                                 </template>
                                 <MicroappMenuItems v-else :menus="role.menus" />
-                            </a-menu>
-                        </div>
-                    </div>
-                    
-                    <a-divider v-if="topMenuRoles.length && (bottomMenus.length || $route.name!='group-micro2')" style="margin:10px;width:auto;min-width:auto;" />
-                    <template v-if="hasGroupedBottomRoles">
-                        <div v-for="role in bottomMenuRoles" :key="role.key || role.name">
-                            <div v-if="role.isMultiMicroApp" class="microapp-role-header">
-                                <span>{{ role.title }}</span>
-                            </div>
-                            <a-menu style="width:100%;" :level-indent="0" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
-                                <template v-if="role.isMultiMicroApp">
-                                    <MicroappMenuItems
-                                        v-for="microApp in role.microApps"
-                                        :key="microApp.key"
-                                        :menus="microApp.menus"
-                                        :group-title="microApp.title"
-                                    />
-                                </template>
-                                <MicroappMenuItems v-else :menus="role.menus" />
-                            </a-menu>
-                        </div>
-                    </template>
-                    <a-menu v-else-if="bottomMenus.length" style="width:100%;" :level-indent="0" v-model:selected-keys="selectMenu" @menu-item-click="handelMicroMenu">
-                        <MicroappMenuItems :menus="bottomMenus" />
-                    </a-menu>
+                            </template>
+                        </template>
 
-                    <div v-if="$route.name!='group-micro2'">
-                        <a-divider v-if="bottomMenus.length" style="margin:10px;width:auto;min-width:auto;" />
-                        <div v-if="$route.name!=''">
-                            <a-menu v-if="isHelmPage || ((isMicroPage||isAppDirectPage)&&isHelmApp)" v-model:selected-keys="selectMenu" class="app-detail-native-menu" style="width:100%;" @menu-item-click="changeKey">
-                                <a-menu-item key="group-helm-detail">
+                        <a-divider v-if="topMenuRoles.length && (bottomMenus.length || $route.name!='group-micro2')" class="app-detail-menu-divider" />
+                        <template v-if="hasGroupedBottomRoles">
+                            <template v-for="role in bottomMenuRoles" :key="role.key || role.name">
+                                <div v-if="role.isMultiMicroApp && !appMenuCollapsed" class="microapp-role-header">
+                                    <span>{{ role.title }}</span>
+                                </div>
+                                <template v-if="role.isMultiMicroApp">
+                                    <MicroappMenuItems
+                                        v-for="microApp in role.microApps"
+                                        :key="microApp.key"
+                                        :menus="microApp.menus"
+                                        :group-title="microApp.title"
+                                        :collapsed="appMenuCollapsed"
+                                    />
+                                </template>
+                                <MicroappMenuItems v-else :menus="role.menus" />
+                            </template>
+                        </template>
+                        <MicroappMenuItems v-else :menus="bottomMenus" />
+
+                        <template v-if="$route.name!='group-micro2'">
+                            <a-divider v-if="bottomMenus.length" class="app-detail-menu-divider" />
+                            <template v-if="isHelmPage || ((isMicroPage||isAppDirectPage)&&isHelmApp)">
+                                <a-menu-item key="group-helm-detail" class="app-detail-native-menu-item">
                                     <template #icon><icon-apps /></template>
                                     应用详情
                                 </a-menu-item>
-                                <a-menu-item key="group-helm-domain">
+                                <a-menu-item key="group-helm-domain" class="app-detail-native-menu-item">
                                     <template #icon><icon-cloud /></template>
                                     域名管理
                                 </a-menu-item>
-                                <a-menu-item v-if="showAppDirect" key="group-app-direct">
+                                <a-menu-item v-if="showAppDirect" key="group-app-direct" class="app-detail-native-menu-item">
                                     <template #icon><icon-launch /></template>
                                     应用直达
                                 </a-menu-item>
-                            </a-menu>
-                            <a-menu v-else v-model:selected-keys="selectMenu" class="app-detail-native-menu" style="width:100%;" @menu-item-click="changeKey">
-                                <a-menu-item key="app-detail-detail">
+                            </template>
+                            <template v-else>
+                                <a-menu-item key="app-detail-detail" class="app-detail-native-menu-item">
                                     <template #icon><icon-apps /></template>
                                     应用详情
                                 </a-menu-item>
-                                <a-menu-item key="app-detail-pod">
+                                <a-menu-item key="app-detail-pod" class="app-detail-native-menu-item">
                                     <template #icon><icon-nav /></template>
                                     容器列表
                                 </a-menu-item>
-                                 <!-- v-if="permission.includes('app-apps-files')" -->
-                                <a-menu-item v-if="fileeditor" key="app-detail-files">
+                                <a-menu-item v-if="fileeditor" key="app-detail-files" class="app-detail-native-menu-item">
                                     <template #icon><icon-folder /></template>
                                     文件管理
                                 </a-menu-item>
-                                <a-menu-item key="app-detail-domain">
+                                <a-menu-item key="app-detail-domain" class="app-detail-native-menu-item">
                                     <template #icon><icon-cloud /></template>
                                     域名管理
                                 </a-menu-item>
-                                <a-menu-item key="app-detail-job">
+                                <a-menu-item key="app-detail-job" class="app-detail-native-menu-item">
                                     <template #icon><icon-code-square /></template>
                                     执行脚本
                                 </a-menu-item>
-                                <a-menu-item key="app-detail-version">
+                                <a-menu-item key="app-detail-version" class="app-detail-native-menu-item">
                                     <template #icon><icon-select-all /></template>
                                     历史版本
                                 </a-menu-item>
-                                <a-menu-item key="app-detail-moniter">
+                                <a-menu-item key="app-detail-moniter" class="app-detail-native-menu-item">
                                     <template #icon><icon-bar-chart /></template>
                                     运行状态
                                 </a-menu-item>
-                            </a-menu>
-                        </div>
+                            </template>
+                        </template>
+                    </a-menu>
+                </div>
+            </component>
+
+            <a-layout class="app-detail-main padding-20 df df-c">
+                <Breadcrumb class="df-s0" :routes="detailBreadcrumbRoutes" />
+                <div v-if="appGroups.length > 1 && !groupRedirecting" class="df ai-c bg-white mb-6" style="padding:10px 14px;border-bottom:1px solid var(--color-neutral-3);">
+                    <span class="c-66 mr-10">应用</span>
+                    <a-select v-model="activeGroup" size="small" style="width:240px" @change="changeGroup">
+                        <a-option v-for="item in appGroups" :key="item.name" :value="item.name">{{ item.title || item.name }}</a-option>
+                    </a-select>
+                    <a-popconfirm :content="groupDeleteMessage" @ok="deleteCurrentGroup" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
+                        <a-button class="ml-10" size="small" status="danger">删除应用</a-button>
+                    </a-popconfirm>
+                </div>
+
+                <a-layout-content v-if="activeGroup && !groupRedirecting && isAppDirectPage" class="df df-c">
+                    <app-direct :info="info" class="routerviewbox fc" />
+                </a-layout-content>
+                <a-layout-content v-else-if="activeGroup && !groupRedirecting && isMicroPage" class="df df-c">
+                    <div class="bg-white routerviewbox fc">
+                        <div v-show="downOk" id="app-detail-micro" :style="microPanelStyle"></div>
+                        <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." :style="{display:'block', height: microPanelHeight}">
+                            <div style="height:100%;" class="bg-white"></div>
+                        </a-spin>
                     </div>
-                </div>
-            </a-layout-sider>
-            
-            <a-layout-content v-if="isAppDirectPage" :class="['df df-c', {'ml-6': !hideAppMenu}]">
-                <app-direct :info="info" class="routerviewbox fc" />
-            </a-layout-content>
-            <a-layout-content v-else-if="isMicroPage" :class="['df df-c', {'ml-6': !hideAppMenu}]">
-                <div :class="['bg-white routerviewbox fc', {'ml-6': !hideAppMenu}]" >
-                    <div v-show="downOk" id="app-detail-micro" :style="microPanelStyle"></div>
-                    <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." :style="{display:'block', height: microPanelHeight}">
-                        <div style="height:100%;" class="bg-white"></div>
-                    </a-spin>
-                </div>
-            </a-layout-content>
-            <a-layout-content v-else class="ml-6 df df-c">
+                </a-layout-content>
+                <a-layout-content v-else-if="activeGroup && !groupRedirecting" class="df df-c">
                 <a-tabs
                     :active-key="appname"
                     type="card"
@@ -156,7 +166,8 @@
                     <router-view v-if="$route.name=='app-detail-micro'" :url="appLocation" :data="data" @refresh="dataDetail" />
                     <router-view v-else-if="data||isHelmPage" :data="data" :identifie="identifie" :appList="applist" :title="title" @refresh="dataDetail" @editApp="openForm()"/>
                 </div>
-            </a-layout-content>
+                </a-layout-content>
+            </a-layout>
         </a-layout>
         
         <form-drawer :show="form.show" :id="form.name" @submitOk="getData" :groupname="$route.params.group" :afterName="form.suffix" @close="closeForm"></form-drawer>
@@ -178,7 +189,7 @@
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
-import { useNamespaceStore,useLoadingStore } from '@/store';
+import { useAppStore,useNamespaceStore,useLoadingStore } from '@/store';
 import formDrawer from '@/views/app/pages/form-drawer.vue';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
@@ -221,13 +232,13 @@ function resolveFrontendPropTemplates(frontendProps, frontProps) {
 }
 
 export default {
+    setup(){
+        return {
+            appStore: useAppStore(),
+        };
+    },
     data(){
         return {
-            topbc: [
-                {name:'root'},
-                {name: "app", label: "应用管理"},
-                {name: "app-detail", label: this.groupTitle || this.$route.params.group},
-            ],
             isHelmPage: false,
             isHelmApp: false,
             form: {
@@ -236,7 +247,6 @@ export default {
                 parent: '',
                 tabs: [],
             },
-            breadcrumbData: null,
             parent: '',
             namespaceActive: '',
             data: null,
@@ -283,19 +293,11 @@ export default {
             wujieReloadPending: false,
             downOk: true,
             hideAppMenu: false,
+            appMenuDrawerVisible: false,
             userRole: '',
         }
     },
     watch: {
-        'selectMenu'(v){
-            const title = this.findMenu(v?.[0])?.title || '';
-            this.topbc = [
-                {name:'root'},
-                {name: "app", label: "应用管理"},
-                {name: "app-detail", label: this.groupTitle},
-                {name: "app-detail", label: title},
-            ]
-        },
         '$route.name'(v,ov){
             this.selectMenu = [this.$route.meta.routekey];
             this.isHelmPage = /^group\-helm(\-|$)/.test(v);
@@ -320,8 +322,8 @@ export default {
             let p = this.$route.fullPath.replace('/app/appgroup/'+this.$route.params.group+'/'+this.$route.params.kind+'/'+this.$route.params.id+'/micro/','');
             this.menukey = p || '';
         },
-        title(v){
-            this.breadcrumbData = {id:v};
+        '$route.params.id'(){
+            this.syncActiveAppTitle();
         },
         '$route.query.showMenu'(){
             this.hideAppMenu = this.isHideMenu();
@@ -339,6 +341,69 @@ export default {
         await this.getData();
     },
     computed:{
+        appDetailMinHeight(){
+            if((window).__POWERED_BY_WUJIE__){
+                return 'calc(100vh - 62px)';
+            }
+            const hasNavbar = this.appStore.navbar && window.self === window.top;
+            return hasNavbar ? 'calc(100vh - 60px)' : '100vh';
+        },
+        appMenuCollapsed: {
+            get(){
+                return this.appStore.device === 'desktop' && this.appStore.menuCollapse;
+            },
+            set(value){
+                this.setAppMenuCollapsed(value);
+            },
+        },
+        appMenuContainer(){
+            return this.appStore.hideMenu ? 'a-drawer' : 'a-layout-sider';
+        },
+        appMenuContainerProps(){
+            if(this.appStore.hideMenu){
+                return {
+                    visible: this.appMenuDrawerVisible,
+                    placement: 'left',
+                    footer: false,
+                    maskClosable: true,
+                    closable: false,
+                    width: this.appStore.menuWidth,
+                };
+            }
+            return {
+                breakpoint: 'xl',
+                width: this.appStore.menuWidth,
+                collapsed: this.appMenuCollapsed,
+                collapsible: true,
+                hideTrigger: true,
+            };
+        },
+        appMenuScrollStyle(){
+            return this.appStore.hideMenu
+                ? {height:'100%', overflow:'auto'}
+                : {flex:'1 1 auto', minHeight:0, overflow:'auto'};
+        },
+        detailBreadcrumbRoutes(){
+            const appTarget = this.getBreadcrumbAppTarget();
+            const routes = [
+                {name:'root'},
+                {name:'app', label:'应用管理'},
+                {
+                    ...appTarget,
+                    label: this.groupTitle || this.activeGroup || this.$route.params.group || '',
+                },
+            ];
+            const currentLabel = this.getCurrentBreadcrumbLabel();
+            if(currentLabel){
+                routes.push({
+                    name: this.$route.name,
+                    label: currentLabel,
+                    params: {...this.$route.params},
+                    query: {...this.$route.query},
+                });
+            }
+            return routes;
+        },
         isMicroPage(){ return this.$route.name == 'group-micro' || this.$route.name == 'group-micro2'; },
         isAppDirectPage(){ return this.$route.name == 'group-app-direct'; },
         showAppDirect(){ return this.hasThirdpartyCd && this.userRole == 'founder'; },
@@ -386,6 +451,9 @@ export default {
         AppDirect,
         MicroappMenuItems,
     },
+    mounted(){
+        window.addEventListener('toggle-drawer', this.toggleAppMenuDrawer);
+    },
     beforeUnmount(){
         if(this.watchInterval){
             clearInterval(this.watchInterval);
@@ -399,9 +467,72 @@ export default {
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
         bus.$off('changeAppMenu', this.changeAppMenu);
+        window.removeEventListener('toggle-drawer', this.toggleAppMenuDrawer);
 
     },
     methods: {
+        setAppMenuCollapsed(value){
+            if(this.appStore.device === 'desktop'){
+                this.appStore.updateSettings({menuCollapse:value});
+            }
+        },
+        toggleAppMenuDrawer(){
+            if(!this.appStore.hideMenu || this.hideAppMenu){ return; }
+            this.appMenuDrawerVisible = !this.appMenuDrawerVisible;
+        },
+        handleAppMenuClick(value){
+            if(this.findMenu(value)){
+                this.handelMicroMenu(value);
+            }else{
+                this.changeKey(value);
+            }
+            if(this.appStore.hideMenu){
+                this.appMenuDrawerVisible = false;
+            }
+        },
+        getBreadcrumbAppTarget(){
+            const group = this.activeGroup || this.$route.params.group || '';
+            const currentApp = this.applist.find(item=>
+                item?.name === this.$route.params.id && item?.kind === this.$route.params.kind
+            );
+            const app = currentApp || this.applist.find(item=>item?.name && item?.kind && !item?.isHelm);
+            if(app){
+                return {
+                    name: 'app-detail-detail',
+                    params: {group, kind:app.kind, id:app.name},
+                };
+            }
+            if(this.isHelmApp || this.applist.some(item=>item?.isHelm)){
+                return {
+                    name: 'group-helm-detail',
+                    params: {group},
+                };
+            }
+            if(this.isMicroPage || this.hasThirdpartyCd){
+                return {
+                    name: this.$route.name === 'group-micro2' ? 'group-micro2' : 'group-micro',
+                    params: {group},
+                };
+            }
+            return {name:'app-apps'};
+        },
+        getCurrentBreadcrumbLabel(){
+            if(this.isMicroPage){
+                return this.findMenu(this.selectMenu?.[0])?.title
+                    || this.findMenu(this.menuActive)?.title
+                    || '';
+            }
+            if(this.isAppDirectPage){
+                return '应用直达';
+            }
+            return typeof this.$route.meta.locale === 'string' ? this.$route.meta.locale : '';
+        },
+        syncActiveAppTitle(){
+            const app = this.applist.find(item=>
+                item?.name === this.$route.params.id && item?.kind === this.$route.params.kind
+            );
+            this.title = app?.title || this.groupTitle || this.$route.params.group || '';
+        },
         isHideMenu(){
             const showMenu = Array.isArray(this.$route.query.showMenu)
                 ? this.$route.query.showMenu[0]
@@ -410,6 +541,9 @@ export default {
         },
         changeAppMenu(show){
             this.hideAppMenu = show === false ? true : this.isHideMenu();
+            if(this.hideAppMenu){
+                this.appMenuDrawerVisible = false;
+            }
         },
         buildIframeSrc(path, route){
             const token = getToken();
@@ -1185,7 +1319,9 @@ export default {
             }
             await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
             }).then(async res=>{
-                this.groupTitle = res?.data?.metadata?.annotations?.title || this.groupTitle;
+                this.groupTitle = res?.data?.spec?.title
+                    || res?.data?.metadata?.annotations?.title
+                    || this.groupTitle;
                 let {helmTab,list} = this.arrangeList(res?.data);
                 const groupSections = [];
                 const addGroup = groupData => {
@@ -1228,6 +1364,7 @@ export default {
                 this.appGroups = groupSections;
                 this.activeGroup = this.appGroups.find(item=>item.name===this.$route.params.group)?.name || this.appGroups[0]?.name || '';
                 this.applist = this.appGroups.find(item=>item.name===this.activeGroup)?.apps || helmTab.concat(list);
+                this.syncActiveAppTitle();
                 this.hasThirdpartyCd = false;
                 this.microApp = null;
                 this.microApps = [];
@@ -1495,23 +1632,49 @@ export default {
 .point.green{background:#00A870;}
 
 .routerviewbox{border:1px solid var(--color-neutral-3);border-top:0;}
-.app-detail-page{height:100%;}
-.microapp-role-header{
-    padding:10px 20px;
-    color:var(--color-text-3);
+.app-detail-page{height:auto;}
+.app-detail-layout{min-width:0;min-height:inherit;}
+.app-detail-main{box-sizing:border-box;min-width:0;min-height:inherit;}
+.app-detail-menu-container:not(.app-detail-menu-container--drawer){
+    display:flex;
+    flex-direction:column;
+    align-self:stretch;
+    height:auto;
+    min-height:0;
 }
-:deep(.app-detail-native-menu .arco-menu-icon){
+:deep(.app-detail-menu-container:not(.app-detail-menu-container--drawer) > .arco-layout-sider-children){
+    display:flex;
+    flex:1 1 auto;
+    flex-direction:column;
+    height:auto;
+    min-height:0;
+    overflow:hidden;
+}
+.app-detail-menu-scroll{width:100%;min-height:0;}
+.microapp-role-header{
+    box-sizing:border-box;
+    height:40px;
+    padding:0 12px;
+    color:var(--color-text-3);
+    line-height:40px;
+}
+.app-detail-menu-divider{
+    width:auto;
+    min-width:auto;
+    margin:10px;
+}
+:deep(.app-detail-native-menu-item .arco-menu-icon){
     display:inline-flex;
     flex:0 0 32px;
     align-items:center;
     width:32px;
     margin-right:0 !important;
 }
-:deep(.app-detail-native-menu .arco-menu-icon > *){
+:deep(.app-detail-native-menu-item .arco-menu-icon > *){
     flex:0 0 16px;
     width:16px;
 }
-:deep(.app-detail-native-menu .arco-menu-icon svg){
+:deep(.app-detail-native-menu-item .arco-menu-icon svg){
     width:16px !important;
     height:16px !important;
 }

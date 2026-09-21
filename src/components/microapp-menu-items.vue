@@ -7,7 +7,7 @@
     </div>
     <template v-for="menu in menus" :key="menu.key || menu.do">
         <a-menu-item v-if="!menu.children || !menu.children.length" :key="menu.key || menu.do">
-            <template #icon>
+            <template v-if="level === 1" #icon>
                 <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                 <span v-else-if="menu.icon" class="wi" :class="'wi-' + menu.icon"></span>
                 <IconMenu v-else />
@@ -15,13 +15,13 @@
             <span>{{ menu.title }}</span>
         </a-menu-item>
         <a-sub-menu v-else :key="menu.key || menu.do">
-            <template #icon>
+            <template v-if="level === 1" #icon>
                 <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
                 <span v-else-if="menu.icon" class="wi" :class="'wi-' + menu.icon"></span>
                 <IconMenu v-else />
             </template>
             <template #title>{{ menu.title }}</template>
-            <microapp-menu-items :menus="menu.children" />
+            <microapp-menu-items :menus="menu.children" :level="level + 1" />
         </a-sub-menu>
     </template>
 </template>
@@ -41,6 +41,10 @@ export default {
         collapsed: {
             type: Boolean,
             default: false,
+        },
+        level: {
+            type: Number,
+            default: 1,
         },
     },
     methods: {
