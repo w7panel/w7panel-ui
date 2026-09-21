@@ -317,3 +317,14 @@
 - 2026-09-21 验证：限流应用已在 Chrome 中连续完成“通用设置 → 限流管理 → 通用设置 → 限流管理”双向切换，URL 与右侧内容均同步更新；`npm run build` 和 `git diff --check` 通过，构建仅保留项目既有的 Vue 深度选择器弃用警告。
 - 2026-09-21 修复：`/cluster/panel` 系统信息始终按主集群显示集群版本、创建时间和集群模式；仅子集群的集群地址显示当前面板地址，并移除不再展示的 CKM 配额请求。影响模块：集群概览系统信息。
 - 2026-09-21 验证：上述集群概览系统信息调整已通过 `npm run build` 与 `git diff --check`；构建仅保留项目既有的 Vue 深度选择器弃用警告。
+
+## 2026-09-21（AppGroup 级联卸载）
+
+- 新增通用 AppGroup 级联卸载方法：卸载前通过 `w7.cc/depends-<releaseName>` 和 `spec.dependencies` 生成完整反向依赖顺序，先卸载依赖应用并等待 finalizer、卸载 Hook 完成，再卸载目标应用；查询失败、循环依赖、卸载失败或等待超时均停止后续删除。
+- 应用列表、应用详情、网关插件页和 Wujie 卸载 handler 统一复用该方法，避免直接删除主应用后遗留关联应用。
+- 验证：`LOCAL_MOCK=true ./node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；级联顺序、查询失败零删除和循环依赖零删除桩测试通过；`pnpm run type:check` 受仓库现有 TypeScript 4.8 与 `@types/node` 26 语法不兼容阻断。
+
+## 2026-09-21（TSX Vue 导入修复）
+
+- 修复 `components/menu/index.vue` 在旧版 Vue JSX 插件转换时丢失 `defineComponent`、`ref`、`computed` 等 named imports，导致菜单 chunk 加载后偶发 `defineComponent is not defined` 的问题；组件改用不会被错误移除的 Vue namespace import。
+- 验证：`LOCAL_MOCK=true ./node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建产物的菜单 chunk 已使用绑定后的 Vue helper，不再包含裸 `defineComponent`、`ref`、`computed` 等调用。

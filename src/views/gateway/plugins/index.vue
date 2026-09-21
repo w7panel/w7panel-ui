@@ -208,6 +208,7 @@
 import { Modal } from '@arco-design/web-vue';
 import { k8sproxy, panelApi } from '@/utils/api';
 import { getPermission } from '@/utils/auth';
+import { uninstallAppGroup } from '@/utils/appgroup';
 import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
 import {
     groupGatewayPlugins,
@@ -587,7 +588,7 @@ export default {
             const title = row?.appGroup?.spec?.title || row?.title || row?.groupName;
             return `确认卸载应用“${title}”吗？该应用包含的全部网关插件及关联资源都将被删除。`;
         },
-        uninstallPluginApplication(row){
+        async uninstallPluginApplication(row){
             if(row.denyDelete){
                 this.$message.warning('该插件所属应用禁止卸载');
                 return;
@@ -596,10 +597,17 @@ export default {
                 this.$message.error('未找到插件所属应用，无法执行卸载');
                 return;
             }
-            return k8sproxy.delete(`${APPGROUP_API}/${encodeURIComponent(row.groupName)}`, { loading: true }).then(()=>{
-                this.$message.success('应用已卸载');
+            try{
+                const namespace = row?.appGroup?.metadata?.namespace || 'default';
+                const result = await uninstallAppGroup(k8sproxy, namespace, row.groupName);
+                const dependentCount = result.plan.dependentItems.length;
+                this.$message.success(dependentCount
+                    ? `应用已卸载，并一并卸载 ${dependentCount} 个依赖应用`
+                    : '应用已卸载');
                 this.getList();
-            });
+            }catch(error){
+                this.$message.error(error?.message || '应用卸载失败，请稍后重试');
+            }
         },
         openConfig(row){
             this.config = { show: true, plugin: row.resource, microapp: row.microappInfo };

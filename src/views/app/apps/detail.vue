@@ -211,7 +211,7 @@ import { appendWujieProxyRequestQuery, getWujieProxyBackendUrl } from '@/utils/w
 import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
-import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
+import { filterAppGroupWorkloadItems, uninstallAppGroup } from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 import {
     loadAppGroupReverseDependentContext,
@@ -1309,37 +1309,45 @@ export default {
                 this.$router.push({name:'group-helm', params:{...this.$route.params, group:groupName}});
             }
         },
-        deleteCurrentGroup(){
+        async deleteCurrentGroup(){
             const groupName = this.activeGroup || this.$route.params.group;
             if(!groupName){return}
-            k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/'+groupName).then(()=>{
-                this.$message.success('删除成功');
+            try{
+                const result = await uninstallAppGroup(k8sproxy, this.namespaceActive, groupName);
+                const dependentCount = result.plan.dependentItems.length;
+                this.$message.success(dependentCount
+                    ? `删除成功，已一并卸载 ${dependentCount} 个依赖应用`
+                    : '删除成功');
                 this.$router.push('/app/apps');
-            });
+            }catch(error){
+                this.$message.error(error?.message || '删除失败，请稍后重试');
+            }
         },
         // toMicro(v){
         //     // console.log(v);
         //     this.$router.push('/app/appgroup/'+this.$route.params.group+'/'+ this.$route.params.kind +'/'+ this.$route.params.id +'/micro/'+ v);
         // },
-        delApp(key){
+        async delApp(key){
             let item = this.applist.find(i=>i.key==key);
             if(!item){return}
             if(item.isHelm){
-                k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ item.groupName).then(res=>{
+                try{
+                    await uninstallAppGroup(k8sproxy, this.namespaceActive, item.groupName);
                     this.$message.success('操作成功');
                     if(this.appname=='helm-'+item.groupName){
-                        this.$router.push({
+                        await this.$router.push({
                             name: 'group-helm',
                             params: {
                                 ...this.$route.params,
                                 group: this.applist[0].groupName,
                             },
-                        }).then(()=>{
-                            this.appname = 'helm-'+this.$route.params.group;
-                            this.getData();
                         });
+                        this.appname = 'helm-'+this.$route.params.group;
+                        this.getData();
                     }
-                });
+                }catch(error){
+                    this.$message.error(error?.message || '操作失败，请稍后重试');
+                }
                 return;
             }
             this.checkDelete = {

@@ -217,7 +217,7 @@ import k8syamlDrawer from '@/components/k8syaml-drawer.vue';
 import codepackDrawer from '@/components/codepack-drawer.vue';
 import helmForm from '../pages/helm-form.vue';
 import { getPermission,getFileEditor,getUserInfo } from '@/utils/auth';
-import { filterAppGroupWorkloadItems, isPluginAppGroup } from '@/utils/appgroup';
+import { filterAppGroupWorkloadItems, isPluginAppGroup, uninstallAppGroup } from '@/utils/appgroup';
 import { loadVisibleAppGroupMicroApps } from '@/utils/appgroup-microapps';
 
 export default {
@@ -396,10 +396,16 @@ export default {
             //     await k8sproxy.delete("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+dm, {noAlert:true, loading: true});
             // }
 
-            k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+item.groupName).then(res=>{
-                this.$message.success('删除成功');
+            try{
+                const result = await uninstallAppGroup(k8sproxy, this.namespaceActive, item.groupName);
+                const dependentCount = result.plan.dependentItems.length;
+                this.$message.success(dependentCount
+                    ? `删除成功，已一并卸载 ${dependentCount} 个依赖应用`
+                    : '删除成功');
                 this.getList();
-            })
+            }catch(error){
+                this.$message.error(error?.message || '删除失败，请稍后重试');
+            }
         },
         // deleteApp(item){
         //     // 删除应用

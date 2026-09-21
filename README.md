@@ -12,6 +12,8 @@
 
 Wujie 通用宿主 handles 包含关联插件的升级检测、前往升级和卸载能力。升级检测复用应用列表的 `/panel-api/v1/zpk/upgrade-info` 参数与逻辑，确认存在新版本后才进入面板安装升级页；卸载通过面板权限下的 AppGroup 删除流程执行。
 
+应用列表、应用详情、网关插件页和 Wujie 宿主统一使用 AppGroup 级联卸载流程。卸载目标应用前会按 `spec.dependencies` 的反向索引递归卸载依赖它的应用，并等待每个 AppGroup 的 finalizer 和卸载 Hook 完成；依赖查询、卸载或等待失败时停止后续删除，不提前卸载目标应用。
+
 ## 技术栈
 
 - **Vue 3.5** - 响应式框架

@@ -2,6 +2,7 @@ import { Message, Modal } from '@arco-design/web-vue';
 import router from '@/router';
 import { useNamespaceStore } from '@/store';
 import { k8sproxy, panelApi } from '@/utils/api';
+import { uninstallAppGroup } from '@/utils/appgroup';
 
 const WUJIE_MODAL_HANDLE_MAP = {
     openFile: 'openFile',
@@ -87,33 +88,35 @@ async function uninstallInstalledApp(options = {}) {
         return false;
     }
 
-    const namespace = useNamespaceStore().namespace;
-    const appGroupPath = '/apis/w7panel.w7.com/v1alpha1/namespaces/'
-        + encodeURIComponent(namespace)
-        + '/appgroups/'
-        + encodeURIComponent(appIdentify);
-
-    return new Promise((resolve) => {
+    const confirm = () => new Promise((resolve) => {
         Modal.confirm({
             title: '确认卸载',
             content: `确定要卸载应用“${options.name || appIdentify}”吗？`,
             okText: '确认卸载',
             cancelText: '取消',
             okButtonProps: { status: 'danger' },
-            onOk: async () => {
-                try {
-                    await k8sproxy.delete(appGroupPath);
-                    Message.success('卸载成功');
-                    resolve(true);
-                    return true;
-                } catch (error) {
-                    resolve(false);
-                    throw error;
-                }
-            },
+            onOk: () => resolve(true),
             onCancel: () => resolve(false),
         });
     });
+
+    try {
+        const result = await uninstallAppGroup(
+            k8sproxy,
+            useNamespaceStore().namespace,
+            appIdentify,
+            { confirm },
+        );
+        if(result.cancelled){return false}
+        const dependentCount = result.plan.dependentItems.length;
+        Message.success(dependentCount
+            ? `卸载成功，已一并卸载 ${dependentCount} 个依赖应用`
+            : '卸载成功');
+        return true;
+    } catch(error) {
+        Message.error(error?.message || '卸载失败，请稍后重试');
+        throw error;
+    }
 }
 
 function createInstalledAppHandles() {
