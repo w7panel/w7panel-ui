@@ -5,24 +5,26 @@ import configVisualizerPlugin from './plugin/visualizer';
 import configArcoResolverPlugin from './plugin/arcoResolver';
 import configImageminPlugin from './plugin/imagemin';
 
-export default mergeConfig(
+export default async () => mergeConfig(
   {
     base: '/',
     mode: 'production',
     plugins: [
     //   configCompressPlugin('gzip'),
-      configVisualizerPlugin(),
+      await configVisualizerPlugin(),
       configArcoResolverPlugin(),
       configImageminPlugin(),
     ],
     build: {
       assetsDir: 'assets',  // 所有资源文件放在 assets 子目录
-      rollupOptions: {
+      rolldownOptions: {
         output: {
-          manualChunks: {
-            arco: ['@arco-design/web-vue'],
-            chart: ['echarts', 'vue-echarts'],
-            vue: ['vue', 'vue-router', 'pinia', '@vueuse/core'],
+          codeSplitting: {
+            groups: [
+              { name: 'arco', test: /node_modules\/@arco-design\/web-vue/ },
+              { name: 'chart', test: /node_modules\/(echarts|vue-echarts)/ },
+              { name: 'vue', test: /node_modules\/(vue|vue-router|pinia|@vueuse\/core)/ },
+            ],
           },
           // 添加内容哈希到文件名，强制浏览器加载新文件
           entryFileNames: 'assets/index.[hash].js',
