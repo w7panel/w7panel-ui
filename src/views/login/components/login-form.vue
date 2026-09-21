@@ -83,13 +83,8 @@ const LOGIN_REQUEST_TIMEOUT = 10000;
 const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png')
 const microLogin = (window as any)?.w7_microapp?.site?.login || {};
 const isMicroAppDirect = Boolean((window as any)?.w7_microapp?.name);
-
-if(getToken()){
-    panelApi.get('/k3k/info',{noAlert:true}).then(res=>{
-        // already login
-        handleSubmit({passLogin:true})
-    })
-}
+const panelLogin = router?.currentRoute?.value?.query?.panellogin === '1';
+let invalidToken = false;
 
 
 const canInitUser = reactive({
@@ -102,6 +97,23 @@ const canInitUser = reactive({
     oidcEnabled: false,
     configLoaded: false, // 配置是否已加载
 });
+const redirectPanelLogin = () => {
+    if(panelLogin && canInitUser.oidcEnabled && (!getToken() || invalidToken)) oidcLogin();
+};
+if(getToken()){
+    panelApi.get('/k3k/info',{noAlert:true}).then(res=>{
+        if(res) {
+            // already login
+            handleSubmit({passLogin:true})
+        } else {
+            invalidToken = true;
+            redirectPanelLogin();
+        }
+    }).catch(()=>{
+        invalidToken = true;
+        redirectPanelLogin();
+    })
+}
 const toInit = ({ errors, values, })=>{
     if (loading.value){ return };
     if (errors) { return };
@@ -152,9 +164,7 @@ loadLoginConfig();
 panelApi.get('/noauth/site/login-config', {noTokenRequired: true, noAlert: true, timeout: LOGIN_REQUEST_TIMEOUT}).then(res => {
     let data:any = res.data?.data || res.data || {};
     canInitUser.oidcEnabled = data.oidcEnabled === true || data.oidcEnabled === 'true';
-    if(router?.currentRoute?.value?.query?.panellogin === '1' && canInitUser.oidcEnabled && !getToken()){
-        oidcLogin();
-    }
+    redirectPanelLogin();
 }).catch(()=>{});
 
 const consoleLogin = ()=>{
