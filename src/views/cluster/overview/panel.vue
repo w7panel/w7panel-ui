@@ -84,6 +84,9 @@
                     <a-form-item label="带宽" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.bandwidth}}</span>
                     </a-form-item>
+                    <a-form-item v-if="isCkmRequest" label="集群地址" style="margin-bottom:0;">
+                        <span class="c-00-6">{{window.location.origin}}</span>
+                    </a-form-item>
                     <!-- <a-form-item label="存储设备" style="margin-bottom:0;">
                         <span class="c-00-6">{{quotsInfo.storageclass}}</span>
                     </a-form-item> -->
