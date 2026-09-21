@@ -108,7 +108,7 @@
                 </div>
             </component>
 
-            <a-layout class="app-detail-main padding-20 df df-c">
+            <a-layout class="app-detail-main df df-c" style="padding: 20px">
                 <Breadcrumb class="df-s0" :routes="detailBreadcrumbRoutes" />
                 <div v-if="appGroups.length > 1 && !groupRedirecting" class="df ai-c bg-white mb-6" style="padding:10px 14px;border-bottom:1px solid var(--color-neutral-3);">
                     <span class="c-66 mr-10">应用</span>
