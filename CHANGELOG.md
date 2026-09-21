@@ -2,6 +2,10 @@
 
 ## 2026-09-21
 
+- 集群概览的 CKM/CVM 请求判断改为读取后端 `/app-info` 返回的 `isSubCluster`，不再依赖 `/k3k/info` 的用户标记。
+- 影响模块：集群概览的系统信息与资源信息展示。
+- 验证：`npm run build`。
+
 - Helm 下载包上传改用与构建镜像一致的认证分片上传和短时 `download-ticket` 流程，移除旧 `/s3bucket` 上传路径，避免两套上传行为不一致。
 - 影响模块：应用列表 Helm 创建。
 - 验证：`npm run build` 与 `git diff --check`。

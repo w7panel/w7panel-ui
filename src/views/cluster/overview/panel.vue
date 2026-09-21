@@ -494,6 +494,7 @@ export default {
             gpuIsOpen: false,
 
             userInfo: {},
+            appInfo: {},
             clusterMode: '',
             chartReady: true,
             noMonitor: true,
@@ -539,6 +540,7 @@ export default {
     },
     async created(){
         this.namespaceActive = useNamespaceStore().namespace;
+        this.appInfo = (await panelApi.get('/app-info'))?.data || {};
         
         await this.initInfo();
 
@@ -594,12 +596,8 @@ export default {
         StatisticsAnalysisCharts,
     },
     computed:{
-        isCvmRequest(){
-            return String(this.userInfo?.['w7.cc/is-cvm-req'] ?? '') === 'true';
-        },
         isCkmRequest(){
-            return this.userInfo?.['w7.cc/is-ckm-req']=='true'
-                || this.userInfo?.['w7.cc/is-cvm-req']=='true';
+            return Boolean(this.appInfo?.isSubCluster);
         },
         metricStepOptions(){ return METRIC_60S_STEPS; },
         ciliumStepOptions(){ return METRIC_30S_STEPS; },
