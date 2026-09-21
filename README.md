@@ -2,11 +2,13 @@
 
 基于 Vue 3 + TypeScript + Arco Design 的 Kubernetes 云原生应用管理平台前端。
 
-插件类 AppGroup（`w7.cc/manifest-type=gateway-plugin`）只在网关插件页面管理，不在顶部菜单、应用直达和普通应用列表中展示。
+网关插件 AppGroup（`w7.cc/manifest-type=gateway-plugin`）只在网关插件页面管理，不在顶部菜单、应用直达和普通应用列表中展示；应用插件 AppGroup（`w7.cc/manifest-type=app-plugin`）的功能会聚合到所依赖的传统应用中，同样不在普通应用列表中单独展示。
 
 微应用试用状态检查使用静态状态接口返回的完整 `respoUrl` 请求制品配置，保留订单等查询参数，不根据仓库根地址自行拼接。
 
 插件应用仍持有自己的 MicroApp。传统应用页面根据 AppGroup `spec.dependencies` 及 `w7.cc/depends-<releaseName>` 反向索引查找依赖它的 `w7.cc/manifest-type=app-plugin` AppGroup，再聚合这些插件的 MicroApp；单数 `w7.cc/group-name` 仅处理同一 Release 内资源归属，不使用复数 `w7.cc/group-names`。
+
+Wujie 通用宿主 handles 包含关联插件的升级检测、前往升级和卸载能力。升级检测复用应用列表的 `/panel-api/v1/zpk/upgrade-info` 参数与逻辑，确认存在新版本后才进入面板安装升级页；卸载通过面板权限下的 AppGroup 删除流程执行。
 
 ## 技术栈
 

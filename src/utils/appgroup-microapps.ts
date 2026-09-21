@@ -1,5 +1,9 @@
 import { getMicroAppOrder } from './microapp-menu';
 import {
+  APP_PLUGIN_APPLICATION_TYPE,
+  getAppGroupApplicationType,
+} from './appgroup';
+import {
   RESOURCE_GROUP_LABEL,
   W7PANEL_RESOURCE_NAMESPACE,
   loadResourcesByGroupNames,
@@ -7,12 +11,9 @@ import {
 } from './w7panel-resource';
 
 export const APPGROUP_DEPENDENCY_LABEL_PREFIX = 'w7.cc/depends-';
-export const APP_PLUGIN_APPLICATION_TYPE = 'app-plugin';
+export { APP_PLUGIN_APPLICATION_TYPE } from './appgroup';
 export const DEPENDENT_PLUGIN_ORDER_BASE = 200;
-
-export function getAppGroupApplicationType(appGroup: any) {
-  return appGroup?.metadata?.annotations?.['w7.cc/manifest-type'] || '';
-}
+export { getAppGroupApplicationType } from './appgroup';
 
 export function appGroupDependsOn(appGroup: any, target: any) {
   const targetNamespace = target?.metadata?.namespace || W7PANEL_RESOURCE_NAMESPACE;

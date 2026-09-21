@@ -2,6 +2,9 @@
 
 ## 2026-09-21
 
+- Wujie 通用宿主 handles 新增关联应用自动升级检测、前往面板升级和卸载能力；升级检测复用应用列表的版本检查接口，仅在可升级时显示入口，卸载复用面板 AppGroup 删除流程，关联应用身份由订单关系业务层判定。
+- 影响模块：Wujie MicroApp 宿主能力、制品市场关联插件操作。
+- 验证：`LOCAL_MOCK=true` 生产构建通过，`git diff --check` 通过；类型检查受项目现有 pnpm 依赖脚本批准策略及 TypeScript/`@types/node` 版本冲突阻断。
 - ZPK 安装请求根据启用模块提交依赖 Release，供后端写入 AppGroup 通用依赖关系。
 - 传统应用通过 `w7.cc/depends-<releaseName>` 反查插件 AppGroup，并聚合插件自身的 MicroApp 菜单；插件 MicroApp 仍归属于插件 AppGroup。
 - AppGroup 依赖反查按 namespace 和 releaseName 校验逻辑应用关系，同名 Release 重装后无需插件重新安装即可继续聚合菜单。
