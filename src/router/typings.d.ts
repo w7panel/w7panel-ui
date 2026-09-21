@@ -18,5 +18,6 @@ declare module 'vue-router' {
     linkIcon?: boolean; // Whether to show the launch-style icon in the menu
     routekey?: string; // Internal tab/menu key used by some detail pages
     menuGroup?: MenuGroup; // Top-level menu grouping used by navbar and side menu filtering
+    replaceRootMenu?: boolean; // Replace the system side menu with a page-level primary menu
   }
 }
