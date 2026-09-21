@@ -74,31 +74,7 @@
                 <div class="df ai-s jc-b">
                     <div class="title fs-16">系统信息</div>
                 </div>
-                <a-form v-if="userInfo['w7.cc/user-mode']=='cluster' || isCkmRequest" :model="quotsInfo" class="mt-20" label-align="left" auto-label-width>
-                    <a-form-item label="CPU" style="margin-bottom:0;">
-                        <span class="c-00-6">{{quotsInfo.cpu}}</span>
-                    </a-form-item>
-                    <a-form-item label="内存" style="margin-bottom:0;">
-                        <span class="c-00-6">{{quotsInfo.memory}}</span>
-                    </a-form-item>
-                    <a-form-item label="带宽" style="margin-bottom:0;">
-                        <span class="c-00-6">{{quotsInfo.bandwidth}}</span>
-                    </a-form-item>
-                    <a-form-item v-if="isCkmRequest" label="集群地址" style="margin-bottom:0;">
-                        <span class="c-00-6">{{window.location.origin}}</span>
-                    </a-form-item>
-                    <!-- <a-form-item label="存储设备" style="margin-bottom:0;">
-                        <span class="c-00-6">{{quotsInfo.storageclass}}</span>
-                    </a-form-item> -->
-                    <a-form-item label="存储大小" style="margin-bottom:0;">
-                        <span class="c-00-6">{{quotsInfo.storagesize}}</span>
-                        <!-- <span v-if="userInfo['w7.cc/user-mode']=='cluster'&&userInfo['w7.cc/can-expand']=='true'" class="c-blue cursor ml-20" @click="expand.show=true;">扩容</span> -->
-                    </a-form-item>
-                    <a-form-item v-if="quotsInfo.expiretime" label="到期时间" style="margin-bottom:0;">
-                        <span class="c-00-6">{{quotsInfo.expiretime}}</span>
-                    </a-form-item>
-                </a-form>
-                <a-form v-else :model="info" class="mt-20" label-align="left" auto-label-width>
+                <a-form :model="info" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="集群版本" style="margin-bottom:0;">
                         <span class="c-00-6">{{info.gitVersion}}</span>
                     </a-form-item>
@@ -116,8 +92,13 @@
                         <span v-else class="c-blue cursor" @click="getToken()">点击查看</span>
                     </a-form-item> -->
                     <a-form-item label="集群地址" style="margin-bottom:0;">
-                        <div v-if="domain.domain" class="mr-20">{{domain.domain}}</div>
-                        <span class="c-blue cursor" @click="bindDomain">{{domain.domain?'修改域名':'绑定域名'}}</span>
+                        <template v-if="isSubCluster">
+                            <span class="c-00-6">{{window.location.origin}}</span>
+                        </template>
+                        <template v-else>
+                            <div v-if="domain.domain" class="mr-20">{{domain.domain}}</div>
+                            <span class="c-blue cursor" @click="bindDomain">{{domain.domain?'修改域名':'绑定域名'}}</span>
+                        </template>
                     </a-form-item>
                     <a-form-item label="集群模式" style="margin-bottom:0;">
                         <div v-if="!config.edit || config.type!=1" class="mr-10">{{config.titles[config.type] || ''}}</div>
@@ -495,10 +476,8 @@ export default {
 
             userInfo: {},
             appInfo: {},
-            clusterMode: '',
             chartReady: true,
             noMonitor: true,
-            quotsInfo: {},
             chartData: {},
 
             expand: {
@@ -532,10 +511,6 @@ export default {
 
             virtualDiskFilterCache: [],
 
-            cvmInfo: {
-                renewQuery: '',
-                expandQuery: '',
-            },
         }
     },
     async created(){
@@ -596,7 +571,7 @@ export default {
         StatisticsAnalysisCharts,
     },
     computed:{
-        isCkmRequest(){
+        isSubCluster(){
             return Boolean(this.appInfo?.isSubCluster);
         },
         metricStepOptions(){ return METRIC_60S_STEPS; },
@@ -714,51 +689,6 @@ export default {
         initInfo(){
             return panelApi.get('/k3k/info').then(res=>{
                 this.userInfo = res?.data;
-                this.clusterMode = this.userInfo?.["k3k.io/cluster-mode"];
-
-                if(this.isCkmRequest){
-                    let name = res?.data?.['w7.cc/ckm-name'] || res?.data?.['w7.cc/cvm-name'];
-                    let namespace = res?.data?.['w7.cc/ckm-namespace']
-                        || res?.data?.['ckm-namespace']
-                        || res?.data?.['w7.cc/cvm-namespace']
-                        || res?.data?.['w7.cc/k3k-namespace'];
-                    panelApi.get(`/k3k/ckm/v1/${namespace}/info/${name}`).then(res=>{
-                        let effectiveResource = res?.data?.status?.effectiveResource;
-                        this.quotsInfo = {
-                            cpu: (effectiveResource?.cpu || 0) + ' 核',
-                            memory: (effectiveResource?.memory || 0) + 'Gi',
-                            bandwidth: (effectiveResource?.bandwidth || 0) + 'Mbps',
-                            storagesize: (effectiveResource?.storage || 0) + 'Gi',
-                            expiretime: res.data?.spec?.expireTime || '永久',
-                            storageclass: res.data?.spec?.storageClassName || '',
-                        }
-                        this.cvmInfo = {
-                            ...this.cvmInfo,
-                            canExpandBuy: res?.data?.status?.canExpandBuy,
-                            isExpired: res?.data?.status?.isExpired,
-                            canRenewBuy: res?.data?.status?.canRenewBuy,
-                        };
-                        if(res?.data?.status?.canExpandBuy && !res?.data?.status?.isExpired){
-                            this.cvmInfo.expandQuery = `&cvmName=${name}&cvmNamespace=${namespace}`;
-                        }
-                        if(res?.data?.status?.canRenewBuy){
-                            this.cvmInfo.renewQuery = `&cvmName=${name}&cvmNamespace=${namespace}`;
-                        }
-                    });
-                    return;
-                }
-
-                // if(this.userInfo?.['w7.cc/user-mode']!='cluster'){return}
-                // let data = this.userInfo?.['w7.cc/quota-limit'] || '{}';
-                // data = JSON.parse(data);
-                // this.quotsInfo = {
-                //     cpu: data?.hard?.cpu + ' 核',
-                //     memory: String(data?.hard?.memory).replace(/[a-zA-Z]+$/,'') + 'Gi',
-                //     bandwidth: String(data?.hard?.bandwidth).replace(/[a-zA-Z]+$/,'') + 'Mbps',
-                //     storagesize: String(data?.hard?.['requests.storage']).replace(/[a-zA-Z]+$/,'') + 'Gi',
-                //     expiretime: this.userInfo?.['w7.cc/expiretime'] || '永久',
-                //     storageclass: data?.storageclass,
-                // }
             })
         },
         haSelect(boo){
