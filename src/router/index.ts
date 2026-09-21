@@ -30,7 +30,7 @@ const getMenuGroupFromRoute = (to: any) => {
     return matchedGroup;
   }
 
-  if (['topapp', 'topapp-micro'].includes(String(to.name || ''))) {
+  if (['topapp', 'topapp-micro', 'topapp-direct'].includes(String(to.name || ''))) {
     return 'topapp';
   }
 

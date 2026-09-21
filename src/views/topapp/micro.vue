@@ -35,7 +35,6 @@ import TopappMenu from '@/components/topapp-menu.vue';
 import { useNamespaceStore } from '@/store';
 import { getK8sinfo } from '@/utils/auth';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute } from '@/utils/wujie-route';
-import { sortMicroAppsByOrder } from '@/utils/microapp-menu';
 import microContainer from './micro-container.vue'
 
 const LEGACY_APP_DIRECT_DO = '__topapp_app_direct__';
@@ -156,7 +155,7 @@ export default{
             
             let roles = []
             try{
-                const items = sortMicroAppsByOrder(Array.isArray(microApps) ? microApps : []);
+                const items = Array.isArray(microApps) ? microApps : [];
                 items.forEach(item=>{
                     const microAppName = item?.metadata?.name || '';
                     const microAppTitle = item?.spec?.title || microAppName;

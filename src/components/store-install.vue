@@ -1224,6 +1224,24 @@ export default {
                 });
             });
         },
+        collectDependencyBindings(){
+            const result = new Map();
+            (this.form.forms || []).forEach(form=>{
+                if(!form || (!form.requireInstall && !form.isInstall)){return}
+                (form.dependsOnes || []).forEach(dependency=>{
+                    const releaseName = String(dependency?.releaseName || '').trim();
+                    if(!releaseName){return}
+                    const identifie = dependency?.subidentifie || dependency?.identifie || '';
+                    const key = `${this.namespaceActive}\n${releaseName}`;
+                    result.set(key, {
+                        namespace: this.namespaceActive,
+                        releaseName,
+                        identifie,
+                    });
+                });
+            });
+            return [...result.values()];
+        },
         // 获取模块名称
         async getTitleByMn(name){
             const configModule = this.findConfigModuleForm(name);
@@ -1457,6 +1475,7 @@ export default {
                 ingressClass: this.form.ingressclass,
                 ingressSeletorName: this.form.ingressSeletorName,
                 installOptions: installOptions,
+                dependencies: this.collectDependencyBindings(),
                 clusterId: this.installInputParams.insClusterId || this.installInputParams.clusterId || '',
                 thirdpartyCDToken: this.installInputParams.thirdpartyCDToken || this.thirdparty_cd_token,
                 panelUrl: window.location.origin,
@@ -1471,7 +1490,7 @@ export default {
 			}
 
             if(this.isCaptureMode){
-                const allowedKeys = ['repoUrl','namespace','releaseName','ingressHost','ingressForceHttps','ingressClass','ingressSeletorName','isTrandition','zipUrl'];
+                const allowedKeys = ['repoUrl','namespace','releaseName','ingressHost','ingressForceHttps','ingressClass','ingressSeletorName','isTrandition','zipUrl','dependencies'];
                 const spec = Object.fromEntries(allowedKeys.filter(key=>params[key]!==undefined).map(key=>[key,params[key]]));
                 spec.installOptions = params.installOptions.map(option=>{
                     const captured = {...option};

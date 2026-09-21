@@ -32,6 +32,7 @@ import { podShell } from '@/utils/pod-shell';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { createOpenCkmPanel } from '@/utils/ckm-panel-session';
 import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
+import { loadVisibleAppGroupMicroApps, sortVisibleAppGroupMicroApps } from '@/utils/appgroup-microapps';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -283,16 +284,31 @@ export default{
             this.$emit('getinfo', {...this.info});
         },
         async loadMicroApps(appgroup){
-            const selected = await panelApi.get(`/microapp/${appgroup}/info`).then(res=>res?.data);
-            if(!selected){ return []; }
-            const hasMenu = (selected?.spec?.bindings || []).some(binding=>
-                binding?.support === 'thirdparty_cd' && Array.isArray(binding?.menu) && binding.menu.length > 0
-            );
-            return hasMenu ? [selected] : [];
+            const selected = await panelApi.get(`/microapp/${appgroup}/info`, {noAlert:true}).then(res=>res?.data).catch(()=>null);
+            const groupName = selected?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
+                || String(selected?.metadata?.name || appgroup).replace(/-root$/, '');
+            const related = await loadVisibleAppGroupMicroApps(k8sproxy, this.namespaceActive, groupName).catch(()=>[]);
+            const resources = [selected, ...related];
+            const result = [];
+            const names = new Set();
+            resources.forEach(item=>{
+                const name = item?.metadata?.name;
+                const normalizedName = item === selected && item?.metadata?.labels?.['microapp.w7.cc/from'] === 'root'
+                    ? String(name || '').replace(/-root$/, '')
+                    : String(name || '');
+                const hasMenu = (item?.spec?.bindings || []).some(binding=>
+                    binding?.support === 'thirdparty_cd' && Array.isArray(binding?.menu) && binding.menu.length > 0
+                );
+                if(!name || names.has(normalizedName) || !hasMenu){ return; }
+                names.add(normalizedName);
+                result.push(item);
+            });
+            return result;
         },
         async getFront(appgroup){
             this.loadingMicroApps = true;
-            const items = await this.loadMicroApps(appgroup).catch(()=>[]);
+            const loadedItems = await this.loadMicroApps(appgroup).catch(()=>[]);
+            const items = sortVisibleAppGroupMicroApps(loadedItems, appgroup);
             if(!items.length){
                 this.loadingMicroApps = false;
                 return;
