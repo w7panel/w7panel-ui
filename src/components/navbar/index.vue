@@ -163,6 +163,7 @@ import { useDarkStore } from '@/store';
 import { getK8sinfo, getWebshell, getUserInfo, getPermission } from '@/utils/auth';
 import { useRoute, useRouter } from 'vue-router';
 import { hasPermission } from '@/utils/permission-match';
+import { getTopAppGroupName } from '@/utils/w7panel-resource';
 
 const appStore = useAppStore();
 const route = useRoute();
@@ -217,7 +218,10 @@ const handleCloudserverClick = () => {
 const handleTopAppClick = (name: string) => {
     appStore.changeMenuFilter('topapp');
     if (route.name !== 'topapp-micro' || route.params.group !== name) {
-        router.push(`/appgroup/${name}`);
+        router.push({
+            name: 'topapp-micro',
+            params: { group: name },
+        });
     }
 };
 
@@ -301,7 +305,7 @@ const getMenutop = () => {
 
             return {
                 title: i?.metadata?.annotations?.title || i?.spec?.title,
-                name: i.metadata.name,
+                name: getTopAppGroupName(i),
                 roles,
             };
         }));

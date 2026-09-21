@@ -127,6 +127,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'app-apps',
+                    replaceRootMenu: true,
                 },
             },
             {
@@ -139,6 +140,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'app-apps',
+                    replaceRootMenu: true,
                 },
             },
             {
@@ -151,6 +153,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'app-apps',
+                    replaceRootMenu: true,
                 },
             },
             {
@@ -166,6 +169,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'app-apps',
+                    replaceRootMenu: true,
                 },
                 children: [
                     {
@@ -207,6 +211,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'app-apps',
+                    replaceRootMenu: true,
                 },
                 children: [
                     {
