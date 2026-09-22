@@ -29,6 +29,18 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             },
         },
         {
+            path: 'copilot',
+            name: 'cluster-copilot',
+            component: () => import('@/views/copilot/index.vue'),
+            meta: {
+                locale: '运维 Copilot',
+                requiresAuth: true,
+                hideInMenu: false,
+                roles: ['*'],
+                key: 'cluster-copilot',
+            },
+        },
+        {
             path: 'overview',
             name: 'cluster-overview',
             component: () => import('@/views/cluster/overview/index.vue'),

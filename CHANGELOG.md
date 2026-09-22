@@ -6,6 +6,10 @@
 
 ## 2026-09-21
 
+- 新增独立运维 Copilot 页面：通过服务端 OpenAI 兼容接口流式生成受限 OpenUI Lang 诊断卡片；资源变更先 dry-run，再由用户确认执行。
+- 影响模块：集群管理、OpenUI Vue 渲染与面板 API。
+- 验证：`npm run build`、OpenUI Lang 解析自检。
+
 - 集群概览的 CKM/CVM 请求判断改为读取后端 `/app-info` 返回的 `isSubCluster`，不再依赖 `/k3k/info` 的用户标记。
 - 影响模块：集群概览的系统信息与资源信息展示。
 - 验证：`npm run build`。

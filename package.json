@@ -43,6 +43,8 @@
     "@kangc/v-md-editor": "^2.3.18",
     "@lezer/highlight": "^1.2.3",
     "@micro-zoe/micro-app": "1.0.0-rc.12",
+    "@openuidev/lang-core": "0.3.0",
+    "@openuidev/vue-lang": "0.3.0",
     "@vue/compiler-core": "^3.5.12",
     "@vueuse/core": "^9.3.0",
     "@wangeditor/editor": "^5.1.23",
@@ -74,7 +76,8 @@
     "vue-echarts": "^6.2.3",
     "vue-router": "4.0.14",
     "wujie": "^1.0.23",
-    "xterm-theme": "^1.1.0"
+    "xterm-theme": "^1.1.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@arco-plugins/vite-vue": "^1.4.5",
