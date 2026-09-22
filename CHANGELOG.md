@@ -2,6 +2,10 @@
 
 ## 2026-09-22
 
+- MicroApp 聚合新增通用 `presentation-key`、`presentation-mode` 展示协议；`multiple` 保留同类全部入口，`singleton` 按现有 MicroApp 显示顺序只保留同类第一个入口，未声明协议的资源保持原行为。
+- 影响模块：应用详情、顶部 MicroApp 聚合及通用资源元数据。
+- 验证：`LOCAL_MOCK=true` Vite 生产构建与 `git diff --check` 通过；类型检查仍受仓库现有 TypeScript 与 `@types/node` 语法版本不兼容阻断。
+
 - 应用列表删除操作增加单行 loading 状态，删除期间阻止重复提交，并在成功或失败后恢复操作状态。
 - 影响模块：应用管理列表。
 - 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。

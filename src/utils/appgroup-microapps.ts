@@ -6,6 +6,8 @@ import {
   getAppGroupApplicationType,
 } from './appgroup';
 import {
+  MICROAPP_PRESENTATION_KEY_LABEL,
+  MICROAPP_PRESENTATION_MODE_ANNOTATION,
   RESOURCE_GROUP_LABEL,
   W7PANEL_RESOURCE_NAMESPACE,
   loadResourcesByGroupNames,
@@ -13,6 +15,8 @@ import {
 } from './w7panel-resource';
 
 export const DEPENDENT_PLUGIN_ORDER_BASE = 200;
+export const MICROAPP_PRESENTATION_MODE_SINGLETON = 'singleton';
+export const MICROAPP_PRESENTATION_MODE_MULTIPLE = 'multiple';
 
 export interface ReverseDependentAppItem {
   appgroup: string;
@@ -118,7 +122,7 @@ export async function loadVisibleAppGroupContext(
   const microApps = await loadResourcesByGroupNames(k8sClient, microAppApi, groupNames, true);
   return {
     ...dependentContext,
-    microApps,
+    microApps: resolvePresentedMicroApps(microApps, appGroupName),
   };
 }
 
@@ -133,6 +137,45 @@ export async function loadVisibleAppGroupMicroApps(
 
 const getMicroAppGroupName = (microApp: any) => microApp?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
   || String(microApp?.metadata?.name || '').replace(/-root$/, '');
+
+const getMicroAppPresentationKey = (microApp: any) => String(
+  microApp?.metadata?.labels?.[MICROAPP_PRESENTATION_KEY_LABEL] || '',
+).trim();
+
+const getMicroAppPresentationMode = (microApp: any) => String(
+  microApp?.metadata?.annotations?.[MICROAPP_PRESENTATION_MODE_ANNOTATION] || '',
+).trim();
+
+function selectSingletonMicroApp(microApps: any[], primaryGroupName: string) {
+  return sortVisibleAppGroupMicroApps(microApps, primaryGroupName)[0];
+}
+
+// resolvePresentedMicroApps applies only the generic presentation contract.
+// Unmarked and multiple resources remain visible; singleton resources with the
+// same capability key collapse to the first item in the normal display order.
+export function resolvePresentedMicroApps<T>(microApps: T[] = [], primaryGroupName = ''): T[] {
+  const groups = new Map<string, T[]>();
+  microApps.forEach(microApp => {
+    const key = getMicroAppPresentationKey(microApp);
+    if(!key){return}
+    const candidates = groups.get(key) || [];
+    candidates.push(microApp);
+    groups.set(key, candidates);
+  });
+
+  const singletonWinners = new Map<string, T>();
+  groups.forEach((candidates, key) => {
+    const modes = candidates.map(getMicroAppPresentationMode);
+    if(!modes.every(mode => mode === MICROAPP_PRESENTATION_MODE_SINGLETON)){return}
+    singletonWinners.set(key, selectSingletonMicroApp(candidates, primaryGroupName));
+  });
+
+  return microApps.filter(microApp => {
+    const key = getMicroAppPresentationKey(microApp);
+    const winner = singletonWinners.get(key);
+    return !winner || winner === microApp;
+  });
+}
 
 export const sortVisibleAppGroupMicroApps = <T>(microApps: T[] = [], primaryGroupName = '') => microApps
   .map((microApp, index) => {
