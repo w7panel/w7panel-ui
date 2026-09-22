@@ -26,6 +26,7 @@ export interface AppGroupUninstallOptions {
     signal?: AbortSignal;
     pollIntervalMs?: number;
     timeoutMs?: number;
+    waitForDeletion?: boolean;
     confirm?: (plan: AppGroupUninstallPlan) => boolean | Promise<boolean>;
     onDeleting?: (item: AppGroupUninstallPlanItem, plan: AppGroupUninstallPlan) => void;
 }
@@ -231,18 +232,10 @@ export async function uninstallAppGroup(
     const timeoutMs = Math.max(1, options.timeoutMs || DEFAULT_UNINSTALL_TIMEOUT);
     const pollInterval = Math.max(100, options.pollIntervalMs || DEFAULT_UNINSTALL_POLL_INTERVAL);
     const deadline = Date.now() + timeoutMs;
-    const deletedNames: string[] = [];
-    for(const item of plan.items){
+    const deletedNames = await Promise.all(plan.items.map(async item => {
         throwIfAborted(options.signal);
-        const current = await loadAppGroup(
-            k8sClient,
-            resolvedNamespace,
-            item.name,
-            options.signal,
-        );
-        if(!current){continue}
         options.onDeleting?.(item, plan);
-        if(!current?.metadata?.deletionTimestamp){
+        if(!item.resource?.metadata?.deletionTimestamp){
             try {
                 await k8sClient.delete(
                     `${getAppGroupApi(resolvedNamespace)}/${encodeURIComponent(item.name)}`,
@@ -252,15 +245,17 @@ export async function uninstallAppGroup(
                 if(getErrorStatus(error) !== 404){throw error}
             }
         }
-        await waitForAppGroupDeletion(
+        return item.name;
+    }));
+    if(options.waitForDeletion !== false){
+        await Promise.all(deletedNames.map(name => waitForAppGroupDeletion(
             k8sClient,
             resolvedNamespace,
-            item.name,
+            name,
             deadline,
             pollInterval,
             options.signal,
-        );
-        deletedNames.push(item.name);
+        )));
     }
     return { cancelled: false, deletedNames, plan };
 }
