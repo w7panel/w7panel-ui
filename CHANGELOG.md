@@ -2,6 +2,8 @@
 
 ## 2026-09-22
 
+- 修复 CKM 面板入口传入 `oidclogin=1` 时登录页仍读取旧 `panellogin` 参数而不自动跳转 OIDC 的问题。
+
 - 主集群应用入口兼容 HTTP 与 HTTPS 地址，匹配服务端按实际请求地址返回的 URL。
 
 - 子集群头部通过 `app-info.mainPanelUrl` JSONP 获取主集群普通 MicroApp 入口并显示为菜单项，点击将在新窗口打开对应主集群应用。

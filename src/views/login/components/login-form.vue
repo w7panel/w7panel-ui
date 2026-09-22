@@ -83,7 +83,7 @@ const LOGIN_REQUEST_TIMEOUT = 10000;
 const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png')
 const microLogin = (window as any)?.w7_microapp?.site?.login || {};
 const isMicroAppDirect = Boolean((window as any)?.w7_microapp?.name);
-const panelLogin = router?.currentRoute?.value?.query?.panellogin === '1';
+const panelLogin = router?.currentRoute?.value?.query?.oidclogin === '1';
 let invalidToken = false;
 
 
