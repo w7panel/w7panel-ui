@@ -198,12 +198,13 @@ import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 import {
     loadMicroAppReverseDependentApps,
     loadVisibleAppGroupContext,
+    resolvePresentedMicroApps,
     sortVisibleAppGroupMicroApps,
 } from '@/utils/appgroup-microapps';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
-import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
+import { RESOURCE_GROUP_LABEL, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
 import AppDirect from '@/views/topapp/app-direct.vue';
 import MicroappMenuItems from '@/components/microapp-menu-items.vue';
 
@@ -1068,6 +1069,41 @@ export default {
                 return result;
             });
         },
+        async loadTopMicroApps(groupName){
+            const selected = await panelApi.get(`/microapp/${encodeURIComponent(groupName)}/info`, {noAlert:true})
+                .then(res=>res?.data)
+                .catch(()=>null);
+            const resolvedGroupName = selected?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
+                || String(selected?.metadata?.name || groupName).replace(/-root$/, '');
+            const microAppApi = `/apis/w7panel.w7.com/v1alpha1/namespaces/${encodeURIComponent(this.namespaceActive)}/microapps`;
+            const groupedMicroApps = await loadResourcesByGroupNames(
+                k8sproxy,
+                microAppApi,
+                [resolvedGroupName],
+                true,
+            ).catch(()=>[]);
+            const microAppMap = new Map();
+            [selected, ...groupedMicroApps].forEach((microApp)=>{
+                const name = microApp?.metadata?.name;
+                const hasThirdpartyCdMenu = (microApp?.spec?.bindings || []).some(binding=>
+                    binding?.support === 'thirdparty_cd' && Array.isArray(binding?.menu) && binding.menu.length > 0
+                );
+                if(!name || !hasThirdpartyCdMenu){ return; }
+                const normalizedName = microApp === selected && microApp?.metadata?.labels?.['microapp.w7.cc/from'] === 'root'
+                    ? String(name).replace(/-root$/, '')
+                    : String(name);
+                if(!microAppMap.has(normalizedName)){
+                    microAppMap.set(normalizedName, microApp);
+                }
+            });
+            return {
+                groupName: resolvedGroupName,
+                items: resolvePresentedMicroApps([...microAppMap.values()], resolvedGroupName),
+            };
+        },
+        loadMicroApp(groupName){
+            return this.loadMicroApps(groupName).then(items=>items[0] || null);
+        },
         loadReverseDependentApps(appGroupName){
             if(!appGroupName){return Promise.resolve([])}
             if(Object.prototype.hasOwnProperty.call(this.reverseDependentAppCache, appGroupName)){
@@ -1146,6 +1182,7 @@ export default {
         },
         noMicroJump(){
             if(!this.isMicroPage){return}
+            if(this.isTopAppEntry){return}
             if(this.isHelmApp){
                 this.$router.push({path:'/app/appgroup/'+ this.$route.params.group+'/helm/detail'}).then(()=>{
                     this.selectMenu = [this.$route.meta.routekey]
@@ -1432,6 +1469,47 @@ export default {
                 list,
             }
         },
+        async getTopAppData(){
+            const requestedGroup = String(this.$route.params.group || '');
+            const topApp = this.appStore.topApps.find(item=>item?.name === requestedGroup);
+
+            this.groupRedirecting = true;
+            this.groupTitle = topApp?.title || requestedGroup;
+            this.title = this.groupTitle;
+            this.appGroups = [];
+            this.activeGroup = '';
+            this.applist = [];
+            this.roles = [];
+            this.isHelmApp = false;
+            this.hasThirdpartyCd = false;
+            this.microApp = null;
+            this.microApps = [];
+            this.microAppGroup = '';
+            this.appGroupName = '';
+            this.activeMicroAppName = '';
+
+            const {groupName, items} = await this.loadTopMicroApps(requestedGroup);
+            if(!this.isTopAppEntry || String(this.$route.params.group || '') !== requestedGroup){
+                return;
+            }
+
+            this.appGroups = [{
+                name: groupName,
+                title: this.groupTitle,
+                apps: [],
+            }];
+            this.activeGroup = groupName;
+            this.microAppGroup = groupName;
+            this.groupRedirecting = false;
+            if(!items.length){
+                return;
+            }
+
+            this.microApps = items;
+            this.microApp = items[0];
+            this.hasThirdpartyCd = true;
+            this.getFront(items);
+        },
         async getData(){
             useLoadingStore().loading = true;
             this.reverseDependentAppCache = {};
@@ -1461,6 +1539,14 @@ export default {
                 this.appname = 'helm-'+this.$route.params.group;
             }else{
                 this.appname = (this.$route.params.kind && this.$route.params.id) ? this.$route.params.kind + this.$route.params.id : '';
+            }
+            if(this.isTopAppEntry){
+                try{
+                    await this.getTopAppData();
+                }finally{
+                    useLoadingStore().loading = false;
+                }
+                return;
             }
             await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
             }).then(async res=>{

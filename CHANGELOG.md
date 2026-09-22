@@ -261,30 +261,8 @@
 - 修复 `components/menu/index.vue` 在旧版 Vue JSX 插件转换时丢失 `defineComponent`、`ref`、`computed` 等 named imports，导致菜单 chunk 加载后偶发 `defineComponent is not defined` 的问题；组件改用不会被错误移除的 Vue namespace import。
 - 验证：`LOCAL_MOCK=true ./node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建产物的菜单 chunk 已使用绑定后的 Vue helper，不再包含裸 `defineComponent`、`ref`、`computed` 等调用。
 
-## 2026-09-22（MicroApp 反向依赖查询）
-
-- 应用详情与顶部入口并行查询当前组 MicroApp 和带 `w7.cc/depends-<groupName>=true` 的依赖方 MicroApp，不再通过 AppGroup 查询插件菜单，也不再按 MicroApp 资源名回退分组。
-- 依赖方 `app-plugin` MicroApp 参与菜单聚合；Wujie `reverseDependentApps` 改为从全部依赖方 MicroApp 元数据汇总并按 `w7.cc/group-name` 去重，移除 `packageType`。
-- 验证：`LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 生产构建通过，仅有项目既有深度选择器弃用和图片压缩提示。
-
-## 2026-09-22（MicroApp 前端加载约定）
-
-- 在 `AGENTS.md` 增加约定：MicroApp 菜单发现、菜单生成及 Wujie 初始化加载不得查询 AppGroup，必须从 MicroApp API 和自身元数据获取上下文。
-- 静态检查应用详情、顶部应用、网关插件、制品市场、插件预览及遗留 Wujie 入口；本次仅记录残留 AppGroup 调用点，未修改业务代码。
-
-## 2026-09-22（移除 AppGroup 父子展示）
-
-- 应用详情页移除已废弃的父子 AppGroup 切换栏、`w7.cc/parent`/`w7.cc/parent-root` 聚合查询、首个子应用自动跳转及相关页面状态；详情页只展示当前路由指定的 AppGroup。
-- MicroApp 菜单仍按当前 AppGroup 名称从 MicroApp 标签聚合，菜单树自身的 `parent` 层级语义不受影响。
-- 应用列表和容器选择器不再按 `w7.cc/parent` 隐藏 AppGroup，UI 不再保留 AppGroup 父子展示语义。
-- 验证：`LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 生产构建通过，仅保留项目既有深度选择器弃用和图片压缩提示。
-
-## 2026-09-22（MicroApp 加载时序解耦）
-
-- 应用详情页进入时独立启动 MicroApp 查询，MicroApp 菜单生成和 Wujie 初始化不再等待 AppGroup 请求；AppGroup 查询仅继续服务默认资源菜单和应用详情数据。
-- 删除已无路由、导入和组件引用的遗留 `views/app/apps/micro.vue`，MicroApp 页面统一由应用详情页承载。
-- 补充前端开发约定，明确默认资源菜单允许查询 AppGroup，但不得成为 MicroApp 菜单或 Wujie 初始化的前置步骤。
-- Wujie 对 MicroApp 公开的反向依赖 props 字段统一使用蛇形命名 `reverse_dependent_apps`。
-- 顶部菜单的 `topapp-micro` 路由恢复使用原有顶部 MicroApp 专用页面，并在该页面通过 MicroApp 依赖标签注入 `reverse_dependent_apps`，不查询 AppGroup。
-- 更正：`topapp-micro` 继续复用应用详情页，以保持顶部入口与应用详情一致；遗留顶部 MicroApp 容器仅补齐 `reverse_dependent_apps` 注入，不作为该路由组件。
-- 验证：`LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 生产构建通过，仅有既有深度选择器弃用和图片压缩提示；ZPK UI `npm run build` 通过，仅有既有产物体积提示。
+- 2026-09-22 修复：顶部应用入口改为沿用旧版微应用信息加载链路，不再读取仅管理员可访问的 AppGroup 资源；普通应用管理详情仍保留 AppGroup 查询。影响模块：顶部应用详情初始化与非管理员访问；验证结果见本次构建检查。
+- 2026-09-22 验证：上述顶部应用权限修复已通过 `npm run build` 与 `git diff --check`；`npm run type:check` 仍仅报告缺失 `route-listener`、既有 Axios 扩展字段及登录页类型等存量错误，本次修改文件未新增类型错误。
+- 2026-09-22 合并验证：同步远端至 `c7c8a59` 后保留 AppGroup 级联卸载及多 MicroApp 展示协议，顶部非管理员入口继续仅查询 MicroApp 资源；`npm run build` 与 `git diff --check` 通过，类型检查仍仅包含上述存量错误。
+- 2026-09-22 兼容：应用详情和顶部入口按 `w7.cc/group-name` 查询不到当前组 MicroApp 时，精确读取与 AppGroup 同名的旧 MicroApp；资源归组同时兼容旧 `-root` 后缀，不修改 MicroApp Controller 的标签同步规则。影响模块：MicroApp 菜单发现与 Wujie 初始化；验证结果见本次构建检查。
+- 2026-09-22 验证：旧 MicroApp 同名兜底已通过 `LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 与 `git diff --check`，构建仅保留项目既有深度选择器弃用和图片压缩提示。

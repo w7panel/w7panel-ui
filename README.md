@@ -6,7 +6,7 @@
 
 微应用试用状态检查使用静态状态接口返回的完整 `respoUrl` 请求制品配置，保留订单等查询参数，不根据仓库根地址自行拼接。
 
-插件应用仍持有自己的 MicroApp。传统应用页面根据 AppGroup `spec.dependencies` 及 `w7.cc/depends-<releaseName>` 反向索引查找依赖它的 `w7.cc/manifest-type=app-plugin` AppGroup，再聚合这些插件的 MicroApp；单数 `w7.cc/group-name` 仅处理同一 Release 内资源归属，不使用复数 `w7.cc/group-names`。
+插件应用仍持有自己的 MicroApp。传统应用页面通过 MicroApp 的 `w7.cc/depends-<releaseName>` 反向索引查找依赖它的 `w7.cc/manifest-type=app-plugin` MicroApp；单数 `w7.cc/group-name` 处理同一 Release 内资源归属，不使用复数 `w7.cc/group-names`。旧 MicroApp 缺少分组标签时，仅以与 AppGroup 同名的 `metadata.name` 精确兜底。
 
 聚合后的 MicroApp 支持通用展示协议：`metadata.labels["w7.cc/presentation-key"]` 表示能力类型，`metadata.annotations["w7.cc/presentation-mode"]` 使用 `multiple` 保留同类全部入口，使用 `singleton` 时同一能力按现有 MicroApp 显示顺序只保留第一个入口。面板只解释这两个通用字段，不硬编码具体能力名称。
 

@@ -27,9 +27,14 @@ function getMicroAppApplicationType(microApp: any) {
   return microApp?.metadata?.annotations?.[MICROAPP_MANIFEST_TYPE_ANNOTATION] || '';
 }
 
+function getMicroAppGroupName(microApp: any) {
+  return microApp?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
+    || String(microApp?.metadata?.name || '').replace(/-root$/, '');
+}
+
 function toReverseDependentAppItem(microApp: any): ReverseDependentAppItem {
   const metadata = microApp?.metadata || {};
-  const appgroup = metadata?.labels?.[RESOURCE_GROUP_LABEL] || '';
+  const appgroup = getMicroAppGroupName(microApp);
   return {
     appgroup,
     identifie: metadata?.labels?.['w7.cc/identifie'] || '',
@@ -66,7 +71,7 @@ async function loadAppGroupMicroAppContext(
   const microAppApi = `/apis/w7panel.w7.com/v1alpha1/namespaces/${encodeURIComponent(resolvedNamespace)}/microapps`;
   const selector = `${APPGROUP_DEPENDENCY_LABEL_PREFIX}${appGroupName}=true`;
   const [ownResources, dependentResponse] = await Promise.all([
-    loadResourcesByGroupNames(k8sClient, microAppApi, [appGroupName], false),
+    loadResourcesByGroupNames(k8sClient, microAppApi, [appGroupName], true),
     k8sClient.get(
       resourceListWithLabelSelector(microAppApi, selector),
       { noAlert: true },
@@ -120,8 +125,6 @@ export async function loadMicroAppReverseDependentApps(
   const context = await loadAppGroupMicroAppContext(k8sClient, namespace, appGroupName);
   return context.reverseDependentApps;
 }
-
-const getMicroAppGroupName = (microApp: any) => microApp?.metadata?.labels?.[RESOURCE_GROUP_LABEL] || '';
 
 const getMicroAppPresentationKey = (microApp: any) => String(
   microApp?.metadata?.labels?.[MICROAPP_PRESENTATION_KEY_LABEL] || '',
