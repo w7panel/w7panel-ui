@@ -6,6 +6,7 @@
         <a-button @click="loadContext" :loading="contextLoading">刷新集群上下文</a-button>
       </div>
       <a-alert class="mt-16" type="warning">Copilot 不读取 Secret 内容。模型生成的资源变更会先进行服务端 dry-run 校验。</a-alert>
+      <div v-if="context" class="c-99 fs-12 mt-8">当前诊断范围：{{ context.namespace }} · {{ context.nodes?.length || 0 }} 个节点 · {{ context.pods?.length || 0 }} 个 Pod · 指标{{ context.metrics === 'available' ? '可用' : '不可用' }}</div>
       <div class="copilot-conversation mt-16">
         <div v-for="(message, index) in messages" :key="index" :class="['copilot-message', message.role]">
           <div v-if="message.role === 'user'" class="user-message">{{ message.content }}</div>
@@ -58,7 +59,7 @@ const send = async () => {
     const response = await fetch(`${baseURL}/panel-api/v1/copilot/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
-      body: JSON.stringify({ namespace: useNamespaceStore().namespace, messages: [...messages.value.slice(0, -2), { role: 'user', content: `Cluster context: ${JSON.stringify(context.value || {})}\n\nUser request: ${content}` }] }),
+      body: JSON.stringify({ namespace: useNamespaceStore().namespace, messages: [...messages.value.slice(0, -2), { role: 'user', content }] }),
     });
     if (!response.ok || !response.body) throw new Error('Copilot 请求失败');
     const reader = response.body.getReader();
