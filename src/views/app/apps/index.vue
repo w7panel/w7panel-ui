@@ -432,7 +432,7 @@ export default {
         refreshList(){
             return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then((res)=>{
                 let list = res?.data?.items || [];
-                list = list.filter(i=>!i?.metadata?.labels?.['w7.cc/parent'] && !isPluginAppGroup(i)).map(i=>{
+                list = list.filter(i=>!isPluginAppGroup(i)).map(i=>{
                     
                     let domain_apps = [];
                     let statusItem = filterAppGroupWorkloadItems(i?.status?.items || []);

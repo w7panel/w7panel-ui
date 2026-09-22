@@ -3,7 +3,7 @@
         <a-layout class="app-detail-layout">
             <component
                 :is="appMenuContainer"
-                v-if="activeGroup && !groupRedirecting && !hideAppMenu && shouldRenderAppMenu"
+                v-if="!hideAppMenu && shouldRenderAppMenu"
                 v-bind="appMenuContainerProps"
                 :class="['app-detail-menu-container', {'app-detail-menu-container--drawer': appStore.hideMenu}]"
                 @collapse="setAppMenuCollapsed"
@@ -113,28 +113,10 @@
 
             <a-layout class="app-detail-main df df-c" :style="appDetailMainStyle">
                 <Breadcrumb v-if="!isTopAppEntry" class="df-s0" :routes="detailBreadcrumbRoutes" />
-                <div v-if="appGroups.length > 1 && !groupRedirecting" class="df ai-c bg-white mb-6" style="padding:10px 14px;border-bottom:1px solid var(--color-neutral-3);">
-                    <span class="c-66 mr-10">应用</span>
-                    <a-select v-model="activeGroup" size="small" style="width:240px" @change="changeGroup">
-                        <a-option v-for="item in appGroups" :key="item.name" :value="item.name">{{ item.title || item.name }}</a-option>
-                    </a-select>
-                    <a-popconfirm
-                        v-if="!isTopAppEntry && permission.includes('app/apps/delete')"
-                        :content="groupDeleteMessage"
-                        @ok="deleteCurrentGroup"
-                        position="lt"
-                        class="popconfirm-delete"
-                        type="warning"
-                        :ok-button-props="{status:'danger'}"
-                    >
-                        <a-button class="ml-10" size="small" status="danger">删除应用</a-button>
-                    </a-popconfirm>
-                </div>
-
-                <a-layout-content v-if="activeGroup && !groupRedirecting && isAppDirectPage" class="df df-c">
+                <a-layout-content v-if="isAppDirectPage" class="df df-c">
                     <app-direct :info="info" class="routerviewbox fc" />
                 </a-layout-content>
-                <a-layout-content v-else-if="activeGroup && !groupRedirecting && isMicroPage" class="df df-c">
+                <a-layout-content v-else-if="isMicroPage" class="df df-c">
                     <div class="bg-white routerviewbox fc">
                         <div v-show="downOk" id="app-detail-micro" :style="microPanelStyle"></div>
                         <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." :style="{display:'block', height: microPanelHeight}">
@@ -142,7 +124,7 @@
                         </a-spin>
                     </div>
                 </a-layout-content>
-                <a-layout-content v-else-if="activeGroup && !groupRedirecting" class="df df-c">
+                <a-layout-content v-else class="df df-c">
                 <a-tabs
                     :active-key="appname"
                     type="card"
@@ -214,7 +196,7 @@ import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { filterAppGroupWorkloadItems, uninstallAppGroup } from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 import {
-    loadAppGroupReverseDependentContext,
+    loadMicroAppReverseDependentApps,
     loadVisibleAppGroupContext,
     sortVisibleAppGroupMicroApps,
 } from '@/utils/appgroup-microapps';
@@ -261,19 +243,14 @@ export default {
             form: {
                 show: false,
                 id: '',
-                parent: '',
                 tabs: [],
             },
-            parent: '',
             namespaceActive: '',
             data: null,
             title: '',
             groupTitle: '',
             appname: '',
             applist: [],
-            appGroups: [],
-            activeGroup: '',
-            groupRedirecting: true,
 
             menukey: "",
             appMenu: [],
@@ -441,7 +418,7 @@ export default {
                 {name:'app', label:'应用管理'},
                 {
                     ...appTarget,
-                    label: this.groupTitle || this.activeGroup || this.$route.params.group || '',
+                    label: this.groupTitle || this.$route.params.group || '',
                 },
             ];
             const currentLabel = this.getCurrentBreadcrumbLabel();
@@ -477,8 +454,7 @@ export default {
             if(this.isTopAppEntry){
                 const headerOffset = 62;
                 const paddingOffset = this.hideAppMenu ? 0 : 40;
-                const groupSwitcherOffset = this.appGroups.length > 1 && !this.groupRedirecting ? 51 : 0;
-                return `calc(100vh - ${headerOffset + paddingOffset + groupSwitcherOffset}px)`;
+                return `calc(100vh - ${headerOffset + paddingOffset}px)`;
             }
             return this.hideAppMenu ? 'calc(100vh - 86px)' : 'calc(100vh - 146px)';
         },
@@ -487,11 +463,6 @@ export default {
                 height: this.microPanelHeight,
                 transform: 'translate(0,0)',
             };
-        },
-        groupDeleteMessage(){
-            return this.appGroups.length > 1
-                ? `确认要删除应用“${this.activeGroup}”吗？`
-                : '确认要删除当前应用吗';
         },
         modalExcludeWujieEvents(){
             const group = this.$route.params.group || '';
@@ -548,7 +519,7 @@ export default {
             }
         },
         getBreadcrumbAppTarget(){
-            const group = this.activeGroup || this.$route.params.group || '';
+            const group = this.$route.params.group || '';
             const currentApp = this.applist.find(item=>
                 item?.name === this.$route.params.id && item?.kind === this.$route.params.kind
             );
@@ -802,7 +773,6 @@ export default {
             const microAppName = item?.metadata?.name || '';
             const groupName = item?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
                 || this.microAppGroup
-                || this.activeGroup
                 || this.$route.params.group;
             this.microApp = item;
             this.appGroupName = groupName;
@@ -920,7 +890,7 @@ export default {
                 appgroup: appGroupName,
                 group: appGroupName,
                 microappName,
-                reverseDependentApps,
+                reverse_dependent_apps: reverseDependentApps,
                 loginCloud,
                 runningFirstPod,
                 podShell,
@@ -1098,9 +1068,6 @@ export default {
                 return result;
             });
         },
-        loadMicroApp(groupName){
-            return this.loadMicroApps(groupName).then(items=>items[0] || null);
-        },
         loadReverseDependentApps(appGroupName){
             if(!appGroupName){return Promise.resolve([])}
             if(Object.prototype.hasOwnProperty.call(this.reverseDependentAppCache, appGroupName)){
@@ -1109,12 +1076,12 @@ export default {
             if(this.reverseDependentAppRequests[appGroupName]){
                 return this.reverseDependentAppRequests[appGroupName];
             }
-            const request = loadAppGroupReverseDependentContext(
+            const request = loadMicroAppReverseDependentApps(
                 k8sproxy,
                 this.namespaceActive,
                 appGroupName,
-            ).then(context=>{
-                const reverseDependentApps = context?.reverseDependentApps || [];
+            ).then(items=>{
+                const reverseDependentApps = items || [];
                 this.reverseDependentAppCache[appGroupName] = reverseDependentApps;
                 return reverseDependentApps;
             }).finally(()=>{
@@ -1290,37 +1257,6 @@ export default {
                 });
             }
         },
-        async changeGroup(groupName){
-            const group = this.appGroups.find(item=>item.name===groupName);
-            const first = group?.apps?.find(item=>item.name && !item.isHelm);
-            const microApp = await this.loadMicroApp(groupName);
-            if(microApp){
-                this.$router.push({
-                    name: this.isTopAppEntry ? 'topapp-micro' : 'group-micro',
-                    params:{...this.$route.params, group:groupName},
-                });
-                return;
-            }
-            if(first){
-                this.$router.push({name:'app-detail-detail', params:{...this.$route.params, group:groupName, kind:first.kind, id:first.name}});
-            }else if(group?.apps?.length){
-                this.$router.push({name:'group-helm', params:{...this.$route.params, group:groupName}});
-            }
-        },
-        async deleteCurrentGroup(){
-            const groupName = this.activeGroup || this.$route.params.group;
-            if(!groupName){return}
-            try{
-                const result = await uninstallAppGroup(k8sproxy, this.namespaceActive, groupName);
-                const dependentCount = result.plan.dependentItems.length;
-                this.$message.success(dependentCount
-                    ? `删除成功，已一并卸载 ${dependentCount} 个依赖应用`
-                    : '删除成功');
-                this.$router.push('/app/apps');
-            }catch(error){
-                this.$message.error(error?.message || '删除失败，请稍后重试');
-            }
-        },
         // toMicro(v){
         //     // console.log(v);
         //     this.$router.push('/app/appgroup/'+this.$route.params.group+'/'+ this.$route.params.kind +'/'+ this.$route.params.id +'/micro/'+ v);
@@ -1404,7 +1340,6 @@ export default {
         openForm(v){
             this.form.id = this.$route.params.kind + this.$route.params.id;
             this.form.name = this.$route.params.id;
-            this.form.parent = '';
             this.form.show = true;
             this.form.tabs = this.applist.filter(i=>i.canedit).map(i=>({
                 name: i.name,
@@ -1502,6 +1437,25 @@ export default {
             this.reverseDependentAppCache = {};
             this.reverseDependentAppRequests = {};
 
+            const currentGroup = this.$route.params.group;
+            this.hasThirdpartyCd = false;
+            this.microApp = null;
+            this.microApps = [];
+            this.microAppGroup = '';
+            this.appGroupName = '';
+            this.activeMicroAppName = '';
+            const microAppRequest = this.loadMicroApps(currentGroup).then(items=>{
+                if(this.$route.params.group !== currentGroup){return false}
+                const microApps = sortVisibleAppGroupMicroApps(items, currentGroup);
+                if(!microApps.length){return false}
+                this.microApps = microApps;
+                this.microApp = microApps[0];
+                this.microAppGroup = currentGroup;
+                this.hasThirdpartyCd = true;
+                this.getFront(microApps);
+                return true;
+            }).catch(()=>false);
+
             this.isHelmPage = /^group\-helm(\-|$)/.test(this.$route.name);
             if(this.isHelmPage){
                 this.appname = 'helm-'+this.$route.params.group;
@@ -1513,88 +1467,13 @@ export default {
                 this.groupTitle = res?.data?.spec?.title
                     || res?.data?.metadata?.annotations?.title
                     || this.groupTitle;
-                let {helmTab,list} = this.arrangeList(res?.data);
-                const groupSections = [];
-                const addGroup = groupData => {
-                    if(!groupData?.metadata?.name){return}
-                    if(groupData?.metadata?.annotations?.['w7.cc/parent-root']==='true'){return}
-                    if(groupSections.some(item=>item.name===groupData.metadata.name)){return}
-                    const arranged = this.arrangeList(groupData);
-                    groupSections.push({
-                        name: groupData.metadata.name,
-                        title: groupData?.spec?.title || groupData.metadata.name,
-                        apps: arranged.helmTab.concat(arranged.list),
-                    });
-                };
-                addGroup(res?.data);
+                const {helmTab,list} = this.arrangeList(res?.data);
                 this.identifie = res?.data?.metadata?.annotations?.['w7.cc/identifie'];
                 this.isHelmApp = Boolean(helmTab?.length);
-                if(res?.data?.metadata?.labels?.['w7.cc/parent']){
-                    await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ res?.data?.metadata?.labels?.['w7.cc/parent']).then(res=>{
-                        let items = res.data?.items || [];
-                        for(let i in items){
-                            if(items[i]?.metadata?.name==this.$route.params.group){continue}
-                            let subapp = this.arrangeList(items[i]);
-                            addGroup(items[i]);
-                            helmTab = helmTab.concat(subapp.helmTab);
-                            list = list.concat(subapp.list);
-                        }
-                    })
-                }else{
-                    await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ this.$route.params.group).then(res=>{
-                        let items = res.data?.items || [];
-                        for(let i in items){
-                            let subapp = this.arrangeList(items[i]);
-                            addGroup(items[i]);
-                            helmTab = helmTab.concat(subapp.helmTab);
-                            list = list.concat(subapp.list);
-                        }
-                    })
-                }
-
-                this.appGroups = groupSections;
-                this.activeGroup = this.appGroups.find(item=>item.name===this.$route.params.group)?.name || this.appGroups[0]?.name || '';
-                this.applist = this.appGroups.find(item=>item.name===this.activeGroup)?.apps || helmTab.concat(list);
+                this.applist = helmTab.concat(list);
                 this.syncActiveAppTitle();
-                this.hasThirdpartyCd = false;
-                this.microApp = null;
-                this.microApps = [];
-                this.microAppGroup = '';
-                this.appGroupName = '';
-                this.activeMicroAppName = '';
-                const currentGroup = this.$route.params.group;
-                const currentIsChild = Boolean(res?.data?.metadata?.labels?.['w7.cc/parent']);
-                const firstChild = this.appGroups.find(group=>group.name!==currentGroup);
-                if(!currentIsChild && firstChild){
-                    const firstApp = firstChild.apps.find(app=>app.name && !app.isHelm);
-                    const firstChildMicroApp = await this.loadMicroApp(firstChild.name);
-                    this.activeGroup = firstChild.name;
-                    await this.$router.replace({
-                        name: firstChildMicroApp
-                            ? (this.isTopAppEntry ? 'topapp-micro' : 'group-micro')
-                            : (firstApp ? 'app-detail-detail' : 'group-helm'),
-                        params: {
-                            ...this.$route.params,
-                            group: firstChild.name,
-                            ...(firstApp ? {kind:firstApp.kind, id:firstApp.name} : {}),
-                        },
-                    });
-                    return;
-                }
-                this.groupRedirecting = false;
-                const microApps = sortVisibleAppGroupMicroApps(
-                    await this.loadMicroApps(this.activeGroup),
-                    this.activeGroup,
-                );
-                if(microApps.length){
-                    this.microApps = microApps;
-                    this.microApp = microApps[0];
-                    this.microAppGroup = this.activeGroup;
-                    this.hasThirdpartyCd = true;
-                }
-                if(this.hasThirdpartyCd){
-                    this.getFront(this.microApps);
-                }else if(this.isMicroPage){
+                const hasMicroApp = await microAppRequest;
+                if(!hasMicroApp && this.$route.params.group === currentGroup && this.isMicroPage){
                     this.noMicroJump();
                 }
                 this.watchStatus();

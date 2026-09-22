@@ -31,7 +31,11 @@ import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
-import { loadVisibleAppGroupMicroApps, sortVisibleAppGroupMicroApps } from '@/utils/appgroup-microapps';
+import {
+    loadMicroAppReverseDependentApps,
+    loadVisibleAppGroupMicroApps,
+    sortVisibleAppGroupMicroApps,
+} from '@/utils/appgroup-microapps';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -414,6 +418,11 @@ export default{
             }).catch(()=>{});
             const microappName = this.activeMicroAppName;
             const appGroupName = this.appGroupName;
+            const reverseDependentApps = await loadMicroAppReverseDependentApps(
+                k8sproxy,
+                this.namespaceActive,
+                appGroupName,
+            ).catch(()=>[]);
             const loginCloud = (componentAppId)=>{
                 const appId = typeof componentAppId === 'object' ? componentAppId?.componentAppId : componentAppId;
                 return panelApi.get('/js-cloud-code', {
@@ -445,6 +454,7 @@ export default{
                 appgroup: appGroupName,
                 group: appGroupName,
                 microappName,
+                reverse_dependent_apps: reverseDependentApps,
                 loginCloud,
                 runningFirstPod,
                 podShell,
