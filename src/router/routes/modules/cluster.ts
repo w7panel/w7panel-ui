@@ -33,7 +33,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             name: 'cluster-copilot',
             component: () => import('@/views/copilot/index.vue'),
             meta: {
-                locale: '运维 Copilot',
+                locale: '运维 Agent',
                 requiresAuth: true,
                 hideInMenu: false,
                 roles: ['*'],

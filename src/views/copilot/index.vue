@@ -2,10 +2,10 @@
   <div class="com-container copilot-page">
     <div class="bg-white padding-20 copilot-shell">
       <div class="df jc-b ai-c">
-        <div><div class="fs-18 b">运维 Copilot</div><div class="c-99 mt-6">基于当前集群权限进行诊断；变更必须确认后才会执行。</div></div>
+        <div><div class="fs-18 b">运维 Agent</div><div class="c-99 mt-6">Agent 仅按当前集群权限调用诊断工具；变更必须确认后才会执行。</div></div>
         <a-button @click="loadContext" :loading="contextLoading">刷新集群上下文</a-button>
       </div>
-      <a-alert class="mt-16" type="warning">Copilot 不读取 Secret 内容。模型生成的资源变更会先进行服务端 dry-run 校验。</a-alert>
+      <a-alert class="mt-16" type="warning">Agent 不读取 Secret 内容。资源变更会先进行服务端 dry-run 校验。</a-alert>
       <div v-if="context" class="c-99 fs-12 mt-8">当前诊断范围：{{ context.namespace }} · {{ context.nodes?.length || 0 }} 个节点 · {{ context.pods?.length || 0 }} 个 Pod · 指标{{ context.metrics === 'available' ? '可用' : '不可用' }}</div>
       <div class="copilot-conversation mt-16">
         <div v-for="(message, index) in messages" :key="index" :class="['copilot-message', message.role]">
@@ -94,9 +94,17 @@ const createProposal = async (event: Event) => {
   } catch (error: any) { Message.error(error?.response?.data?.msg || '资源提案校验失败'); }
 };
 
+const confirmProposal = async (event: Event) => {
+  const detail = (event as CustomEvent).detail;
+  try {
+    await panelApi.post(`/copilot/actions/${detail.id}/confirm`);
+    Message.success('资源变更已执行');
+  } catch (error: any) { Message.error(error?.response?.data?.msg || '资源变更执行失败'); }
+};
+
 const handleRenderError = () => Message.warning('Copilot 输出包含无法渲染的内容，请重新提问。');
-onMounted(() => { window.addEventListener('w7panel-copilot-proposal', createProposal); loadContext(); });
-onBeforeUnmount(() => window.removeEventListener('w7panel-copilot-proposal', createProposal));
+onMounted(() => { window.addEventListener('w7panel-copilot-proposal', createProposal); window.addEventListener('w7panel-copilot-action-confirm', confirmProposal); loadContext(); });
+onBeforeUnmount(() => { window.removeEventListener('w7panel-copilot-proposal', createProposal); window.removeEventListener('w7panel-copilot-action-confirm', confirmProposal); });
 </script>
 
 <style scoped>
