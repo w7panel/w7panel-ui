@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2026-09-22
+
+- 修复子集群集群地址渲染时模板未注入 `window` 导致的异常，改为使用组件初始化的当前面板地址。影响模块：集群概览系统信息。验证：`pnpm run build` 与 `git diff --check` 通过。
+
 ## 2026-09-21
 
 - 集群概览的 CKM/CVM 请求判断改为读取后端 `/app-info` 返回的 `isSubCluster`，不再依赖 `/k3k/info` 的用户标记。

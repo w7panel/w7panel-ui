@@ -93,7 +93,7 @@
                     </a-form-item> -->
                     <a-form-item label="集群地址" style="margin-bottom:0;">
                         <template v-if="isSubCluster">
-                            <span class="c-00-6">{{window.location.origin}}</span>
+                            <span class="c-00-6">{{locationOrigin}}</span>
                         </template>
                         <template v-else>
                             <div v-if="domain.domain" class="mr-20">{{domain.domain}}</div>
@@ -380,6 +380,7 @@ import { METRIC_30S_STEPS, METRIC_60S_STEPS, METRIC_RETENTION_SECONDS } from '@/
 export default {
     data(){
         return {
+            locationOrigin: window.location.origin,
             namespaceActive: '',
             nodelist: [],
             tabActive: 1,
