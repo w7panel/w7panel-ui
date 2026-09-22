@@ -164,7 +164,7 @@
                         <template #cell="{ record }">
                             <div v-if="record.deployStatus=='deploying'||record.deployStatus=='failed'">
                                 <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel' && !record.denyDelete" :content="getDeleteConfirm(record)" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                    <span :id="'app-'+record.groupName" class="c-blue cursor operation">{{ isUninstallTarget(record) ? '卸载此应用' : '删除' }}</span>
+                                    <a-button :id="'app-'+record.groupName" type="text" size="small" class="operation" :loading="deletingAppGroup===record.groupName" :disabled="Boolean(deletingAppGroup) && deletingAppGroup!==record.groupName">{{ isUninstallTarget(record) ? '卸载此应用' : '删除' }}</a-button>
                                 </a-popconfirm>
                             </div>
                             <div v-else>
@@ -172,7 +172,7 @@
                                  <!-- v-if="permission.includes('app-apps-files')" -->
                                 <span v-if="fileeditor" class="c-blue cursor operation ml-10" @click="toAppMenu(record,'app-detail-files')">文件管理</span>
                                 <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel\-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel-offline' && record.groupName!=='w7panel' && permission.includes('app/apps/delete') && !record.denyDelete" :content="getDeleteConfirm(record)" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                    <span :id="'app-'+record.groupName" class="c-blue cursor operation ml-10">{{ isUninstallTarget(record) ? '卸载此应用' : '删除' }}</span>
+                                    <a-button :id="'app-'+record.groupName" type="text" size="small" class="operation ml-10" :loading="deletingAppGroup===record.groupName" :disabled="Boolean(deletingAppGroup) && deletingAppGroup!==record.groupName">{{ isUninstallTarget(record) ? '卸载此应用' : '删除' }}</a-button>
                                 </a-popconfirm>
                             </div>
                         </template>
@@ -266,6 +266,7 @@ export default {
             },
 
 			uninstallTarget: null,
+            deletingAppGroup: '',
         }
     },
     created(){
@@ -381,6 +382,9 @@ export default {
             this.$router.push({name:pathName,params:{group, id:app.name, kind:app.kind}})
         },
         async del(item){
+            if(this.deletingAppGroup){return}
+            this.deletingAppGroup = item.groupName;
+
             // if(item.childrenApp.length){
             //     for(let i=0; i<item.childrenApp.length; i++){
             //         await this.deleteApp(item.childrenApp[i]);
@@ -397,7 +401,9 @@ export default {
             // }
 
             try{
-                const result = await uninstallAppGroup(k8sproxy, this.namespaceActive, item.groupName);
+                const result = await uninstallAppGroup(k8sproxy, this.namespaceActive, item.groupName, {
+                    waitForDeletion: false,
+                });
                 const dependentCount = result.plan.dependentItems.length;
                 this.$message.success(dependentCount
                     ? `删除成功，已一并卸载 ${dependentCount} 个依赖应用`
@@ -405,6 +411,8 @@ export default {
                 this.getList();
             }catch(error){
                 this.$message.error(error?.message || '删除失败，请稍后重试');
+            }finally{
+                this.deletingAppGroup = '';
             }
         },
         // deleteApp(item){
