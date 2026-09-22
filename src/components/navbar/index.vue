@@ -30,10 +30,9 @@
                     </a-menu-item>
                     <a-menu-item
                         v-for="item in mainPanelApps"
-                        :key="item.url"
-                        @click="openMainPanelApp(item.url)"
+                        :key="`main-panel:${item.url}`"
                     >
-                        {{ item.title }}
+                        <a :href="mainPanelAppHref(item.url)" target="_blank" rel="noopener noreferrer" @click.stop>{{ item.title }}</a>
                     </a-menu-item>
                 </a-menu>
             </div>
@@ -354,11 +353,13 @@ const getMainPanelApps = () => {
     }).catch(() => {});
 };
 
-const openMainPanelApp = (value: string) => {
+const mainPanelAppHref = (value: string) => {
     try {
         const url = new URL(value);
-        if (url.protocol === 'http:' || url.protocol === 'https:') window.open(url.toString(), '_blank', 'noopener,noreferrer');
-    } catch {}
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined;
+    } catch {
+        return undefined;
+    }
 };
 
 if (!isMicroAppDirect) {
