@@ -28,6 +28,13 @@
                     >
                         {{ item.title }}
                     </a-menu-item>
+                    <a-menu-item
+                        v-for="item in mainPanelApps"
+                        :key="item.url"
+                        @click="openMainPanelApp(item.url)"
+                    >
+                        {{ item.title }}
+                    </a-menu-item>
                 </a-menu>
             </div>
             <div class="df ai-c">
@@ -279,6 +286,7 @@ const submitPwd = () => {
 
 const namespaceList = useNamespaceStore().namespaceList;
 const topApps = computed(() => appStore.topApps);
+const mainPanelApps = ref<Array<{ title: string; url: string }>>([]);
 
 const userRole = getK8sinfo()['w7.cc/role'];
 const hasPwd = ref(getK8sinfo()['w7.cc/has-password']);
@@ -324,9 +332,39 @@ const getConsoleInfo = () => {
     }).catch(() => {});
 };
 
+const getMainPanelApps = () => {
+    panelApi.get('/app-info').then((res) => {
+        const mainPanelUrl = res.data?.isSubCluster && res.data?.mainPanelUrl;
+        if (!mainPanelUrl) return;
+        const url = new URL('/panel-api/v1/noauth/microapp/normal', mainPanelUrl);
+        const callback = `w7panelNormalApps${Date.now()}`;
+        const script = document.createElement('script');
+        (window as any)[callback] = (items: unknown) => {
+            mainPanelApps.value = Array.isArray(items) ? items.filter((item): item is { title: string; url: string } =>
+                typeof item?.title === 'string' && typeof item?.url === 'string') : [];
+            script.remove();
+            delete (window as any)[callback];
+        };
+        script.src = `${url.toString()}?callback=${callback}`;
+        script.onerror = () => {
+            script.remove();
+            delete (window as any)[callback];
+        };
+        document.head.appendChild(script);
+    }).catch(() => {});
+};
+
+const openMainPanelApp = (value: string) => {
+    try {
+        const url = new URL(value);
+        if (url.protocol === 'https:') window.open(url.toString(), '_blank', 'noopener,noreferrer');
+    } catch {}
+};
+
 if (!isMicroAppDirect) {
     getMenutop();
     getConsoleInfo();
+    getMainPanelApps();
 }
 
 watch(() => route.name, () => {
