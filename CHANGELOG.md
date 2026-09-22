@@ -266,3 +266,5 @@
 - 2026-09-22 合并验证：同步远端至 `c7c8a59` 后保留 AppGroup 级联卸载及多 MicroApp 展示协议，顶部非管理员入口继续仅查询 MicroApp 资源；`npm run build` 与 `git diff --check` 通过，类型检查仍仅包含上述存量错误。
 - 2026-09-22 兼容：应用详情和顶部入口按 `w7.cc/group-name` 查询不到当前组 MicroApp 时，精确读取与 AppGroup 同名的旧 MicroApp；资源归组同时兼容旧 `-root` 后缀，不修改 MicroApp Controller 的标签同步规则。影响模块：MicroApp 菜单发现与 Wujie 初始化；验证结果见本次构建检查。
 - 2026-09-22 验证：旧 MicroApp 同名兜底已通过 `LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 与 `git diff --check`，构建仅保留项目既有深度选择器弃用和图片压缩提示。
+- 2026-09-22 修复：顶部菜单入口不再同时启动通用 MicroApp 加载和顶部专用加载，避免两套异步结果重复初始化菜单与 Wujie 导致页面闪烁、路由参数跳变；普通应用详情仍保持 MicroApp 与默认资源数据独立加载。影响模块：顶部应用详情初始化；验证结果见本次构建检查。
+- 2026-09-22 验证：顶部入口单一加载链路已通过 `LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 与 `git diff --check`，构建仅保留项目既有深度选择器弃用和图片压缩提示。

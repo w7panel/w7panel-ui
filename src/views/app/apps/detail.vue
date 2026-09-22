@@ -1522,17 +1522,6 @@ export default {
             this.microAppGroup = '';
             this.appGroupName = '';
             this.activeMicroAppName = '';
-            const microAppRequest = this.loadMicroApps(currentGroup).then(items=>{
-                if(this.$route.params.group !== currentGroup){return false}
-                const microApps = sortVisibleAppGroupMicroApps(items, currentGroup);
-                if(!microApps.length){return false}
-                this.microApps = microApps;
-                this.microApp = microApps[0];
-                this.microAppGroup = currentGroup;
-                this.hasThirdpartyCd = true;
-                this.getFront(microApps);
-                return true;
-            }).catch(()=>false);
 
             this.isHelmPage = /^group\-helm(\-|$)/.test(this.$route.name);
             if(this.isHelmPage){
@@ -1548,6 +1537,17 @@ export default {
                 }
                 return;
             }
+            const microAppRequest = this.loadMicroApps(currentGroup).then(items=>{
+                if(this.$route.params.group !== currentGroup){return false}
+                const microApps = sortVisibleAppGroupMicroApps(items, currentGroup);
+                if(!microApps.length){return false}
+                this.microApps = microApps;
+                this.microApp = microApps[0];
+                this.microAppGroup = currentGroup;
+                this.hasThirdpartyCd = true;
+                this.getFront(microApps);
+                return true;
+            }).catch(()=>false);
             await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
             }).then(async res=>{
                 this.groupTitle = res?.data?.spec?.title
