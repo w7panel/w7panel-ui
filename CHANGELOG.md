@@ -260,3 +260,7 @@
 
 - 修复 `components/menu/index.vue` 在旧版 Vue JSX 插件转换时丢失 `defineComponent`、`ref`、`computed` 等 named imports，导致菜单 chunk 加载后偶发 `defineComponent is not defined` 的问题；组件改用不会被错误移除的 Vue namespace import。
 - 验证：`LOCAL_MOCK=true ./node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建产物的菜单 chunk 已使用绑定后的 Vue helper，不再包含裸 `defineComponent`、`ref`、`computed` 等调用。
+
+- 2026-09-22 修复：顶部应用入口改为沿用旧版微应用信息加载链路，不再读取仅管理员可访问的 AppGroup 资源；普通应用管理详情仍保留 AppGroup 查询。影响模块：顶部应用详情初始化与非管理员访问；验证结果见本次构建检查。
+- 2026-09-22 验证：上述顶部应用权限修复已通过 `npm run build` 与 `git diff --check`；`npm run type:check` 仍仅报告缺失 `route-listener`、既有 Axios 扩展字段及登录页类型等存量错误，本次修改文件未新增类型错误。
+- 2026-09-22 合并验证：同步远端至 `c7c8a59` 后保留 AppGroup 级联卸载及多 MicroApp 展示协议，顶部非管理员入口继续仅查询 MicroApp 资源；`npm run build` 与 `git diff --check` 通过，类型检查仍仅包含上述存量错误。
