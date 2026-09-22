@@ -98,8 +98,8 @@ const confirmProposal = async (event: Event) => {
   const detail = (event as CustomEvent).detail;
   try {
     await panelApi.post(`/copilot/actions/${detail.id}/confirm`);
-    Message.success('资源变更已执行');
-  } catch (error: any) { Message.error(error?.response?.data?.msg || '资源变更执行失败'); }
+    Message.success(detail.operation === 'command' ? '命令已执行' : '资源变更已执行');
+  } catch (error: any) { Message.error(error?.response?.data?.msg || (detail.operation === 'command' ? '命令执行失败' : '资源变更执行失败')); }
 };
 
 const handleRenderError = () => Message.warning('Copilot 输出包含无法渲染的内容，请重新提问。');

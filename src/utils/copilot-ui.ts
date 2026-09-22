@@ -70,12 +70,12 @@ const CopilotYaml = defineOpenUIComponent({
 const CopilotAction = defineOpenUIComponent({
   name: 'CopilotAction',
   description: 'A dry-run validated resource change that still requires user confirmation.',
-  props: z.object({ id: z.string(), operation: z.enum(['apply', 'delete']), resource: z.string() }),
+  props: z.object({ id: z.string(), operation: z.enum(['apply', 'delete', 'command']), resource: z.string() }),
   component: defineComponent({
     props: { props: { type: Object, required: true } },
     setup(componentProps: any) {
       const confirm = () => window.dispatchEvent(new CustomEvent('w7panel-copilot-action-confirm', { detail: componentProps.props }));
-      return () => h('button', { class: 'arco-btn arco-btn-primary arco-btn-size-mini', onClick: confirm }, `${componentProps.props.operation === 'delete' ? '确认删除' : '确认变更'} ${componentProps.props.resource}`);
+      return () => h('button', { class: 'arco-btn arco-btn-primary arco-btn-size-mini', onClick: confirm }, `${componentProps.props.operation === 'command' ? '确认执行' : componentProps.props.operation === 'delete' ? '确认删除' : '确认变更'} ${componentProps.props.resource}`);
     },
   }),
 });
