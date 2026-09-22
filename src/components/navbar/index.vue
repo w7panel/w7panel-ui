@@ -357,7 +357,7 @@ const getMainPanelApps = () => {
 const openMainPanelApp = (value: string) => {
     try {
         const url = new URL(value);
-        if (url.protocol === 'https:') window.open(url.toString(), '_blank', 'noopener,noreferrer');
+        if (url.protocol === 'http:' || url.protocol === 'https:') window.open(url.toString(), '_blank', 'noopener,noreferrer');
     } catch {}
 };
 
