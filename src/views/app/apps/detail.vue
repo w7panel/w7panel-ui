@@ -117,10 +117,13 @@
                     <app-direct :info="info" class="routerviewbox fc" />
                 </a-layout-content>
                 <a-layout-content v-else-if="isMicroPage" class="df df-c">
-                    <div class="bg-white routerviewbox fc">
+                    <div class="app-detail-micro-container bg-white routerviewbox fc">
                         <div v-show="downOk" id="app-detail-micro" :style="microPanelStyle"></div>
                         <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." :style="{display:'block', height: microPanelHeight}">
                             <div style="height:100%;" class="bg-white"></div>
+                        </a-spin>
+                        <a-spin v-if="microLoading" class="app-detail-micro-loading" :loading="microLoading" :size="32">
+                            <div :style="{height: microPanelHeight}"></div>
                         </a-spin>
                     </div>
                 </a-layout-content>
@@ -192,6 +195,7 @@ import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
 import { appendWujieProxyRequestQuery, getWujieProxyBackendUrl } from '@/utils/wujie-proxy-request';
 import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
+import { createWujieHostRoutePlugin } from '@/utils/wujie-route';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { filterAppGroupWorkloadItems, uninstallAppGroup } from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
@@ -215,9 +219,9 @@ const ROLE_NAME = {
     normal: '普通用户',
 }
 
-const APP_DETAIL_MICRO_NAME = 'app-detail-micro';
+const APP_DETAIL_MICRO_NAME = 'app-detail-micro-runtime';
 const APP_DETAIL_MICRO_EL = '#app-detail-micro';
-const APP_DETAIL_MICRO_QUERY = APP_DETAIL_MICRO_NAME;
+const APP_DETAIL_MICRO_QUERY = 'app-detail-micro';
 const APP_DETAIL_MICRO_RESOURCE_QUERY = 'microapp';
 const LEGACY_APP_DIRECT_DO = '__topapp_app_direct__';
 const SYSTEM_FRONT_PROP_TEMPLATE = /^\$\{system\.([A-Za-z0-9_]+)\}$/;
@@ -289,6 +293,7 @@ export default {
             wujieInitPromise: null,
             wujieReloadPending: false,
             downOk: true,
+            microLoading: false,
             hideAppMenu: false,
             appMenuDrawerVisible: false,
             userRole: '',
@@ -298,6 +303,9 @@ export default {
         '$route.name'(v,ov){
             this.selectMenu = [this.$route.meta.routekey];
             this.isHelmPage = /^group\-helm(\-|$)/.test(v);
+            if(['group-micro', 'group-micro2', 'topapp-micro'].includes(v)){
+                this.microLoading = true;
+            }
             if(this.isHelmPage){
                 this.appname = 'helm-'+this.$route.params.group;
             }else if(this.$route.params.kind && this.$route.params.id){
@@ -346,6 +354,9 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.groupTitle = this.$route.params.group;
         this.hideAppMenu = this.isHideMenu();
+        if(this.isMicroPage){
+            this.microLoading = true;
+        }
         bus.$on('changeAppMenu', this.changeAppMenu);
         await this.getData();
     },
@@ -627,7 +638,9 @@ export default {
             this.menuActive = route;
             const menu = this.findMenu(route, this.activeMicroAppName);
             this.selectMenu = [menu?.key || route];
-            this.wujieInit();
+            this.replaceMicroRouteQuery(menu?.do || route, this.activeMicroAppName).then(()=>{
+                this.wujieInit();
+            });
             return true;
         },
         routeChange(v){
@@ -688,6 +701,83 @@ export default {
                 || this.$route.query?.appmicro;
             return Array.isArray(value) ? value[0] : value;
         },
+        getMicroRouteQuery(route, microAppName = this.activeMicroAppName){
+            const query = {
+                ...this.$route.query,
+                [APP_DETAIL_MICRO_RESOURCE_QUERY]: microAppName,
+            };
+            delete query.appmicro;
+            if(this.isTopAppEntry){
+                delete query[APP_DETAIL_MICRO_QUERY];
+                query.do = route;
+            }else{
+                delete query.do;
+                query[APP_DETAIL_MICRO_QUERY] = route;
+            }
+            return query;
+        },
+        replaceMicroRouteQuery(route, microAppName = this.activeMicroAppName){
+            return this.$router.replace({
+                query: this.getMicroRouteQuery(route, microAppName),
+            }).catch(()=>{});
+        },
+        normalizeMicroRouteForCompare(route){
+            const normalizeQuery = value => {
+                const questionIndex = value.indexOf('?');
+                if(questionIndex < 0){
+                    return value;
+                }
+                const path = value.slice(0, questionIndex);
+                const entries = [...new URLSearchParams(value.slice(questionIndex + 1)).entries()]
+                    .sort(([leftKey, leftValue], [rightKey, rightValue])=>{
+                        const keyOrder = leftKey.localeCompare(rightKey);
+                        return keyOrder || leftValue.localeCompare(rightValue);
+                    });
+                const query = new URLSearchParams(entries).toString();
+                return query ? `${path}?${query}` : path;
+            };
+            const value = String(route || '');
+            const hashIndex = value.indexOf('#');
+            if(hashIndex < 0){
+                return normalizeQuery(value);
+            }
+            const normalizedMainRoute = normalizeQuery(value.slice(0, hashIndex));
+            const mainRoute = normalizedMainRoute === '/' ? '' : normalizedMainRoute;
+            const normalizedHashRoute = normalizeQuery(value.slice(hashIndex + 1));
+            const hashRoute = normalizedHashRoute && !normalizedHashRoute.startsWith('/')
+                ? `/${normalizedHashRoute}`
+                : normalizedHashRoute;
+            return `${mainRoute}#${hashRoute}`;
+        },
+        isSameMicroRoute(leftRoute, rightRoute){
+            return this.normalizeMicroRouteForCompare(leftRoute)
+                === this.normalizeMicroRouteForCompare(rightRoute);
+        },
+        syncMicroRouteFromChild(route, microAppName){
+            if(!this.isMicroPage || microAppName !== this.activeMicroAppName){
+                return;
+            }
+            const normalizedRoute = this.getNavigateMicroRoute(route);
+            if(!normalizedRoute){
+                return;
+            }
+            const menu = this.findMenu(normalizedRoute, microAppName);
+            const targetRoute = menu?.do || normalizedRoute;
+            const requestedMicroApp = this.$route.query?.[APP_DETAIL_MICRO_RESOURCE_QUERY];
+            const requestedMicroAppName = Array.isArray(requestedMicroApp)
+                ? requestedMicroApp[0]
+                : requestedMicroApp;
+            const requestedRoute = this.normalizeMicroMenuRoute(this.getRequestedMicroRoute());
+            if(requestedMicroAppName === microAppName && this.isSameMicroRoute(requestedRoute, targetRoute)){
+                return;
+            }
+
+            if(menu){
+                this.menuActive = menu.do;
+                this.selectMenu = [menu.key];
+            }
+            this.replaceMicroRouteQuery(targetRoute, microAppName);
+        },
         syncRequestedMicroRoute(requestedRoute, shouldNavigate){
             if(!this.isMicroPage || !this.roles.length){ return; }
             requestedRoute = Array.isArray(requestedRoute) ? requestedRoute[0] : requestedRoute;
@@ -725,7 +815,7 @@ export default {
             )){
                 return;
             }
-            if(this.isTopAppEntry || previousMicroAppName !== this.activeMicroAppName || previousBinding !== currentBinding || this.isExternalMenuRoute(previousMenu) || this.isExternalMenuRoute(this.menuActive)){
+            if(previousMicroAppName !== this.activeMicroAppName || previousBinding !== currentBinding || this.isExternalMenuRoute(previousMenu) || this.isExternalMenuRoute(this.menuActive)){
                 this.wujieInit();
             }else{
                 this.routeChange(this.menuActive);
@@ -801,12 +891,15 @@ export default {
                 this.wujieReloadPending = true;
                 return this.wujieInitPromise;
             }
+            this.microLoading = true;
             this.wujieInitPromise = this._wujieInit().finally(()=>{
                 this.wujieInitPromise = null;
                 if(this.wujieReloadPending){
                     this.wujieReloadPending = false;
                     this.wujieInit();
+                    return;
                 }
+                this.microLoading = false;
             });
             return this.wujieInitPromise;
         },
@@ -913,6 +1006,12 @@ export default {
                     role: getK8sinfo()['w7.cc/role'],
                 })
                 : baseAppUrl;
+            const plugins = [
+                createWujieHostRoutePlugin(route=>this.syncMicroRouteFromChild(route, microappName)),
+            ];
+            if(this.info.load_mode === 'iframe'){
+                plugins.unshift(createWujieRequestCredentialsPlugin(), createWujieRequirePlugin());
+            }
             try{
                 await startApp({
                 name: APP_DETAIL_MICRO_NAME,
@@ -924,10 +1023,10 @@ export default {
                 // alive: true,
                 degrade: this.info.load_mode === 'iframe',
                 degradeAttrs: { style: 'border:0;display:block;' },
-                sync: true,
+                sync: false,
                 props: props,
                 prefix: this.getMicroRoutePrefix(),
-                plugins: this.info.load_mode === 'iframe' ? [createWujieRequestCredentialsPlugin(), createWujieRequirePlugin()] : [],
+                plugins,
                 fetch: this.info.load_mode === 'iframe' ? wujieFetch : null,
                 loadError: (url, error)=>{
                     console.log(`appdetail loadError`, url, error);
@@ -956,7 +1055,7 @@ export default {
 //     })
 // },3000)
         },
-        handelMicroMenu(v){
+        async handelMicroMenu(v){
             const previousMenu = this.menuActive;
             const previousMicroAppName = this.activeMicroAppName;
             const previousBinding = this.getMenuBindingName(this.selectMenu?.[0] || previousMenu);
@@ -972,21 +1071,12 @@ export default {
             this.selectMenu = [menu.key];
             const currentBinding = this.applyMenuRuntimeConfig(menu.key);
             if(this.isMicroPage){
-                const query = {
-                    ...this.$route.query,
-                    [APP_DETAIL_MICRO_RESOURCE_QUERY]: this.activeMicroAppName,
-                };
-                if(this.isTopAppEntry){
-                    delete query[APP_DETAIL_MICRO_QUERY];
-                    delete query.appmicro;
-                    query.do = this.menuActive;
-                }else{
-                    query[APP_DETAIL_MICRO_QUERY] = this.menuActive;
-                }
-                this.$router.replace({
-                    query,
-                }).catch(()=>{});
-                if(this.isTopAppEntry || previousMicroAppName !== this.activeMicroAppName || previousBinding !== currentBinding || this.isExternalMenuRoute(previousMenu) || this.isExternalMenuRoute(this.menuActive)){
+                const shouldReinitialize = previousMicroAppName !== this.activeMicroAppName
+                    || previousBinding !== currentBinding
+                    || this.isExternalMenuRoute(previousMenu)
+                    || this.isExternalMenuRoute(this.menuActive);
+                await this.replaceMicroRouteQuery(this.menuActive, this.activeMicroAppName);
+                if(shouldReinitialize){
                     this.wujieInit();
                 }else{
                     this.routeChange(this.menuActive);
@@ -1043,7 +1133,8 @@ export default {
                     this.menuActive = selectedMenu?.do || appDetailMicro || '';
                     this.selectMenu = [selectedMenu?.key || this.menuActive];
                     this.applyMenuRuntimeConfig(this.selectMenu[0]);
-                    this.$nextTick(()=>{
+                    this.$nextTick(async()=>{
+                        await this.replaceMicroRouteQuery(this.menuActive, this.activeMicroAppName);
                         this.wujieInit();
                     })
                 }
@@ -1502,6 +1593,7 @@ export default {
             this.microAppGroup = groupName;
             this.groupRedirecting = false;
             if(!items.length){
+                this.microLoading = false;
                 return;
             }
 
@@ -1511,6 +1603,9 @@ export default {
             this.getFront(items);
         },
         async getData(){
+            if(this.isMicroPage){
+                this.microLoading = true;
+            }
             useLoadingStore().loading = true;
             this.reverseDependentAppCache = {};
             this.reverseDependentAppRequests = {};
@@ -1532,6 +1627,11 @@ export default {
             if(this.isTopAppEntry){
                 try{
                     await this.getTopAppData();
+                }catch(error){
+                    if(this.$route.params.group === currentGroup && this.isMicroPage){
+                        this.microLoading = false;
+                    }
+                    throw error;
                 }finally{
                     useLoadingStore().loading = false;
                 }
@@ -1793,6 +1893,16 @@ export default {
 .point.green{background:#00A870;}
 
 .routerviewbox{border:1px solid var(--color-neutral-3);border-top:0;}
+.app-detail-micro-container{position:relative;}
+.app-detail-micro-loading{
+    position:absolute;
+    inset:0;
+    z-index:10;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--color-bg-1);
+}
 .app-detail-page{height:auto;}
 .app-detail-layout{min-width:0;min-height:inherit;}
 .app-detail-main{box-sizing:border-box;min-width:0;min-height:inherit;}
