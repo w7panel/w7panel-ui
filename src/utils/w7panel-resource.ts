@@ -6,6 +6,8 @@ export const APPGROUP_API = `/apis/w7panel.w7.com/v1alpha1/namespaces/${W7PANEL_
 export const RESOURCE_GROUP_LABEL = 'w7.cc/group-name';
 export const RESOURCE_IDENTIFIE_LABEL = 'w7.cc/identifie';
 export const RESOURCE_IDENTIFIE_ANNOTATION = 'w7.cc/identifie';
+export const MICROAPP_PRESENTATION_KEY_LABEL = 'w7.cc/presentation-key';
+export const MICROAPP_PRESENTATION_MODE_ANNOTATION = 'w7.cc/presentation-mode';
 export const OFFICIAL_APP_ANNOTATION = 'w7.cc/official-app';
 export const DENY_DELETE_ANNOTATION = 'w7.cc/deny-delete';
 

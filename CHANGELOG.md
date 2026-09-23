@@ -2,19 +2,16 @@
 
 ## 2026-09-22
 
-- 运维 Copilot 发送提问时不再由浏览器拼接集群上下文，诊断数据将由服务端按当前用户权限加载；页面显示当前诊断范围和指标可用状态。
+- MicroApp 聚合新增通用 `presentation-key`、`presentation-mode` 展示协议；`multiple` 保留同类全部入口，`singleton` 按现有 MicroApp 显示顺序只保留同类第一个入口，未声明协议的资源保持原行为。
+- 影响模块：应用详情、顶部 MicroApp 聚合及通用资源元数据。
+- 验证：`LOCAL_MOCK=true` Vite 生产构建与 `git diff --check` 通过；类型检查仍受仓库现有 TypeScript 与 `@types/node` 语法版本不兼容阻断。
 
-- 修复子集群头部主集群普通应用菜单未通过 Arco Menu 的 `menu-item-click` 事件处理而无法打开的问题，点击现在会在新窗口跳转返回的地址。
-
-- 主集群普通应用入口改用原生链接和 `target="_blank"` 打开，避免浏览器将脚本新窗口判定为弹窗而拦截。
-
-- 修复 CKM 面板入口传入 `oidclogin=1` 时登录页仍读取旧 `panellogin` 参数而不自动跳转 OIDC 的问题。
-
-- 主集群应用入口兼容 HTTP 与 HTTPS 地址，匹配服务端按实际请求地址返回的 URL。
-
-- 子集群头部通过 `app-info.mainPanelUrl` JSONP 获取主集群普通 MicroApp 入口并显示为菜单项，点击将在新窗口打开对应主集群应用。
-
-- 修复子集群集群地址渲染时模板未注入 `window` 导致的异常，改为使用组件初始化的当前面板地址。影响模块：集群概览系统信息。验证：`pnpm run build` 与 `git diff --check` 通过。
+- 应用列表删除操作增加单行 loading 状态，删除期间阻止重复提交，并在成功或失败后恢复操作状态。
+- 影响模块：应用管理列表。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
+- 应用列表删除不再轮询等待 AppGroup 实际消失，依赖应用与目标应用的删除请求改为并发提交；Wujie 卸载仍等待后台清理完成，确保关联订单刷新时状态一致。
+- 影响模块：AppGroup 通用卸载流程、应用管理列表、Wujie 制品市场卸载。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
 
 ## 2026-09-21
 
@@ -347,5 +344,3 @@
 
 - 修复 `components/menu/index.vue` 在旧版 Vue JSX 插件转换时丢失 `defineComponent`、`ref`、`computed` 等 named imports，导致菜单 chunk 加载后偶发 `defineComponent is not defined` 的问题；组件改用不会被错误移除的 Vue namespace import。
 - 验证：`LOCAL_MOCK=true ./node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建产物的菜单 chunk 已使用绑定后的 Vue helper，不再包含裸 `defineComponent`、`ref`、`computed` 等调用。
-- 2026-09-21 调整：构建链路升级至 Vite 8.3.0、匹配的 Vue 插件与 Node 22 类型；生产分包从 Rollup `manualChunks` 迁移到 Rolldown `codeSplitting`，报告插件按需 ESM 加载，并移除旧 Rollup 依赖与覆盖。影响模块：Vite 开发与生产构建配置。
-- 2026-09-21 验证：Node 22.22.0 下 `pnpm exec vite --version` 输出 8.3.0，`pnpm run build` 通过；保留项目既有 Vue 深度选择器、imagemin 资源压缩及未来原生配置加载预警。
