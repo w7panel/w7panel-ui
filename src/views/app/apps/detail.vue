@@ -187,7 +187,7 @@ import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { useAppStore,useNamespaceStore,useLoadingStore } from '@/store';
 import formDrawer from '@/views/app/pages/form-drawer.vue';
-import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
+import { bus, startApp } from "wujie";
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute, normalizeWujieNavigationRoute, joinWujieUrlRoute } from '@/utils/wujie-route';
@@ -291,7 +291,9 @@ export default {
             reverseDependentAppCache: {},
             reverseDependentAppRequests: {},
             wujieInitPromise: null,
-            wujieReloadPending: false,
+            wujieInitSignature: '',
+            wujiePendingSignature: '',
+            wujieDestroy: null,
             downOk: true,
             microLoading: false,
             hideAppMenu: false,
@@ -498,11 +500,7 @@ export default {
         if(this.watchInterval){
             clearInterval(this.watchInterval);
         }
-        try{
-            destroyApp(APP_DETAIL_MICRO_NAME);
-        }catch{
-            console.log('Failed to destroy detail app')
-        }
+        this.destroyWujieApp();
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
@@ -887,21 +885,66 @@ export default {
             this.applyMenuRuntimeConfig('');
         },
         wujieInit(){
+            const signature = [
+                this.activeMicroAppName,
+                this.getMenuBindingName(this.selectMenu?.[0] || this.menuActive),
+                this.menuActive || '',
+                this.getMicroAppBaseUrl(),
+                this.info.load_mode || '',
+            ].join('\n');
             if(this.wujieInitPromise){
-                this.wujieReloadPending = true;
+                // 首次进入页面时，菜单和查询参数同步可能会请求初始化同一个
+                // iframe 两次。第二次销毁已经跳转到跨域页面的 degrade iframe
+                // 会触发 Wujie 读取 __WUJIE_EVENTLISTENER__ 的 SecurityError。
+                // 仅在初始化目标确实变化时排队重载，并始终以最后一次请求为准。
+                this.wujiePendingSignature = signature === this.wujieInitSignature ? '' : signature;
                 return this.wujieInitPromise;
             }
             this.microLoading = true;
+            this.wujieInitSignature = signature;
             this.wujieInitPromise = this._wujieInit().finally(()=>{
                 this.wujieInitPromise = null;
-                if(this.wujieReloadPending){
-                    this.wujieReloadPending = false;
+                const shouldReload = this.wujiePendingSignature
+                    && this.wujiePendingSignature !== this.wujieInitSignature;
+                this.wujiePendingSignature = '';
+                if(shouldReload){
                     this.wujieInit();
                     return;
                 }
                 this.microLoading = false;
             });
             return this.wujieInitPromise;
+        },
+        async destroyWujieApp(){
+            const destroy = this.wujieDestroy;
+            if(!destroy){
+                return;
+            }
+            this.wujieDestroy = null;
+            if(this.info.load_mode === 'iframe'){
+                const iframe = document.querySelector(`${APP_DETAIL_MICRO_EL} iframe`);
+                if(iframe){
+                    let isCrossOrigin = false;
+                    try{
+                        void iframe.contentWindow?.__WUJIE_EVENTLISTENER__;
+                    }catch{
+                        isCrossOrigin = true;
+                    }
+                    if(isCrossOrigin){
+                        await new Promise(resolve=>{
+                            const done = ()=>resolve();
+                            iframe.addEventListener('load', done, {once:true});
+                            iframe.src = 'about:blank';
+                            setTimeout(done, 1000);
+                        });
+                    }
+                }
+            }
+            try{
+                await destroy();
+            }catch(error){
+                console.warn('Failed to destroy detail app', error);
+            }
         },
         async _wujieInit(){
             
@@ -926,9 +969,7 @@ export default {
             }
 
             
-            try{
-                destroyApp(APP_DETAIL_MICRO_NAME);
-            }catch(e){console.log('destroy err')}
+            await this.destroyWujieApp();
 
             let is_register = false;
             let thirdparty_cd_token = '';
@@ -1013,7 +1054,7 @@ export default {
                 plugins.unshift(createWujieRequestCredentialsPlugin(), createWujieRequirePlugin());
             }
             try{
-                await startApp({
+                this.wujieDestroy = await startApp({
                 name: APP_DETAIL_MICRO_NAME,
                 url: appUrl,
 // 测试

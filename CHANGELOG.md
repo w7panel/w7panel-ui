@@ -282,3 +282,7 @@
 - 2026-09-23 修复：MicroApp 路由语义比较将 `/#/path` 与 `#/path` 统一为同一 hash 根路由，并继续忽略查询参数排列顺序，兼容订单等带多个参数的菜单地址，避免子应用规范化 hash 根路径后再次改写宿主链接。影响模块：MicroApp hash 菜单路由同步；验证结果见本次构建检查。
 - 2026-09-23 修复：顶部菜单在不同 MicroApp 入口之间切换并复用详情组件时，于数据加载开始立即显示 MicroApp 容器遮罩；当前入口没有 MicroApp 或查询失败时主动关闭遮罩，避免数据请求阶段空白或异常后持续加载。影响模块：顶部 MicroApp 加载反馈；验证结果见本次构建检查。
 - 2026-09-23 验证：顶部 MicroApp 数据加载遮罩及宿主路由插件文件整合已通过 `LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 与 `git diff --check`，构建仅保留项目既有深度选择器弃用和图片压缩提示。
+- 2026-09-23 修复：应用详情 iframe 模式初始化增加目标签名去重，首次进入时菜单与查询参数对同一 MicroApp、binding、路由及入口发起的重复初始化不再排队重启，避免 Wujie 销毁已跨域 iframe 时读取 `__WUJIE_EVENTLISTENER__` 触发 `SecurityError`；初始化期间目标真实变化仍保留最后一次重载。影响模块：应用详情 MicroApp/Wujie 初始化；验证结果见本次构建检查。
+- 2026-09-23 验证：上述 iframe 首次打开修复已通过 `LOCAL_MOCK=true npm run build` 与 `git diff --check`；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。
+- 2026-09-23 补强：复核发现 Wujie `destroyApp` 不返回内部异步销毁 Promise，原有 `try/catch` 无法捕获跨域异常；应用详情现保存 `startApp` 返回的销毁函数，重启前若 iframe 已跨域则先导航至同源 `about:blank`，再等待实例完整销毁。影响模块：iframe 子应用重启和组件卸载；验证结果见本次构建检查。
+- 2026-09-23 验证：补强后的跨域 iframe 销毁逻辑已进入生产构建产物，`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；`npm run type:check` 仅报告缺失 `route-listener`、既有 Axios 扩展字段、ES lib 及登录页类型等存量错误，本次修改文件未新增类型错误。
