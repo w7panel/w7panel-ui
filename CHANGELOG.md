@@ -5,6 +5,9 @@
 - 应用详情、顶部微应用和网关插件配置中的制品试用状态检查改为 3 秒超时的后台请求；仍提示明确的试用到期响应，但制品服务超时或异常不再阻断已安装 MicroApp 打开。
 - 影响模块：应用详情 MicroApp、顶部 MicroApp、网关插件配置 MicroApp。
 - 验证：`LOCAL_MOCK=true` Vite 生产构建与 `git diff --check` 通过；类型检查仍受仓库现有 TypeScript 与 `@types/node` 语法版本不兼容阻断。
+- 调整应用管理入口与详情面包屑的落地页：固定优先进入 AppGroup 资源概览，非 Helm 应用回退到普通工作负载详情，不再受 MicroApp 前端包首页配置影响；root 级入口仍沿用原有 MicroApp 首页策略。
+- 影响模块：应用管理列表、应用详情面包屑与资源概览导航。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目已有的 Vue 深度选择器弃用警告。
 
 ## 2026-09-22
 

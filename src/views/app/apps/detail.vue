@@ -531,6 +531,12 @@ export default {
         },
         getBreadcrumbAppTarget(){
             const group = this.$route.params.group || '';
+            if(this.isHelmApp || this.applist.some(item=>item?.isHelm)){
+                return {
+                    name: 'group-helm-detail',
+                    params: {group},
+                };
+            }
             const currentApp = this.applist.find(item=>
                 item?.name === this.$route.params.id && item?.kind === this.$route.params.kind
             );
@@ -539,18 +545,6 @@ export default {
                 return {
                     name: 'app-detail-detail',
                     params: {group, kind:app.kind, id:app.name},
-                };
-            }
-            if(this.isHelmApp || this.applist.some(item=>item?.isHelm)){
-                return {
-                    name: 'group-helm-detail',
-                    params: {group},
-                };
-            }
-            if(this.isMicroPage || this.hasThirdpartyCd){
-                return {
-                    name: this.$route.name === 'group-micro2' ? 'group-micro2' : 'group-micro',
-                    params: {group},
                 };
             }
             return {name:'app-apps'};
