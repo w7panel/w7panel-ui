@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-09-28
+
+- 调整应用管理入口与详情面包屑的落地页：固定优先进入 AppGroup 资源概览，非 Helm 应用回退到普通工作负载详情，不再受 MicroApp 前端包首页配置影响；root 级入口仍沿用原有 MicroApp 首页策略。
+- 影响模块：应用管理列表、应用详情面包屑与资源概览导航。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目已有的 Vue 深度选择器弃用警告。
+
 ## 2026-09-22
 
 - MicroApp 聚合新增通用 `presentation-key`、`presentation-mode` 展示协议；`multiple` 保留同类全部入口，`singleton` 按现有 MicroApp 显示顺序只保留同类第一个入口，未声明协议的资源保持原行为。

@@ -218,7 +218,6 @@ import codepackDrawer from '@/components/codepack-drawer.vue';
 import helmForm from '../pages/helm-form.vue';
 import { getPermission,getFileEditor,getUserInfo } from '@/utils/auth';
 import { filterAppGroupWorkloadItems, isPluginAppGroup, uninstallAppGroup } from '@/utils/appgroup';
-import { loadVisibleAppGroupMicroApps } from '@/utils/appgroup-microapps';
 
 export default {
     data(){
@@ -350,18 +349,13 @@ export default {
             this.helm.show = false;
             if(v){ this.getList(); }
         },
-        async toDetail(item){
+        toDetail(item){
             if(item.deletionTimestamp){return}
             let app = item?.childrenApp?.[0];
             let group = item.groupName || app?.group;
             if(!group){return}
-            const microApps = await loadVisibleAppGroupMicroApps(k8sproxy, this.namespaceActive, item.groupName).catch(()=>[]);
-            if(microApps.length){
-                this.$router.push({path:'/app/appgroup/'+item.groupName+'/micro'});
-                return;
-            }
             if(item.isHelm){
-                this.$router.push({path:'/app/appgroup/'+item.groupName+'/helm/detail'});
+                this.$router.push({name:'group-helm-detail', params:{group}});
                 return;
             }
             this.$router.push({name:'app-detail',params:{group, id:app?.name, kind:app?.kind}});
