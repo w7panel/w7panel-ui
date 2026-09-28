@@ -29,6 +29,7 @@ import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-crede
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
+import { checkZpkTrialExpiration } from '@/utils/zpk-trial-check';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
 import {
@@ -379,10 +380,7 @@ export default{
             const isArtifactMenu = this.bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.page));
             const repoUrl = data?.respoUrl;
             if(repoUrl && !isArtifactMenu){
-                await panelApi.get('/zpk/config', {
-                    params: { repoUrl },
-                    noAlert: true,
-                });
+                void checkZpkTrialExpiration(repoUrl);
             }
 
             if(this.info.load_mode=='iframe'){

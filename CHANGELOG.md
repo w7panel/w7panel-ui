@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-09-28
+
+- 应用详情、顶部微应用和网关插件配置中的制品试用状态检查改为 3 秒超时的后台请求；仍提示明确的试用到期响应，但制品服务超时或异常不再阻断已安装 MicroApp 打开。
+- 影响模块：应用详情 MicroApp、顶部 MicroApp、网关插件配置 MicroApp。
+- 验证：`LOCAL_MOCK=true` Vite 生产构建与 `git diff --check` 通过；类型检查仍受仓库现有 TypeScript 与 `@types/node` 语法版本不兼容阻断。
+
 ## 2026-09-22
 
 - MicroApp 聚合新增通用 `presentation-key`、`presentation-mode` 展示协议；`multiple` 保留同类全部入口，`singleton` 按现有 MicroApp 显示顺序只保留同类第一个入口，未声明协议的资源保持原行为。

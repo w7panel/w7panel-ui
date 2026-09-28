@@ -208,6 +208,7 @@ import {
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
+import { checkZpkTrialExpiration } from '@/utils/zpk-trial-check';
 import { RESOURCE_GROUP_LABEL, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
 import AppDirect from '@/views/topapp/app-direct.vue';
 import MicroappMenuItems from '@/components/microapp-menu-items.vue';
@@ -956,16 +957,12 @@ export default {
                 return res;
             })
 
-            // 制品应用详情每次打开都重新请求制品 info；即使前端包已经下载到本地，
-            // 也能在试用期届满后收到 ZPK_TRIAL_EXPIRED。
+            // 后台刷新制品试用状态；制品服务异常不能阻断已安装应用启动。
             const bindings = this.microApp?.spec?.bindings || [];
             const isArtifactMenu = bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.menuActive));
             const repoUrl = data?.respoUrl;
             if(repoUrl && !isArtifactMenu){
-                await panelApi.get('/zpk/config', {
-                    params: { repoUrl },
-                    noAlert: true,
-                });
+                void checkZpkTrialExpiration(repoUrl);
             }
 
             
