@@ -295,3 +295,13 @@
 - 2026-09-23 验证：上述 iframe 首次打开修复已通过 `LOCAL_MOCK=true npm run build` 与 `git diff --check`；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。
 - 2026-09-23 补强：复核发现 Wujie `destroyApp` 不返回内部异步销毁 Promise，原有 `try/catch` 无法捕获跨域异常；应用详情现保存 `startApp` 返回的销毁函数，重启前若 iframe 已跨域则先导航至同源 `about:blank`，再等待实例完整销毁。影响模块：iframe 子应用重启和组件卸载；验证结果见本次构建检查。
 - 2026-09-23 验证：补强后的跨域 iframe 销毁逻辑已进入生产构建产物，`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；`npm run type:check` 仅报告缺失 `route-listener`、既有 Axios 扩展字段、ES lib 及登录页类型等存量错误，本次修改文件未新增类型错误。
+
+## 2026-09-29（应用动态值）
+
+- 应用详情、顶部应用和网关插件 Wujie 入口新增 `getAppDynamicValues(appgroup?, options?)` 与 `validateApp(appgroup?, options?)`；省略 AppGroup 时默认当前应用，显式指定时仅允许当前应用或反向依赖应用。
+- `validateApp` 只提取制品市场返回的 `validate`，面板不再维护试用到期、退款完成等订单有效性规则；动态值查询失败时返回 `null`。
+- 进入非“授权与续费”MicroApp 页面时在后台检查当前应用可用性，并复用默认 30 秒缓存；市场返回 `valid=false` 时展示详细原因和处理入口，查询失败时静默继续打开应用。应用主动请求仍可使用 `force` 强制刷新。
+- 删除 Axios 全局拦截器中旧的 `ZPK_TRIAL_EXPIRED` 专用弹窗；安装页继续自行处理旧错误码，已安装应用统一使用市场 `validate` 提示，避免两套机制重复。
+- 验证：`LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建仅有项目既有的深度选择器弃用和图片压缩提示。
+- 2026-09-29 重构：应用详情、顶部应用和网关插件统一通过 `appendWujieModalHandles` 向 Wujie 顶层 props 注入 `getAppDynamicValues` 与 `validateApp`，避免各入口在 props 字面量中重复维护动态值能力；MicroApp 调用协议保持不变。
+- 2026-09-29 更正：`getAppDynamicValues` 与 `validateApp` 统一放入 `props.handles`；动态值请求只向面板传 AppGroup，ZPK URL 由后端从已安装 AppGroup 解析，不再依赖 MicroApp 注解或 `reverse_dependent_apps` 范围，因此没有 MicroApp 的依赖应用也可按 AppGroup 获取动态上下文。

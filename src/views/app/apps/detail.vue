@@ -208,7 +208,7 @@ import {
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
-import { checkZpkTrialExpiration } from '@/utils/zpk-trial-check';
+import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
 import { RESOURCE_GROUP_LABEL, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
 import AppDirect from '@/views/topapp/app-direct.vue';
 import MicroappMenuItems from '@/components/microapp-menu-items.vue';
@@ -951,15 +951,6 @@ export default {
                 return res;
             })
 
-            // 后台刷新制品试用状态；制品服务异常不能阻断已安装应用启动。
-            const bindings = this.microApp?.spec?.bindings || [];
-            const isArtifactMenu = bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.menuActive));
-            const repoUrl = data?.respoUrl;
-            if(repoUrl && !isArtifactMenu){
-                void checkZpkTrialExpiration(repoUrl);
-            }
-
-            
             await this.destroyWujieApp();
 
             let is_register = false;
@@ -985,6 +976,16 @@ export default {
             const microappName = this.activeMicroAppName;
             const appGroupName = this.appGroupName;
             const reverseDependentApps = await this.loadReverseDependentApps(appGroupName).catch(()=>[]);
+            const getAppDynamicValues = createAppDynamicValuesGetter({
+                currentAppgroup: appGroupName,
+            });
+            const validateApp = createAppValidator(getAppDynamicValues);
+            const bindings = this.microApp?.spec?.bindings || [];
+            const isArtifactMenu = bindings.some(binding=>binding.name === 'other'
+                && (binding.menu || []).some(menu=>menu.do === this.menuActive));
+            if(!isArtifactMenu){
+                void checkAppAvailability(validateApp);
+            }
             if(this.info.frontend_props) {
                 this.info.frontend_props = {
                     ...resolveFrontendPropTemplates(this.info.frontend_props, frontProps),
@@ -1026,7 +1027,10 @@ export default {
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
             }
-            appendWujieModalHandles(props, () => this.$refs.wujieModals);
+            appendWujieModalHandles(props, () => this.$refs.wujieModals, {
+                getAppDynamicValues,
+                validateApp,
+            });
             console.log(props)
             const baseAppUrl = this.buildMicroAppUrl(this.menuActive || '');
             const appUrl = this.info.load_mode === 'iframe'
