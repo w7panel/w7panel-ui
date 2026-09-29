@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-09-28
+
+- 应用详情、顶部微应用和网关插件配置中的制品试用状态检查改为 3 秒超时的后台请求；仍提示明确的试用到期响应，但制品服务超时或异常不再阻断已安装 MicroApp 打开。
+- 影响模块：应用详情 MicroApp、顶部 MicroApp、网关插件配置 MicroApp。
+- 验证：`LOCAL_MOCK=true` Vite 生产构建与 `git diff --check` 通过；类型检查仍受仓库现有 TypeScript 与 `@types/node` 语法版本不兼容阻断。
+- 调整应用管理入口与详情面包屑的落地页：固定优先进入 AppGroup 资源概览，非 Helm 应用回退到普通工作负载详情，不再受 MicroApp 前端包首页配置影响；root 级入口仍沿用原有 MicroApp 首页策略。
+- 影响模块：应用管理列表、应用详情面包屑与资源概览导航。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目已有的 Vue 深度选择器弃用警告。
+
 ## 2026-09-22
 
 - MicroApp 聚合新增通用 `presentation-key`、`presentation-mode` 展示协议；`multiple` 保留同类全部入口，`singleton` 按现有 MicroApp 显示顺序只保留同类第一个入口，未声明协议的资源保持原行为。
@@ -344,3 +353,38 @@
 
 - 修复 `components/menu/index.vue` 在旧版 Vue JSX 插件转换时丢失 `defineComponent`、`ref`、`computed` 等 named imports，导致菜单 chunk 加载后偶发 `defineComponent is not defined` 的问题；组件改用不会被错误移除的 Vue namespace import。
 - 验证：`LOCAL_MOCK=true ./node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建产物的菜单 chunk 已使用绑定后的 Vue helper，不再包含裸 `defineComponent`、`ref`、`computed` 等调用。
+
+- 2026-09-22 修复：顶部应用入口改为沿用旧版微应用信息加载链路，不再读取仅管理员可访问的 AppGroup 资源；普通应用管理详情仍保留 AppGroup 查询。影响模块：顶部应用详情初始化与非管理员访问；验证结果见本次构建检查。
+- 2026-09-22 验证：上述顶部应用权限修复已通过 `npm run build` 与 `git diff --check`；`npm run type:check` 仍仅报告缺失 `route-listener`、既有 Axios 扩展字段及登录页类型等存量错误，本次修改文件未新增类型错误。
+- 2026-09-22 合并验证：同步远端至 `c7c8a59` 后保留 AppGroup 级联卸载及多 MicroApp 展示协议，顶部非管理员入口继续仅查询 MicroApp 资源；`npm run build` 与 `git diff --check` 通过，类型检查仍仅包含上述存量错误。
+- 2026-09-22 兼容：应用详情和顶部入口按 `w7.cc/group-name` 查询不到当前组 MicroApp 时，精确读取与 AppGroup 同名的旧 MicroApp；资源归组同时兼容旧 `-root` 后缀，不修改 MicroApp Controller 的标签同步规则。影响模块：MicroApp 菜单发现与 Wujie 初始化；验证结果见本次构建检查。
+- 2026-09-22 验证：旧 MicroApp 同名兜底已通过 `LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 与 `git diff --check`，构建仅保留项目既有深度选择器弃用和图片压缩提示。
+- 2026-09-22 修复：顶部菜单入口不再同时启动通用 MicroApp 加载和顶部专用加载，避免两套异步结果重复初始化菜单与 Wujie 导致页面闪烁、路由参数跳变；普通应用详情仍保持 MicroApp 与默认资源数据独立加载。影响模块：顶部应用详情初始化；验证结果见本次构建检查。
+- 2026-09-22 验证：顶部入口单一加载链路已通过 `LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 与 `git diff --check`，构建仅保留项目既有深度选择器弃用和图片压缩提示。
+- 2026-09-23 优化：应用详情与顶部入口在 Wujie `startApp()` 加载期间显示 MicroApp 容器级加载遮罩，并在成功或失败后统一关闭，减少重新初始化时的空白闪烁。影响模块：MicroApp 加载反馈；验证结果见本次构建检查。
+- 2026-09-23 验证：MicroApp `startApp()` 加载遮罩已通过 `LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 与 `git diff --check`，构建仅保留项目既有深度选择器弃用和图片压缩提示。
+- 2026-09-23 修复：应用详情菜单进入 MicroApp 页面及 Wujie 重新初始化时，从菜单路由切换和初始化前置请求开始持续显示加载遮罩；连续重载期间不再提前关闭，避免 `destroyApp()` 后到 `startApp()` 前暴露空白页面。影响模块：应用详情 MicroApp 菜单加载反馈；验证结果见本次构建检查。
+- 2026-09-23 修复：应用详情及顶部入口在同一 MicroApp、同一运行配置内切换菜单时，只通过 Wujie `routeChange` 同步一次路由，不再并行执行 Vue Router 查询参数替换，也不再因顶部入口无条件销毁重启，避免菜单状态和浏览器地址连续变化两次。影响模块：MicroApp 菜单切换与路由同步；验证结果见本次构建检查。
+- 2026-09-23 验证：应用详情 MicroApp 加载遮罩及单次菜单路由同步已通过 `LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 与 `git diff --check`，构建仅保留项目既有深度选择器弃用和图片压缩提示。
+- 2026-09-23 修正：重复链接变化实际发生在不同 MicroApp 之间切换。跨 MicroApp 重载改为在最终启动地址生成后一次性写入 Wujie 同步路由，并在销毁旧实例时保留该路由参数交由新实例接管，避免链接依次经历 Vue Router 写入、旧实例清理和新实例恢复；同一 MicroApp 内的既有菜单切换逻辑保持不变。影响模块：多 MicroApp 菜单切换与浏览器地址同步；验证结果见本次构建检查。
+- 2026-09-23 回退：撤回跨 MicroApp 切换时直接接管浏览器历史及修改 Wujie 实例同步状态的方案，恢复上一版 Vue Router 与 Wujie 初始化流程，避免不同 MicroApp 菜单切换异常；保留 MicroApp 初始化加载遮罩。影响模块：多 MicroApp 菜单切换与路由同步；验证结果见本次构建检查。
+- 2026-09-23 验证：跨 MicroApp 路由接管方案回退后已通过 `LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 与 `git diff --check`，构建仅保留项目既有深度选择器弃用和图片压缩提示。
+- 2026-09-23 优化：应用详情多 MicroApp 改为由 Vue Router 统一管理宿主地址，Wujie 运行实例使用独立名称并关闭内置宿主路由同步；同一 MicroApp、跨 MicroApp、初始默认菜单和注入的主动跳转均一次性写入规范查询参数，子应用内部 `pushState`、`replaceState`、`popstate` 与 `hashchange` 通过插件显式回传面板，避免跨 MicroApp 切换时 Vue Router、旧实例销毁和新实例启动重复修改链接。影响模块：应用详情及顶部入口 MicroApp 路由同步；验证结果见本次构建检查。
+- 2026-09-23 修复：子应用内部路由回传仅在精确匹配 MicroApp 菜单时更新选中项；重定向、子路径或附带查询参数的内部页面仍同步浏览器地址，但不再用内部地址覆盖菜单 key，避免页面已切换而菜单无法选中。影响模块：MicroApp 菜单选中态；验证结果见本次构建检查。
+- 2026-09-23 修复：MicroApp 子应用回传路由与面板当前路由改为按路径及查询参数键值语义比较，普通查询参数和 hash 路由内参数仅顺序不同时不再重复执行 `router.replace()`，避免参数较多的菜单打开后链接因参数位置重排再次变化。影响模块：MicroApp 菜单宿主地址同步；验证结果见本次构建检查。
+- 2026-09-23 修复：MicroApp 路由语义比较将 `/#/path` 与 `#/path` 统一为同一 hash 根路由，并继续忽略查询参数排列顺序，兼容订单等带多个参数的菜单地址，避免子应用规范化 hash 根路径后再次改写宿主链接。影响模块：MicroApp hash 菜单路由同步；验证结果见本次构建检查。
+- 2026-09-23 修复：顶部菜单在不同 MicroApp 入口之间切换并复用详情组件时，于数据加载开始立即显示 MicroApp 容器遮罩；当前入口没有 MicroApp 或查询失败时主动关闭遮罩，避免数据请求阶段空白或异常后持续加载。影响模块：顶部 MicroApp 加载反馈；验证结果见本次构建检查。
+- 2026-09-23 验证：顶部 MicroApp 数据加载遮罩及宿主路由插件文件整合已通过 `LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 与 `git diff --check`，构建仅保留项目既有深度选择器弃用和图片压缩提示。
+- 2026-09-23 修复：应用详情 iframe 模式初始化增加目标签名去重，首次进入时菜单与查询参数对同一 MicroApp、binding、路由及入口发起的重复初始化不再排队重启，避免 Wujie 销毁已跨域 iframe 时读取 `__WUJIE_EVENTLISTENER__` 触发 `SecurityError`；初始化期间目标真实变化仍保留最后一次重载。影响模块：应用详情 MicroApp/Wujie 初始化；验证结果见本次构建检查。
+- 2026-09-23 验证：上述 iframe 首次打开修复已通过 `LOCAL_MOCK=true npm run build` 与 `git diff --check`；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。
+- 2026-09-23 补强：复核发现 Wujie `destroyApp` 不返回内部异步销毁 Promise，原有 `try/catch` 无法捕获跨域异常；应用详情现保存 `startApp` 返回的销毁函数，重启前若 iframe 已跨域则先导航至同源 `about:blank`，再等待实例完整销毁。影响模块：iframe 子应用重启和组件卸载；验证结果见本次构建检查。
+- 2026-09-23 验证：补强后的跨域 iframe 销毁逻辑已进入生产构建产物，`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；`npm run type:check` 仅报告缺失 `route-listener`、既有 Axios 扩展字段、ES lib 及登录页类型等存量错误，本次修改文件未新增类型错误。
+
+## 2026-09-29（应用动态值）
+
+- 应用详情、顶部应用和网关插件 Wujie 入口新增 `getAppDynamicValues(appgroup?, options?)` 与 `validateApp(appgroup?, options?)`；省略 AppGroup 时默认当前应用，显式指定时仅允许当前应用或反向依赖应用。
+- `validateApp` 只提取制品市场返回的 `validate`，面板不再维护试用到期、退款完成等订单有效性规则；动态值查询失败时返回 `null`。
+- 进入非“授权与续费”MicroApp 页面时在后台检查当前应用可用性，并复用默认 30 秒缓存；市场返回 `valid=false` 时展示详细原因和处理入口，查询失败时静默继续打开应用。应用主动请求仍可使用 `force` 强制刷新。
+- 删除 Axios 全局拦截器中旧的 `ZPK_TRIAL_EXPIRED` 专用弹窗；安装页继续自行处理旧错误码，已安装应用统一使用市场 `validate` 提示，避免两套机制重复。
+- 验证：`LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建仅有项目既有的深度选择器弃用和图片压缩提示。
+- 2026-09-29 合并：解决 CHANGELOG.md 冲突，保留两侧已有记录；验证：git diff --check。
