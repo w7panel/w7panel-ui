@@ -67,7 +67,7 @@ export default {
             this.groupLoading = true;
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/' + this.namespaceActive + '/appgroups').then(res => {
                 let list = res?.data?.items || [];
-                this.groupList = list.filter(i => !i?.metadata?.labels?.['w7.cc/parent']).map(i => ({
+                this.groupList = list.map(i => ({
                     title: i?.spec?.title || i.metadata.name,
                     groupName: i.metadata.name,
                 }));

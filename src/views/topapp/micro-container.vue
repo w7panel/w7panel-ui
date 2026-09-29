@@ -29,9 +29,14 @@ import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-crede
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
+import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
-import { loadVisibleAppGroupMicroApps, sortVisibleAppGroupMicroApps } from '@/utils/appgroup-microapps';
+import {
+    loadMicroAppReverseDependentApps,
+    loadVisibleAppGroupMicroApps,
+    sortVisibleAppGroupMicroApps,
+} from '@/utils/appgroup-microapps';
 
 export default{
     props: ['menuActive','appgroup'],
@@ -372,15 +377,6 @@ export default{
                 return res;
             })
 
-            const isArtifactMenu = this.bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.page));
-            const repoUrl = data?.respoUrl;
-            if(repoUrl && !isArtifactMenu){
-                await panelApi.get('/zpk/config', {
-                    params: { repoUrl },
-                    noAlert: true,
-                });
-            }
-
             if(this.info.load_mode=='iframe'){
                 this.info.iframePath = this.getMicroAppBaseUrl();
                 this.info.iframeRoute = this.page || '';
@@ -414,6 +410,20 @@ export default{
             }).catch(()=>{});
             const microappName = this.activeMicroAppName;
             const appGroupName = this.appGroupName;
+            const reverseDependentApps = await loadMicroAppReverseDependentApps(
+                k8sproxy,
+                this.namespaceActive,
+                appGroupName,
+            ).catch(()=>[]);
+            const getAppDynamicValues = createAppDynamicValuesGetter({
+                currentAppgroup: appGroupName,
+            });
+            const validateApp = createAppValidator(getAppDynamicValues);
+            const isArtifactMenu = this.bindings.some(binding=>binding.name === 'other'
+                && (binding.menu || []).some(menu=>menu.do === this.page));
+            if(!isArtifactMenu){
+                void checkAppAvailability(validateApp);
+            }
             const loginCloud = (componentAppId)=>{
                 const appId = typeof componentAppId === 'object' ? componentAppId?.componentAppId : componentAppId;
                 return panelApi.get('/js-cloud-code', {
@@ -445,6 +455,7 @@ export default{
                 appgroup: appGroupName,
                 group: appGroupName,
                 microappName,
+                reverse_dependent_apps: reverseDependentApps,
                 loginCloud,
                 runningFirstPod,
                 podShell,
@@ -454,7 +465,10 @@ export default{
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
             }
-            appendWujieModalHandles(props, () => this.$refs.wujieModals);
+            appendWujieModalHandles(props, () => this.$refs.wujieModals, {
+                getAppDynamicValues,
+                validateApp,
+            });
             console.log(props)
             this.microLoading = true;
             const baseUrl = isIframeMode? (this.info.iframeSrc) : this.buildMicroAppUrl(this.page)

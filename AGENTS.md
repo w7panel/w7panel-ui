@@ -8,6 +8,12 @@
 - 每条记录使用 `YYYY-MM-DD` 日期，并简要写明变更内容、影响模块和验证结果。
 - 提交前必须检查本次变更是否包含对应的 `CHANGELOG.md` 更新；缺少时不得提交或推送。
 
+## MicroApp 菜单与 Wujie 初始化约定
+
+- 用于 MicroApp 菜单发现、菜单生成、入口选择，以及 Wujie `setupApp`、`preloadApp`、`startApp` 初始化加载的数据链路，不得请求 AppGroup API，也不得依赖 AppGroup 的 `spec.dependencies` 推导 MicroApp 上下文。
+- 上述场景只能通过 MicroApp API 和 MicroApp 自身元数据获取上下文，包括 `w7.cc/group-name`、`w7.cc/depends-*`、展示标签、注解、`spec.bindings` 及前端配置。
+- 默认资源菜单、应用详情、工作负载状态、安装、卸载等独立业务允许请求 AppGroup API；不得让这些查询成为 MicroApp 菜单或 Wujie 初始化的前置步骤。
+
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph

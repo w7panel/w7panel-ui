@@ -4,13 +4,17 @@
 
 网关插件 AppGroup（`w7.cc/manifest-type=gateway-plugin`）只在网关插件页面管理，不在顶部菜单、应用直达和普通应用列表中展示；应用插件 AppGroup（`w7.cc/manifest-type=app-plugin`）的功能会聚合到所依赖的传统应用中，同样不在普通应用列表中单独展示。
 
-微应用试用状态检查使用静态状态接口返回的完整 `respoUrl` 请求制品配置，保留订单等查询参数，不根据仓库根地址自行拼接。
+Wujie 应用通过 `props.handles` 获得 `getAppDynamicValues(appgroup?, options)` 和 `validateApp(appgroup?, options)`。进入非“授权与续费”页面时，宿主会在后台读取当前应用的 `validate`，默认复用 30 秒缓存；市场明确返回不可用时展示原因，但查询异常不阻断应用启动。应用可主动调用，并通过 `force` 强制刷新。不传 `appgroup` 时读取当前 AppGroup；传入时由面板后端根据已安装 AppGroup 解析 ZPK 来源，不依赖目标应用是否存在 MicroApp。`validateApp` 复用同一查询并只返回市场生成的 `validate`，面板不重复实现试用或退款规则。
 
-插件应用仍持有自己的 MicroApp。传统应用页面根据 AppGroup `spec.dependencies` 及 `w7.cc/depends-<releaseName>` 反向索引查找依赖它的 `w7.cc/manifest-type=app-plugin` AppGroup，再聚合这些插件的 MicroApp；单数 `w7.cc/group-name` 仅处理同一 Release 内资源归属，不使用复数 `w7.cc/group-names`。
+插件应用仍持有自己的 MicroApp。传统应用页面通过 MicroApp 的 `w7.cc/depends-<releaseName>` 反向索引查找依赖它的 `w7.cc/manifest-type=app-plugin` MicroApp；单数 `w7.cc/group-name` 处理同一 Release 内资源归属，不使用复数 `w7.cc/group-names`。旧 MicroApp 缺少分组标签时，仅以与 AppGroup 同名的 `metadata.name` 精确兜底。
 
-应用详情和顶部菜单启动 MicroApp 时，Wujie props 通过 `reverseDependentApps` 注入所有依赖当前 AppGroup 的应用摘要；该字段不包含当前 AppGroup 自身依赖的应用。
+聚合后的 MicroApp 支持通用展示协议：`metadata.labels["w7.cc/presentation-key"]` 表示能力类型，`metadata.annotations["w7.cc/presentation-mode"]` 使用 `multiple` 保留同类全部入口，使用 `singleton` 时同一能力按现有 MicroApp 显示顺序只保留第一个入口。面板只解释这两个通用字段，不硬编码具体能力名称。
+
+应用详情和顶部菜单启动 MicroApp 时，Wujie props 通过 `reverse_dependent_apps` 注入所有依赖当前 AppGroup 的应用摘要；该字段不包含当前 AppGroup 自身依赖的应用。
 
 Wujie 通用宿主 handles 包含关联插件的升级检测、前往升级和卸载能力。升级检测复用应用列表的 `/panel-api/v1/zpk/upgrade-info` 参数与逻辑，确认存在新版本后才进入面板安装升级页；卸载通过面板权限下的 AppGroup 删除流程执行。
+
+应用列表、应用详情、网关插件页和 Wujie 宿主统一使用 AppGroup 级联卸载流程。卸载目标应用前会按 `spec.dependencies` 的反向索引递归卸载依赖它的应用，并等待每个 AppGroup 的 finalizer 和卸载 Hook 完成；依赖查询、卸载或等待失败时停止后续删除，不提前卸载目标应用。
 
 ## 技术栈
 
@@ -87,8 +91,8 @@ ZPK 安装页会在读取配置和提交安装时识别结构化订单绑定冲�
 | 集群概览 | `/cluster/overview` | 集群资源监控 |
 | 节点管理 | `/cluster/nodes` | K8s 节点管理 |
 | 应用列表 | `/app/apps` | 应用部署和管理 |
-| 应用详情 | `/app/appgroup/{id}` | 应用资源管理；兼容同名 MicroApp，并按 `w7.cc/group-name` 展示 AppGroup 下全部 MicroApp 菜单；同一角色关联多个 MicroApp 时按 `w7.cc/order` 排序、按 MicroApp `spec.title` 增加默认展开的二级分组，各菜单按所属 Binding 读取同名 `roleConfig`；Wujie `group/appgroup` 保持为 AppGroup 名，`microappName` 标识当前 MicroApp |
-| 顶部微应用 | `/appgroup/{id}` | 兼容同名 MicroApp，并按 `w7.cc/group-name` 聚合同组全部 MicroApp 菜单；仅同一角色关联多个 MicroApp 时按 `w7.cc/order` 排序、按 `spec.title` 二级分组并默认展开；点击菜单时切换所属 MicroApp 和 Binding 运行配置，同时保持 Wujie AppGroup 上下文稳定 |
+| 应用详情 | `/app/appgroup/{id}` | 应用资源管理；按 `w7.cc/group-name` 展示当前应用 MicroApp，并通过 `w7.cc/depends-<groupName>` 聚合应用插件 MicroApp；同一角色关联多个 MicroApp 时按 `w7.cc/order` 排序、按 MicroApp `spec.title` 增加默认展开的二级分组，各菜单按所属 Binding 读取同名 `roleConfig`；Wujie props 的 `reverse_dependent_apps` 直接从依赖方 MicroApp 元数据汇总 |
+| 顶部微应用 | `/appgroup/{id}` | 按 `w7.cc/group-name` 聚合同组 MicroApp，并通过 MicroApp 依赖标签补充应用插件入口；仅同一角色关联多个 MicroApp 时按 `w7.cc/order` 排序、按 `spec.title` 二级分组并默认展开；点击菜单时切换所属 MicroApp 和 Binding 运行配置，同时保持 Wujie AppGroup 上下文稳定 |
 | 容器列表 | `/app/appgroup/{id}/pod` | Pod/容器管理 |
 | 存储设备 | `/storage/disk` | Longhorn 存储 |
 | 资源浏览器 | `/cluster/resource` | K8s 资源浏览 |

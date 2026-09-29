@@ -164,7 +164,7 @@
                         <template #cell="{ record }">
                             <div v-if="record.deployStatus=='deploying'||record.deployStatus=='failed'">
                                 <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel' && !record.denyDelete" :content="getDeleteConfirm(record)" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                    <span :id="'app-'+record.groupName" class="c-blue cursor operation">{{ isUninstallTarget(record) ? '卸载此应用' : '删除' }}</span>
+                                    <a-button :id="'app-'+record.groupName" type="text" size="small" class="operation" :loading="deletingAppGroup===record.groupName" :disabled="Boolean(deletingAppGroup) && deletingAppGroup!==record.groupName">{{ isUninstallTarget(record) ? '卸载此应用' : '删除' }}</a-button>
                                 </a-popconfirm>
                             </div>
                             <div v-else>
@@ -172,7 +172,7 @@
                                  <!-- v-if="permission.includes('app-apps-files')" -->
                                 <span v-if="fileeditor" class="c-blue cursor operation ml-10" @click="toAppMenu(record,'app-detail-files')">文件管理</span>
                                 <a-popconfirm v-if="(usermode!=='cluster'||!/^w7panel\-((offline)|(k3k))(-|$)/.test(record.groupName)) && record.groupName!=='w7panel-offline' && record.groupName!=='w7panel' && permission.includes('app/apps/delete') && !record.denyDelete" :content="getDeleteConfirm(record)" @ok="del(record)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
-                                    <span :id="'app-'+record.groupName" class="c-blue cursor operation ml-10">{{ isUninstallTarget(record) ? '卸载此应用' : '删除' }}</span>
+                                    <a-button :id="'app-'+record.groupName" type="text" size="small" class="operation ml-10" :loading="deletingAppGroup===record.groupName" :disabled="Boolean(deletingAppGroup) && deletingAppGroup!==record.groupName">{{ isUninstallTarget(record) ? '卸载此应用' : '删除' }}</a-button>
                                 </a-popconfirm>
                             </div>
                         </template>
@@ -217,8 +217,7 @@ import k8syamlDrawer from '@/components/k8syaml-drawer.vue';
 import codepackDrawer from '@/components/codepack-drawer.vue';
 import helmForm from '../pages/helm-form.vue';
 import { getPermission,getFileEditor,getUserInfo } from '@/utils/auth';
-import { filterAppGroupWorkloadItems, isPluginAppGroup } from '@/utils/appgroup';
-import { loadVisibleAppGroupMicroApps } from '@/utils/appgroup-microapps';
+import { filterAppGroupWorkloadItems, isPluginAppGroup, uninstallAppGroup } from '@/utils/appgroup';
 
 export default {
     data(){
@@ -266,6 +265,7 @@ export default {
             },
 
 			uninstallTarget: null,
+            deletingAppGroup: '',
         }
     },
     created(){
@@ -349,18 +349,13 @@ export default {
             this.helm.show = false;
             if(v){ this.getList(); }
         },
-        async toDetail(item){
+        toDetail(item){
             if(item.deletionTimestamp){return}
             let app = item?.childrenApp?.[0];
             let group = item.groupName || app?.group;
             if(!group){return}
-            const microApps = await loadVisibleAppGroupMicroApps(k8sproxy, this.namespaceActive, item.groupName).catch(()=>[]);
-            if(microApps.length){
-                this.$router.push({path:'/app/appgroup/'+item.groupName+'/micro'});
-                return;
-            }
             if(item.isHelm){
-                this.$router.push({path:'/app/appgroup/'+item.groupName+'/helm/detail'});
+                this.$router.push({name:'group-helm-detail', params:{group}});
                 return;
             }
             this.$router.push({name:'app-detail',params:{group, id:app?.name, kind:app?.kind}});
@@ -381,6 +376,9 @@ export default {
             this.$router.push({name:pathName,params:{group, id:app.name, kind:app.kind}})
         },
         async del(item){
+            if(this.deletingAppGroup){return}
+            this.deletingAppGroup = item.groupName;
+
             // if(item.childrenApp.length){
             //     for(let i=0; i<item.childrenApp.length; i++){
             //         await this.deleteApp(item.childrenApp[i]);
@@ -396,10 +394,20 @@ export default {
             //     await k8sproxy.delete("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+dm, {noAlert:true, loading: true});
             // }
 
-            k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+item.groupName).then(res=>{
-                this.$message.success('删除成功');
+            try{
+                const result = await uninstallAppGroup(k8sproxy, this.namespaceActive, item.groupName, {
+                    waitForDeletion: false,
+                });
+                const dependentCount = result.plan.dependentItems.length;
+                this.$message.success(dependentCount
+                    ? `删除成功，已一并卸载 ${dependentCount} 个依赖应用`
+                    : '删除成功');
                 this.getList();
-            })
+            }catch(error){
+                this.$message.error(error?.message || '删除失败，请稍后重试');
+            }finally{
+                this.deletingAppGroup = '';
+            }
         },
         // deleteApp(item){
         //     // 删除应用
@@ -418,7 +426,7 @@ export default {
         refreshList(){
             return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then((res)=>{
                 let list = res?.data?.items || [];
-                list = list.filter(i=>!i?.metadata?.labels?.['w7.cc/parent'] && !isPluginAppGroup(i)).map(i=>{
+                list = list.filter(i=>!isPluginAppGroup(i)).map(i=>{
                     
                     let domain_apps = [];
                     let statusItem = filterAppGroupWorkloadItems(i?.status?.items || []);

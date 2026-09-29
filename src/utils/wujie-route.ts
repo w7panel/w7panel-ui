@@ -105,3 +105,48 @@ export function joinWujieUrlRoute(base: unknown, route: unknown) {
 
   return baseUrl + routePath;
 }
+
+type RouteChangeHandler = (route: string) => void;
+
+const getIframeRoute = (iframeWindow: Window) => (
+  iframeWindow.location.pathname
+  + iframeWindow.location.search
+  + iframeWindow.location.hash
+);
+
+export function createWujieHostRoutePlugin(onRouteChange: RouteChangeHandler) {
+  return {
+    windowPropertyOverride(iframeWindow: Window) {
+      const history = iframeWindow.history;
+      const rawPushState = history.pushState.bind(history);
+      const rawReplaceState = history.replaceState.bind(history);
+      let notifyPending = false;
+
+      const notify = () => {
+        if (notifyPending) {
+          return;
+        }
+        notifyPending = true;
+        Promise.resolve().then(() => {
+          notifyPending = false;
+          onRouteChange(getIframeRoute(iframeWindow));
+        });
+      };
+
+      history.pushState = ((...args: Parameters<History['pushState']>) => {
+        const result = rawPushState(...args);
+        notify();
+        return result;
+      }) as History['pushState'];
+
+      history.replaceState = ((...args: Parameters<History['replaceState']>) => {
+        const result = rawReplaceState(...args);
+        notify();
+        return result;
+      }) as History['replaceState'];
+
+      iframeWindow.addEventListener('popstate', notify);
+      iframeWindow.addEventListener('hashchange', notify);
+    },
+  };
+}

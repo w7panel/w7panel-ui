@@ -3,7 +3,7 @@
         <a-layout class="app-detail-layout">
             <component
                 :is="appMenuContainer"
-                v-if="activeGroup && !groupRedirecting && !hideAppMenu && shouldRenderAppMenu"
+                v-if="!hideAppMenu && shouldRenderAppMenu"
                 v-bind="appMenuContainerProps"
                 :class="['app-detail-menu-container', {'app-detail-menu-container--drawer': appStore.hideMenu}]"
                 @collapse="setAppMenuCollapsed"
@@ -113,36 +113,21 @@
 
             <a-layout class="app-detail-main df df-c" :style="appDetailMainStyle">
                 <Breadcrumb v-if="!isTopAppEntry" class="df-s0" :routes="detailBreadcrumbRoutes" />
-                <div v-if="appGroups.length > 1 && !groupRedirecting" class="df ai-c bg-white mb-6" style="padding:10px 14px;border-bottom:1px solid var(--color-neutral-3);">
-                    <span class="c-66 mr-10">应用</span>
-                    <a-select v-model="activeGroup" size="small" style="width:240px" @change="changeGroup">
-                        <a-option v-for="item in appGroups" :key="item.name" :value="item.name">{{ item.title || item.name }}</a-option>
-                    </a-select>
-                    <a-popconfirm
-                        v-if="!isTopAppEntry && permission.includes('app/apps/delete')"
-                        :content="groupDeleteMessage"
-                        @ok="deleteCurrentGroup"
-                        position="lt"
-                        class="popconfirm-delete"
-                        type="warning"
-                        :ok-button-props="{status:'danger'}"
-                    >
-                        <a-button class="ml-10" size="small" status="danger">删除应用</a-button>
-                    </a-popconfirm>
-                </div>
-
-                <a-layout-content v-if="activeGroup && !groupRedirecting && isAppDirectPage" class="df df-c">
+                <a-layout-content v-if="isAppDirectPage" class="df df-c">
                     <app-direct :info="info" class="routerviewbox fc" />
                 </a-layout-content>
-                <a-layout-content v-else-if="activeGroup && !groupRedirecting && isMicroPage" class="df df-c">
-                    <div class="bg-white routerviewbox fc">
+                <a-layout-content v-else-if="isMicroPage" class="df df-c">
+                    <div class="app-detail-micro-container bg-white routerviewbox fc">
                         <div v-show="downOk" id="app-detail-micro" :style="microPanelStyle"></div>
                         <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." :style="{display:'block', height: microPanelHeight}">
                             <div style="height:100%;" class="bg-white"></div>
                         </a-spin>
+                        <a-spin v-if="microLoading" class="app-detail-micro-loading" :loading="microLoading" :size="32">
+                            <div :style="{height: microPanelHeight}"></div>
+                        </a-spin>
                     </div>
                 </a-layout-content>
-                <a-layout-content v-else-if="activeGroup && !groupRedirecting" class="df df-c">
+                <a-layout-content v-else class="df df-c">
                 <a-tabs
                     :active-key="appname"
                     type="card"
@@ -202,7 +187,7 @@ import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { useAppStore,useNamespaceStore,useLoadingStore } from '@/store';
 import formDrawer from '@/views/app/pages/form-drawer.vue';
-import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
+import { bus, startApp } from "wujie";
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute, normalizeWujieNavigationRoute, joinWujieUrlRoute } from '@/utils/wujie-route';
@@ -210,18 +195,21 @@ import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
 import { appendWujieProxyRequestQuery, getWujieProxyBackendUrl } from '@/utils/wujie-proxy-request';
 import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
+import { createWujieHostRoutePlugin } from '@/utils/wujie-route';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
-import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
+import { filterAppGroupWorkloadItems, uninstallAppGroup } from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 import {
-    loadAppGroupReverseDependentContext,
+    loadMicroAppReverseDependentApps,
     loadVisibleAppGroupContext,
+    resolvePresentedMicroApps,
     sortVisibleAppGroupMicroApps,
 } from '@/utils/appgroup-microapps';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
-import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
+import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
+import { RESOURCE_GROUP_LABEL, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
 import AppDirect from '@/views/topapp/app-direct.vue';
 import MicroappMenuItems from '@/components/microapp-menu-items.vue';
 
@@ -232,9 +220,9 @@ const ROLE_NAME = {
     normal: '普通用户',
 }
 
-const APP_DETAIL_MICRO_NAME = 'app-detail-micro';
+const APP_DETAIL_MICRO_NAME = 'app-detail-micro-runtime';
 const APP_DETAIL_MICRO_EL = '#app-detail-micro';
-const APP_DETAIL_MICRO_QUERY = APP_DETAIL_MICRO_NAME;
+const APP_DETAIL_MICRO_QUERY = 'app-detail-micro';
 const APP_DETAIL_MICRO_RESOURCE_QUERY = 'microapp';
 const LEGACY_APP_DIRECT_DO = '__topapp_app_direct__';
 const SYSTEM_FRONT_PROP_TEMPLATE = /^\$\{system\.([A-Za-z0-9_]+)\}$/;
@@ -261,19 +249,14 @@ export default {
             form: {
                 show: false,
                 id: '',
-                parent: '',
                 tabs: [],
             },
-            parent: '',
             namespaceActive: '',
             data: null,
             title: '',
             groupTitle: '',
             appname: '',
             applist: [],
-            appGroups: [],
-            activeGroup: '',
-            groupRedirecting: true,
 
             menukey: "",
             appMenu: [],
@@ -309,8 +292,11 @@ export default {
             reverseDependentAppCache: {},
             reverseDependentAppRequests: {},
             wujieInitPromise: null,
-            wujieReloadPending: false,
+            wujieInitSignature: '',
+            wujiePendingSignature: '',
+            wujieDestroy: null,
             downOk: true,
+            microLoading: false,
             hideAppMenu: false,
             appMenuDrawerVisible: false,
             userRole: '',
@@ -320,6 +306,9 @@ export default {
         '$route.name'(v,ov){
             this.selectMenu = [this.$route.meta.routekey];
             this.isHelmPage = /^group\-helm(\-|$)/.test(v);
+            if(['group-micro', 'group-micro2', 'topapp-micro'].includes(v)){
+                this.microLoading = true;
+            }
             if(this.isHelmPage){
                 this.appname = 'helm-'+this.$route.params.group;
             }else if(this.$route.params.kind && this.$route.params.id){
@@ -368,6 +357,9 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.groupTitle = this.$route.params.group;
         this.hideAppMenu = this.isHideMenu();
+        if(this.isMicroPage){
+            this.microLoading = true;
+        }
         bus.$on('changeAppMenu', this.changeAppMenu);
         await this.getData();
     },
@@ -441,7 +433,7 @@ export default {
                 {name:'app', label:'应用管理'},
                 {
                     ...appTarget,
-                    label: this.groupTitle || this.activeGroup || this.$route.params.group || '',
+                    label: this.groupTitle || this.$route.params.group || '',
                 },
             ];
             const currentLabel = this.getCurrentBreadcrumbLabel();
@@ -477,8 +469,7 @@ export default {
             if(this.isTopAppEntry){
                 const headerOffset = 62;
                 const paddingOffset = this.hideAppMenu ? 0 : 40;
-                const groupSwitcherOffset = this.appGroups.length > 1 && !this.groupRedirecting ? 51 : 0;
-                return `calc(100vh - ${headerOffset + paddingOffset + groupSwitcherOffset}px)`;
+                return `calc(100vh - ${headerOffset + paddingOffset}px)`;
             }
             return this.hideAppMenu ? 'calc(100vh - 86px)' : 'calc(100vh - 146px)';
         },
@@ -487,11 +478,6 @@ export default {
                 height: this.microPanelHeight,
                 transform: 'translate(0,0)',
             };
-        },
-        groupDeleteMessage(){
-            return this.appGroups.length > 1
-                ? `确认要删除应用“${this.activeGroup}”吗？`
-                : '确认要删除当前应用吗';
         },
         modalExcludeWujieEvents(){
             const group = this.$route.params.group || '';
@@ -515,11 +501,7 @@ export default {
         if(this.watchInterval){
             clearInterval(this.watchInterval);
         }
-        try{
-            destroyApp(APP_DETAIL_MICRO_NAME);
-        }catch{
-            console.log('Failed to destroy detail app')
-        }
+        this.destroyWujieApp();
         try{
             this.extra.setTimeout && clearTimeout(this.extra.setTimeout);
         }catch{}
@@ -548,7 +530,13 @@ export default {
             }
         },
         getBreadcrumbAppTarget(){
-            const group = this.activeGroup || this.$route.params.group || '';
+            const group = this.$route.params.group || '';
+            if(this.isHelmApp || this.applist.some(item=>item?.isHelm)){
+                return {
+                    name: 'group-helm-detail',
+                    params: {group},
+                };
+            }
             const currentApp = this.applist.find(item=>
                 item?.name === this.$route.params.id && item?.kind === this.$route.params.kind
             );
@@ -557,18 +545,6 @@ export default {
                 return {
                     name: 'app-detail-detail',
                     params: {group, kind:app.kind, id:app.name},
-                };
-            }
-            if(this.isHelmApp || this.applist.some(item=>item?.isHelm)){
-                return {
-                    name: 'group-helm-detail',
-                    params: {group},
-                };
-            }
-            if(this.isMicroPage || this.hasThirdpartyCd){
-                return {
-                    name: this.$route.name === 'group-micro2' ? 'group-micro2' : 'group-micro',
-                    params: {group},
                 };
             }
             return {name:'app-apps'};
@@ -655,7 +631,9 @@ export default {
             this.menuActive = route;
             const menu = this.findMenu(route, this.activeMicroAppName);
             this.selectMenu = [menu?.key || route];
-            this.wujieInit();
+            this.replaceMicroRouteQuery(menu?.do || route, this.activeMicroAppName).then(()=>{
+                this.wujieInit();
+            });
             return true;
         },
         routeChange(v){
@@ -716,6 +694,83 @@ export default {
                 || this.$route.query?.appmicro;
             return Array.isArray(value) ? value[0] : value;
         },
+        getMicroRouteQuery(route, microAppName = this.activeMicroAppName){
+            const query = {
+                ...this.$route.query,
+                [APP_DETAIL_MICRO_RESOURCE_QUERY]: microAppName,
+            };
+            delete query.appmicro;
+            if(this.isTopAppEntry){
+                delete query[APP_DETAIL_MICRO_QUERY];
+                query.do = route;
+            }else{
+                delete query.do;
+                query[APP_DETAIL_MICRO_QUERY] = route;
+            }
+            return query;
+        },
+        replaceMicroRouteQuery(route, microAppName = this.activeMicroAppName){
+            return this.$router.replace({
+                query: this.getMicroRouteQuery(route, microAppName),
+            }).catch(()=>{});
+        },
+        normalizeMicroRouteForCompare(route){
+            const normalizeQuery = value => {
+                const questionIndex = value.indexOf('?');
+                if(questionIndex < 0){
+                    return value;
+                }
+                const path = value.slice(0, questionIndex);
+                const entries = [...new URLSearchParams(value.slice(questionIndex + 1)).entries()]
+                    .sort(([leftKey, leftValue], [rightKey, rightValue])=>{
+                        const keyOrder = leftKey.localeCompare(rightKey);
+                        return keyOrder || leftValue.localeCompare(rightValue);
+                    });
+                const query = new URLSearchParams(entries).toString();
+                return query ? `${path}?${query}` : path;
+            };
+            const value = String(route || '');
+            const hashIndex = value.indexOf('#');
+            if(hashIndex < 0){
+                return normalizeQuery(value);
+            }
+            const normalizedMainRoute = normalizeQuery(value.slice(0, hashIndex));
+            const mainRoute = normalizedMainRoute === '/' ? '' : normalizedMainRoute;
+            const normalizedHashRoute = normalizeQuery(value.slice(hashIndex + 1));
+            const hashRoute = normalizedHashRoute && !normalizedHashRoute.startsWith('/')
+                ? `/${normalizedHashRoute}`
+                : normalizedHashRoute;
+            return `${mainRoute}#${hashRoute}`;
+        },
+        isSameMicroRoute(leftRoute, rightRoute){
+            return this.normalizeMicroRouteForCompare(leftRoute)
+                === this.normalizeMicroRouteForCompare(rightRoute);
+        },
+        syncMicroRouteFromChild(route, microAppName){
+            if(!this.isMicroPage || microAppName !== this.activeMicroAppName){
+                return;
+            }
+            const normalizedRoute = this.getNavigateMicroRoute(route);
+            if(!normalizedRoute){
+                return;
+            }
+            const menu = this.findMenu(normalizedRoute, microAppName);
+            const targetRoute = menu?.do || normalizedRoute;
+            const requestedMicroApp = this.$route.query?.[APP_DETAIL_MICRO_RESOURCE_QUERY];
+            const requestedMicroAppName = Array.isArray(requestedMicroApp)
+                ? requestedMicroApp[0]
+                : requestedMicroApp;
+            const requestedRoute = this.normalizeMicroMenuRoute(this.getRequestedMicroRoute());
+            if(requestedMicroAppName === microAppName && this.isSameMicroRoute(requestedRoute, targetRoute)){
+                return;
+            }
+
+            if(menu){
+                this.menuActive = menu.do;
+                this.selectMenu = [menu.key];
+            }
+            this.replaceMicroRouteQuery(targetRoute, microAppName);
+        },
         syncRequestedMicroRoute(requestedRoute, shouldNavigate){
             if(!this.isMicroPage || !this.roles.length){ return; }
             requestedRoute = Array.isArray(requestedRoute) ? requestedRoute[0] : requestedRoute;
@@ -753,7 +808,7 @@ export default {
             )){
                 return;
             }
-            if(this.isTopAppEntry || previousMicroAppName !== this.activeMicroAppName || previousBinding !== currentBinding || this.isExternalMenuRoute(previousMenu) || this.isExternalMenuRoute(this.menuActive)){
+            if(previousMicroAppName !== this.activeMicroAppName || previousBinding !== currentBinding || this.isExternalMenuRoute(previousMenu) || this.isExternalMenuRoute(this.menuActive)){
                 this.wujieInit();
             }else{
                 this.routeChange(this.menuActive);
@@ -802,7 +857,6 @@ export default {
             const microAppName = item?.metadata?.name || '';
             const groupName = item?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
                 || this.microAppGroup
-                || this.activeGroup
                 || this.$route.params.group;
             this.microApp = item;
             this.appGroupName = groupName;
@@ -826,18 +880,66 @@ export default {
             this.applyMenuRuntimeConfig('');
         },
         wujieInit(){
+            const signature = [
+                this.activeMicroAppName,
+                this.getMenuBindingName(this.selectMenu?.[0] || this.menuActive),
+                this.menuActive || '',
+                this.getMicroAppBaseUrl(),
+                this.info.load_mode || '',
+            ].join('\n');
             if(this.wujieInitPromise){
-                this.wujieReloadPending = true;
+                // 首次进入页面时，菜单和查询参数同步可能会请求初始化同一个
+                // iframe 两次。第二次销毁已经跳转到跨域页面的 degrade iframe
+                // 会触发 Wujie 读取 __WUJIE_EVENTLISTENER__ 的 SecurityError。
+                // 仅在初始化目标确实变化时排队重载，并始终以最后一次请求为准。
+                this.wujiePendingSignature = signature === this.wujieInitSignature ? '' : signature;
                 return this.wujieInitPromise;
             }
+            this.microLoading = true;
+            this.wujieInitSignature = signature;
             this.wujieInitPromise = this._wujieInit().finally(()=>{
                 this.wujieInitPromise = null;
-                if(this.wujieReloadPending){
-                    this.wujieReloadPending = false;
+                const shouldReload = this.wujiePendingSignature
+                    && this.wujiePendingSignature !== this.wujieInitSignature;
+                this.wujiePendingSignature = '';
+                if(shouldReload){
                     this.wujieInit();
+                    return;
                 }
+                this.microLoading = false;
             });
             return this.wujieInitPromise;
+        },
+        async destroyWujieApp(){
+            const destroy = this.wujieDestroy;
+            if(!destroy){
+                return;
+            }
+            this.wujieDestroy = null;
+            if(this.info.load_mode === 'iframe'){
+                const iframe = document.querySelector(`${APP_DETAIL_MICRO_EL} iframe`);
+                if(iframe){
+                    let isCrossOrigin = false;
+                    try{
+                        void iframe.contentWindow?.__WUJIE_EVENTLISTENER__;
+                    }catch{
+                        isCrossOrigin = true;
+                    }
+                    if(isCrossOrigin){
+                        await new Promise(resolve=>{
+                            const done = ()=>resolve();
+                            iframe.addEventListener('load', done, {once:true});
+                            iframe.src = 'about:blank';
+                            setTimeout(done, 1000);
+                        });
+                    }
+                }
+            }
+            try{
+                await destroy();
+            }catch(error){
+                console.warn('Failed to destroy detail app', error);
+            }
         },
         async _wujieInit(){
             
@@ -849,22 +951,7 @@ export default {
                 return res;
             })
 
-            // 制品应用详情每次打开都重新请求制品 info；即使前端包已经下载到本地，
-            // 也能在试用期届满后收到 ZPK_TRIAL_EXPIRED。
-            const bindings = this.microApp?.spec?.bindings || [];
-            const isArtifactMenu = bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.menuActive));
-            const repoUrl = data?.respoUrl;
-            if(repoUrl && !isArtifactMenu){
-                await panelApi.get('/zpk/config', {
-                    params: { repoUrl },
-                    noAlert: true,
-                });
-            }
-
-            
-            try{
-                destroyApp(APP_DETAIL_MICRO_NAME);
-            }catch(e){console.log('destroy err')}
+            await this.destroyWujieApp();
 
             let is_register = false;
             let thirdparty_cd_token = '';
@@ -889,6 +976,16 @@ export default {
             const microappName = this.activeMicroAppName;
             const appGroupName = this.appGroupName;
             const reverseDependentApps = await this.loadReverseDependentApps(appGroupName).catch(()=>[]);
+            const getAppDynamicValues = createAppDynamicValuesGetter({
+                currentAppgroup: appGroupName,
+            });
+            const validateApp = createAppValidator(getAppDynamicValues);
+            const bindings = this.microApp?.spec?.bindings || [];
+            const isArtifactMenu = bindings.some(binding=>binding.name === 'other'
+                && (binding.menu || []).some(menu=>menu.do === this.menuActive));
+            if(!isArtifactMenu){
+                void checkAppAvailability(validateApp);
+            }
             if(this.info.frontend_props) {
                 this.info.frontend_props = {
                     ...resolveFrontendPropTemplates(this.info.frontend_props, frontProps),
@@ -920,7 +1017,7 @@ export default {
                 appgroup: appGroupName,
                 group: appGroupName,
                 microappName,
-                reverseDependentApps,
+                reverse_dependent_apps: reverseDependentApps,
                 loginCloud,
                 runningFirstPod,
                 podShell,
@@ -930,7 +1027,10 @@ export default {
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
             }
-            appendWujieModalHandles(props, () => this.$refs.wujieModals);
+            appendWujieModalHandles(props, () => this.$refs.wujieModals, {
+                getAppDynamicValues,
+                validateApp,
+            });
             console.log(props)
             const baseAppUrl = this.buildMicroAppUrl(this.menuActive || '');
             const appUrl = this.info.load_mode === 'iframe'
@@ -942,8 +1042,14 @@ export default {
                     role: getK8sinfo()['w7.cc/role'],
                 })
                 : baseAppUrl;
+            const plugins = [
+                createWujieHostRoutePlugin(route=>this.syncMicroRouteFromChild(route, microappName)),
+            ];
+            if(this.info.load_mode === 'iframe'){
+                plugins.unshift(createWujieRequestCredentialsPlugin(), createWujieRequirePlugin());
+            }
             try{
-                await startApp({
+                this.wujieDestroy = await startApp({
                 name: APP_DETAIL_MICRO_NAME,
                 url: appUrl,
 // 测试
@@ -953,10 +1059,10 @@ export default {
                 // alive: true,
                 degrade: this.info.load_mode === 'iframe',
                 degradeAttrs: { style: 'border:0;display:block;' },
-                sync: true,
+                sync: false,
                 props: props,
                 prefix: this.getMicroRoutePrefix(),
-                plugins: this.info.load_mode === 'iframe' ? [createWujieRequestCredentialsPlugin(), createWujieRequirePlugin()] : [],
+                plugins,
                 fetch: this.info.load_mode === 'iframe' ? wujieFetch : null,
                 loadError: (url, error)=>{
                     console.log(`appdetail loadError`, url, error);
@@ -985,7 +1091,7 @@ export default {
 //     })
 // },3000)
         },
-        handelMicroMenu(v){
+        async handelMicroMenu(v){
             const previousMenu = this.menuActive;
             const previousMicroAppName = this.activeMicroAppName;
             const previousBinding = this.getMenuBindingName(this.selectMenu?.[0] || previousMenu);
@@ -1001,21 +1107,12 @@ export default {
             this.selectMenu = [menu.key];
             const currentBinding = this.applyMenuRuntimeConfig(menu.key);
             if(this.isMicroPage){
-                const query = {
-                    ...this.$route.query,
-                    [APP_DETAIL_MICRO_RESOURCE_QUERY]: this.activeMicroAppName,
-                };
-                if(this.isTopAppEntry){
-                    delete query[APP_DETAIL_MICRO_QUERY];
-                    delete query.appmicro;
-                    query.do = this.menuActive;
-                }else{
-                    query[APP_DETAIL_MICRO_QUERY] = this.menuActive;
-                }
-                this.$router.replace({
-                    query,
-                }).catch(()=>{});
-                if(this.isTopAppEntry || previousMicroAppName !== this.activeMicroAppName || previousBinding !== currentBinding || this.isExternalMenuRoute(previousMenu) || this.isExternalMenuRoute(this.menuActive)){
+                const shouldReinitialize = previousMicroAppName !== this.activeMicroAppName
+                    || previousBinding !== currentBinding
+                    || this.isExternalMenuRoute(previousMenu)
+                    || this.isExternalMenuRoute(this.menuActive);
+                await this.replaceMicroRouteQuery(this.menuActive, this.activeMicroAppName);
+                if(shouldReinitialize){
                     this.wujieInit();
                 }else{
                     this.routeChange(this.menuActive);
@@ -1072,7 +1169,8 @@ export default {
                     this.menuActive = selectedMenu?.do || appDetailMicro || '';
                     this.selectMenu = [selectedMenu?.key || this.menuActive];
                     this.applyMenuRuntimeConfig(this.selectMenu[0]);
-                    this.$nextTick(()=>{
+                    this.$nextTick(async()=>{
+                        await this.replaceMicroRouteQuery(this.menuActive, this.activeMicroAppName);
                         this.wujieInit();
                     })
                 }
@@ -1098,6 +1196,38 @@ export default {
                 return result;
             });
         },
+        async loadTopMicroApps(groupName){
+            const selected = await panelApi.get(`/microapp/${encodeURIComponent(groupName)}/info`, {noAlert:true})
+                .then(res=>res?.data)
+                .catch(()=>null);
+            const resolvedGroupName = selected?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
+                || String(selected?.metadata?.name || groupName).replace(/-root$/, '');
+            const microAppApi = `/apis/w7panel.w7.com/v1alpha1/namespaces/${encodeURIComponent(this.namespaceActive)}/microapps`;
+            const groupedMicroApps = await loadResourcesByGroupNames(
+                k8sproxy,
+                microAppApi,
+                [resolvedGroupName],
+                true,
+            ).catch(()=>[]);
+            const microAppMap = new Map();
+            [selected, ...groupedMicroApps].forEach((microApp)=>{
+                const name = microApp?.metadata?.name;
+                const hasThirdpartyCdMenu = (microApp?.spec?.bindings || []).some(binding=>
+                    binding?.support === 'thirdparty_cd' && Array.isArray(binding?.menu) && binding.menu.length > 0
+                );
+                if(!name || !hasThirdpartyCdMenu){ return; }
+                const normalizedName = microApp === selected && microApp?.metadata?.labels?.['microapp.w7.cc/from'] === 'root'
+                    ? String(name).replace(/-root$/, '')
+                    : String(name);
+                if(!microAppMap.has(normalizedName)){
+                    microAppMap.set(normalizedName, microApp);
+                }
+            });
+            return {
+                groupName: resolvedGroupName,
+                items: resolvePresentedMicroApps([...microAppMap.values()], resolvedGroupName),
+            };
+        },
         loadMicroApp(groupName){
             return this.loadMicroApps(groupName).then(items=>items[0] || null);
         },
@@ -1109,12 +1239,12 @@ export default {
             if(this.reverseDependentAppRequests[appGroupName]){
                 return this.reverseDependentAppRequests[appGroupName];
             }
-            const request = loadAppGroupReverseDependentContext(
+            const request = loadMicroAppReverseDependentApps(
                 k8sproxy,
                 this.namespaceActive,
                 appGroupName,
-            ).then(context=>{
-                const reverseDependentApps = context?.reverseDependentApps || [];
+            ).then(items=>{
+                const reverseDependentApps = items || [];
                 this.reverseDependentAppCache[appGroupName] = reverseDependentApps;
                 return reverseDependentApps;
             }).finally(()=>{
@@ -1179,6 +1309,7 @@ export default {
         },
         noMicroJump(){
             if(!this.isMicroPage){return}
+            if(this.isTopAppEntry){return}
             if(this.isHelmApp){
                 this.$router.push({path:'/app/appgroup/'+ this.$route.params.group+'/helm/detail'}).then(()=>{
                     this.selectMenu = [this.$route.meta.routekey]
@@ -1290,54 +1421,31 @@ export default {
                 });
             }
         },
-        async changeGroup(groupName){
-            const group = this.appGroups.find(item=>item.name===groupName);
-            const first = group?.apps?.find(item=>item.name && !item.isHelm);
-            const microApp = await this.loadMicroApp(groupName);
-            if(microApp){
-                this.$router.push({
-                    name: this.isTopAppEntry ? 'topapp-micro' : 'group-micro',
-                    params:{...this.$route.params, group:groupName},
-                });
-                return;
-            }
-            if(first){
-                this.$router.push({name:'app-detail-detail', params:{...this.$route.params, group:groupName, kind:first.kind, id:first.name}});
-            }else if(group?.apps?.length){
-                this.$router.push({name:'group-helm', params:{...this.$route.params, group:groupName}});
-            }
-        },
-        deleteCurrentGroup(){
-            const groupName = this.activeGroup || this.$route.params.group;
-            if(!groupName){return}
-            k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/namespaces/'+this.namespaceActive+'/appgroups/'+groupName).then(()=>{
-                this.$message.success('删除成功');
-                this.$router.push('/app/apps');
-            });
-        },
         // toMicro(v){
         //     // console.log(v);
         //     this.$router.push('/app/appgroup/'+this.$route.params.group+'/'+ this.$route.params.kind +'/'+ this.$route.params.id +'/micro/'+ v);
         // },
-        delApp(key){
+        async delApp(key){
             let item = this.applist.find(i=>i.key==key);
             if(!item){return}
             if(item.isHelm){
-                k8sproxy.delete('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ item.groupName).then(res=>{
+                try{
+                    await uninstallAppGroup(k8sproxy, this.namespaceActive, item.groupName);
                     this.$message.success('操作成功');
                     if(this.appname=='helm-'+item.groupName){
-                        this.$router.push({
+                        await this.$router.push({
                             name: 'group-helm',
                             params: {
                                 ...this.$route.params,
                                 group: this.applist[0].groupName,
                             },
-                        }).then(()=>{
-                            this.appname = 'helm-'+this.$route.params.group;
-                            this.getData();
                         });
+                        this.appname = 'helm-'+this.$route.params.group;
+                        this.getData();
                     }
-                });
+                }catch(error){
+                    this.$message.error(error?.message || '操作失败，请稍后重试');
+                }
                 return;
             }
             this.checkDelete = {
@@ -1396,7 +1504,6 @@ export default {
         openForm(v){
             this.form.id = this.$route.params.kind + this.$route.params.id;
             this.form.name = this.$route.params.id;
-            this.form.parent = '';
             this.form.show = true;
             this.form.tabs = this.applist.filter(i=>i.canedit).map(i=>({
                 name: i.name,
@@ -1489,10 +1596,63 @@ export default {
                 list,
             }
         },
+        async getTopAppData(){
+            const requestedGroup = String(this.$route.params.group || '');
+            const topApp = this.appStore.topApps.find(item=>item?.name === requestedGroup);
+
+            this.groupRedirecting = true;
+            this.groupTitle = topApp?.title || requestedGroup;
+            this.title = this.groupTitle;
+            this.appGroups = [];
+            this.activeGroup = '';
+            this.applist = [];
+            this.roles = [];
+            this.isHelmApp = false;
+            this.hasThirdpartyCd = false;
+            this.microApp = null;
+            this.microApps = [];
+            this.microAppGroup = '';
+            this.appGroupName = '';
+            this.activeMicroAppName = '';
+
+            const {groupName, items} = await this.loadTopMicroApps(requestedGroup);
+            if(!this.isTopAppEntry || String(this.$route.params.group || '') !== requestedGroup){
+                return;
+            }
+
+            this.appGroups = [{
+                name: groupName,
+                title: this.groupTitle,
+                apps: [],
+            }];
+            this.activeGroup = groupName;
+            this.microAppGroup = groupName;
+            this.groupRedirecting = false;
+            if(!items.length){
+                this.microLoading = false;
+                return;
+            }
+
+            this.microApps = items;
+            this.microApp = items[0];
+            this.hasThirdpartyCd = true;
+            this.getFront(items);
+        },
         async getData(){
+            if(this.isMicroPage){
+                this.microLoading = true;
+            }
             useLoadingStore().loading = true;
             this.reverseDependentAppCache = {};
             this.reverseDependentAppRequests = {};
+
+            const currentGroup = this.$route.params.group;
+            this.hasThirdpartyCd = false;
+            this.microApp = null;
+            this.microApps = [];
+            this.microAppGroup = '';
+            this.appGroupName = '';
+            this.activeMicroAppName = '';
 
             this.isHelmPage = /^group\-helm(\-|$)/.test(this.$route.name);
             if(this.isHelmPage){
@@ -1500,93 +1660,42 @@ export default {
             }else{
                 this.appname = (this.$route.params.kind && this.$route.params.id) ? this.$route.params.kind + this.$route.params.id : '';
             }
+            if(this.isTopAppEntry){
+                try{
+                    await this.getTopAppData();
+                }catch(error){
+                    if(this.$route.params.group === currentGroup && this.isMicroPage){
+                        this.microLoading = false;
+                    }
+                    throw error;
+                }finally{
+                    useLoadingStore().loading = false;
+                }
+                return;
+            }
+            const microAppRequest = this.loadMicroApps(currentGroup).then(items=>{
+                if(this.$route.params.group !== currentGroup){return false}
+                const microApps = sortVisibleAppGroupMicroApps(items, currentGroup);
+                if(!microApps.length){return false}
+                this.microApps = microApps;
+                this.microApp = microApps[0];
+                this.microAppGroup = currentGroup;
+                this.hasThirdpartyCd = true;
+                this.getFront(microApps);
+                return true;
+            }).catch(()=>false);
             await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
             }).then(async res=>{
                 this.groupTitle = res?.data?.spec?.title
                     || res?.data?.metadata?.annotations?.title
                     || this.groupTitle;
-                let {helmTab,list} = this.arrangeList(res?.data);
-                const groupSections = [];
-                const addGroup = groupData => {
-                    if(!groupData?.metadata?.name){return}
-                    if(groupData?.metadata?.annotations?.['w7.cc/parent-root']==='true'){return}
-                    if(groupSections.some(item=>item.name===groupData.metadata.name)){return}
-                    const arranged = this.arrangeList(groupData);
-                    groupSections.push({
-                        name: groupData.metadata.name,
-                        title: groupData?.spec?.title || groupData.metadata.name,
-                        apps: arranged.helmTab.concat(arranged.list),
-                    });
-                };
-                addGroup(res?.data);
+                const {helmTab,list} = this.arrangeList(res?.data);
                 this.identifie = res?.data?.metadata?.annotations?.['w7.cc/identifie'];
                 this.isHelmApp = Boolean(helmTab?.length);
-                if(res?.data?.metadata?.labels?.['w7.cc/parent']){
-                    await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ res?.data?.metadata?.labels?.['w7.cc/parent']).then(res=>{
-                        let items = res.data?.items || [];
-                        for(let i in items){
-                            if(items[i]?.metadata?.name==this.$route.params.group){continue}
-                            let subapp = this.arrangeList(items[i]);
-                            addGroup(items[i]);
-                            helmTab = helmTab.concat(subapp.helmTab);
-                            list = list.concat(subapp.list);
-                        }
-                    })
-                }else{
-                    await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups?labelSelector=w7.cc/parent='+ this.$route.params.group).then(res=>{
-                        let items = res.data?.items || [];
-                        for(let i in items){
-                            let subapp = this.arrangeList(items[i]);
-                            addGroup(items[i]);
-                            helmTab = helmTab.concat(subapp.helmTab);
-                            list = list.concat(subapp.list);
-                        }
-                    })
-                }
-
-                this.appGroups = groupSections;
-                this.activeGroup = this.appGroups.find(item=>item.name===this.$route.params.group)?.name || this.appGroups[0]?.name || '';
-                this.applist = this.appGroups.find(item=>item.name===this.activeGroup)?.apps || helmTab.concat(list);
+                this.applist = helmTab.concat(list);
                 this.syncActiveAppTitle();
-                this.hasThirdpartyCd = false;
-                this.microApp = null;
-                this.microApps = [];
-                this.microAppGroup = '';
-                this.appGroupName = '';
-                this.activeMicroAppName = '';
-                const currentGroup = this.$route.params.group;
-                const currentIsChild = Boolean(res?.data?.metadata?.labels?.['w7.cc/parent']);
-                const firstChild = this.appGroups.find(group=>group.name!==currentGroup);
-                if(!currentIsChild && firstChild){
-                    const firstApp = firstChild.apps.find(app=>app.name && !app.isHelm);
-                    const firstChildMicroApp = await this.loadMicroApp(firstChild.name);
-                    this.activeGroup = firstChild.name;
-                    await this.$router.replace({
-                        name: firstChildMicroApp
-                            ? (this.isTopAppEntry ? 'topapp-micro' : 'group-micro')
-                            : (firstApp ? 'app-detail-detail' : 'group-helm'),
-                        params: {
-                            ...this.$route.params,
-                            group: firstChild.name,
-                            ...(firstApp ? {kind:firstApp.kind, id:firstApp.name} : {}),
-                        },
-                    });
-                    return;
-                }
-                this.groupRedirecting = false;
-                const microApps = sortVisibleAppGroupMicroApps(
-                    await this.loadMicroApps(this.activeGroup),
-                    this.activeGroup,
-                );
-                if(microApps.length){
-                    this.microApps = microApps;
-                    this.microApp = microApps[0];
-                    this.microAppGroup = this.activeGroup;
-                    this.hasThirdpartyCd = true;
-                }
-                if(this.hasThirdpartyCd){
-                    this.getFront(this.microApps);
-                }else if(this.isMicroPage){
+                const hasMicroApp = await microAppRequest;
+                if(!hasMicroApp && this.$route.params.group === currentGroup && this.isMicroPage){
                     this.noMicroJump();
                 }
                 this.watchStatus();
@@ -1820,6 +1929,16 @@ export default {
 .point.green{background:#00A870;}
 
 .routerviewbox{border:1px solid var(--color-neutral-3);border-top:0;}
+.app-detail-micro-container{position:relative;}
+.app-detail-micro-loading{
+    position:absolute;
+    inset:0;
+    z-index:10;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--color-bg-1);
+}
 .app-detail-page{height:auto;}
 .app-detail-layout{min-width:0;min-height:inherit;}
 .app-detail-main{box-sizing:border-box;min-width:0;min-height:inherit;}
