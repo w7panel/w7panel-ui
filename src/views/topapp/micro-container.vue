@@ -29,7 +29,7 @@ import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-crede
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
-import { checkZpkTrialExpiration } from '@/utils/zpk-trial-check';
+import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
 import {
@@ -377,12 +377,6 @@ export default{
                 return res;
             })
 
-            const isArtifactMenu = this.bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.page));
-            const repoUrl = data?.respoUrl;
-            if(repoUrl && !isArtifactMenu){
-                void checkZpkTrialExpiration(repoUrl);
-            }
-
             if(this.info.load_mode=='iframe'){
                 this.info.iframePath = this.getMicroAppBaseUrl();
                 this.info.iframeRoute = this.page || '';
@@ -421,6 +415,17 @@ export default{
                 this.namespaceActive,
                 appGroupName,
             ).catch(()=>[]);
+            const getAppDynamicValues = createAppDynamicValuesGetter({
+                currentAppgroup: appGroupName,
+                reverseDependentApps,
+                microApps: this.microApps,
+            });
+            const validateApp = createAppValidator(getAppDynamicValues);
+            const isArtifactMenu = this.bindings.some(binding=>binding.name === 'other'
+                && (binding.menu || []).some(menu=>menu.do === this.page));
+            if(!isArtifactMenu){
+                void checkAppAvailability(validateApp);
+            }
             const loginCloud = (componentAppId)=>{
                 const appId = typeof componentAppId === 'object' ? componentAppId?.componentAppId : componentAppId;
                 return panelApi.get('/js-cloud-code', {
@@ -453,6 +458,8 @@ export default{
                 group: appGroupName,
                 microappName,
                 reverse_dependent_apps: reverseDependentApps,
+                getAppDynamicValues,
+                validateApp,
                 loginCloud,
                 runningFirstPod,
                 podShell,

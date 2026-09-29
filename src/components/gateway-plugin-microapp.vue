@@ -20,7 +20,7 @@ import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
-import { checkZpkTrialExpiration } from '@/utils/zpk-trial-check';
+import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
 
 // wujie-modals 会间接引用 domain-strategy-plugin。使用异步组件打断
 // domain-strategy-plugin -> gateway-plugin-config -> gateway-plugin-microapp
@@ -106,17 +106,13 @@ export default {
 
             this.loading = true;
             try{
+                let runtimeBindings = spec?.bindings || [];
                 if(identifie){
                     const status = await panelApi.get(`/static/${identifie}/status`, {
                         params: { version, releaseName },
                         noAlert: true,
                     });
-                    const bindings = status?.data?.bindings || this.microapp?.spec?.bindings || [];
-                    const isArtifactMenu = bindings.some(binding=>binding.name === 'other' && (binding.menu || []).some(menu=>menu.do === this.route));
-                    const repoUrl = status?.data?.respoUrl;
-                    if(repoUrl && !isArtifactMenu){
-                        void checkZpkTrialExpiration(repoUrl);
-                    }
+                    runtimeBindings = status?.data?.bindings || runtimeBindings;
                     if(status?.data?.status === 'no_download'){
                         frontendUrl = status?.data?.proxyUrl || frontendUrl;
                         panelApi.post(`/static/${namespace}/download/${releaseName}`, null, { noAlert: true }).catch(()=>{});
@@ -149,6 +145,16 @@ export default {
                     ?? this.contextProps?.pluginConfigEnabled
                     ?? true;
                 const configScope = this.contextProps?.configScope === 'rule' ? 'rule' : 'global';
+                const getAppDynamicValues = createAppDynamicValuesGetter({
+                    currentAppgroup: appgroup,
+                    microApps: [item],
+                });
+                const validateApp = createAppValidator(getAppDynamicValues);
+                const isArtifactMenu = runtimeBindings.some(binding=>binding.name === 'other'
+                    && (binding.menu || []).some(menu=>menu.do === this.route));
+                if(!isArtifactMenu){
+                    void checkAppAvailability(validateApp);
+                }
 
                 const props = {
                     url: proxyBackendUrl,
@@ -171,6 +177,8 @@ export default {
                         : {},
                     pluginEnabled: Boolean(pluginEnabled),
                     configScope,
+                    getAppDynamicValues,
+                    validateApp,
                     savePluginConfig: this.contextProps?.savePluginConfig,
                     runningFirstPod,
                     podShell,
