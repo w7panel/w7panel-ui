@@ -388,3 +388,5 @@
 - 删除 Axios 全局拦截器中旧的 `ZPK_TRIAL_EXPIRED` 专用弹窗；安装页继续自行处理旧错误码，已安装应用统一使用市场 `validate` 提示，避免两套机制重复。
 - 验证：`LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建仅有项目既有的深度选择器弃用和图片压缩提示。
 - 2026-09-29 合并：解决 CHANGELOG.md 冲突，保留两侧已有记录；验证：git diff --check。
+- 2026-09-29 重构：应用详情、顶部应用和网关插件统一通过 `appendWujieModalHandles` 向 Wujie 顶层 props 注入 `getAppDynamicValues` 与 `validateApp`，避免各入口在 props 字面量中重复维护动态值能力；MicroApp 调用协议保持不变。
+- 2026-09-29 更正：`getAppDynamicValues` 与 `validateApp` 统一放入 `props.handles`；动态值请求只向面板传 AppGroup，ZPK URL 由后端从已安装 AppGroup 解析，不再依赖 MicroApp 注解或 `reverse_dependent_apps` 范围，因此没有 MicroApp 的依赖应用也可按 AppGroup 获取动态上下文。

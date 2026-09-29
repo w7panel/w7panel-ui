@@ -979,8 +979,6 @@ export default {
             const reverseDependentApps = await this.loadReverseDependentApps(appGroupName).catch(()=>[]);
             const getAppDynamicValues = createAppDynamicValuesGetter({
                 currentAppgroup: appGroupName,
-                reverseDependentApps,
-                microApps: this.microApps,
             });
             const validateApp = createAppValidator(getAppDynamicValues);
             const bindings = this.microApp?.spec?.bindings || [];
@@ -1021,8 +1019,6 @@ export default {
                 group: appGroupName,
                 microappName,
                 reverse_dependent_apps: reverseDependentApps,
-                getAppDynamicValues,
-                validateApp,
                 loginCloud,
                 runningFirstPod,
                 podShell,
@@ -1033,7 +1029,10 @@ export default {
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
             }
-            appendWujieModalHandles(props, () => this.$refs.wujieModals);
+            appendWujieModalHandles(props, () => this.$refs.wujieModals, {
+                getAppDynamicValues,
+                validateApp,
+            });
             console.log(props)
             const baseAppUrl = this.buildMicroAppUrl(this.menuActive || '');
             const appUrl = this.info.load_mode === 'iframe'

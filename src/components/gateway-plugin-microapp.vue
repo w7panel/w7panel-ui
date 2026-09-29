@@ -147,7 +147,6 @@ export default {
                 const configScope = this.contextProps?.configScope === 'rule' ? 'rule' : 'global';
                 const getAppDynamicValues = createAppDynamicValuesGetter({
                     currentAppgroup: appgroup,
-                    microApps: [item],
                 });
                 const validateApp = createAppValidator(getAppDynamicValues);
                 const isArtifactMenu = runtimeBindings.some(binding=>binding.name === 'other'
@@ -177,8 +176,6 @@ export default {
                         : {},
                     pluginEnabled: Boolean(pluginEnabled),
                     configScope,
-                    getAppDynamicValues,
-                    validateApp,
                     savePluginConfig: this.contextProps?.savePluginConfig,
                     runningFirstPod,
                     podShell,
@@ -186,7 +183,10 @@ export default {
                     k8sproxy: createK8sProxy(),
                     panelProxy: createPanelProxy(),
                 };
-                appendWujieModalHandles(props, () => this.$refs.wujieModals);
+                appendWujieModalHandles(props, () => this.$refs.wujieModals, {
+                    getAppDynamicValues,
+                    validateApp,
+                });
                 await startApp({
                     name: this.appName,
                     url,

@@ -4,7 +4,7 @@
 
 网关插件 AppGroup（`w7.cc/manifest-type=gateway-plugin`）只在网关插件页面管理，不在顶部菜单、应用直达和普通应用列表中展示；应用插件 AppGroup（`w7.cc/manifest-type=app-plugin`）的功能会聚合到所依赖的传统应用中，同样不在普通应用列表中单独展示。
 
-Wujie 应用统一获得 `getAppDynamicValues(appgroup?, options)` 和 `validateApp(appgroup?, options)`。进入非“授权与续费”页面时，宿主会在后台读取当前应用的 `validate`，默认复用 30 秒缓存；市场明确返回不可用时展示原因，但查询异常不阻断应用启动。应用可主动调用，并通过 `force` 强制刷新。不传 `appgroup` 时读取当前 AppGroup，传入时仅允许当前 AppGroup 或 `reverse_dependent_apps`。`validateApp` 复用同一查询并只返回市场生成的 `validate`，面板不重复实现试用或退款规则。
+Wujie 应用通过 `props.handles` 获得 `getAppDynamicValues(appgroup?, options)` 和 `validateApp(appgroup?, options)`。进入非“授权与续费”页面时，宿主会在后台读取当前应用的 `validate`，默认复用 30 秒缓存；市场明确返回不可用时展示原因，但查询异常不阻断应用启动。应用可主动调用，并通过 `force` 强制刷新。不传 `appgroup` 时读取当前 AppGroup；传入时由面板后端根据已安装 AppGroup 解析 ZPK 来源，不依赖目标应用是否存在 MicroApp。`validateApp` 复用同一查询并只返回市场生成的 `validate`，面板不重复实现试用或退款规则。
 
 插件应用仍持有自己的 MicroApp。传统应用页面通过 MicroApp 的 `w7.cc/depends-<releaseName>` 反向索引查找依赖它的 `w7.cc/manifest-type=app-plugin` MicroApp；单数 `w7.cc/group-name` 处理同一 Release 内资源归属，不使用复数 `w7.cc/group-names`。旧 MicroApp 缺少分组标签时，仅以与 AppGroup 同名的 `metadata.name` 精确兜底。
 

@@ -418,8 +418,6 @@ export default{
             ).catch(()=>[]);
             const getAppDynamicValues = createAppDynamicValuesGetter({
                 currentAppgroup: appGroupName,
-                reverseDependentApps,
-                microApps: this.microApps,
             });
             const validateApp = createAppValidator(getAppDynamicValues);
             const isArtifactMenu = this.bindings.some(binding=>binding.name === 'other'
@@ -459,8 +457,6 @@ export default{
                 group: appGroupName,
                 microappName,
                 reverse_dependent_apps: reverseDependentApps,
-                getAppDynamicValues,
-                validateApp,
                 loginCloud,
                 runningFirstPod,
                 podShell,
@@ -471,7 +467,10 @@ export default{
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
             }
-            appendWujieModalHandles(props, () => this.$refs.wujieModals);
+            appendWujieModalHandles(props, () => this.$refs.wujieModals, {
+                getAppDynamicValues,
+                validateApp,
+            });
             console.log(props)
             this.microLoading = true;
             const baseUrl = isIframeMode? (this.info.iframeSrc) : this.buildMicroAppUrl(this.page)

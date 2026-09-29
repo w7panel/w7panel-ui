@@ -142,11 +142,14 @@ export function createWujieModalHandles(getModal) {
     }, {});
 }
 
-export function appendWujieModalHandles(props, getModal) {
+export function appendWujieModalHandles(props, getModal, appDynamicHandles = {}) {
+    const { getAppDynamicValues, validateApp } = appDynamicHandles;
     props.handles = {
         ...(props.handles || {}),
         ...createWujieModalHandles(getModal),
         ...createInstalledAppHandles(),
+        ...(typeof getAppDynamicValues === 'function' ? { getAppDynamicValues } : {}),
+        ...(typeof validateApp === 'function' ? { validateApp } : {}),
     };
     return props;
 }

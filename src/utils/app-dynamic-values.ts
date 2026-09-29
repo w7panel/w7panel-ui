@@ -1,8 +1,6 @@
 import { panelApi } from '@/utils/api';
 import { Modal } from '@arco-design/web-vue';
 
-const ZPK_URL_ANNOTATION = 'w7.cc/zpk-url';
-const RESOURCE_GROUP_LABEL = 'w7.cc/group-name';
 const CACHE_TTL_MS = 30_000;
 const VALIDATION_NOTICE_INTERVAL_MS = 5_000;
 let lastValidationNoticeAt = 0;
@@ -20,8 +18,6 @@ export interface AppValidation {
 
 interface AppDynamicValuesGetterOptions {
   currentAppgroup: string;
-  reverseDependentApps?: Array<{ appgroup?: string }>;
-  microApps?: any[];
 }
 
 interface CacheEntry {
@@ -32,32 +28,12 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 
-function resourceAppgroup(resource: any): string {
-  return String(resource?.metadata?.labels?.[RESOURCE_GROUP_LABEL] || '').trim();
-}
-
-function resourceZpkURL(resource: any): string {
-  return String(resource?.metadata?.annotations?.[ZPK_URL_ANNOTATION] || '').trim();
-}
-
 /**
- * 创建一个仅能访问当前应用及 reverse_dependent_apps 的动态值读取器。
- * 制品地址保留在宿主闭包中，调用方只能传 AppGroup 名称。
+ * 创建按 AppGroup 读取应用动态值的方法。制品地址由面板后端根据已安装
+ * AppGroup 解析，不依赖目标应用是否创建 MicroApp。
  */
 export function createAppDynamicValuesGetter(options: AppDynamicValuesGetterOptions) {
   const currentAppgroup = String(options.currentAppgroup || '').trim();
-  const allowedAppgroups = new Set([
-    currentAppgroup,
-    ...(options.reverseDependentApps || []).map(item => String(item?.appgroup || '').trim()),
-  ].filter(Boolean));
-  const zpkURLByAppgroup = new Map<string, string>();
-  (options.microApps || []).forEach(resource => {
-    const appgroup = resourceAppgroup(resource);
-    const zpkURL = resourceZpkURL(resource);
-    if(appgroup && zpkURL && !zpkURLByAppgroup.has(appgroup)){
-      zpkURLByAppgroup.set(appgroup, zpkURL);
-    }
-  });
 
   return async function getAppDynamicValues(
     appgroup?: string,
@@ -65,12 +41,11 @@ export function createAppDynamicValuesGetter(options: AppDynamicValuesGetterOpti
   ): Promise<AppDynamicValuesResult> {
     const requestedAppgroup = String(appgroup || '').trim();
     const target = requestedAppgroup || currentAppgroup;
-    const repoUrl = zpkURLByAppgroup.get(target) || '';
-    if(!target || !allowedAppgroups.has(target) || !repoUrl){
+    if(!target){
       return { status: 'not_supported', data: null };
     }
 
-    const cacheKey = `${target}\n${repoUrl}`;
+    const cacheKey = target;
     const cached = cache.get(cacheKey);
     if(!requestOptions.force && cached?.pending){
       return cached.pending;
@@ -81,7 +56,6 @@ export function createAppDynamicValuesGetter(options: AppDynamicValuesGetterOpti
 
     const pending = panelApi.get('/zpk/config', {
       params: {
-        repoUrl,
         releaseName: target,
         runtimeContext: true,
       },
@@ -90,7 +64,9 @@ export function createAppDynamicValuesGetter(options: AppDynamicValuesGetterOpti
     }).then(response => {
       const payload = response?.data || {};
       return {
-        status: payload?.status === 'ready' ? 'ready' : 'unavailable',
+        status: payload?.status === 'ready'
+          ? 'ready'
+          : payload?.status === 'not_supported' ? 'not_supported' : 'unavailable',
         data: payload?.status === 'ready' && payload?.data && typeof payload.data === 'object'
           ? payload.data
           : null,
