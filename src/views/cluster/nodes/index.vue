@@ -133,7 +133,7 @@
                                         </span>
                                     </a-tooltip>
                                      <!-- v-if="permission.includes('terminal')" -->
-                                    <a-tooltip v-if="webshell && record.ready" content="命令执行">
+                                    <a-tooltip v-if="webshell" content="命令执行">
                                         <span class="opt-icon" @click="toWebshell(record)">
                                             <icon-code-square  />
                                         </span>
