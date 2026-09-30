@@ -2,6 +2,7 @@
 
 ## 2026-09-30
 
+- 集群概览页标题统一改为“集群认证信息”，与节点页的同名入口及 Kubeconfig/TLS-SAN 双 Tab 展示保持一致，主子集群共用该文案。
 - 节点页“集群信息”改为“集群认证信息”双 Tab：展示宿主 kubeconfig 并按所选地址替换 API server；管理 IP/域名 TLS SAN，支持手动填写并保存网关绑定域名，应用后等待 server 节点恢复。
 - 影响模块：集群节点页。
 - 验证：`LOCAL_MOCK=true npm run build` 通过（仅有项目已有的构建警告）。
