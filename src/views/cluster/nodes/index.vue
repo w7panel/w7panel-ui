@@ -6,7 +6,7 @@
             <a-button v-if="permission.includes('cluster/nodes/registries')&&usermode!='cluster'" type="outline" class="ml-10" @click="openImgorigin">修改镜像源</a-button>
             <!-- <a-button v-if="permission.includes('cluster/nodes/gpu')" type="outline" class="ml-10" @click="clscf.dialog=true;">GPU管理</a-button> -->
             <!-- <a-button type="outline" class="ml-10" @click="nodebindshow=true;">专用存储管理</a-button> -->
-            <a-button type="outline" class="ml-10" @click="openClusterInfo">集群信息</a-button>
+            <a-button type="outline" class="ml-10" @click="openClusterInfo">集群认证信息</a-button>
         </div>
         
         <a-layout class="fc" style="margin-top:20px;">
@@ -317,56 +317,46 @@
             <a-textarea v-model="commandModal.command" placeholder="请输入命令" allow-clear style="height:100px;" :spellcheck="false" />
         </a-modal> -->
 
-        <a-drawer :visible="clusterInfo.show" width="800px" @ok="submitClusterInfo" @cancel="clusterInfo.show=false;" :popup-container="$popupContainer">
-            <template #title>集群信息</template>
-            <a-form :model="clusterInfo" auto-label-width>
-                <a-form-item label="开启公网">
-                    <div class="padding-10" style="background:var(--color-neutral-1);width:300px;">
-                        <div v-for="(item,index) in clusterInfo.ips" class="df ai-c padding-10" :key="index">
-                            <div class="f1">
-                                <span v-if="!item.edit">{{item.ip}}</span>
-                                <a-input v-else v-model="item.ip" placeholder="请输入" @keyup.enter="item.edit=false" ></a-input>
+        <a-drawer :visible="clusterInfo.show" width="800px" @cancel="clusterInfo.show=false;" :popup-container="$popupContainer">
+            <template #title>集群认证信息</template>
+            <a-tabs v-model:active-key="clusterInfo.activeTab">
+                <a-tab-pane key="kubeconfig" title="kubeconfig">
+                    <a-select v-model="clusterInfo.selectedAddress" placeholder="请选择地址" @change="getKubeconfig">
+                        <a-option v-for="address in kubeconfigAddresses" :key="address" :value="address">{{address}}</a-option>
+                    </a-select>
+                    <div class="mt-20" style="height:calc(100vh - 240px);">
+                        <yaml-editor v-if="clusterInfo.yaml" :yaml="clusterInfo.yaml" :disabled="true" :nofooter="true"></yaml-editor>
+                        <a-spin v-else-if="clusterInfo.kubeconfigLoading" />
+                    </div>
+                </a-tab-pane>
+                <a-tab-pane key="tls-san" title="tls-san">
+                    <a-form-item label="绑定域名">
+                        <a-input v-model="clusterInfo.boundDomain" placeholder="网关转发域名（可选）" />
+                        <div class="c-gray mt-4">默认启用，仅用于 kubeconfig 地址选择，不写入 tls-san。</div>
+                    </a-form-item>
+                    <a-form-item label="地址">
+                        <div class="padding-10" style="background:var(--color-neutral-1);">
+                            <div v-for="(item,index) in clusterInfo.ips" class="df ai-c padding-10" :key="index">
+                                <a-tag>{{item.type === 'ip' ? 'IP' : '域名'}}</a-tag>
+                                <a-input v-model="item.address" :disabled="item.default" placeholder="请输入 IP 或域名" class="f1 ml-8" />
+                                <a-switch v-model="item.enable" :disabled="item.default" class="ml-10" />
+                                <a-button v-if="!item.default" type="text" status="danger" class="ml-6" @click="clusterInfo.ips.splice(index,1)">删除</a-button>
                             </div>
-                            <div class="ml-10">
-                                <a-switch v-if="item.onlyshow" disabled :default-checked="true"></a-switch>
-                                <a-switch v-else v-model="item.enable"></a-switch>
-                            </div>
-                            <div v-if="item.edit" class="ml-10 df ai-c jc-c cursor" @click="item.edit=false;" style="width:20px;">
-                                <icon-check class="fs-16" />
-                            </div>
-                            <div v-else-if="!item.onlyshow" class="ml-10 df ai-c jc-c cursor" @click="clusterInfo.ips.splice(index,1);" style="width:20px;">
-                                <icon-close class="fs-16" />
+                            <div class="df ai-c mt-10">
+                                <a-select v-model="clusterInfo.newType" style="width:110px">
+                                    <a-option value="ip">IP</a-option>
+                                    <a-option value="domain">域名</a-option>
+                                </a-select>
+                                <a-input v-model="clusterInfo.newAddress" class="ml-8" placeholder="请输入地址" @keyup.enter="addTlsAddress" />
+                                <a-button class="ml-8" @click="addTlsAddress">添加</a-button>
                             </div>
                         </div>
-                        <a-button class="mt-10 mb-10" long @click="clusterInfo.ips.push({ip:'',onlyshow:false,enable:false,edit:true})">添加</a-button>
-                    </div>
-                </a-form-item>
-                <a-form-item label="集群信息">
-                    <a-button @click="checkClusterInfo={show: true,ip:clusterInfo.ips[0].ip,yaml: ''};getKubeconfig();">点击查看</a-button>
-                </a-form-item>
-            </a-form>
-        </a-drawer>
-        <!-- <a-modal v-model:visible="addIp.show" title="添加IP" @ok="clusterInfo.ips.push({ip:addIp.ip,onlyshow:false,enable:false});addIp.show=false;" @cancel="addIp.show=false;">
-            <a-form :model="addIp" auto-label-width>
-                <a-form-item label="IP">
-                    <a-input v-model="addIp.ip" placeholder="请输入ip" />
-                </a-form-item>
-            </a-form>
-        </a-modal> -->
-        <a-drawer :visible="checkClusterInfo.show" width="800px" @cancel="checkClusterInfo.show=false;" :popup-container="$popupContainer">
-            <template #title>集群信息</template>
-            <div style="height:100%;">
-                <a-select v-model="checkClusterInfo.ip" placeholder="请选择" @change="getKubeconfig">
-                    <a-option v-for="(item,index) in clusterInfo.ips" :key="index" :value="item.ip" :label="item.ip"></a-option>
-                </a-select>
-
-                <div class="mt-20" style="height:calc(100% - 52px);">
-                    <yaml-editor v-if="checkClusterInfo.yaml" :yaml="checkClusterInfo.yaml" :disabled="true" :nofooter="true"></yaml-editor>
-                </div>
-            </div>
+                    </a-form-item>
+                </a-tab-pane>
+            </a-tabs>
             <template #footer>
-                <a-button @click="checkClusterInfo.show=false;">取消</a-button>
-                <a-button :disabled="!checkClusterInfo.yaml" type="primary" @click="downloadClusterInfo">下载</a-button>
+                <a-button v-if="clusterInfo.activeTab === 'kubeconfig'" :disabled="!clusterInfo.yaml" type="primary" @click="downloadClusterInfo">下载 kubeconfig</a-button>
+                <a-button v-else type="primary" :loading="clusterInfo.applying" @click="submitClusterInfo">生效应用</a-button>
             </template>
         </a-drawer>
 
@@ -516,16 +506,14 @@ export default {
                 show: false,
                 loading: false,
                 ips: [],
-                addIps: [],
-            },
-            addIp: {
-                show: false,
-                ip: '',
-            },
-            checkClusterInfo: {
-                show: false,
-                ip: '',
+                activeTab: 'kubeconfig',
+                boundDomain: '',
+                selectedAddress: '',
                 yaml: '',
+                kubeconfigLoading: false,
+                applying: false,
+                newType: 'ip',
+                newAddress: '',
             },
             usermode: '',
 
@@ -565,6 +553,11 @@ export default {
         ndSet,
         storeInstallDrawer,
     },
+    computed: {
+        kubeconfigAddresses(){
+            return [...new Set([this.clusterInfo.boundDomain, ...this.clusterInfo.ips.filter(item => item.default || item.enable).map(item => item.address)].filter(Boolean))];
+        },
+    },
     methods: {
         insLonghorn(){
             this.installLonghornPlugin = {
@@ -594,62 +587,115 @@ export default {
         //     this.getList();
         // },
         downloadClusterInfo(){
-            function downloadStringAsFile(content, filename, contentType) {
-                // 创建Blob对象，包含要下载的内容和文件类型
-                const blob = new Blob([content], { type: contentType });
-                
-                // 创建一个a标签用于触发下载
-                const a = document.createElement('a');
-                
-                // 创建指向Blob对象的URL
-                const url = URL.createObjectURL(blob);
-                
-                // 设置下载相关属性
-                a.href = url;
-                a.download = filename;
-                
-                // 将a标签添加到文档中并触发点击事件
-                document.body.appendChild(a);
-                a.click();
-                
-                // 清理资源
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                }, 0);
-            };
-            downloadStringAsFile(this.checkClusterInfo.yaml, "kubeconfig.yaml", "text/plain");
+            const blob = new Blob([this.clusterInfo.yaml], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'kubeconfig.yaml';
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
         },
-        getKubeconfig(){
-            panelApi.get('/kubeconfig',{params:{
-                apiServerUrl: 'https://'+ this.checkClusterInfo.ip +':6443'
-            }}).then(res=>{
-                let data = res.data;
-                this.checkClusterInfo.yaml = jsyaml.dump(data);
-            })
+        async getKubeconfig(){
+            if (!this.clusterInfo.selectedAddress) return;
+            this.clusterInfo.kubeconfigLoading = true;
+            try {
+                const res = await panelApi.get('/kubeconfig');
+                const config = jsyaml.load(res.data);
+                const address = this.clusterInfo.selectedAddress;
+                const host = address.includes(':') && !address.startsWith('[') ? `[${address}]` : address;
+                (config.clusters || []).forEach(item => {
+                    item.cluster.server = `https://${host}:6443`;
+                });
+                this.clusterInfo.yaml = jsyaml.dump(config);
+            } catch (error) {
+                this.$message.error('读取 kubeconfig 失败');
+                this.clusterInfo.yaml = '';
+            } finally {
+                this.clusterInfo.kubeconfigLoading = false;
+            }
         },
-        submitClusterInfo(){
-            let enable = this.clusterInfo.ips.filter(i=>!i.onlyshow&&i.enable)?.map(i=>i.ip);
-            let disable = this.clusterInfo.ips.filter(i=>!i.onlyshow&&!i.enable)?.map(i=>i.ip);
-
-            k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config',[{
-                op: 'replace',
-                path: '/spec/data/k3s.tls-san',
-                value: enable.join(','),
-            },{
-                op: 'replace',
-                path: '/spec/data/k3s.tls-san.disabled',
-                value: disable.join(','),
-            },{
-                op: 'replace',
-                path: '/metadata/labels/data-hash',
-                value: String(Date.now()),
-            }],{
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(res=>{
-                this.$message.success('操作成功');
+        async addTlsAddress(){
+            const address = this.clusterInfo.newAddress.trim();
+            if (!address || !this.isValidTlsAddress(address, this.clusterInfo.newType)) {
+                this.$message.warning(this.clusterInfo.newType === 'ip' ? '请输入有效 IP 地址' : '请输入有效域名');
+                return;
+            }
+            if (this.clusterInfo.ips.some(item => item.address.toLowerCase() === address.toLowerCase())) {
+                this.$message.warning('地址已存在');
+                return;
+            }
+            this.clusterInfo.ips.push({ address, type: this.clusterInfo.newType, enable: false, default: false });
+            this.clusterInfo.newAddress = '';
+        },
+        isValidTlsAddress(address, type){
+            if (type === 'ip') {
+                if (address.includes(':')) {
+                    try { return new URL(`http://[${address}]`).hostname !== ''; } catch { return false; }
+                }
+                const octets = address.split('.');
+                return octets.length === 4 && octets.every(part => /^\d{1,3}$/.test(part) && Number(part) <= 255);
+            }
+            if (address.length > 253) return false;
+            return address.split('.').every(label => label.length > 0 && label.length <= 63 && /^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(label));
+        },
+        async submitClusterInfo(){
+            this.clusterInfo.boundDomain = this.clusterInfo.boundDomain.trim();
+            if (this.clusterInfo.boundDomain && !this.isValidTlsAddress(this.clusterInfo.boundDomain, 'domain')) {
+                this.$message.warning('请输入有效绑定域名');
+                return;
+            }
+            const invalid = this.clusterInfo.ips.find(item => !item.address || !this.isValidTlsAddress(item.address, item.type));
+            if (invalid) {
+                this.$message.warning(`地址无效：${invalid.address || '(空)'}`);
+                return;
+            }
+            if (new Set(this.clusterInfo.ips.map(item => item.address.toLowerCase())).size !== this.clusterInfo.ips.length) {
+                this.$message.warning('地址不能重复');
+                return;
+            }
+            if (this.clusterInfo.boundDomain && this.clusterInfo.ips.some(item => item.address.toLowerCase() === this.clusterInfo.boundDomain.toLowerCase())) {
+                this.$message.warning('绑定域名不能与 tls-san 地址重复');
+                return;
+            }
+            const enabled = this.clusterInfo.ips.filter(item => !item.default && item.enable).map(item => item.address);
+            const disabled = this.clusterInfo.ips.filter(item => !item.default && !item.enable).map(item => item.address);
+            this.clusterInfo.applying = true;
+            try {
+                await k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config',[{
+                    op: 'add', path: '/spec/data/k3s.tls-san', value: enabled.join(','),
+                },{
+                    op: 'add', path: '/spec/data/k3s.tls-san.disabled', value: disabled.join(','),
+                },{
+                    op: 'add', path: '/spec/data/k3s.bound-domain', value: this.clusterInfo.boundDomain,
+                },{
+                    op: 'replace', path: '/metadata/labels/data-hash', value: String(Date.now()),
+                }],{
+                    headers: {'Content-Type': 'application/json-patch+json'},
+                });
+                await this.waitForClusterReady();
+                this.$message.success('集群认证信息已生效');
                 this.clusterInfo.show = false;
-            })
+            } catch (error) {
+                this.$message.error(error?.message || '应用失败，请确认集群状态后重试');
+            } finally {
+                this.clusterInfo.applying = false;
+            }
+        },
+        async waitForClusterReady(){
+            const startedAt = Date.now();
+            const firstServer = this.getFirstServer();
+            if (!firstServer) throw new Error('未找到 server 节点');
+            while (Date.now() - startedAt < 5 * 60 * 1000) {
+                if (Date.now() - startedAt >= 20000) {
+                    try {
+                        const res = await k8sproxy.get('/api/v1/nodes');
+                        const node = (res.data?.items || []).find(item => item.metadata?.name === firstServer.metadata.name);
+                        if (node?.status?.conditions?.some(condition => condition.type === 'Ready' && condition.status === 'True')) return;
+                    } catch {}
+                }
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+            throw new Error('等待 K3s 重启超时（5 分钟）');
         },
         openClusterInfo(){
             this.clusterInfo = {
@@ -657,46 +703,42 @@ export default {
                 show: true,
                 loading: true,
                 ips: [],
-                addIps: [],
+                boundDomain: '',
+                yaml: '',
+                selectedAddress: '',
+                activeTab: 'kubeconfig',
             };
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(res=>{
-                let ips = res?.data?.spec?.data?.['k3s.default-tls-san'] || '';
-                ips = ips?.split(',')?.filter(i=>i);
-                ips = ips.map(i=>{
-                    return {
-                        ip: i,
-                        onlyshow: true,
-                        enable: false,
-                    }
-                })
-                
-                let enable = res?.data?.spec?.data?.['k3s.tls-san'] || '';
-                enable = enable?.split(',')?.filter(i=>i);
-                ips = ips.concat(enable.map(i=>{
-                    return {
-                        ip: i,
-                        onlyshow: false,
-                        enable: true,
-                    }
-                }))
-                let disabled = res?.data?.spec?.data?.['k3s.tls-san.disabled'] || '';
-                disabled = disabled?.split(',')?.filter(i=>i);
-                ips = ips.concat(disabled.map(i=>{
-                    return {
-                        ip: i,
-                        onlyshow: false,
-                        enable: false,
-                    }
-                }))
-
-                this.clusterInfo = {
-                    ...this.clusterInfo,
-                    loading: false,
-                    ips: ips,
+            const server = this.getFirstServer();
+            const serverIp = server?.status?.addresses?.find(address => address.type === 'InternalIP')?.address || '';
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(configRes=>{
+                const data = configRes?.data?.spec?.data || {};
+                this.clusterInfo.boundDomain = data['k3s.bound-domain'] || '';
+                const split = key => (data[key] || '').split(',').filter(Boolean);
+                const defaults = [...new Set([serverIp, ...split('k3s.default-tls-san')].filter(Boolean))];
+                const configured = new Map();
+                split('k3s.tls-san').forEach(address => configured.set(address, true));
+                split('k3s.tls-san.disabled').forEach(address => configured.set(address, false));
+                if (!Object.prototype.hasOwnProperty.call(data, 'k3s.tls-san')) {
+                    const initialConfig = jsyaml.load(data['k3s.config'] || '') || {};
+                    (Array.isArray(initialConfig['tls-san']) ? initialConfig['tls-san'] : []).forEach(address => configured.set(address, true));
                 }
-            }).finally(()=>{
+                this.clusterInfo.ips = defaults.map(address => ({
+                    address, type: this.isValidTlsAddress(address, 'ip') ? 'ip' : 'domain', enable: true, default: true,
+                }))
+                    .concat([...configured].filter(([address]) => !defaults.includes(address) && address !== this.clusterInfo.boundDomain).map(([address, enable]) => ({
+                        address, type: this.isValidTlsAddress(address, 'ip') ? 'ip' : 'domain', enable, default: false,
+                    })));
+                this.clusterInfo.selectedAddress = serverIp || this.kubeconfigAddresses[0] || '';
+                this.getKubeconfig();
+            }).catch(()=>this.$message.error('读取集群认证配置失败')).finally(()=>{
                 this.clusterInfo.loading = false;
-            })
+            });
+        },
+        getFirstServer(){
+            return this.data.find(node => {
+                const labels = node.metadata?.labels || {};
+                return 'node-role.kubernetes.io/control-plane' in labels || 'node-role.kubernetes.io/master' in labels;
+            });
         },
         toEditPublicIp(){
             k8sproxy.patch('/api/v1/nodes/'+this.editPublicIp.name,[{
@@ -1091,7 +1133,7 @@ export default {
                     return {
                         name: item.metadata.name,
                         podCIDR: item.spec.podCIDR,
-                        internalIP: item.status.addresses[0].address,
+                        internalIP: item.status.addresses.find(address=>address.type==='InternalIP')?.address || '',
                         // publicIp: item.status.addresses[1]?item.status.addresses[1].address:'',
                         publicIp: item.metadata.labels?.['w7.public-ip'],
                         osImage: item.status.nodeInfo.osImage,
@@ -1101,7 +1143,7 @@ export default {
                         labels: item.metadata.labels,
                         taints: item.spec.taints,
                         master: item?.metadata?.labels?.['node-role.kubernetes.io/master'],
-                        controlPlane: item?.metadata?.labels?.['node-role.kubernetes.io/control-plane'] == 'true',
+                        controlPlane: item?.metadata?.labels?.['node-role.kubernetes.io/control-plane'] !== undefined,
                         customTag: item?.metadata?.labels?.['node-role.kubernetes.io/custom'],
                         storage: item?.metadata?.labels?.['node.kubernetes.io/storage'],
                         storageTag: item?.metadata?.labels?.['node-role.kubernetes.io/storage'] === 'true',
