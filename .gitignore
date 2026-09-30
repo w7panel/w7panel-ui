@@ -14,3 +14,6 @@ src/utils/*
 !src/components/
 src/components/*
 !src/components/microapp-menu-items.vue
+!scripts/
+scripts/*
+!scripts/topapp-menu-identity.test.cjs

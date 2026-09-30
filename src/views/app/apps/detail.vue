@@ -114,7 +114,12 @@
             <a-layout class="app-detail-main df df-c" :style="appDetailMainStyle">
                 <Breadcrumb v-if="!isTopAppEntry" class="df-s0" :routes="detailBreadcrumbRoutes" />
                 <a-layout-content v-if="isAppDirectPage" class="df df-c">
-                    <app-direct :info="info" class="routerviewbox fc" />
+                    <app-direct
+                        v-if="appGroupName"
+                        :key="`${$route.name}:${$route.params.group}:${appGroupName}`"
+                        :info="info"
+                        class="routerviewbox fc"
+                    />
                 </a-layout-content>
                 <a-layout-content v-else-if="isMicroPage" class="df df-c">
                     <div class="app-detail-micro-container bg-white routerviewbox fc">
@@ -178,7 +183,12 @@
             </div>
         </a-modal>
 
-        <wujie-modals v-if="isMicroPage" ref="wujieModals" :exclude-wujie-events="modalExcludeWujieEvents" />
+        <wujie-modals
+            v-if="isMicroPage"
+            ref="wujieModals"
+            :appgroup="appGroupName"
+            :exclude-wujie-events="modalExcludeWujieEvents"
+        />
     </div>
 </template>
 
@@ -209,7 +219,11 @@ import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/m
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
-import { RESOURCE_GROUP_LABEL, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
+import {
+    findTopAppByRouteGroup,
+    RESOURCE_GROUP_LABEL,
+    loadResourcesByGroupNames,
+} from '@/utils/w7panel-resource';
 import AppDirect from '@/views/topapp/app-direct.vue';
 import MicroappMenuItems from '@/components/microapp-menu-items.vue';
 
@@ -287,6 +301,7 @@ export default {
             microApp: null,
             microApps: [],
             microAppGroup: '',
+            topAppName: '',
             appGroupName: '',
             activeMicroAppName: '',
             reverseDependentAppCache: {},
@@ -826,7 +841,7 @@ export default {
             }
             const target = {
                 name: this.isTopAppEntry ? 'topapp-direct' : 'group-app-direct',
-                params: {...this.$route.params, group:this.microAppGroup || this.$route.params.group},
+                params: {...this.$route.params, group:this.getNavigationGroup()},
                 query,
             };
             const navigation = replace
@@ -834,6 +849,12 @@ export default {
                 : this.$router.push(target);
             navigation.catch(()=>{});
             return true;
+        },
+        getNavigationGroup(){
+            if(this.isTopAppEntry){
+                return this.topAppName || this.$route.params.group;
+            }
+            return this.microAppGroup || this.$route.params.group;
         },
         applyMenuRuntimeConfig(route){
             const userRole = getK8sinfo()['w7.cc/role'];
@@ -1129,7 +1150,7 @@ export default {
                     };
                 this.$router.push({
                     name: this.isTopAppEntry ? 'topapp-micro' : 'group-micro',
-                    params: {...this.$route.params, group:this.microAppGroup || this.$route.params.group},
+                    params: {...this.$route.params, group:this.getNavigationGroup()},
                     query,
                 });
             }
@@ -1152,7 +1173,7 @@ export default {
                     || sortedItems[0];
                 this.applyMicroApp(item);
                 if(this.isMicroPage){
-                    const routeMenu = this.microAppGroup === this.$route.params.group
+                    const routeMenu = this.isTopAppEntry || this.microAppGroup === this.$route.params.group
                         ? this.getRequestedMicroRoute()
                         : '';
                     const appDetailMicro = this.normalizeMicroMenuRoute(routeMenu);
@@ -1225,6 +1246,7 @@ export default {
             });
             return {
                 groupName: resolvedGroupName,
+                topAppName: selected?.metadata?.name || groupName,
                 items: resolvePresentedMicroApps([...microAppMap.values()], resolvedGroupName),
             };
         },
@@ -1598,10 +1620,10 @@ export default {
         },
         async getTopAppData(){
             const requestedGroup = String(this.$route.params.group || '');
-            const topApp = this.appStore.topApps.find(item=>item?.name === requestedGroup);
+            const initialTopApp = findTopAppByRouteGroup(this.appStore.topApps, requestedGroup);
 
             this.groupRedirecting = true;
-            this.groupTitle = topApp?.title || requestedGroup;
+            this.groupTitle = initialTopApp?.title || requestedGroup;
             this.title = this.groupTitle;
             this.appGroups = [];
             this.activeGroup = '';
@@ -1612,12 +1634,20 @@ export default {
             this.microApp = null;
             this.microApps = [];
             this.microAppGroup = '';
+            this.topAppName = '';
             this.appGroupName = '';
             this.activeMicroAppName = '';
 
-            const {groupName, items} = await this.loadTopMicroApps(requestedGroup);
+            const {groupName, topAppName, items} = await this.loadTopMicroApps(requestedGroup);
             if(!this.isTopAppEntry || String(this.$route.params.group || '') !== requestedGroup){
                 return;
+            }
+            const topApp = initialTopApp
+                || findTopAppByRouteGroup(this.appStore.topApps, requestedGroup)
+                || findTopAppByRouteGroup(this.appStore.topApps, groupName);
+            if(topApp?.title){
+                this.groupTitle = topApp.title;
+                this.title = topApp.title;
             }
 
             this.appGroups = [{
@@ -1627,6 +1657,7 @@ export default {
             }];
             this.activeGroup = groupName;
             this.microAppGroup = groupName;
+            this.topAppName = topApp?.name || topAppName;
             this.groupRedirecting = false;
             if(!items.length){
                 this.microLoading = false;
@@ -1651,6 +1682,7 @@ export default {
             this.microApp = null;
             this.microApps = [];
             this.microAppGroup = '';
+            this.topAppName = '';
             this.appGroupName = '';
             this.activeMicroAppName = '';
 

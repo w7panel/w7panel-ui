@@ -310,3 +310,12 @@
 
 - `getAppDynamicValues` 接收面板返回的当前制品 `title`，`validateApp` 返回值补充该字段，原有 `valid`、`reason`、`message` 协议保持不变；影响模块：Wujie 应用动态值与授权校验句柄。
 - 验证：TypeScript 类型检查与生产构建通过。
+
+## 2026-09-30（顶部 MicroApp root 菜单状态）
+
+- 顶部应用恢复以 `/microapp/top` 返回的 root MicroApp `metadata.name` 作为菜单 key 与顶部路由标识，并单独保留 `w7.cc/group-name` 作为 AppGroup 上下文；root URL 与旧 AppGroup URL 均可映射到同一选中项，精确 root 标识优先于 AppGroup 别名。
+- 顶部应用在 MicroApp 与应用直达之间切换时继续保留 root 路由标识，root URL 的 `do`、`appmicro` 深链不再因 AppGroup 比较失败而回落默认菜单；文件管理与应用直达配置改用已解析的 AppGroup，避免把 root MicroApp 名误作 AppGroup。
+- 新增顶部菜单身份回归测试及 npm 脚本。影响模块：顶部导航、顶部应用详情、Wujie 弹窗、应用直达及顶部 MicroApp 路由。
+- 验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过；`npm run type:check` 仍被仓库既有的 `route-listener` 缺失、Axios 扩展字段、ES lib 及登录页类型错误阻塞，本次修改文件没有新增诊断。
+- 2026-09-30 复核修正：文件管理优先使用宿主解析的 AppGroup，MicroApp payload 仅在宿主无上下文时兜底；顶部应用直达在 AppGroup 完整解析后才挂载和允许保存，并以请求代次及 AppGroup 双重校验丢弃迟到响应，避免快速切组时旧配置覆盖当前表单。
+- 2026-09-30 测试补强：将 `/microapp/top` 资源到顶部菜单项的转换抽为纯函数，回归测试直接断言 root `metadata.name`、AppGroup 别名、文件跳转上下文优先级及异步请求失效规则；复核验证 `npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过，类型检查仍仅报告上述仓库存量错误。

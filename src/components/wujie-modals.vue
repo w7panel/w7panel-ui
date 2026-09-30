@@ -211,6 +211,7 @@ import { compressFiles } from '@/api/cluster';
 import { registerWujieEvent, unregisterWujieEvent } from '@/hooks/use-wujie-events';
 import { legacyConsoleRequestConfig } from '@/utils/legacy-console-request';
 import { getThirdpartyPayIframeUrl } from '@/utils/thirdparty-pay';
+import { resolveWujieFileAppGroup } from '@/utils/w7panel-resource';
 
 import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue';
@@ -228,6 +229,10 @@ import installDrawer from '@/views/app/store/install-drawer.vue';
 export default {
     name: 'WujieModals',
     props: {
+        appgroup: {
+            type: String,
+            default: '',
+        },
         excludeWujieEvents: {
             type: Array,
             default: () => [],
@@ -670,10 +675,27 @@ export default {
         },
 
         // ========== 文件管理 ==========
+        getFileAppgroup(data) {
+            const isTopAppRoute = ['topapp', 'topapp-micro', 'topapp-direct']
+                .includes(String(this.$route.name || ''));
+            const appgroup = resolveWujieFileAppGroup(
+                this.appgroup,
+                data?.appgroup,
+                this.$route.params.group,
+                isTopAppRoute,
+            );
+            if(appgroup){ return appgroup; }
+            if(isTopAppRoute){
+                console.warn('[wujie-modals] missing AppGroup context for file navigation');
+            }
+            return '';
+        },
         openFile(data) {
+            const appgroup = this.getFileAppgroup(data);
+            if(!appgroup){ return; }
             this.fileDialog = {
                 show: true,
-                src: '/dialog/appgroup/' + this.$route.params.group + '/' + data?.kind + '/' + data?.appname + '/files#path=' + (data?.path || ''),
+                src: '/dialog/appgroup/' + appgroup + '/' + data?.kind + '/' + data?.appname + '/files#path=' + (data?.path || ''),
                 fullscreen: false,
                 componentData: {
                     kind: data?.kind,
@@ -683,7 +705,9 @@ export default {
             };
         },
         toFile(data) {
-            this.$router.push('/app/appgroup/' + this.$route.params.group + '/' + data?.kind + '/' + data?.appname + '/files#path=' + (data?.path || ''));
+            const appgroup = this.getFileAppgroup(data);
+            if(!appgroup){ return; }
+            this.$router.push('/app/appgroup/' + appgroup + '/' + data?.kind + '/' + data?.appname + '/files#path=' + (data?.path || ''));
         },
 
         // ========== 页面弹窗 ==========
