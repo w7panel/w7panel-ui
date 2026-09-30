@@ -741,11 +741,11 @@ export default {
             })
         },
         openImgorigin(){
-            k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/registries",{noAlert:true}).then(res=>{
+            panelApi.get("/registry/registries",{noAlert:true}).then(res=>{
                 this.yamlData = {
                     show: true,
-                    data: res?.data?.data?.['default.cnf'],
-                    title: res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
+                    data: res?.data || '',
+                    title: 'registries',
                     returnYaml: true,
                     submit: this.submitImgorigin,
                 }
@@ -760,44 +760,9 @@ export default {
             })
         },
         submitImgorigin(data){
-            // data = jsyaml.dump(data, { indent: 4 });
-            
-            k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/registries",{loading:true,noAlert:true}).then(res=>{
-                k8sproxy.patch("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps/registries",{
-                    metadata: {
-                        labels: {
-                            'data-hash': '' + Date.now()
-                        }
-                    },
-                    data: {
-                        'default.cnf': data,
-                    },
-                },{
-                    headers: {'Content-Type': 'application/strategic-merge-patch+json'}
-                }).then(res=>{
-                    this.$message.success("操作成功");
-                    this.yamlData = {...this.yamlData, show:false,};
-                })
-            }).catch(e=>{
-                if(e?.response?.status==404){
-                    // 创建configmap
-                    k8sproxy.post("/api/v1/namespaces/"+ this.namespaceActive +"/configmaps",{
-                        apiVersion: 'v1',
-                        kind: 'ConfigMap',
-                        metadata: {
-                            name: 'registries',
-                            annotations: {
-                                title: '镜像仓库',
-                            }
-                        },
-                        data: {
-                            'default.cnf': data,
-                        },
-                    }).then(res=>{
-                        this.$message.success("操作成功");
-                        this.yamlData = {...this.yamlData, show:false,};
-                    })
-                }
+            panelApi.put('/registry/registries',{data},{loading:true}).then(()=>{
+                this.$message.success("操作成功");
+                this.yamlData = {...this.yamlData, show:false,};
             })
         },
         openYaml(row){

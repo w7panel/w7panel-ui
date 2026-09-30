@@ -395,3 +395,7 @@
 
 - `getAppDynamicValues` 接收面板返回的当前制品 `title`，`validateApp` 返回值补充该字段，原有 `valid`、`reason`、`message` 协议保持不变；影响模块：Wujie 应用动态值与授权校验句柄。
 - 验证：TypeScript 类型检查与生产构建通过。
+
+## 2026-09-30
+
+- 节点管理的镜像源编辑改为通过面板 API 读取和保存，后端统一处理主集群 ConfigMap 与子集群本地文件。未运行测试。
