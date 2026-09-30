@@ -305,3 +305,8 @@
 - 验证：`LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建仅有项目既有的深度选择器弃用和图片压缩提示。
 - 2026-09-29 重构：应用详情、顶部应用和网关插件统一通过 `appendWujieModalHandles` 向 Wujie 顶层 props 注入 `getAppDynamicValues` 与 `validateApp`，避免各入口在 props 字面量中重复维护动态值能力；MicroApp 调用协议保持不变。
 - 2026-09-29 更正：`getAppDynamicValues` 与 `validateApp` 统一放入 `props.handles`；动态值请求只向面板传 AppGroup，ZPK URL 由后端从已安装 AppGroup 解析，不再依赖 MicroApp 注解或 `reverse_dependent_apps` 范围，因此没有 MicroApp 的依赖应用也可按 AppGroup 获取动态上下文。
+
+## 2026-09-30（应用校验制品标题）
+
+- `getAppDynamicValues` 接收面板返回的当前制品 `title`，`validateApp` 返回值补充该字段，原有 `valid`、`reason`、`message` 协议保持不变；影响模块：Wujie 应用动态值与授权校验句柄。
+- 验证：TypeScript 类型检查与生产构建通过。
