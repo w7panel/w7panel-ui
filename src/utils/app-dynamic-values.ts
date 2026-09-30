@@ -7,10 +7,12 @@ let lastValidationNoticeAt = 0;
 
 export interface AppDynamicValuesResult {
   status: 'ready' | 'not_supported' | 'unavailable';
+  title: string;
   data: Record<string, unknown> | null;
 }
 
 export interface AppValidation {
+  title: string;
   valid: boolean;
   reason: string;
   message: string;
@@ -42,7 +44,7 @@ export function createAppDynamicValuesGetter(options: AppDynamicValuesGetterOpti
     const requestedAppgroup = String(appgroup || '').trim();
     const target = requestedAppgroup || currentAppgroup;
     if(!target){
-      return { status: 'not_supported', data: null };
+      return { status: 'not_supported', title: '', data: null };
     }
 
     const cacheKey = target;
@@ -67,12 +69,14 @@ export function createAppDynamicValuesGetter(options: AppDynamicValuesGetterOpti
         status: payload?.status === 'ready'
           ? 'ready'
           : payload?.status === 'not_supported' ? 'not_supported' : 'unavailable',
+        title: typeof payload?.title === 'string' ? payload.title : '',
         data: payload?.status === 'ready' && payload?.data && typeof payload.data === 'object'
           ? payload.data
           : null,
       } as AppDynamicValuesResult;
     }).catch(() => ({
       status: 'unavailable',
+      title: '',
       data: null,
     } as AppDynamicValuesResult)).then(value => {
       cache.set(cacheKey, { value, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -101,7 +105,12 @@ export function createAppValidator(
       || typeof value.message !== 'string'){
       return null;
     }
-    return validate as AppValidation;
+    return {
+      title: result.title,
+      valid: value.valid,
+      reason: value.reason,
+      message: value.message,
+    };
   };
 }
 
