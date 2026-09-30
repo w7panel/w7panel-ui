@@ -79,12 +79,6 @@ export default {
         const loginConfig = useStorage('login-config', { username: '' });
         return {
             baseInfo: emptyBaseInfo(),
-            cloudInfo: {
-                offlineUrl: '-',
-                licenseType: '',
-                licenseTypeText: '-',
-                licenseEndTime: '-',
-            },
             cloudUserInfo: {},
             isBound: false,
             hasPwd: getK8sinfo()['w7.cc/has-password'],
@@ -157,18 +151,7 @@ export default {
                 if (data && data.code === 200 && data.data) {
                     data = data.data;
                 }
-                const licenseType = data?.license_type || '';
                 this.isBound = data?.require_oauth === false && !!data?.userinfo;
-                this.cloudInfo = {
-                    offlineUrl: data?.offline_url || '-',
-                    licenseType,
-                    licenseTypeText: {
-                        team: '团队版',
-                        company: '企业版',
-                        free: '免费版',
-                    }[licenseType] || licenseType || '-',
-                    licenseEndTime: data?.license_end_time || '-',
-                };
                 this.cloudUserInfo = data?.userinfo || {};
             });
         },

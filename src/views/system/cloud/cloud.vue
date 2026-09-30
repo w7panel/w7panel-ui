@@ -19,11 +19,7 @@
                         <span class="ml-10 c-99">{{version}}</span>
                     </descriptions-item>
                     <descriptions-item label="系统类型">
-                        <span>{{license_type_text}}</span>
-                        <!-- <span v-if="userMode!=='cluster'" class="ml-20 c-blue cursor" @click="openInputLicense">导入授权码</span> -->
-                    </descriptions-item>
-                    <descriptions-item v-if="userMode!=='cluster'&&license_type!='free'" label="到期时间">
-                        <span>{{license_end_time}}</span>
+                        <span>免费版</span>
                     </descriptions-item>
                     <descriptions-item label="绑定账号">
                         <div class="df">
@@ -57,26 +53,12 @@
                 </a-descriptions>
             </div>
         </div>
-        <a-modal width="600px" :visible="inputLicense.show" @ok="submitInputLicense" @cancel="inputLicense.show=false;" :popup-container="$popupContainer">
-            <template #title>导入授权码</template>
-            <a-textarea
-                v-model="inputLicense.license"
-                class="mt-10"
-                style="height:160px;"
-                :spellcheck="false"
-                placeholder="请输入授权码"
-                :rows="12"
-                :input-style="{lineHeight:'24px'}"
-            />
-        </a-modal>
-
-        
     </div>
 </template>
 
 <script>
 import { panelApi } from '@/utils/api';
-import { clearToken, getUserInfo } from '@/utils/auth';
+import { getUserInfo } from '@/utils/auth';
 
 export default {
     data(){
@@ -96,16 +78,6 @@ export default {
                 value: '',
             },],
 
-            inputLicense: {
-                show: false,
-                license: '',
-            },
-
-            
-            license_type: '',
-            license_type_text: '',
-            license_end_time: '',
-
             userMode: '',
 
             
@@ -114,7 +86,6 @@ export default {
     created(){
         this.userMode = getUserInfo()?.['w7.cc/user-mode'];
         this.getData();
-        this.getToken();
         
         if(this.$route.query.code){
             let code = this.$route.query.code;
@@ -126,50 +97,11 @@ export default {
     },
     methods:{
         
-        getToken(){
-            return panelApi.get("/auth/console/info").then(res=>{
-                let thirdparty_cd_token = res?.data?.thirdparty_cd_token;
-                this.token = thirdparty_cd_token;
-            });
-        },
-
-
-
-        openInputLicense(){
-            this.inputLicense = {
-                show: true,
-                license: '',
-            };
-        },
-        submitInputLicense(){
-            let value = this.inputLicense.license;
-            if(!value){
-                this.$message.error("请输入授权码");
-                return;
-            }
-            panelApi.post("/auth/console/import-cert",{
-                cert: value,
-            }).then(res=>{
-                if(res?.data){
-                    this.inputLicense.show = false;
-                    this.$message.success("导入成功，3秒后退出重新登录");
-                    setTimeout(()=>{
-                        clearToken();
-                        this.$router.push('/login');
-                    },3000)
-
-                }
-            })
-        },
         getData(){
             panelApi.get("/auth/console/info?code=test").then(res=>{
                 let data = res.data;
                 this.require_oauth = data?.require_oauth;
 
-                this.license_type = data.license_type;
-                this.license_end_time = data.license_end_time;
-                this.license_type_text = {'team':"团队版",'company':"企业版",'free':"免费版"}[data?.license_type] || data?.license_type || '';
-                
                 this.userInfo = data?.userinfo || {};
                 if(data?.require_oauth === false && data?.userinfo){
                     this.step = 2;

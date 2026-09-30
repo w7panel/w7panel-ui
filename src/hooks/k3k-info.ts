@@ -58,11 +58,6 @@ export default async function useK3kinfo(){
             if(cData && cData.code === 200 && cData.data) {
                 cData = cData.data;
             }
-            let license_type = cData?.license_type;
-
-            if (license_type == 'free') {
-                arr = arr.filter(i => !['system-usergroup', 'usermanage/usergroup'].includes(i))
-            }
             setPermission(arr);
             cacheManager.set(PERMISSION_CACHE_KEY, Date.now(), {
                 duration: PERMISSION_CACHE_DURATION,

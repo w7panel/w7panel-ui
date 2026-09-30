@@ -66,11 +66,7 @@ const useUserStore = defineStore('user', {
                 // if(consoleDataRes && consoleDataRes.code === 200 && consoleDataRes.data) {
                 //     consoleData = consoleDataRes.data;
                 // }
-                // let license_type = consoleData?.license_type;
 
-                // if (license_type == 'free') {
-                //     arr = arr.filter(i => i != 'system-user' && i != 'system-usergroup')
-                // }
                 // setPermission(arr);
 
                 res.data = loginData; // 直接将真正的 data 覆盖上去，这样所有的外层组件不用改

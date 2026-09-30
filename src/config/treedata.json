@@ -191,10 +191,6 @@
         "key": "system-cloud",
         "route": "system/cloud"
     },{
-        "title": "授权管理",
-        "key": "system-license",
-        "route": "system/license"
-    },{
         "title": "审计日志",
         "key": "system-audit",
         "route": "system/audit"
