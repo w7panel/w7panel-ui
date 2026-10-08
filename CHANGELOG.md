@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-10-08
+
+- 应用管理新增“传统应用”和“轻量虚拟机”菜单，复用应用列表并按 AppGroup 的 `w7.cc/manifest-type` 标签分别筛选 `tradition`、`system-image`；普通应用列表排除这两类应用，同时继续兜底展示缺少类型标签或尚未独立管理的其他类型。
+- 两个专用列表提供“新建”入口，分别以“传统应用”和“系统镜像”固定分类打开制品市场。
+- AppGroup 应用类型读取改为 label 优先、annotation 兼容，并在跨分类定位待卸载应用时自动跳转到正确列表。
+- 影响模块：应用管理路由、应用列表、制品市场入口和 AppGroup 元数据工具。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；`vue-tsc` 仍受仓库现有 TypeScript 与 `@types/node` 语法版本不兼容阻断，`pnpm run type:check` 还会先被依赖构建脚本审批策略拦截。
+
 ## 2026-09-28
 
 - 应用详情、顶部微应用和网关插件配置中的制品试用状态检查改为 3 秒超时的后台请求；仍提示明确的试用到期响应，但制品服务超时或异常不再阻断已安装 MicroApp 打开。

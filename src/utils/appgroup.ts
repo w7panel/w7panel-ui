@@ -1,8 +1,11 @@
 const APP_GROUP_WORKLOAD_KINDS = ['deployment', 'statefulset', 'daemonset'];
 
 export const APP_GROUP_MANIFEST_TYPE_ANNOTATION = 'w7.cc/manifest-type';
+export const APP_GROUP_MANIFEST_TYPE_LABEL = 'w7.cc/manifest-type';
 export const GATEWAY_PLUGIN_APPLICATION_TYPE = 'gateway-plugin';
 export const APP_PLUGIN_APPLICATION_TYPE = 'app-plugin';
+export const TRADITION_APPLICATION_TYPE = 'tradition';
+export const SYSTEM_IMAGE_APPLICATION_TYPE = 'system-image';
 export const APPGROUP_DEPENDENCY_LABEL_PREFIX = 'w7.cc/depends-';
 
 const DEFAULT_APP_GROUP_NAMESPACE = 'default';
@@ -38,7 +41,9 @@ export interface AppGroupUninstallResult {
 }
 
 export function getAppGroupApplicationType(appGroup: any) {
-    return appGroup?.metadata?.annotations?.[APP_GROUP_MANIFEST_TYPE_ANNOTATION] || '';
+    return appGroup?.metadata?.labels?.[APP_GROUP_MANIFEST_TYPE_LABEL]
+        || appGroup?.metadata?.annotations?.[APP_GROUP_MANIFEST_TYPE_ANNOTATION]
+        || '';
 }
 
 export function isGatewayPluginAppGroup(appGroup: any) {
