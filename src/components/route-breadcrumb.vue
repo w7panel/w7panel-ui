@@ -31,13 +31,19 @@ export default {
             let route = this.$route;
             let arr = [];
             let rts = [{name:'root'}];
+            const appManagementRouteName = route.meta.activeMenu
+                || (route.meta.appManifestType ? route.name : '');
             if(route?.matched?.length){
                 for(let item in route.matched){
+                    const matchedRoute = route.matched[item];
+                    const routeName = matchedRoute?.name === 'app' && appManagementRouteName
+                        ? appManagementRouteName
+                        : matchedRoute?.name;
                     if(typeof route.matched[item]?.meta?.locale =='object'){
                         let key = route.matched[item]?.meta?.locale.key;
                         arr.push(this?.data?.[key] || route.params[key])
                         rts.push({
-                            name: route.matched[item]?.name,
+                            name: routeName,
                             label: this?.data?.[key] || route.params[key],
                             params: route.params,
                         })
@@ -45,7 +51,7 @@ export default {
                     }
                     arr.push(route.matched[item]?.meta?.locale || '')
                     rts.push({
-                        name: route.matched[item]?.name,
+                        name: routeName,
                         label: route.matched[item]?.meta?.locale || '',
                         params: route.params,
                     })
