@@ -328,3 +328,9 @@
 - 验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过；`npm run type:check` 仍被仓库既有的 `route-listener` 缺失、Axios 扩展字段、ES lib 及登录页类型错误阻塞，本次修改文件没有新增诊断。
 - 2026-09-30 复核修正：文件管理优先使用宿主解析的 AppGroup，MicroApp payload 仅在宿主无上下文时兜底；顶部应用直达在 AppGroup 完整解析后才挂载和允许保存，并以请求代次及 AppGroup 双重校验丢弃迟到响应，避免快速切组时旧配置覆盖当前表单。
 - 2026-09-30 测试补强：将 `/microapp/top` 资源到顶部菜单项的转换抽为纯函数，回归测试直接断言 root `metadata.name`、AppGroup 别名、文件跳转上下文优先级及异步请求失效规则；复核验证 `npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过，类型检查仍仅报告上述仓库存量错误。
+
+## 2026-10-08（站点管理菜单调整）
+
+- 站点管理不再显示为面板一级菜单；保留 `/sitemanage` 路由兼容历史链接和已有内部跳转。影响模块：主导航菜单。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。
+- 2026-10-08 更正：站点管理不再保留兼容路由；删除 `/sitemanage` 路由模块、专用跳转页面及权限树配置，旧地址将进入未找到页面。
