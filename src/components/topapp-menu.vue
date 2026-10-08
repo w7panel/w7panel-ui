@@ -179,6 +179,7 @@ const filterMenu = ()=>{
                 // 确保菜单标识存在，避免报错
                 if (!menu.key && !menu.do) return false;
                 const menuKey = menu.key || menu.do;
+                if (menuKey === 'sitemanage') return false;
                 // 如果路径未出现过，则保留并记录
                 if (!existedPaths.has(menuKey)) {
                     existedPaths.add(menuKey);
