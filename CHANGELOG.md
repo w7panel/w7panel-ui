@@ -14,6 +14,11 @@
 - 节点页“集群信息”改为“集群认证信息”双 Tab：展示宿主 kubeconfig 并按所选地址替换 API server；管理 IP/域名 TLS SAN，支持手动填写并保存网关绑定域名，应用后等待 server 节点恢复。
 - 影响模块：集群节点页。
 - 验证：`LOCAL_MOCK=true npm run build` 通过（仅有项目已有的构建警告）。
+- 应用管理新增“传统应用”和“轻量虚拟机”菜单，复用应用列表并按 AppGroup 的 `w7.cc/manifest-type` 标签分别筛选 `tradition`、`system-image`；普通应用列表排除这两类应用，同时继续兜底展示缺少类型标签或尚未独立管理的其他类型。
+- 两个专用列表提供“新建”入口，分别以“传统应用”和“系统镜像”固定分类打开制品市场。
+- AppGroup 应用类型读取改为 label 优先、annotation 兼容，并在跨分类定位待卸载应用时自动跳转到正确列表。
+- 影响模块：应用管理路由、应用列表、制品市场入口和 AppGroup 元数据工具。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；`vue-tsc` 仍受仓库现有 TypeScript 与 `@types/node` 语法版本不兼容阻断，`pnpm run type:check` 还会先被依赖构建脚本审批策略拦截。
 
 ## 2026-09-28
 
@@ -419,3 +424,11 @@
 
 - 移除授权管理页面、证书导入流程和团队版/企业版展示；云端页面固定展示免费版，免费版不再隐藏用户组权限。
 - 验证：`npm run build` 通过。
+## 2026-09-30（顶部 MicroApp root 菜单状态）
+
+- 顶部应用恢复以 `/microapp/top` 返回的 root MicroApp `metadata.name` 作为菜单 key 与顶部路由标识，并单独保留 `w7.cc/group-name` 作为 AppGroup 上下文；root URL 与旧 AppGroup URL 均可映射到同一选中项，精确 root 标识优先于 AppGroup 别名。
+- 顶部应用在 MicroApp 与应用直达之间切换时继续保留 root 路由标识，root URL 的 `do`、`appmicro` 深链不再因 AppGroup 比较失败而回落默认菜单；文件管理与应用直达配置改用已解析的 AppGroup，避免把 root MicroApp 名误作 AppGroup。
+- 新增顶部菜单身份回归测试及 npm 脚本。影响模块：顶部导航、顶部应用详情、Wujie 弹窗、应用直达及顶部 MicroApp 路由。
+- 验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过；`npm run type:check` 仍被仓库既有的 `route-listener` 缺失、Axios 扩展字段、ES lib 及登录页类型错误阻塞，本次修改文件没有新增诊断。
+- 2026-09-30 复核修正：文件管理优先使用宿主解析的 AppGroup，MicroApp payload 仅在宿主无上下文时兜底；顶部应用直达在 AppGroup 完整解析后才挂载和允许保存，并以请求代次及 AppGroup 双重校验丢弃迟到响应，避免快速切组时旧配置覆盖当前表单。
+- 2026-09-30 测试补强：将 `/microapp/top` 资源到顶部菜单项的转换抽为纯函数，回归测试直接断言 root `metadata.name`、AppGroup 别名、文件跳转上下文优先级及异步请求失效规则；复核验证 `npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过，类型检查仍仅报告上述仓库存量错误。

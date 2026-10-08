@@ -21,6 +21,7 @@
     "test:e2e:system": "node scripts/e2e/system.mjs",
     "test:e2e:usermanage": "node scripts/e2e/usermanage.mjs",
     "test:e2e:all": "node scripts/e2e/all.mjs",
+    "test:topapp-menu-identity": "node scripts/topapp-menu-identity.test.cjs",
     "type:check": "vue-tsc --noEmit --skipLibCheck",
     "prepare": "husky install"
   },

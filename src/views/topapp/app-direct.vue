@@ -78,7 +78,12 @@
         </div>
 
         <div class="app-direct-actions">
-            <a-button type="primary" @click="submitSetting">保存设置</a-button>
+            <a-button
+                type="primary"
+                :loading="saveInProgress"
+                :disabled="!canSubmitSetting"
+                @click="submitSetting"
+            >保存设置</a-button>
         </div>
 
         <a-drawer
@@ -105,6 +110,7 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
+import { isCurrentAppGroupRequest } from '@/utils/w7panel-resource';
 import richEditor from './rich-editor.vue';
 import ContactUs from '@/views/system/system/contact-us.vue';
 
@@ -146,6 +152,11 @@ export default {
             },
             logoRef: null,
             configMapCache: {},
+            initRequestId: 0,
+            saveRequestId: 0,
+            loadedAppgroup: '',
+            settingsLoading: false,
+            saveInProgress: false,
             activeTab: 'login',
             loginForm: {
                 loginType: 'password',
@@ -195,16 +206,47 @@ export default {
         'info.appgroup'(){
             this.initData();
         },
+        settingName(){
+            this.initData();
+        },
+    },
+    beforeUnmount(){
+        this.initRequestId += 1;
+        this.saveRequestId += 1;
+    },
+    computed: {
+        canSubmitSetting(){
+            const appgroup = this.getAppgroup();
+            return Boolean(
+                appgroup
+                && !this.settingsLoading
+                && !this.saveInProgress
+                && this.loadedAppgroup === appgroup
+            );
+        },
     },
     methods: {
         getAppgroup(){
-            return this.settingName || this.info?.appgroup || this.$route.params.group;
+            const resolved = this.settingName || this.info?.appgroup;
+            if(resolved || this.$route.name === 'topapp-direct'){
+                return resolved || '';
+            }
+            return this.$route.params.group;
         },
         async initData(){
+            const requestId = ++this.initRequestId;
             const appgroup = this.getAppgroup();
-            if(!appgroup){ return; }
+            if(this.loadedAppgroup && this.loadedAppgroup !== appgroup){
+                this.saveRequestId += 1;
+                this.saveInProgress = false;
+            }
+            this.loadedAppgroup = '';
+            this.settingsLoading = Boolean(appgroup);
             this.configMapCache = {};
+            this.settingData = null;
             this.globalSettingData = null;
+            this.applySetting(null, null);
+            if(!appgroup){ return; }
             try{
                 const requests = [
                     k8sproxy.get(
@@ -219,14 +261,32 @@ export default {
                     ).catch(()=>null));
                 }
                 const [res, globalRes] = await Promise.all(requests);
+                if(!this.isCurrentInitRequest(requestId, appgroup)){ return; }
                 this.settingData = res?.data || null;
                 this.globalSettingData = globalRes?.data || null;
                 this.applySetting(this.settingData, this.globalSettingData);
-                await this.loadReferencedConfigMaps();
+                await this.loadReferencedConfigMaps(requestId, appgroup);
+                if(!this.isCurrentInitRequest(requestId, appgroup)){ return; }
+                this.loadedAppgroup = appgroup;
             }catch(e){
+                if(!this.isCurrentInitRequest(requestId, appgroup)){ return; }
                 this.settingData = null;
+                this.globalSettingData = null;
                 this.applySetting(null, null);
+                this.loadedAppgroup = appgroup;
+            }finally{
+                if(this.isCurrentInitRequest(requestId, appgroup)){
+                    this.settingsLoading = false;
+                }
             }
+        },
+        isCurrentInitRequest(requestId, appgroup){
+            return isCurrentAppGroupRequest(
+                requestId,
+                this.initRequestId,
+                appgroup,
+                this.getAppgroup(),
+            );
         },
         applySetting(data, fallbackData){
             const spec = data?.spec || {};
@@ -267,17 +327,20 @@ export default {
             };
             this.logoRef = general.siteLogo || fallbackGeneral.siteLogo || null;
             this.icpDrawer.form = {
-                ...this.icpDrawer.form,
+                icp: '',
+                publicSecurityNetworkFiling: '',
+                electronicBusinessLicense: '',
+                valueAddedTelecomBusinessLicense: '',
                 ...(fallbackGeneral.filing || {}),
                 ...(general.filing || {}),
             };
             this.contactList = JSON.parse(JSON.stringify(general.contactConfigs || fallbackGeneral.contactConfigs || []));
         },
-        async loadReferencedConfigMaps(){
+        async loadReferencedConfigMaps(requestId, appgroup){
             await Promise.all([
-                this.loadProtocolContent('user'),
-                this.loadProtocolContent('privacy'),
-                this.loadLogoContent(),
+                this.loadProtocolContent('user', requestId, appgroup),
+                this.loadProtocolContent('privacy', requestId, appgroup),
+                this.loadLogoContent(requestId, appgroup),
             ]);
         },
         async getConfigMap(ref){
@@ -302,22 +365,24 @@ export default {
                 return null;
             }
         },
-        async loadProtocolContent(key){
+        async loadProtocolContent(key, requestId, appgroup){
             const ref = this.protocolRefs[key];
             if(!ref?.name || !ref?.key){ return; }
             try{
                 const configMap = await this.getConfigMap(ref);
+                if(!this.isCurrentInitRequest(requestId, appgroup)){ return; }
                 this.protocols[key] = {
                     ...this.protocols[key],
                     content: configMap?.data?.[ref.key] || '',
                 };
             }catch(e){}
         },
-        async loadLogoContent(){
+        async loadLogoContent(requestId, appgroup){
             const ref = this.logoRef;
             if(!ref?.name || !ref?.key){ return; }
             try{
                 const configMap = await this.getConfigMap(ref);
+                if(!this.isCurrentInitRequest(requestId, appgroup)){ return; }
                 const content = configMap?.data?.[ref.key];
                 const binaryContent = configMap?.binaryData?.[ref.key];
                 if(binaryContent){
@@ -388,19 +453,34 @@ export default {
         uploadLogo(file){
             // TODO: 接入站点 LOGO 上传
         },
-        getSettingNamespace(){
-            return this.settingData?.metadata?.namespace || this.namespaceActive;
+        createSettingSnapshot(){
+            return JSON.parse(JSON.stringify({
+                settingData: this.settingData,
+                protocolRefs: this.protocolRefs,
+                logoRef: this.logoRef,
+                loginForm: this.loginForm,
+                commonForm: this.commonForm,
+                protocols: this.protocols,
+                filing: this.icpDrawer.form,
+                contactList: this.contactList,
+                globalMode: this.globalMode,
+                showHomepage: this.showHomepage,
+            }));
         },
-        getSharedConfigMapName(){
-            if(this.globalMode){
+        getSettingNamespace(settingData = this.settingData){
+            return settingData?.metadata?.namespace || this.namespaceActive;
+        },
+        getSharedConfigMapName(appgroup = this.getAppgroup(), snapshot = null){
+            if(snapshot?.globalMode ?? this.globalMode){
                 return 'default-settings';
             }
+            const protocolRefs = snapshot?.protocolRefs || this.protocolRefs;
             const refs = [
-                this.protocolRefs.user,
-                this.protocolRefs.privacy,
-                this.logoRef,
+                protocolRefs.user,
+                protocolRefs.privacy,
+                snapshot ? snapshot.logoRef : this.logoRef,
             ].filter(i=>i?.name);
-            return refs?.[0]?.name || `${this.getAppgroup()}-settings`;
+            return refs?.[0]?.name || `${appgroup}-settings`;
         },
         parseDataUrl(value){
             const match = String(value || '').match(/^data:([^,]+),(.*)$/);
@@ -415,11 +495,13 @@ export default {
                 prefix: `data:${meta},`,
             };
         },
-        buildConfigMap(name, namespace, existing){
+        buildConfigMap(name, namespace, existing, snapshot = null){
+            const protocols = snapshot?.protocols || this.protocols;
+            const commonForm = snapshot?.commonForm || this.commonForm;
             const data = {
                 ...(existing?.data || {}),
-                'user-agreement.html': this.protocols.user.content || '',
-                'privacy-policy.html': this.protocols.privacy.content || '',
+                'user-agreement.html': protocols.user.content || '',
+                'privacy-policy.html': protocols.privacy.content || '',
             };
             const binaryData = {
                 ...(existing?.binaryData || {}),
@@ -427,7 +509,7 @@ export default {
             const annotations = {
                 ...(existing?.metadata?.annotations || {}),
             };
-            const logoData = this.parseDataUrl(this.commonForm.logo);
+            const logoData = this.parseDataUrl(commonForm.logo);
             if(logoData){
                 binaryData['logo.png'] = logoData.base64;
                 annotations['w7.cc/logo-imagetype'] = logoData.prefix;
@@ -453,32 +535,40 @@ export default {
             }
             return configMap;
         },
-        async upsertConfigMap(name, namespace){
+        async upsertConfigMap(name, namespace, snapshot, requestId, appgroup){
             const existing = await this.getConfigMapForSave(name, namespace);
-            const configMap = this.buildConfigMap(name, namespace, existing);
+            if(!this.isCurrentInitRequest(requestId, appgroup)){ return false; }
+            const configMap = this.buildConfigMap(name, namespace, existing, snapshot);
             if(existing){
                 await k8sproxy.put(`/api/v1/namespaces/${namespace}/configmaps/${name}`, configMap, { loading: true });
             }else{
                 await k8sproxy.post(`/api/v1/namespaces/${namespace}/configmaps`, configMap, { loading: true });
             }
-            this.configMapCache[`${namespace}/${name}`] = Promise.resolve(configMap);
-            return configMap;
+            if(this.isCurrentInitRequest(requestId, appgroup)){
+                this.configMapCache[`${namespace}/${name}`] = Promise.resolve(configMap);
+            }
+            return true;
         },
-        buildSetting(configMapName, namespace){
-            const appgroup = this.getAppgroup();
+        buildSetting(configMapName, namespace, appgroup = this.getAppgroup(), snapshot = null){
+            const settingData = snapshot ? snapshot.settingData : this.settingData;
+            const loginForm = snapshot?.loginForm || this.loginForm;
+            const commonForm = snapshot?.commonForm || this.commonForm;
+            const filing = snapshot?.filing || this.icpDrawer.form;
+            const contactList = snapshot?.contactList || this.contactList;
+            const showHomepage = snapshot?.showHomepage ?? this.showHomepage;
             return {
                 apiVersion: 'w7panel.w7.com/v1alpha1',
                 kind: 'MicroAppSetting',
                 metadata: {
-                    ...(this.settingData?.metadata || {}),
+                    ...(settingData?.metadata || {}),
                     name: appgroup,
                     namespace,
                 },
                 spec: {
                     login: {
-                        loginMode: this.loginForm.loginType || 'password',
-                        registrationEnabled: !!this.loginForm.registrationEnabled,
-                        indexPage: this.showHomepage ? (this.loginForm.indexPage || 'login') : 'login',
+                        loginMode: loginForm.loginType || 'password',
+                        registrationEnabled: !!loginForm.registrationEnabled,
+                        indexPage: showHomepage ? (loginForm.indexPage || 'login') : 'login',
                         protocolConfig: {
                             userAgreement: {
                                 name: configMapName,
@@ -491,23 +581,22 @@ export default {
                         },
                     },
                     general: {
-                        siteName: this.commonForm.siteName || '',
+                        siteName: commonForm.siteName || '',
                         siteLogo: {
                             name: configMapName,
                             key: 'logo.png',
                         },
-                        siteDescription: this.commonForm.siteDescription || '',
+                        siteDescription: commonForm.siteDescription || '',
                         filing: {
-                            ...this.icpDrawer.form,
+                            ...filing,
                         },
-                        contactConfigs: JSON.parse(JSON.stringify(this.contactList || [])),
+                        contactConfigs: JSON.parse(JSON.stringify(contactList || [])),
                     },
                 },
             };
         },
-        async upsertSetting(data, namespace){
-            const appgroup = this.getAppgroup();
-            if(this.settingData){
+        async upsertSetting(data, namespace, appgroup, hasSetting){
+            if(hasSetting){
                 await k8sproxy.put(`/apis/w7panel.w7.com/v1alpha1/namespaces/${namespace}/microappsettings/${appgroup}`, data, { loading: true });
             }else{
                 await k8sproxy.post(`/apis/w7panel.w7.com/v1alpha1/namespaces/${namespace}/microappsettings`, data, { loading: true });
@@ -515,16 +604,37 @@ export default {
         },
         async submitSetting(){
             const appgroup = this.getAppgroup();
-            if(!appgroup){ return; }
-            const namespace = this.getSettingNamespace();
-            const configMapName = this.getSharedConfigMapName();
+            if(!this.canSubmitSetting || this.loadedAppgroup !== appgroup){ return; }
+            const requestId = this.initRequestId;
+            const saveRequestId = ++this.saveRequestId;
+            const snapshot = this.createSettingSnapshot();
+            const hasSetting = Boolean(snapshot.settingData);
+            const namespace = this.getSettingNamespace(snapshot.settingData);
+            const configMapName = this.getSharedConfigMapName(appgroup, snapshot);
+            this.saveInProgress = true;
             try{
-                await this.upsertConfigMap(configMapName, namespace);
-                const setting = this.buildSetting(configMapName, namespace);
-                await this.upsertSetting(setting, namespace);
-                this.$message.success('操作成功');
-                await this.initData();
-            }catch(e){}
+                const configMapSaved = await this.upsertConfigMap(
+                    configMapName,
+                    namespace,
+                    snapshot,
+                    requestId,
+                    appgroup,
+                );
+                if(!configMapSaved || !this.isCurrentInitRequest(requestId, appgroup)){ return; }
+                const setting = this.buildSetting(configMapName, namespace, appgroup, snapshot);
+                await this.upsertSetting(setting, namespace, appgroup, hasSetting);
+                if(
+                    saveRequestId === this.saveRequestId
+                    && this.isCurrentInitRequest(requestId, appgroup)
+                ){
+                    this.$message.success('操作成功');
+                    await this.initData();
+                }
+            }catch(e){}finally{
+                if(saveRequestId === this.saveRequestId){
+                    this.saveInProgress = false;
+                }
+            }
         },
     },
 }

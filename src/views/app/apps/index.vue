@@ -1,7 +1,13 @@
 <template>
     <div class="padding-20">
         <route-breadcrumb />
-        <div>
+        <div v-if="isTypedAppList">
+            <a-button v-if="permission.includes('app/apps/add')" type="primary" @click="openTypedAppMarket">
+                <template #icon><icon-plus /></template>
+                新建
+            </a-button>
+        </div>
+        <div v-else>
             <a-button v-if="permission.includes('app/apps/add')" class="mr-20" type="primary" @click="openForm()"><template #icon><icon-plus /></template>新建</a-button>
             <a-badge text="推荐" class="mr-20">
                 <a-button type="outline" @click="$router.push('/app/product-market')">制品市场</a-button>
@@ -217,7 +223,14 @@ import k8syamlDrawer from '@/components/k8syaml-drawer.vue';
 import codepackDrawer from '@/components/codepack-drawer.vue';
 import helmForm from '../pages/helm-form.vue';
 import { getPermission,getFileEditor,getUserInfo } from '@/utils/auth';
-import { filterAppGroupWorkloadItems, isPluginAppGroup, uninstallAppGroup } from '@/utils/appgroup';
+import {
+    filterAppGroupWorkloadItems,
+    getAppGroupApplicationType,
+    isPluginAppGroup,
+    SYSTEM_IMAGE_APPLICATION_TYPE,
+    TRADITION_APPLICATION_TYPE,
+    uninstallAppGroup,
+} from '@/utils/appgroup';
 
 export default {
     data(){
@@ -268,6 +281,33 @@ export default {
             deletingAppGroup: '',
         }
     },
+    computed: {
+        appManifestType(){
+            return String(this.$route.meta.appManifestType || '');
+        },
+        isTypedAppList(){
+            return Boolean(this.appManifestType);
+        },
+        appMarketRouteName(){
+            return String(this.$route.meta.appMarketRouteName || 'app-product-market');
+        },
+        appGroupLabelSelector(){
+            if(this.appManifestType){
+                return `w7.cc/manifest-type=${this.appManifestType}`;
+            }
+            return `w7.cc/manifest-type notin (${TRADITION_APPLICATION_TYPE},${SYSTEM_IMAGE_APPLICATION_TYPE})`;
+        },
+    },
+    watch: {
+        '$route.name'(routeName){
+            if(!['app-apps', 'app-traditional-apps', 'app-lightweight-vms'].includes(String(routeName))){
+                return;
+            }
+            this.data = [];
+            this.uninstallTarget = null;
+            this.getList();
+        },
+    },
     created(){
         this.usermode = getUserInfo()?.['w7.cc/user-mode'];
         this.fileeditor = getFileEditor()=='true';
@@ -290,6 +330,9 @@ export default {
         this.leavePage = true;
     },
     methods: {
+        openTypedAppMarket(){
+            this.$router.push({ name: this.appMarketRouteName });
+        },
         submitEditTitle(){
             k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.editTitle.appgroup,[{
                 op: 'replace',
@@ -424,7 +467,13 @@ export default {
         //     })
         // },
         refreshList(){
-            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then((res)=>{
+            const routeName = this.$route.name;
+            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups', {
+                params: {
+                    labelSelector: this.appGroupLabelSelector,
+                },
+            }).then((res)=>{
+                if(this.$route.name !== routeName){return}
                 let list = res?.data?.items || [];
                 list = list.filter(i=>!isPluginAppGroup(i)).map(i=>{
                     
@@ -463,6 +512,7 @@ export default {
                 list.sort((a,b)=>(b.creationTimestamp - a.creationTimestamp));
                 this.data = list.filter(i=>!i.deletionTimestamp);
 				this.selectUninstallTarget();
+				this.redirectUninstallTarget();
             })
         },
 		selectUninstallTarget(){
@@ -474,6 +524,28 @@ export default {
 			this.$nextTick(()=>{
 				document.querySelector('.artifact-uninstall-target')?.scrollIntoView({behavior:'smooth', block:'center'});
 			});
+		},
+		async redirectUninstallTarget(){
+			const appIdentify = String(this.$route.query.uninstallApp || '');
+			if(!appIdentify || this.uninstallTarget){return}
+			try{
+				const response = await k8sproxy.get(
+					'/apis/w7panel.w7.com/v1alpha1/namespaces/'
+					+ encodeURIComponent(this.namespaceActive)
+					+ '/appgroups/'
+					+ encodeURIComponent(appIdentify),
+					{ noAlert: true },
+				);
+				const manifestType = getAppGroupApplicationType(response?.data);
+				const routeName = manifestType === TRADITION_APPLICATION_TYPE
+					? 'app-traditional-apps'
+					: manifestType === SYSTEM_IMAGE_APPLICATION_TYPE
+						? 'app-lightweight-vms'
+						: 'app-apps';
+				if(this.$route.name !== routeName){
+					this.$router.replace({ name: routeName, query: this.$route.query });
+				}
+			}catch(error){}
 		},
 		getRowClass(record){
 			return record.groupName===this.uninstallTarget?.groupName ? 'artifact-uninstall-target' : '';
@@ -496,7 +568,9 @@ export default {
             });
         },
         async getList(){
+            const routeName = this.$route.name;
             await this.refreshList();
+            if(this.leavePage || this.$route.name !== routeName){return}
 
             let {data} = await panelApi.get('/auth/console/info?code=test');
             this.thirdparty_cd_token = data?.thirdparty_cd_token || '';

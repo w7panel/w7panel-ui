@@ -16,6 +16,57 @@ export const getTopAppGroupName = (resource: any) => (
   || String(resource?.metadata?.name || '').replace(/-root$/, '')
 );
 
+export interface TopAppRouteIdentity {
+  name?: string;
+  appGroupName?: string;
+}
+
+export function mapTopAppResourceToMenuItem(resource: any) {
+  const bindings = Array.isArray(resource?.spec?.bindings)
+    ? resource.spec.bindings
+    : [];
+
+  return {
+    title: resource?.metadata?.annotations?.title || resource?.spec?.title,
+    name: String(resource?.metadata?.name || ''),
+    appGroupName: getTopAppGroupName(resource),
+    roles: bindings
+      .filter((binding: any) => binding?.support === 'thirdparty_cd')
+      .map((binding: any) => binding?.name),
+  };
+}
+
+export function findTopAppByRouteGroup<T extends TopAppRouteIdentity>(
+  items: T[] = [],
+  routeGroup: unknown,
+) {
+  const value = String(routeGroup || '');
+  if(!value) return undefined;
+  return items.find(item => String(item?.name || '') === value)
+    || items.find(item => String(item?.appGroupName || '') === value);
+}
+
+export function resolveWujieFileAppGroup(
+  hostAppGroup: unknown,
+  payloadAppGroup: unknown,
+  routeGroup: unknown,
+  isTopAppRoute = false,
+) {
+  const resolved = String(hostAppGroup || payloadAppGroup || '');
+  if(resolved || isTopAppRoute) return resolved;
+  return String(routeGroup || '');
+}
+
+export function isCurrentAppGroupRequest(
+  requestId: number,
+  currentRequestId: number,
+  requestedAppGroup: unknown,
+  currentAppGroup: unknown,
+) {
+  return requestId === currentRequestId
+    && String(requestedAppGroup || '') === String(currentAppGroup || '');
+}
+
 export function resourceListWithLabelSelector(api: string, selector: string) {
   return `${api}?labelSelector=${encodeURIComponent(selector)}`;
 }
