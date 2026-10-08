@@ -2,7 +2,7 @@
 
 基于 Vue 3 + TypeScript + Arco Design 的 Kubernetes 云原生应用管理平台前端。
 
-应用管理按 AppGroup 的 `metadata.labels["w7.cc/manifest-type"]` 分页展示：普通“应用列表”排除 `tradition` 和 `system-image`，`tradition` 在“传统应用”管理，`system-image` 在“轻量虚拟机”管理；没有类型标签或尚未独立管理的其他类型仍由普通应用列表兜底展示。网关插件 AppGroup（`gateway-plugin`）只在网关插件页面管理，不在顶部菜单、应用直达和普通应用列表中展示；应用插件 AppGroup（`app-plugin`）的功能会聚合到所依赖的传统应用中，同样不在应用列表中单独展示。
+应用管理按 AppGroup 的 `metadata.labels["w7.cc/manifest-type"]` 分页展示：普通“应用列表”排除 `tradition` 和 `system-image`，`tradition` 在“传统应用”管理，`system-image` 在“轻量虚拟机”管理；没有类型标签或尚未独立管理的其他类型仍由普通应用列表兜底展示。专用制品市场、制品安装完成后的“返回列表”，以及安装页和应用详情面包屑都会按入口或当前应用类型返回对应列表。网关插件 AppGroup（`gateway-plugin`）只在网关插件页面管理，不在顶部菜单、应用直达和普通应用列表中展示；应用插件 AppGroup（`app-plugin`）的功能会聚合到所依赖的传统应用中，同样不在应用列表中单独展示。
 
 Wujie 应用通过 `props.handles` 获得 `getAppDynamicValues(appgroup?, options)` 和 `validateApp(appgroup?, options)`。进入非“授权与续费”页面时，宿主会在后台读取当前应用的 `validate`，默认复用 30 秒缓存；市场明确返回不可用时展示原因，但查询异常不阻断应用启动。应用可主动调用，并通过 `force` 强制刷新。不传 `appgroup` 时读取当前 AppGroup；传入时由面板后端根据已安装 AppGroup 解析 ZPK 来源，不依赖目标应用是否存在 MicroApp。`validateApp` 复用同一查询并只返回市场生成的 `validate`，面板不重复实现试用或退款规则。
 

@@ -16,6 +16,7 @@
 - 验证：`LOCAL_MOCK=true npm run build` 通过（仅有项目已有的构建警告）。
 - 应用管理新增“传统应用”和“轻量虚拟机”菜单，复用应用列表并按 AppGroup 的 `w7.cc/manifest-type` 标签分别筛选 `tradition`、`system-image`；普通应用列表排除这两类应用，同时继续兜底展示缺少类型标签或尚未独立管理的其他类型。
 - 两个专用列表提供“新建”入口，分别以“传统应用”和“系统镜像”固定分类打开制品市场。
+- 制品安装完成页的“返回列表”、制品安装页与应用详情顶部面包屑中的“应用管理”，会按制品或当前 AppGroup 的 `w7.cc/manifest-type` 返回普通应用、传统应用或轻量虚拟机列表；专用制品市场页的面包屑同步返回入口对应的专用列表，不再固定跳转普通应用列表。
 - AppGroup 应用类型读取改为 label 优先、annotation 兼容，并在跨分类定位待卸载应用时自动跳转到正确列表。
 - 影响模块：应用管理路由、应用列表、制品市场入口和 AppGroup 元数据工具。
 - 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；`vue-tsc` 仍受仓库现有 TypeScript 与 `@types/node` 语法版本不兼容阻断，`pnpm run type:check` 还会先被依赖构建脚本审批策略拦截。

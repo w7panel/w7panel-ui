@@ -292,6 +292,10 @@
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
+import {
+    getAppGroupApplicationType,
+    getAppGroupListRouteName,
+} from '@/utils/appgroup';
 
 import axios from 'axios';
 import { useNamespaceStore,useLoadingStore } from '@/store';
@@ -304,7 +308,7 @@ import shortuuid from 'short-uuid';
 
 export default {
     props: ['is_component','path_identifie','version','release_name','start_params','install_params'],
-    emits: [ 'complete', 'configured' ],
+    emits: [ 'complete', 'configured', 'manifestTypeChange' ],
     data(){
         return {
             namespaceActive: '',
@@ -356,6 +360,7 @@ export default {
             installAlert: {},
             dependencyReleaseBindings: {},
             appGroup: '',
+            appManifestType: '',
             isHelm: false,
 
             rpList: {}, // requireParentReleaseName 列表
@@ -426,6 +431,14 @@ export default {
                 result = decodeURIComponent(result);
             }catch{}
             return result;
+        },
+        setAppManifestType(appGroupOrApplicationType){
+            const applicationType = typeof appGroupOrApplicationType === 'string'
+                ? appGroupOrApplicationType
+                : getAppGroupApplicationType(appGroupOrApplicationType);
+            if(this.appManifestType === applicationType){return}
+            this.appManifestType = applicationType;
+            this.$emit('manifestTypeChange', applicationType);
         },
         parseModuleInstallParams(value){
             if(value && typeof value === 'object' && !Array.isArray(value)){
@@ -782,6 +795,7 @@ export default {
                     this.domain = domain;
                 }
                 this.identifie = data?.spec?.identifie;
+                this.setAppManifestType(data);
                 this.path = data.spec.zpkUrl;
                 this.releaseName = this.$route.query.completeName;
                 return true;
@@ -806,6 +820,7 @@ export default {
                         icon: i.icon,
                     }
                     this.identifie = i.identifie;
+                    this.setAppManifestType(i.packageType);
 
                     this.infoversion = i.version;
                     
@@ -1086,7 +1101,7 @@ export default {
         },
         goBackList(){
             if(this.is_component){this.$emit('close'); return;}
-            this.$router.push('/app');
+            this.$router.push({name: getAppGroupListRouteName(this.appManifestType)});
         },
         closeIMG(v){
             this.imgShow = false;
@@ -1594,6 +1609,7 @@ export default {
         getStatus(name){
             this.appGroup = name;
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+name).then(res=>{
+                this.setAppManifestType(res?.data);
                 this.isHelm = res?.data?.spec?.isHelm;
                 let deployInfo = res?.data?.status?.deployInfo || [];
                 let deployStatus = res?.data?.status?.deployStatus;

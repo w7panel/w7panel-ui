@@ -46,6 +46,19 @@ export function getAppGroupApplicationType(appGroup: any) {
         || '';
 }
 
+export function getAppGroupListRouteName(appGroupOrApplicationType: any) {
+    const applicationType = typeof appGroupOrApplicationType === 'string'
+        ? appGroupOrApplicationType
+        : getAppGroupApplicationType(appGroupOrApplicationType);
+    if(applicationType === TRADITION_APPLICATION_TYPE){
+        return 'app-traditional-apps';
+    }
+    if(applicationType === SYSTEM_IMAGE_APPLICATION_TYPE){
+        return 'app-lightweight-vms';
+    }
+    return 'app-apps';
+}
+
 export function isGatewayPluginAppGroup(appGroup: any) {
     return getAppGroupApplicationType(appGroup) === GATEWAY_PLUGIN_APPLICATION_TYPE;
 }

@@ -207,7 +207,12 @@ import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
 import { createWujieHostRoutePlugin } from '@/utils/wujie-route';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
-import { filterAppGroupWorkloadItems, uninstallAppGroup } from '@/utils/appgroup';
+import {
+    filterAppGroupWorkloadItems,
+    getAppGroupApplicationType,
+    getAppGroupListRouteName,
+    uninstallAppGroup,
+} from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 import {
     loadMicroAppReverseDependentApps,
@@ -304,6 +309,7 @@ export default {
             microAppGroup: '',
             topAppName: '',
             appGroupName: '',
+            appManifestType: '',
             activeMicroAppName: '',
             reverseDependentAppCache: {},
             reverseDependentAppRequests: {},
@@ -338,6 +344,7 @@ export default {
         '$route.params.group'(v,ov){
             if(v===ov){return;}
             this.groupTitle = v;
+            this.appManifestType = '';
             // When switching groups on the same detail route, Vue reuses this
             // component and the route-name watcher does not run.
             this.getData();
@@ -446,7 +453,7 @@ export default {
             const appTarget = this.getBreadcrumbAppTarget();
             const routes = [
                 {name:'root'},
-                {name:'app', label:'应用管理'},
+                {name:getAppGroupListRouteName(this.appManifestType), label:'应用管理'},
                 {
                     ...appTarget,
                     label: this.groupTitle || this.$route.params.group || '',
@@ -563,7 +570,7 @@ export default {
                     params: {group, kind:app.kind, id:app.name},
                 };
             }
-            return {name:'app-apps'};
+            return {name:getAppGroupListRouteName(this.appManifestType)};
         },
         getCurrentBreadcrumbLabel(){
             if(this.isMicroPage){
@@ -1720,6 +1727,7 @@ export default {
             }).catch(()=>false);
             await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
             }).then(async res=>{
+                this.appManifestType = getAppGroupApplicationType(res?.data);
                 this.groupTitle = res?.data?.spec?.title
                     || res?.data?.metadata?.annotations?.title
                     || this.groupTitle;
