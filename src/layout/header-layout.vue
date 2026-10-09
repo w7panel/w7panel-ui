@@ -1,6 +1,6 @@
 <template>
     <a-layout class="layout">
-        <a-layout-header>
+        <a-layout-header class="layout-header">
             <NavBar />
         </a-layout-header>
         <a-layout-content class="layout-content " >
@@ -38,11 +38,19 @@ import contactUs from '@/components/contact-us.vue';
 
 .layout {
     width: 100%;
-    height: 100vh;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+.layout-header {
+    flex: 0 0 @nav-size-height;
+    height: @nav-size-height;
 }
 .layout-content {
-    height: 100%;
-    overflow-y: hidden;
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
     background-color: var(--color-fill-2);
     transition: padding 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
 }

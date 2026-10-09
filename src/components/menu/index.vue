@@ -241,7 +241,9 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
     width: 100%;
+    overflow: hidden;
   }
   .menu-micro-back {
     display: flex;

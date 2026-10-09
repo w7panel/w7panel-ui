@@ -3,8 +3,8 @@
         <div v-if="navbar" class="layout-navbar">
             <NavBar />
         </div>
-        <a-layout>
-            <a-layout>
+        <a-layout class="layout-frame">
+            <a-layout class="layout-frame">
                 <a-layout-sider
                     v-if="renderMenu"
                     v-show="!hideMenu"
@@ -17,7 +17,7 @@
                     :hide-trigger="true"
                     @collapse="setCollapsed"
                 >
-                    <div class="menu-wrapper">
+                    <div class="menu-wrapper w7-menu-scroll">
                         <Menu />
                     </div>
                 </a-layout-sider>
@@ -25,16 +25,24 @@
                     v-if="renderMenu && hideMenu"
                     :visible="drawerVisible"
                     placement="left"
+                    body-class="w7-menu-drawer-body w7-menu-scroll"
+                    :header="false"
                     :footer="false"
                     mask-closable
                     :closable="false"
                     @cancel="drawerCancel"
                 >
-                    <Menu />
+                    <div class="menu-wrapper w7-menu-scroll">
+                        <Menu />
+                    </div>
                 </a-drawer>
                 <a-layout class="layout-content" :style="paddingStyle">
                     <!-- <TabBar v-if="appStore.tabBar" /> -->
-                    <a-layout-content>
+                    <a-layout-content
+                        ref="routerViewScroller"
+                        class="layout-router-view"
+                        :class="{ 'layout-router-view--fixed': route.meta.replaceRootMenu }"
+                    >
                         <!-- <PageLayout /> -->
                         <router-view />
                     </a-layout-content>
@@ -84,8 +92,20 @@
                 ? { paddingLeft: `${menuWidth.value}px` }
                 : {};
         const paddingTop = navbar.value ? { paddingTop: navbarHeight } : {};
-        return { ...paddingLeft, ...paddingTop, minHeight: (window as any).__POWERED_BY_WUJIE__? `calc(100vh - 62px)` : '100vh'};
+        return { ...paddingLeft, ...paddingTop };
     });
+    const routerViewScroller = ref<any>(null);
+    watch(
+        () => route.fullPath,
+        () => {
+            const scroller = routerViewScroller.value?.$el || routerViewScroller.value;
+            if (scroller instanceof HTMLElement) {
+                scroller.scrollTop = 0;
+                scroller.scrollLeft = 0;
+            }
+        },
+        { flush: 'post' }
+    );
     const setCollapsed = (val: boolean) => {
         if (!isInit.value) return; // for page initialization menu state problem
         appStore.updateSettings({ menuCollapse: val });
@@ -116,6 +136,13 @@
     .layout {
         width: 100%;
         height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .layout-frame {
+        min-height: 0;
+        overflow: hidden;
     }
 
     .layout-navbar {
@@ -133,6 +160,8 @@
         left: 0;
         z-index: 99;
         height: 100%;
+        min-height: 0;
+        overflow: hidden;
         transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
         &::after {
             position: absolute;
@@ -146,37 +175,34 @@
         }
 
         > :deep(.arco-layout-sider-children) {
-            overflow-y: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
         }
     }
 
     .menu-wrapper {
+        flex: 1 1 auto;
         height: 100%;
-        overflow: auto;
-        overflow-x: hidden;
-        :deep(.arco-menu) {
-            ::-webkit-scrollbar {
-                width: 12px;
-                height: 4px;
-            }
-
-            ::-webkit-scrollbar-thumb {
-                border: 4px solid transparent;
-                background-clip: padding-box;
-                border-radius: 7px;
-                background-color: var(--color-text-4);
-            }
-
-            ::-webkit-scrollbar-thumb:hover {
-                background-color: var(--color-text-3);
-            }
-        }
+        min-height: 0;
+        overflow: hidden;
     }
 
     .layout-content {
-        min-height: 100vh;
-        overflow-y: hidden;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
         background-color: var(--color-fill-2);
         transition: padding 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+    }
+
+    .layout-router-view {
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    .layout-router-view--fixed {
+        overflow: hidden;
     }
 </style>

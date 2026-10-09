@@ -11,7 +11,7 @@
         :hide-trigger="true"
         @collapse="setCollapsed"
     >
-        <div class="menu-wrapper">
+        <div class="menu-wrapper w7-menu-scroll">
             <!-- <a-select v-if="props.identifieList && props.identifieList.length>1" v-model="identifie" @change="v=>emit('changeIdentifie',v)">
                 <a-option v-for="item in props.identifieList" :key="item.name" :value="item.identifie" :label="item.title"></a-option>
             </a-select> -->
@@ -69,6 +69,8 @@
         v-if="hideMenu && showMenu"
         :visible="drawerVisible"
         placement="left"
+        body-class="w7-menu-drawer-body w7-menu-scroll"
+        :header="false"
         :footer="false"
         mask-closable
         :closable="false"
@@ -78,51 +80,53 @@
             <a-option v-for="item in props.identifieList" :key="item.name" :value="item.identifie" :label="item.title"></a-option>
         </a-select> -->
         <!-- :style="{height:props.identifieList?.length>1?'calc(100% - 32px)':'100%'}" -->
-        <a-menu
-            :show-collapse-button="appStore.device !== 'mobile'"
-            @collapse="setCollapse"
-            :level-indent="34"
-            style="width:100%;height:100%;"
-            v-model:selected-keys="selectMenu"
-            :open-keys="openMenuKeys"
-            @update:open-keys="setOpenMenuKeys"
-            @menu-item-click="handelMicroMenu"
-        >
-            <template v-for="role in topMenuRoles" :key="role.key || role.name">
-                <div class="role-header">
-                    <span>{{ role.title }}端</span>
-                </div>
-                <template v-if="role.menus && role.menus.length">
-                    <template v-if="role.isMultiMicroApp">
-                        <MicroappMenuItems
-                            v-for="microApp in role.microApps"
-                            :key="microApp.key"
-                            :menus="microApp.menus"
-                            :group-title="microApp.title"
-                        />
-                    </template>
-                    <MicroappMenuItems v-else :menus="role.menus" />
-                </template>
-            </template>
-            <a-divider v-if="topMenuRoles.length && bottomMenus.length" class="menu-location-divider" />
-            <template v-if="hasGroupedBottomRoles">
-                <template v-for="role in bottomMenuRoles" :key="`bottom:${role.key || role.name}`">
-                    <div v-if="role.isMultiMicroApp" class="role-header">
+        <div class="menu-wrapper w7-menu-scroll">
+            <a-menu
+                :show-collapse-button="appStore.device !== 'mobile'"
+                @collapse="setCollapse"
+                :level-indent="34"
+                style="width:100%;height:100%;"
+                v-model:selected-keys="selectMenu"
+                :open-keys="openMenuKeys"
+                @update:open-keys="setOpenMenuKeys"
+                @menu-item-click="handelMicroMenu"
+            >
+                <template v-for="role in topMenuRoles" :key="role.key || role.name">
+                    <div class="role-header">
                         <span>{{ role.title }}端</span>
                     </div>
-                    <template v-if="role.isMultiMicroApp">
-                        <MicroappMenuItems
-                            v-for="microApp in role.microApps"
-                            :key="microApp.key"
-                            :menus="microApp.menus"
-                            :group-title="microApp.title"
-                        />
+                    <template v-if="role.menus && role.menus.length">
+                        <template v-if="role.isMultiMicroApp">
+                            <MicroappMenuItems
+                                v-for="microApp in role.microApps"
+                                :key="microApp.key"
+                                :menus="microApp.menus"
+                                :group-title="microApp.title"
+                            />
+                        </template>
+                        <MicroappMenuItems v-else :menus="role.menus" />
                     </template>
-                    <MicroappMenuItems v-else :menus="role.menus" />
                 </template>
-            </template>
-            <MicroappMenuItems v-else :menus="bottomMenus" />
-        </a-menu>
+                <a-divider v-if="topMenuRoles.length && bottomMenus.length" class="menu-location-divider" />
+                <template v-if="hasGroupedBottomRoles">
+                    <template v-for="role in bottomMenuRoles" :key="`bottom:${role.key || role.name}`">
+                        <div v-if="role.isMultiMicroApp" class="role-header">
+                            <span>{{ role.title }}端</span>
+                        </div>
+                        <template v-if="role.isMultiMicroApp">
+                            <MicroappMenuItems
+                                v-for="microApp in role.microApps"
+                                :key="microApp.key"
+                                :menus="microApp.menus"
+                                :group-title="microApp.title"
+                            />
+                        </template>
+                        <MicroappMenuItems v-else :menus="role.menus" />
+                    </template>
+                </template>
+                <MicroappMenuItems v-else :menus="bottomMenus" />
+            </a-menu>
+        </div>
     </a-drawer>
 </template>
 <script setup>
@@ -267,26 +271,10 @@ const setCollapse = (val) => {
 
 <style scoped lang="less">
 .menu-wrapper {
+    flex: 1 1 auto;
     height: 100%;
-    overflow: auto;
-    overflow-x: hidden;
-    :deep(.arco-menu) {
-        ::-webkit-scrollbar {
-            width: 12px;
-            height: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            border: 4px solid transparent;
-            background-clip: padding-box;
-            border-radius: 7px;
-            background-color: var(--color-text-4);
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background-color: var(--color-text-3);
-        }
-    }
+    min-height: 0;
+    overflow: hidden;
 }
 
 .role-header {
@@ -310,6 +298,8 @@ const setCollapse = (val) => {
     // left: 0;
     // z-index: 99;
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
     transition: all 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
     &::after {
         position: absolute;
@@ -322,7 +312,10 @@ const setCollapse = (val) => {
         content: '';
     }
     > :deep(.arco-layout-sider-children) {
-        overflow-y: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
     }
 }
 </style>
