@@ -444,3 +444,8 @@
 
 - 节点页的集群认证信息在子集群仅显示、下载接口返回的原始 kubeconfig；不请求 K3sConfig，也不展示地址选择与 tls-san 配置。主集群保留原流程。
 - 验证：`npm run build`、`git diff --check` 通过。
+
+## 2026-10-09（MicroApp 子集群字段更名）
+
+- Wujie 各入口改读 frontprops 的 `is_sub_cluster`，顶层 props 也只注入新字段；旧字段不再使用。`/app-info` 的页面逻辑保持原样。
+- 验证：`npm run build`、`git diff --check` 通过。

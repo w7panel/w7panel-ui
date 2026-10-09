@@ -43,7 +43,7 @@ export default {
                 el: "#plugin-preview",
                 props: {
                     token: getToken(),
-                    isSubCluster: frontProps.isSubCluster === true,
+                    is_sub_cluster: frontProps.is_sub_cluster === true,
                 },
                 sync: true,
                 alive: false,
