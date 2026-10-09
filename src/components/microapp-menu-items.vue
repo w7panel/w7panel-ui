@@ -9,7 +9,6 @@
         <a-menu-item v-if="!menu.children || !menu.children.length" :key="menu.key || menu.do">
             <template v-if="level === 1" #icon>
                 <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                <span v-else-if="menu.icon" class="wi" :class="'wi-' + menu.icon"></span>
                 <IconMenu v-else />
             </template>
             <span>{{ menu.title }}</span>
@@ -17,7 +16,6 @@
         <a-sub-menu v-else :key="menu.key || menu.do">
             <template v-if="level === 1" #icon>
                 <span v-if="menu.icon_svg" v-html="elementsToSvg(menu.icon_svg)"></span>
-                <span v-else-if="menu.icon" class="wi" :class="'wi-' + menu.icon"></span>
                 <IconMenu v-else />
             </template>
             <template #title>{{ menu.title }}</template>
