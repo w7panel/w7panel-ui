@@ -10,11 +10,11 @@
         <!-- :identifie="identifie" -->
         <!-- :identifieList="identifieList"
         @changeIdentifie="changeIdentifie" -->
-        <a-layout class="layout-content" >
-            <a-layout-content>
+        <a-layout class="layout-content topapp-micro-content" >
+            <a-layout-content class="topapp-micro-router-view">
                 <div
+                    class="topapp-micro-container"
                     :class="{ 'padding-20': !hideAppMenu }"
-                    style="height:calc(100vh - 62px);box-sizing:border-box;"
                 >
                     <micro-container
                         ref="microcontainer"
@@ -243,6 +243,21 @@ export default{
 .micro-iframe-modal .arco-modal-body{padding:0;}
 .topapp-micro-page{
     height:100%;
+    min-height:0;
+    overflow:hidden;
+}
+.topapp-micro-content,
+.topapp-micro-router-view,
+.topapp-micro-container{
+    height:100%;
+    min-height:0;
+}
+.topapp-micro-content,
+.topapp-micro-router-view{
+    overflow:hidden;
+}
+.topapp-micro-container{
     overflow:auto;
+    overscroll-behavior:contain;
 }
 </style>

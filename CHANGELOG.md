@@ -334,3 +334,15 @@
 - 站点管理不再显示为面板一级菜单；保留 `/sitemanage` 路由兼容历史链接和已有内部跳转。影响模块：主导航菜单。
 - 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。
 - 2026-10-08 更正：站点管理不再保留兼容路由；删除 `/sitemanage` 路由模块、专用跳转页面及权限树配置，旧地址将进入未找到页面。
+
+## 2026-10-08（MicroApp 页面滚动区域）
+
+- 基座、应用详情、新版 root 入口及首页 root 直达入口改为固定可视区高度并隐藏宿主溢出，右侧原生内容独立滚动，MicroApp 页面保留子应用自身滚动，避免宿主与子应用同时出现纵向滚动条。
+- 系统菜单、应用详情菜单和 root 级菜单统一由侧栏内部承载滚动；滚动条默认透明，在鼠标悬停或键盘聚焦菜单时显示，无悬停能力的设备保持可见。
+- 影响模块：应用根布局、应用详情布局、root 级 MicroApp 容器、左侧菜单与全局滚动条样式。验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过；`npm run type:check` 仍仅报告修改前已有的 16 条类型诊断，本次修改文件无新增诊断。
+
+## 2026-10-09（应用容器溢出修正）
+
+- 应用详情与 root 直达链路的 MicroApp 内容容器改为内部滚动，超出可视区域的应用内容不再被裁剪；基座外层仍保持固定高度并隐藏自身溢出，避免恢复页面级双滚动条。
+- 影响模块：应用详情 MicroApp 容器、root 级 MicroApp 容器。验证结果将在本次回归完成后补充。
+- 验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过。
