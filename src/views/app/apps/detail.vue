@@ -1,5 +1,5 @@
 <template>
-    <div class="app-detail-page" :style="{minHeight: appDetailMinHeight}">
+    <div class="app-detail-page">
         <a-layout class="app-detail-layout">
             <component
                 :is="appMenuContainer"
@@ -9,7 +9,7 @@
                 @collapse="setAppMenuCollapsed"
                 @cancel="appMenuDrawerVisible=false"
             >
-                <div class="df df-c menu-absolute-div app-detail-menu-scroll" :style="appMenuScrollStyle">
+                <div class="df df-c menu-absolute-div app-detail-menu-scroll w7-menu-scroll" :style="appMenuScrollStyle">
                     <a-menu
                         v-model:collapsed="appMenuCollapsed"
                         v-model:selected-keys="selectMenu"
@@ -113,26 +113,27 @@
 
             <a-layout class="app-detail-main df df-c" :style="appDetailMainStyle">
                 <Breadcrumb v-if="!isTopAppEntry" class="df-s0" :routes="detailBreadcrumbRoutes" />
-                <a-layout-content v-if="isAppDirectPage" class="df df-c">
+                <a-layout-content v-if="isAppDirectPage" class="app-detail-content app-detail-content--native df df-c">
                     <app-direct
                         v-if="appGroupName"
+                        ref="nativeContentScroller"
                         :key="`${$route.name}:${$route.params.group}:${appGroupName}`"
                         :info="info"
                         class="routerviewbox fc"
                     />
                 </a-layout-content>
-                <a-layout-content v-else-if="isMicroPage" class="df df-c">
+                <a-layout-content v-else-if="isMicroPage" class="app-detail-content app-detail-content--micro df df-c">
                     <div class="app-detail-micro-container bg-white routerviewbox fc">
-                        <div v-show="downOk" id="app-detail-micro" :style="microPanelStyle"></div>
-                        <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." :style="{display:'block', height: microPanelHeight}">
+                        <div v-show="downOk" id="app-detail-micro" class="app-detail-micro-panel"></div>
+                        <a-spin v-if="!downOk" class="app-detail-micro-panel" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;">
                             <div style="height:100%;" class="bg-white"></div>
                         </a-spin>
                         <a-spin v-if="microLoading" class="app-detail-micro-loading" :loading="microLoading" :size="32">
-                            <div :style="{height: microPanelHeight}"></div>
+                            <div class="app-detail-micro-panel"></div>
                         </a-spin>
                     </div>
                 </a-layout-content>
-                <a-layout-content v-else class="df df-c">
+                <a-layout-content v-else class="app-detail-content app-detail-content--native df df-c">
                 <a-tabs
                     :active-key="appname"
                     type="card"
@@ -163,7 +164,7 @@
                         </a-button>
                     </template>
                 </a-tabs>
-                <div class="bg-white routerviewbox fc" >
+                <div ref="nativeContentScroller" class="bg-white routerviewbox fc" >
                     <router-view v-if="$route.name=='app-detail-micro'" :url="appLocation" :data="data" @refresh="dataDetail" />
                     <router-view v-else-if="data||isHelmPage" :data="data" :identifie="identifie" :appList="applist" :title="title" @refresh="dataDetail" @editApp="openForm()"/>
                 </div>
@@ -325,6 +326,16 @@ export default {
         }
     },
     watch: {
+        '$route.fullPath'(){
+            this.$nextTick(()=>{
+                const contentRef = this.$refs.nativeContentScroller;
+                const scroller = contentRef?.$el || contentRef;
+                if(scroller instanceof HTMLElement){
+                    scroller.scrollTop = 0;
+                    scroller.scrollLeft = 0;
+                }
+            });
+        },
         '$route.name'(v,ov){
             this.selectMenu = [this.$route.meta.routekey];
             this.isHelmPage = /^group\-helm(\-|$)/.test(v);
@@ -407,13 +418,6 @@ export default {
                 padding: this.isTopAppEntry && this.hideAppMenu ? '0' : '20px',
             };
         },
-        appDetailMinHeight(){
-            if((window).__POWERED_BY_WUJIE__){
-                return 'calc(100vh - 62px)';
-            }
-            const hasNavbar = this.appStore.navbar && window.self === window.top;
-            return hasNavbar ? 'calc(100vh - 60px)' : '100vh';
-        },
         appMenuCollapsed: {
             get(){
                 return this.appStore.device === 'desktop' && this.appStore.menuCollapse;
@@ -430,6 +434,8 @@ export default {
                 return {
                     visible: this.appMenuDrawerVisible,
                     placement: 'left',
+                    bodyClass: 'w7-menu-drawer-body w7-menu-scroll',
+                    header: false,
                     footer: false,
                     maskClosable: true,
                     closable: false,
@@ -446,8 +452,8 @@ export default {
         },
         appMenuScrollStyle(){
             return this.appStore.hideMenu
-                ? {height:'100%', overflow:'auto'}
-                : {flex:'1 1 auto', minHeight:0, overflow:'auto'};
+                ? {height:'100%', overflow:'hidden'}
+                : {flex:'1 1 auto', minHeight:0, overflow:'hidden'};
         },
         detailBreadcrumbRoutes(){
             const appTarget = this.getBreadcrumbAppTarget();
@@ -487,20 +493,6 @@ export default {
         },
         bottomMenus(){
             return this.menuLocationGroups.bottomMenus;
-        },
-        microPanelHeight(){
-            if(this.isTopAppEntry){
-                const headerOffset = 62;
-                const paddingOffset = this.hideAppMenu ? 0 : 40;
-                return `calc(100vh - ${headerOffset + paddingOffset}px)`;
-            }
-            return this.hideAppMenu ? 'calc(100vh - 86px)' : 'calc(100vh - 146px)';
-        },
-        microPanelStyle(){
-            return {
-                height: this.microPanelHeight,
-                transform: 'translate(0,0)',
-            };
         },
         modalExcludeWujieEvents(){
             const group = this.$route.params.group || '';
@@ -1971,8 +1963,9 @@ export default {
 .point.red{background:#D00805;}
 .point.green{background:#00A870;}
 
-.routerviewbox{border:1px solid var(--color-neutral-3);border-top:0;}
-.app-detail-micro-container{position:relative;}
+.routerviewbox{min-height:0;border:1px solid var(--color-neutral-3);border-top:0;}
+.app-detail-micro-container{position:relative;min-height:0;overscroll-behavior:contain;}
+.app-detail-micro-panel{height:100%;min-height:0;transform:translate(0,0);}
 .app-detail-micro-loading{
     position:absolute;
     inset:0;
@@ -1982,25 +1975,29 @@ export default {
     justify-content:center;
     background:var(--color-bg-1);
 }
-.app-detail-page{height:auto;}
-.app-detail-layout{min-width:0;min-height:inherit;}
-.app-detail-main{box-sizing:border-box;min-width:0;min-height:inherit;}
+.app-detail-page{height:100%;min-height:0;overflow:hidden;}
+.app-detail-layout{height:100%;min-width:0;min-height:0;overflow:hidden;}
+.app-detail-main{box-sizing:border-box;height:100%;min-width:0;min-height:0;overflow:hidden;}
+.app-detail-content{min-height:0;overflow:hidden;}
+.app-detail-content--native > .routerviewbox{min-height:0;overflow:auto;}
+.app-detail-content--micro > .routerviewbox{height:100%;overflow:auto;}
 .app-detail-menu-container:not(.app-detail-menu-container--drawer){
     display:flex;
     flex-direction:column;
     align-self:stretch;
-    height:auto;
+    height:100%;
     min-height:0;
+    overflow:hidden;
 }
 :deep(.app-detail-menu-container:not(.app-detail-menu-container--drawer) > .arco-layout-sider-children){
     display:flex;
     flex:1 1 auto;
     flex-direction:column;
-    height:auto;
+    height:100%;
     min-height:0;
     overflow:hidden;
 }
-.app-detail-menu-scroll{width:100%;min-height:0;}
+.app-detail-menu-scroll{flex:1 1 auto;width:100%;height:100%;min-height:0;overflow:hidden;}
 .microapp-role-header{
     box-sizing:border-box;
     height:40px;

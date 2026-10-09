@@ -52,6 +52,12 @@
     const locale = zhCN;
 </script>
 <style>
+#w7panel,
+.arco-spin.page-spin,
+.page-spin > .arco-spin-children{
+    height:100%;
+    min-height:0;
+}
 .arco-spin.page-spin{display:block!important;}
 .page-spin .arco-spin-mask{z-index:9999;}
 </style>

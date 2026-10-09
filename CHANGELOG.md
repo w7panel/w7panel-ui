@@ -435,17 +435,26 @@
 - 2026-09-30 复核修正：文件管理优先使用宿主解析的 AppGroup，MicroApp payload 仅在宿主无上下文时兜底；顶部应用直达在 AppGroup 完整解析后才挂载和允许保存，并以请求代次及 AppGroup 双重校验丢弃迟到响应，避免快速切组时旧配置覆盖当前表单。
 - 2026-09-30 测试补强：将 `/microapp/top` 资源到顶部菜单项的转换抽为纯函数，回归测试直接断言 root `metadata.name`、AppGroup 别名、文件跳转上下文优先级及异步请求失效规则；复核验证 `npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过，类型检查仍仅报告上述仓库存量错误。
 
-## 2026-10-09（MicroApp 子集群标识）
+## 2026-10-08（站点管理菜单调整）
 
-- Wujie 顶部应用、应用详情、网关插件、应用市场和插件预览的顶层 props 注入布尔字段 `isSubCluster`，使用 server frontprops 的判断结果。
-- 验证：`npm run build` 通过。
+- 站点管理不再显示为面板一级菜单；保留 `/sitemanage` 路由兼容历史链接和已有内部跳转。影响模块：主导航菜单。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。
+- 2026-10-08 更正：站点管理不再保留兼容路由；删除 `/sitemanage` 路由模块、专用跳转页面及权限树配置，旧地址将进入未找到页面。
 
-## 2026-10-09（子集群 kubeconfig 展示）
+## 2026-10-08（MicroApp 页面滚动区域）
 
-- 节点页的集群认证信息在子集群仅显示、下载接口返回的原始 kubeconfig；不请求 K3sConfig，也不展示地址选择与 tls-san 配置。主集群保留原流程。
-- 验证：`npm run build`、`git diff --check` 通过。
+- 基座、应用详情、新版 root 入口及首页 root 直达入口改为固定可视区高度并隐藏宿主溢出，右侧原生内容独立滚动，MicroApp 页面保留子应用自身滚动，避免宿主与子应用同时出现纵向滚动条。
+- 系统菜单、应用详情菜单和 root 级菜单统一由侧栏内部承载滚动；滚动条默认透明，在鼠标悬停或键盘聚焦菜单时显示，无悬停能力的设备保持可见。
+- 影响模块：应用根布局、应用详情布局、root 级 MicroApp 容器、左侧菜单与全局滚动条样式。验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过；`npm run type:check` 仍仅报告修改前已有的 16 条类型诊断，本次修改文件无新增诊断。
 
-## 2026-10-09（MicroApp 子集群字段更名）
+## 2026-10-09（应用容器溢出修正）
 
-- Wujie 各入口改读 frontprops 的 `is_sub_cluster`，顶层 props 也只注入新字段；旧字段不再使用。`/app-info` 的页面逻辑保持原样。
-- 验证：`npm run build`、`git diff --check` 通过。
+- 应用详情与 root 直达链路的 MicroApp 内容容器改为内部滚动，超出可视区域的应用内容不再被裁剪；基座外层仍保持固定高度并隐藏自身溢出，避免恢复页面级双滚动条。
+- 影响模块：应用详情 MicroApp 容器、root 级 MicroApp 容器。验证结果将在本次回归完成后补充。
+- 验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过。
+
+## 2026-10-09（制品安装集群等级校验）
+
+- 安装页读取 ZPK 配置下发的 `supportCluster`，根据面板当前主/子集群等级停止不受支持的安装，不依赖制品市场入口。
+- 根应用和必装依赖在配置加载时校验；未启用的可选依赖不再阻止整个制品安装，可选依赖在预设启用或用户打开开关时单独校验并回退不支持的选择。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。

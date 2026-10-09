@@ -179,10 +179,6 @@
     "key": "zpk",
     "route": "zpk"
 },{
-    "title": "站点管理",
-    "key": "sitemanage",
-    "route": "sitemanage"
-},{
     "title": "系统管理",
     "key": "system",
     "route": "system",

@@ -26,7 +26,14 @@
 					<a-button class="mr-10" @click="trialExpired.show=false">知道了</a-button>
 				</div>
 			</a-modal>
-        <div class="toptitle df jc-c" :style="{width:is_component?'800px':'1000px'}">
+        <a-result v-if="clusterInstallUnsupported" status="warning"
+            title="当前集群不支持安装该应用"
+            :subtitle="clusterInstallUnsupportedDescription">
+            <template #extra>
+                <a-button type="primary" @click="goBackMarket">返回上一页</a-button>
+            </template>
+        </a-result>
+        <div v-else class="toptitle df jc-c" :style="{width:is_component?'800px':'1000px'}">
             <img v-if="info.icon" :src="info.icon" alt="" class="icon" @error="info.icon=''" />
             <icon-common v-else class="icon"  />
             <div class="df df-c jc-b" style="padding:0px 10px 0px;">
@@ -37,7 +44,7 @@
                 </div>
             </div>
         </div>
-        <div class="df ai-c progress c-00-6">
+        <div v-if="!clusterInstallUnsupported" class="df ai-c progress c-00-6">
             <div class="df ai-c" :class="{'c-blue':step>=2}">
                 <div v-if="step<=2" class="no">1</div>
                 <div v-if="step>2" class="over df ai-c jc-c"><icon-check /></div>
@@ -50,7 +57,7 @@
             </div>
         </div>
 
-        <div class="mt-40" style="width:720px;">
+        <div v-if="!clusterInstallUnsupported" class="mt-40" style="width:720px;">
             <div v-if="step==2">
                 <a-tabs v-model:active-key="form.activeIdentifie" type="card-gutter" class="zpkinstalltabs">
                     <a-tab-pane v-for="item in form.forms" :disabled="true" :key="item.identifie">
@@ -303,7 +310,7 @@ import zoneDrawer from '@/views/storage/zone-drawer.vue';
 import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
 import jobLog from '@/components/job-log.vue';
 import customCheckbox from './custom-checkbox.vue';
-import { getUserInfo } from '@/utils/auth';
+import { getK8sinfo, getUserInfo } from '@/utils/auth';
 import shortuuid from 'short-uuid';
 
 export default {
@@ -396,6 +403,7 @@ export default {
 			},
 			trialExpired: { show: false, marketUrl: '', orderSn: '', expireAt: '' },
 			reinstallConfirmed: false,
+			clusterInstallUnsupported: false,
         }
     },
     async created(){
@@ -419,6 +427,14 @@ export default {
         },
         isCaptureMode(){
             return this.installInputParams.mode === 'capture';
+        },
+        clusterLevel(){
+            return String(getK8sinfo()?.['w7.cc/is-ckm-req']) === 'true' ? 'sub' : 'main';
+        },
+        clusterInstallUnsupportedDescription(){
+            return this.clusterLevel === 'sub'
+                ? '该应用分类未开放子集群安装，请选择其他应用或切换集群。'
+                : '该应用分类未开放主集群安装，请选择其他应用或切换集群。';
         },
     },
     methods: {
@@ -810,6 +826,11 @@ export default {
                 reinstall,
             },noAlert:true}).then(async res=>{
                 if(!res?.data){return true}
+				if(!this.isClusterInstallSupported(res.data)){
+					this.clusterInstallUnsupported = true;
+					return false;
+				}
+				this.clusterInstallUnsupported = false;
 
                 this.applyDependencyReleaseBindings(res.data);
 
@@ -987,6 +1008,7 @@ export default {
                         volumesMounts: volumesMounts,
                         volumes: volumes,
                         isUpgrade: i.isUpgrade,
+                        supportCluster: i.supportCluster || 'all',
                         
                         name: i.name, // 名称
                         identifie: i.identifie, // 标识
@@ -1094,7 +1116,7 @@ export default {
 				return true;
 			}).catch(error=>{
 				if(this.handleTrialExpired(error)){return false}
-					if(this.handleInstallConflict(error, null, true)){return false}
+				if(this.handleInstallConflict(error, null, true)){return false}
 				this.$message.error(error?.response?.data?.error || error?.message || '获取安装配置失败');
 				return false;
             })
@@ -1103,6 +1125,27 @@ export default {
             if(this.is_component){this.$emit('close'); return;}
             this.$router.push({name: getAppGroupListRouteName(this.appManifestType)});
         },
+        goBackMarket(){
+            if(this.is_component){this.$emit('close'); return;}
+            if(window.history.length > 1){
+                this.$router.back();
+                return;
+            }
+            this.$router.push({name:'app-product-market'});
+        },
+		isClusterConfigSupported(config){
+			const supportCluster = String(config?.supportCluster || 'all').trim();
+			return supportCluster === 'all' || supportCluster === this.clusterLevel;
+		},
+		isClusterInstallSupported(configs){
+			if(!Array.isArray(configs) || configs?.[0]?.isUpgrade){return true}
+			return configs.every((item,index)=>{
+				const moduleParams = this.moduleInstallParams(item?.identifie, index);
+				const optionalEnabled = moduleParams.provided && moduleParams.enabled;
+				if(index > 0 && !item?.requireInstall && !optionalEnabled){return true}
+				return this.isClusterConfigSupported(item);
+			});
+		},
         closeIMG(v){
             this.imgShow = false;
             v && this.getMirror();
@@ -1144,8 +1187,13 @@ export default {
         //     })
         // },
         switchChange(identifie){
+			const item = this.form.forms.find(i=>i.identifie==identifie);
+			if(item?.isInstall && !this.isClusterConfigSupported(item)){
+				item.isInstall = false;
+				this.$message.warning(`依赖应用“${item.title || item.name || identifie}”不支持当前集群等级，无法启用安装`);
+			}
             this.form.installForm = this.form.forms.filter(i=>i.requireInstall || i.isInstall).map(i=>i.identifie);
-            let isInstall = this.form.forms.find(i=>i.identifie==identifie).isInstall;
+			let isInstall = item?.isInstall;
             if(this.form.activeIdentifie==identifie && !isInstall){
                 this.filterInstall();
             }
@@ -1533,8 +1581,8 @@ export default {
                     });
                 }
 			}).catch(error=>{
-					if(this.handleTrialExpired(error)){return}
-					if(this.handleInstallConflict(error, {...params})){return}
+				if(this.handleTrialExpired(error)){return}
+				if(this.handleInstallConflict(error, {...params})){return}
 				this.$message.error(error?.response?.data?.error || error?.message || '安装失败');
 			});
         },
