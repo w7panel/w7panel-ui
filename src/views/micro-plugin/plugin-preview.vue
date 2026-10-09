@@ -6,7 +6,7 @@
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import { bus, setupApp, preloadApp, startApp, destroyApp } from "wujie";
@@ -34,13 +34,16 @@ export default {
                 this.appStart();
             });
         },
-        appStart(){
+        async appStart(){
+            const frontProps = await panelApi.get('/microapp/global-frontprops', { noAlert: true })
+                .then(res => res?.data || {}).catch(() => ({}));
             setupApp({
                 name: "plugin-preview",
                 url: this.url,
                 el: "#plugin-preview",
                 props: {
                     token: getToken(),
+                    isSubCluster: frontProps.isSubCluster === true,
                 },
                 sync: true,
                 alive: false,

@@ -466,6 +466,7 @@ export default{
                 panelProxy: createPanelProxy(),
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
+                isSubCluster: frontProps.isSubCluster === true,
             }
             appendWujieModalHandles(props, () => this.$refs.wujieModals, {
                 getAppDynamicValues,

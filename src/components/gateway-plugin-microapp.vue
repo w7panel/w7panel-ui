@@ -182,6 +182,7 @@ export default {
                     microappProxy: createMicroappProxy(proxyBackendUrl),
                     k8sproxy: createK8sProxy(),
                     panelProxy: createPanelProxy(),
+                    isSubCluster: frontProps.isSubCluster === true,
                 };
                 appendWujieModalHandles(props, () => this.$refs.wujieModals, {
                     getAppDynamicValues,
