@@ -11,6 +11,7 @@
 <script>
 import { startApp, destroyApp } from 'wujie';
 import { panelApi } from '@/utils/api';
+import { getK8sinfo } from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
 
@@ -66,7 +67,11 @@ export default {
             const remoteUrl = this.remoteUrl;
             const data = await panelApi.get('/microapp/global-frontprops', { noAlert: true })
             if (!this.marketMounted || loadId !== this.marketLoadId) { return; }
+            const clusterLevel = String(getK8sinfo()?.['w7.cc/is-ckm-req']) === 'true'
+                ? 'sub'
+                : 'main';
             const props = {
+                cluster_level: clusterLevel,
                 frontend_props: {
                     ...(data?.data || {})
                 }

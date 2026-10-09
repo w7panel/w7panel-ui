@@ -346,3 +346,9 @@
 - 应用详情与 root 直达链路的 MicroApp 内容容器改为内部滚动，超出可视区域的应用内容不再被裁剪；基座外层仍保持固定高度并隐藏自身溢出，避免恢复页面级双滚动条。
 - 影响模块：应用详情 MicroApp 容器、root 级 MicroApp 容器。验证结果将在本次回归完成后补充。
 - 验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过。
+
+## 2026-10-09（制品安装集群等级校验）
+
+- 安装页读取 ZPK 配置下发的 `supportCluster`，根据面板当前主/子集群等级停止不受支持的安装，不依赖制品市场入口。
+- 根应用和必装依赖在配置加载时校验；未启用的可选依赖不再阻止整个制品安装，可选依赖在预设启用或用户打开开关时单独校验并回退不支持的选择。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。
