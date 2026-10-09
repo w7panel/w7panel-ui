@@ -425,6 +425,7 @@
 
 - 移除授权管理页面、证书导入流程和团队版/企业版展示；云端页面固定展示免费版，免费版不再隐藏用户组权限。
 - 验证：`npm run build` 通过。
+
 ## 2026-09-30（顶部 MicroApp root 菜单状态）
 
 - 顶部应用恢复以 `/microapp/top` 返回的 root MicroApp `metadata.name` 作为菜单 key 与顶部路由标识，并单独保留 `w7.cc/group-name` 作为 AppGroup 上下文；root URL 与旧 AppGroup URL 均可映射到同一选中项，精确 root 标识优先于 AppGroup 别名。
@@ -438,3 +439,8 @@
 
 - Wujie 顶部应用、应用详情、网关插件、应用市场和插件预览的顶层 props 注入布尔字段 `isSubCluster`，使用 server frontprops 的判断结果。
 - 验证：`npm run build` 通过。
+
+## 2026-10-09（子集群 kubeconfig 展示）
+
+- 节点页的集群认证信息在子集群仅显示、下载接口返回的原始 kubeconfig；不请求 K3sConfig，也不展示地址选择与 tls-san 配置。主集群保留原流程。
+- 验证：`npm run build`、`git diff --check` 通过。

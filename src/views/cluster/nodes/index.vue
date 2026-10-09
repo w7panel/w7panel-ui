@@ -321,7 +321,7 @@
             <template #title>集群认证信息</template>
             <a-tabs v-model:active-key="clusterInfo.activeTab">
                 <a-tab-pane key="kubeconfig" title="kubeconfig">
-                    <a-select v-model="clusterInfo.selectedAddress" placeholder="请选择地址" @change="getKubeconfig">
+                    <a-select v-if="!clusterInfo.isSubCluster" v-model="clusterInfo.selectedAddress" placeholder="请选择地址" @change="getKubeconfig">
                         <a-option v-for="address in kubeconfigAddresses" :key="address" :value="address">{{address}}</a-option>
                     </a-select>
                     <div class="mt-20" style="height:calc(100vh - 240px);">
@@ -329,7 +329,7 @@
                         <a-spin v-else-if="clusterInfo.kubeconfigLoading" />
                     </div>
                 </a-tab-pane>
-                <a-tab-pane key="tls-san" title="tls-san">
+                <a-tab-pane v-if="!clusterInfo.isSubCluster" key="tls-san" title="tls-san">
                     <a-form-item label="绑定域名">
                         <a-input v-model="clusterInfo.boundDomain" placeholder="网关转发域名（可选）" />
                         <div class="c-gray mt-4">默认启用，仅用于 kubeconfig 地址选择，不写入 tls-san。</div>
@@ -512,6 +512,7 @@ export default {
                 yaml: '',
                 kubeconfigLoading: false,
                 applying: false,
+                isSubCluster: false,
                 newType: 'ip',
                 newAddress: '',
             },
@@ -537,7 +538,11 @@ export default {
         this.permission = getPermission() || [];
         this.namespaceActive = useNamespaceStore().namespace;
         this.getList();
-        this.getConfig();
+        this.appInfoPromise = panelApi.get('/app-info', { noAlert: true }).then(res=>{
+            const isSubCluster = res.data?.isSubCluster === true;
+            if (!isSubCluster) this.getConfig();
+            return isSubCluster;
+        }).catch(()=>null);
         this.testLonghornSystem();
     },
     watch: {
@@ -596,10 +601,14 @@ export default {
             setTimeout(() => URL.revokeObjectURL(url), 0);
         },
         async getKubeconfig(){
-            if (!this.clusterInfo.selectedAddress) return;
+            if (!this.clusterInfo.isSubCluster && !this.clusterInfo.selectedAddress) return;
             this.clusterInfo.kubeconfigLoading = true;
             try {
                 const res = await panelApi.get('/kubeconfig');
+                if (this.clusterInfo.isSubCluster) {
+                    this.clusterInfo.yaml = res.data;
+                    return;
+                }
                 const config = jsyaml.load(res.data);
                 const address = this.clusterInfo.selectedAddress;
                 const host = address.includes(':') && !address.startsWith('[') ? `[${address}]` : address;
@@ -697,7 +706,17 @@ export default {
             }
             throw new Error('等待 K3s 重启超时（5 分钟）');
         },
-        openClusterInfo(){
+        async openClusterInfo(){
+            let isSubCluster = await this.appInfoPromise;
+            if (isSubCluster === null) {
+                try {
+                    isSubCluster = (await panelApi.get('/app-info')).data?.isSubCluster === true;
+                    if (!isSubCluster) this.getConfig();
+                } catch {
+                    this.$message.error('读取集群信息失败');
+                    return;
+                }
+            }
             this.clusterInfo = {
                 ...this.clusterInfo,
                 show: true,
@@ -707,7 +726,13 @@ export default {
                 yaml: '',
                 selectedAddress: '',
                 activeTab: 'kubeconfig',
+                isSubCluster,
             };
+            if (isSubCluster) {
+                this.getKubeconfig();
+                this.clusterInfo.loading = false;
+                return;
+            }
             const server = this.getFirstServer();
             const serverIp = server?.status?.addresses?.find(address => address.type === 'InternalIP')?.address || '';
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(configRes=>{
