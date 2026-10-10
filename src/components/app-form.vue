@@ -445,7 +445,7 @@ export default {
             // if(this.form.security_context.runAsGroup){ spec.securityContext.runAsGroup = Number(this.form.security_context.runAsGroup);  }
             // if(this.form.security_context.fsGroup){ spec.securityContext.fsGroup = Number(this.form.security_context.fsGroup);  }
             
-            if(!this.id){
+            if(!this.id && !this.templateMode){
                 data.metadata.name = this.form.name;
                 data.metadata.labels = data.metadata.labels || {};
                 data.metadata.labels['w7.cc/group-name'] = this.groupname || this.afterName;
