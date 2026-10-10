@@ -330,10 +330,6 @@
                     </div>
                 </a-tab-pane>
                 <a-tab-pane v-if="!clusterInfo.isSubCluster" key="tls-san" title="tls-san">
-                    <a-form-item label="绑定域名">
-                        <a-input v-model="clusterInfo.boundDomain" placeholder="网关转发域名（可选）" />
-                        <div class="c-gray mt-4">默认启用，仅用于 kubeconfig 地址选择，不写入 tls-san。</div>
-                    </a-form-item>
                     <a-form-item label="地址">
                         <div class="padding-10" style="background:var(--color-neutral-1);">
                             <div v-for="(item,index) in clusterInfo.ips" class="df ai-c padding-10" :key="index">
@@ -507,7 +503,6 @@ export default {
                 loading: false,
                 ips: [],
                 activeTab: 'kubeconfig',
-                boundDomain: '',
                 selectedAddress: '',
                 yaml: '',
                 kubeconfigLoading: false,
@@ -560,7 +555,7 @@ export default {
     },
     computed: {
         kubeconfigAddresses(){
-            return [...new Set([this.clusterInfo.boundDomain, ...this.clusterInfo.ips.filter(item => item.default || item.enable).map(item => item.address)].filter(Boolean))];
+            return [...new Set(this.clusterInfo.ips.filter(item => item.default || item.enable).map(item => item.address).filter(Boolean))];
         },
     },
     methods: {
@@ -648,11 +643,6 @@ export default {
             return address.split('.').every(label => label.length > 0 && label.length <= 63 && /^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(label));
         },
         async submitClusterInfo(){
-            this.clusterInfo.boundDomain = this.clusterInfo.boundDomain.trim();
-            if (this.clusterInfo.boundDomain && !this.isValidTlsAddress(this.clusterInfo.boundDomain, 'domain')) {
-                this.$message.warning('请输入有效绑定域名');
-                return;
-            }
             const invalid = this.clusterInfo.ips.find(item => !item.address || !this.isValidTlsAddress(item.address, item.type));
             if (invalid) {
                 this.$message.warning(`地址无效：${invalid.address || '(空)'}`);
@@ -660,10 +650,6 @@ export default {
             }
             if (new Set(this.clusterInfo.ips.map(item => item.address.toLowerCase())).size !== this.clusterInfo.ips.length) {
                 this.$message.warning('地址不能重复');
-                return;
-            }
-            if (this.clusterInfo.boundDomain && this.clusterInfo.ips.some(item => item.address.toLowerCase() === this.clusterInfo.boundDomain.toLowerCase())) {
-                this.$message.warning('绑定域名不能与 tls-san 地址重复');
                 return;
             }
             const enabled = this.clusterInfo.ips.filter(item => !item.default && item.enable).map(item => item.address);
@@ -674,8 +660,6 @@ export default {
                     op: 'add', path: '/spec/data/k3s.tls-san', value: enabled.join(','),
                 },{
                     op: 'add', path: '/spec/data/k3s.tls-san.disabled', value: disabled.join(','),
-                },{
-                    op: 'add', path: '/spec/data/k3s.bound-domain', value: this.clusterInfo.boundDomain,
                 },{
                     op: 'replace', path: '/metadata/labels/data-hash', value: String(Date.now()),
                 }],{
@@ -722,7 +706,6 @@ export default {
                 show: true,
                 loading: true,
                 ips: [],
-                boundDomain: '',
                 yaml: '',
                 selectedAddress: '',
                 activeTab: 'kubeconfig',
@@ -737,7 +720,6 @@ export default {
             const serverIp = server?.status?.addresses?.find(address => address.type === 'InternalIP')?.address || '';
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(configRes=>{
                 const data = configRes?.data?.spec?.data || {};
-                this.clusterInfo.boundDomain = data['k3s.bound-domain'] || '';
                 const split = key => (data[key] || '').split(',').filter(Boolean);
                 const defaults = [...new Set([serverIp, ...split('k3s.default-tls-san')].filter(Boolean))];
                 const configured = new Map();
@@ -750,7 +732,7 @@ export default {
                 this.clusterInfo.ips = defaults.map(address => ({
                     address, type: this.isValidTlsAddress(address, 'ip') ? 'ip' : 'domain', enable: true, default: true,
                 }))
-                    .concat([...configured].filter(([address]) => !defaults.includes(address) && address !== this.clusterInfo.boundDomain).map(([address, enable]) => ({
+                    .concat([...configured].filter(([address]) => !defaults.includes(address)).map(([address, enable]) => ({
                         address, type: this.isValidTlsAddress(address, 'ip') ? 'ip' : 'domain', enable, default: false,
                     })));
                 this.clusterInfo.selectedAddress = serverIp || this.kubeconfigAddresses[0] || '';
