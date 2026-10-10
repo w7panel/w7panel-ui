@@ -13,6 +13,7 @@ const WUJIE_MODAL_HANDLE_MAP = {
     toStoreInstall: 'toStoreInstall',
     openStoreInstall: 'openStoreInstall',
     containerPlugin: 'openContainerPlugin',
+    systemTemplateAppForm: 'openSystemTemplateAppForm',
     ingressEdit: 'openDomainEdit',
     ingressStrategy: 'openStrategy',
     toStoreInstallWithOrder: 'toStoreInstallWithOrder',

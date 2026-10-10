@@ -4,7 +4,7 @@
             <div class="title">基本信息</div>
             <a-form ref="form" :model="form" :rules="rules" validate-trigger="blur" label-align="left" auto-label-width class="app-formclass">
                 <a-form-item label="应用名称" field="title">
-                    <a-input type="text" v-model="form.title" @input="titleInput();" @blur="titleInput();" size="large" :placeholder="form.namePlaceholder||'应用名称'" :spellcheck="false" style="width:500px;" />
+                    <a-input type="text" v-model="form.title" :disabled="!!templateMode" @input="titleInput();" @blur="titleInput();" size="large" :placeholder="form.namePlaceholder||'应用名称'" :spellcheck="false" style="width:500px;" />
                 </a-form-item>
                 <a-form-item label="应用标识" field="nameBefore">
                     <div class="df df-c">
@@ -18,7 +18,7 @@
 
                 <a-form-item label="应用类型" field="kind">
                     <div class="df ai-c">
-                        <a-radio-group v-model="form.kind" :disabled="!!id">
+                        <a-radio-group v-model="form.kind" :disabled="!!id || !!templateMode">
                             <a-radio value="deployments" >
                                 <template #radio="{checked,disabled}">
                                     <div class="app-type-custom-label" :class="{'custom-radio-card-checked':checked, 'custom-radio-card-disabled':disabled }">无状态应用</div>
@@ -72,6 +72,7 @@
                     :id="id"
                     :data="data"
                     :kind="form.kind"
+                    :is-template="templateMode"
                     @submit="v=>{volumes=v.volumes;volumeClaimTemplates=v.volumeClaimTemplates;}"
                 ></app-form-volumes>
 
@@ -83,6 +84,7 @@
                     :volumes="volumes"
                     :volumeClaimTemplates="volumeClaimTemplates"
                     :mirror="mirror"
+                    :is-template="templateMode"
                     @getMirror="getMirror"
                     @editMirror="v=>{createImage.name=v;createImage.show=true;}"
                     @delMirror="delMirror"
@@ -117,6 +119,7 @@ import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
 
 import appFormVolumes from './app-form-volumes.vue';
 import appFormContainer from '@/components/app-form-container.vue';
+import { applyTemplateAppEdit } from '@/utils/template-app-edit.mjs';
 
 
 const dataTemplate = {
@@ -158,7 +161,7 @@ const dataTemplate = {
 }
 
 export default {
-    props: ['id', 'kind', 'defaultData', 'parent', 'afterName','groupname'],
+    props: ['id', 'kind', 'defaultData', 'parent', 'afterName','groupname','templateMode'],
     data(){
         return {
             namespaceActive: '',
@@ -201,13 +204,14 @@ export default {
             volumes: [],
             volumeClaimTemplates:[],
             showExtra: false,
+            templateBaseline: null,
         }
     },
     async created(){
         this.namespaceActive = useNamespaceStore().namespace;
         this.userInfo = getUserInfo();
 
-        await this.getMirror();
+        if (!this.templateMode) await this.getMirror();
         this.init();
     },
     components: {
@@ -307,6 +311,7 @@ export default {
             }else if(this.defaultData){
                 this.data = JSON.parse(JSON.stringify(this.defaultData));
                 this.dataToForm();
+                if (this.templateMode) this.$nextTick(() => { this.templateBaseline = this.buildFormData(); });
             }else{
                 let nameAfter = this.afterName || this.createName(8);
                 this.form = {
@@ -466,9 +471,7 @@ export default {
                 });
             })
         },
-        exportFormData(){
-            return this.validate().then(()=>{
-                
+        buildFormData(){
                 let data = this.formTodata();
 
                 let {
@@ -487,6 +490,14 @@ export default {
                 data.metadata.annotations['w7.cc.app/ports'] = JSON.stringify(hostPorts);
                 
                 return data;
+        },
+        exportFormData(){
+            return this.validate().then(()=>{
+                if (this.templateMode && !this.templateBaseline) throw new Error('模板编辑器尚未初始化，请稍后重试');
+                const data = this.buildFormData();
+                return this.templateMode
+                    ? applyTemplateAppEdit(this.data, this.templateBaseline, data)
+                    : data;
             })
         },
         submit(hideMessage){

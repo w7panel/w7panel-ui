@@ -1,9 +1,10 @@
 <template>
     <a-drawer :width="1200" :visible="visible" @ok="submit" @cancel="closeDrawer()" unmountOnClose :mask-closable="false">
-        <template #title>编辑应用</template>
+        <template #title>{{ templateMode ? '编辑系统模板' : '编辑应用' }}</template>
         <app-form
             ref="appform"
             :default-data="defaultData"
+            :template-mode="templateMode"
         ></app-form>
     </a-drawer>
 </template>
@@ -12,7 +13,7 @@ import jsyaml from "js-yaml";
 import appForm from "@/components/app-form.vue";
 
 export default{
-    props: ['show','yaml','json','callback'],
+    props: ['show','yaml','json','callback','templateMode'],
     data(){
         return {
             visible: false,
@@ -48,12 +49,12 @@ export default{
             this.$emit('close', v);
         },
         submit(){
-            this.$refs.appform.exportFormData().then(data=>{
+            this.$refs.appform.exportFormData().then(async data=>{
                 if(this.callback){
-                    this.callback(data);
+                    await this.callback(data);
                     this.closeDrawer();
                 }
-            }).catch(()=>{});
+            }).catch(error=>{ if (error?.message) this.$message.error(error.message); });
         },
     }
 }
