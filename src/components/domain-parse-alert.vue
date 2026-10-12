@@ -23,7 +23,7 @@ export default{
     },
     methods: {
         init(){
-            panelApi.get('/zpk/domain-parse',{noAlert:true,loading:true}).then(res=>{
+            panelApi.get('/domain-parse',{noAlert:true,loading:true}).then(res=>{
                 let spec = res.data?.spec || {};
                 let ips = spec.ips || [];
                 this.domainParse = {

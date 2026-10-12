@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2026-10-12
+
+- 域名解析配置接口去掉 `zpk` 前缀，`domain-parse-alert.vue` 与 `store-install.vue` 的调用路径由 `/zpk/domain-parse` 改为 `/domain-parse`，与后端迁移到 application 模块后的路由一致；影响模块：域名解析提示组件、制品安装完成页。验证：`grep` 确认 `src` 下已无 `zpk/domain-parse` 残留，`git diff --check` 通过（未执行前端构建）。
+
 ## 2026-10-10
 
 - 修复系统模板应用表单初始化失败：模板编辑不再进入新建应用的标识写入逻辑，避免模板缺少 Pod 标签时抛错并在保存时误报“编辑器尚未初始化”；影响模块：系统模板应用编辑器。验证：生产构建与 `git diff --check` 通过。
