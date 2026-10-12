@@ -812,7 +812,7 @@ export default{
             let args = Array.isArray(form?.args) ? form.args : [];
             let commandValues = command.filter(i=>i);
             let argsValues = args.filter(i=>i);
-            let shellPrefix = commandValues[0]=='sh' && commandValues[1]=='-c';
+            let shellPrefix = ['sh', '/bin/sh'].includes(commandValues[0]) && commandValues[1]=='-c';
             let commandPass = commandValues.length<=1 || (shellPrefix && commandValues.length<=3);
             let argsPass = argsValues.length==0 || (shellPrefix && commandValues.length==2 && argsValues.length==1);
             let pass = commandPass && argsPass;
@@ -827,7 +827,7 @@ export default{
             return {
                 pass,
                 commandPass,
-                command: ['sh','-c', easyValue],
+                command: [shellPrefix ? commandValues[0] : 'sh','-c', easyValue],
                 args: [''],
             }
         },
@@ -847,7 +847,7 @@ export default{
                 .join(' ');
         },
         enableEasyCmd(form, command){
-            form.command = ['sh', '-c', command];
+            form.command = [form.command?.[0] === '/bin/sh' ? '/bin/sh' : 'sh', '-c', command];
             form.args = [''];
             form.easyCmd = true;
         },
@@ -870,7 +870,7 @@ export default{
                 });
             }else{
                 form.easyCmd = false;
-                if(form.command?.length==3 && form.command[0]=='sh' && form.command[1]=='-c'){
+                if(form.command?.length==3 && ['sh', '/bin/sh'].includes(form.command[0]) && form.command[1]=='-c'){
                     form.command = [form.command[2] || ''];
                 }
                 form.args = form.args?.length ? form.args : [''];
