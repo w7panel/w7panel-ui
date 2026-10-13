@@ -125,3 +125,7 @@ bash compress-ui-test.sh all
 - [UI 菜单地图](../docs/testing/ui/ui-menu-map.md)
 - [UI 测试报告](../docs/testing/ui/)
 - [用户手册](../docs/user-guide/)
+
+### 传统应用列表类型范围
+
+传统应用列表查询 `w7.cc/manifest-type in (tradition,app-plugin)`，允许 app-plugin 展示；网关插件仍不展示。app-plugin 详情和安装页的返回入口统一为传统应用列表。
