@@ -126,6 +126,6 @@ bash compress-ui-test.sh all
 - [UI 测试报告](../docs/testing/ui/)
 - [用户手册](../docs/user-guide/)
 
-### 传统应用列表类型范围
+### 新建传统应用市场筛选
 
-传统应用列表查询 `w7.cc/manifest-type in (tradition,app-plugin)`，允许 app-plugin 展示；网关插件仍不展示。app-plugin 详情和安装页的返回入口统一为传统应用列表。
+已安装传统应用仍只查询 tradition，应用插件仍由原插件过滤逻辑处理。新建传统应用入口通过重复 tags 参数向嵌入市场传递“传统应用”和“应用插件”，免费制品及已购应用按任一标签匹配筛选；需要市场前后端同步部署。

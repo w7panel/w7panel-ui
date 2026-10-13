@@ -50,7 +50,7 @@ export function getAppGroupListRouteName(appGroupOrApplicationType: any) {
     const applicationType = typeof appGroupOrApplicationType === 'string'
         ? appGroupOrApplicationType
         : getAppGroupApplicationType(appGroupOrApplicationType);
-    if(applicationType === TRADITION_APPLICATION_TYPE || applicationType === APP_PLUGIN_APPLICATION_TYPE){
+    if(applicationType === TRADITION_APPLICATION_TYPE){
         return 'app-traditional-apps';
     }
     if(applicationType === SYSTEM_IMAGE_APPLICATION_TYPE){
