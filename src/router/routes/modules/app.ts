@@ -51,7 +51,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     roles: ['*'],
                     key: 'app-apps',
                     activeMenu: 'app-traditional-apps',
-                    marketTag: '传统应用',
+                    marketTags: ['传统应用', '应用插件'],
                 },
             },
             {

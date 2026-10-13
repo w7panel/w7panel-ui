@@ -30,12 +30,15 @@ export default {
     },
     computed: {
         remoteUrl(){
+            const marketTags = this.$route.meta.marketTags || [];
             const marketTag = String(this.$route.meta.marketTag || '').trim();
-            if(!marketTag){return PRODUCT_MARKET_URL}
-            const query = new URLSearchParams({
-                tag: marketTag,
-                hidetags: '1',
-            });
+            if(!marketTags.length && !marketTag){return PRODUCT_MARKET_URL}
+            const query = new URLSearchParams({ hidetags: '1' });
+            if(marketTags.length){
+                marketTags.forEach(tag=>query.append('tags', tag));
+            }else{
+                query.set('tag', marketTag);
+            }
             return `${PRODUCT_MARKET_URL}?${query.toString()}`;
         },
         modalExcludeWujieEvents(){
