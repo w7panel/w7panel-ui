@@ -224,6 +224,7 @@ import codepackDrawer from '@/components/codepack-drawer.vue';
 import helmForm from '../pages/helm-form.vue';
 import { getPermission,getFileEditor,getUserInfo } from '@/utils/auth';
 import {
+    APP_PLUGIN_APPLICATION_TYPE,
     filterAppGroupWorkloadItems,
     getAppGroupApplicationType,
     isPluginAppGroup,
@@ -292,6 +293,9 @@ export default {
             return String(this.$route.meta.appMarketRouteName || 'app-product-market');
         },
         appGroupLabelSelector(){
+            if(this.appManifestType === TRADITION_APPLICATION_TYPE){
+                return `w7.cc/manifest-type in (${TRADITION_APPLICATION_TYPE},${APP_PLUGIN_APPLICATION_TYPE})`;
+            }
             if(this.appManifestType){
                 return `w7.cc/manifest-type=${this.appManifestType}`;
             }
@@ -475,7 +479,9 @@ export default {
             }).then((res)=>{
                 if(this.$route.name !== routeName){return}
                 let list = res?.data?.items || [];
-                list = list.filter(i=>!isPluginAppGroup(i)).map(i=>{
+                list = list.filter(i=>!isPluginAppGroup(i)
+                    || (this.appManifestType === TRADITION_APPLICATION_TYPE
+                        && getAppGroupApplicationType(i) === APP_PLUGIN_APPLICATION_TYPE)).map(i=>{
                     
                     let domain_apps = [];
                     let statusItem = filterAppGroupWorkloadItems(i?.status?.items || []);
