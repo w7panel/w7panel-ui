@@ -2,7 +2,7 @@
 
 基于 Vue 3 + TypeScript + Arco Design 的 Kubernetes 云原生应用管理平台前端。
 
-网关插件 AppGroup（`w7.cc/manifest-type=gateway-plugin`）只在网关插件页面管理，不在顶部菜单、应用直达和普通应用列表中展示；应用插件 AppGroup（`w7.cc/manifest-type=app-plugin`）的功能会聚合到所依赖的传统应用中，同样不在普通应用列表中单独展示。
+应用管理按 AppGroup 的 `metadata.labels["w7.cc/manifest-type"]` 分页展示：普通“应用列表”排除 `tradition` 和 `system-image`，`tradition` 在“传统应用”管理，`system-image` 在“轻量虚拟机”管理；没有类型标签或尚未独立管理的其他类型仍由普通应用列表兜底展示。专用制品市场、制品安装完成后的“返回列表”，以及安装页和应用详情面包屑都会按入口或当前应用类型返回对应列表。网关插件 AppGroup（`gateway-plugin`）只在网关插件页面管理，不在顶部菜单、应用直达和普通应用列表中展示；应用插件 AppGroup（`app-plugin`）的功能会聚合到所依赖的传统应用中，同样不在应用列表中单独展示。
 
 Wujie 应用通过 `props.handles` 获得 `getAppDynamicValues(appgroup?, options)` 和 `validateApp(appgroup?, options)`。进入非“授权与续费”页面时，宿主会在后台读取当前应用的 `validate`，默认复用 30 秒缓存；市场明确返回不可用时展示原因，但查询异常不阻断应用启动。应用可主动调用，并通过 `force` 强制刷新。不传 `appgroup` 时读取当前 AppGroup；传入时由面板后端根据已安装 AppGroup 解析 ZPK 来源，不依赖目标应用是否存在 MicroApp。`validateApp` 复用同一查询并只返回市场生成的 `validate`，面板不重复实现试用或退款规则。
 
@@ -84,13 +84,17 @@ cp -r dist/* $BASE_DIR/dist/kodata/
 
 ZPK 安装页会在读取配置和提交安装时识别结构化订单绑定冲突：域名冲突展示原绑定域名；应用引用冲突支持跳转原面板应用列表，按唯一应用标识定位并标记待卸载应用，或在风险确认后通过原有 `reinstall` 流程强制覆盖旧安装记录。
 
+ZPK 配置读取会返回制品服务按分类汇总的 `supportCluster`，安装页根据当前面板的主/子集群等级停止不受支持的安装。根应用和必装依赖在配置加载时校验；可选依赖只在安装参数预先启用或用户打开安装开关时校验。该流程不依赖入口，覆盖制品市场、制品开发、依赖安装和直达链接。
+
 多应用 ZPK 的安装页按启动参数的 `module_name` 解析依赖。安装器优先在 `/panel-api/v1/zpk/config` 返回的应用列表中匹配模块，并始终按当前参数的 `name` 读取来源应用的同名启动参数；`values_text` 不参与同制品应用之间的参数映射。列表中没有时再查询已安装的外部依赖。当 `PVC_NAME` 指定了 `module_name` 时，会直接继承来源应用选择的 PVC，并同时写入该子应用的启动参数和安装选项 `pvcname`。
 
 | 模块 | 路由 | 说明 |
 |------|------|------|
 | 集群概览 | `/cluster/overview` | 集群资源监控 |
 | 节点管理 | `/cluster/nodes` | K8s 节点管理 |
-| 应用列表 | `/app/apps` | 应用部署和管理 |
+| 应用列表 | `/app/apps` | 普通应用部署和管理，不显示传统应用与系统镜像 |
+| 传统应用 | `/app/traditional-apps` | 管理 `w7.cc/manifest-type=tradition` 的 AppGroup，并从制品市场“传统应用”分类新建应用 |
+| 轻量虚拟机 | `/app/lightweight-vms` | 管理 `w7.cc/manifest-type=system-image` 的 AppGroup，并从制品市场“系统镜像”分类新建应用 |
 | 应用详情 | `/app/appgroup/{id}` | 应用资源管理；按 `w7.cc/group-name` 展示当前应用 MicroApp，并通过 `w7.cc/depends-<groupName>` 聚合应用插件 MicroApp；同一角色关联多个 MicroApp 时按 `w7.cc/order` 排序、按 MicroApp `spec.title` 增加默认展开的二级分组，各菜单按所属 Binding 读取同名 `roleConfig`；Wujie props 的 `reverse_dependent_apps` 直接从依赖方 MicroApp 元数据汇总 |
 | 顶部微应用 | `/appgroup/{id}` | 按 `w7.cc/group-name` 聚合同组 MicroApp，并通过 MicroApp 依赖标签补充应用插件入口；仅同一角色关联多个 MicroApp 时按 `w7.cc/order` 排序、按 `spec.title` 二级分组并默认展开；点击菜单时切换所属 MicroApp 和 Binding 运行配置，同时保持 Wujie AppGroup 上下文稳定 |
 | 容器列表 | `/app/appgroup/{id}/pod` | Pod/容器管理 |

@@ -1,5 +1,5 @@
 <template>
-    <div class="app-detail-page" :style="{minHeight: appDetailMinHeight}">
+    <div class="app-detail-page">
         <a-layout class="app-detail-layout">
             <component
                 :is="appMenuContainer"
@@ -9,7 +9,7 @@
                 @collapse="setAppMenuCollapsed"
                 @cancel="appMenuDrawerVisible=false"
             >
-                <div class="df df-c menu-absolute-div app-detail-menu-scroll" :style="appMenuScrollStyle">
+                <div class="df df-c menu-absolute-div app-detail-menu-scroll w7-menu-scroll" :style="appMenuScrollStyle">
                     <a-menu
                         v-model:collapsed="appMenuCollapsed"
                         v-model:selected-keys="selectMenu"
@@ -113,21 +113,27 @@
 
             <a-layout class="app-detail-main df df-c" :style="appDetailMainStyle">
                 <Breadcrumb v-if="!isTopAppEntry" class="df-s0" :routes="detailBreadcrumbRoutes" />
-                <a-layout-content v-if="isAppDirectPage" class="df df-c">
-                    <app-direct :info="info" class="routerviewbox fc" />
+                <a-layout-content v-if="isAppDirectPage" class="app-detail-content app-detail-content--native df df-c">
+                    <app-direct
+                        v-if="appGroupName"
+                        ref="nativeContentScroller"
+                        :key="`${$route.name}:${$route.params.group}:${appGroupName}`"
+                        :info="info"
+                        class="routerviewbox fc"
+                    />
                 </a-layout-content>
-                <a-layout-content v-else-if="isMicroPage" class="df df-c">
+                <a-layout-content v-else-if="isMicroPage" class="app-detail-content app-detail-content--micro df df-c">
                     <div class="app-detail-micro-container bg-white routerviewbox fc">
-                        <div v-show="downOk" id="app-detail-micro" :style="microPanelStyle"></div>
-                        <a-spin v-if="!downOk" :loading="!downOk" :size="32" tip="前端下载中..." :style="{display:'block', height: microPanelHeight}">
+                        <div v-show="downOk" id="app-detail-micro" class="app-detail-micro-panel"></div>
+                        <a-spin v-if="!downOk" class="app-detail-micro-panel" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;">
                             <div style="height:100%;" class="bg-white"></div>
                         </a-spin>
                         <a-spin v-if="microLoading" class="app-detail-micro-loading" :loading="microLoading" :size="32">
-                            <div :style="{height: microPanelHeight}"></div>
+                            <div class="app-detail-micro-panel"></div>
                         </a-spin>
                     </div>
                 </a-layout-content>
-                <a-layout-content v-else class="df df-c">
+                <a-layout-content v-else class="app-detail-content app-detail-content--native df df-c">
                 <a-tabs
                     :active-key="appname"
                     type="card"
@@ -158,7 +164,7 @@
                         </a-button>
                     </template>
                 </a-tabs>
-                <div class="bg-white routerviewbox fc" >
+                <div ref="nativeContentScroller" class="bg-white routerviewbox fc" >
                     <router-view v-if="$route.name=='app-detail-micro'" :url="appLocation" :data="data" @refresh="dataDetail" />
                     <router-view v-else-if="data||isHelmPage" :data="data" :identifie="identifie" :appList="applist" :title="title" @refresh="dataDetail" @editApp="openForm()"/>
                 </div>
@@ -178,7 +184,12 @@
             </div>
         </a-modal>
 
-        <wujie-modals v-if="isMicroPage" ref="wujieModals" :exclude-wujie-events="modalExcludeWujieEvents" />
+        <wujie-modals
+            v-if="isMicroPage"
+            ref="wujieModals"
+            :appgroup="appGroupName"
+            :exclude-wujie-events="modalExcludeWujieEvents"
+        />
     </div>
 </template>
 
@@ -197,7 +208,12 @@ import { createWujieRequirePlugin } from '@/utils/wujie-require-plugin';
 import { createWujieRequestCredentialsPlugin } from '@/utils/wujie-request-credentials-plugin';
 import { createWujieHostRoutePlugin } from '@/utils/wujie-route';
 import { wujieFetch } from '@/utils/wujie-cors-fetch';
-import { filterAppGroupWorkloadItems, uninstallAppGroup } from '@/utils/appgroup';
+import {
+    filterAppGroupWorkloadItems,
+    getAppGroupApplicationType,
+    getAppGroupListRouteName,
+    uninstallAppGroup,
+} from '@/utils/appgroup';
 import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
 import {
     loadMicroAppReverseDependentApps,
@@ -209,7 +225,11 @@ import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/m
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
-import { RESOURCE_GROUP_LABEL, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
+import {
+    findTopAppByRouteGroup,
+    RESOURCE_GROUP_LABEL,
+    loadResourcesByGroupNames,
+} from '@/utils/w7panel-resource';
 import AppDirect from '@/views/topapp/app-direct.vue';
 import MicroappMenuItems from '@/components/microapp-menu-items.vue';
 
@@ -287,7 +307,9 @@ export default {
             microApp: null,
             microApps: [],
             microAppGroup: '',
+            topAppName: '',
             appGroupName: '',
+            appManifestType: '',
             activeMicroAppName: '',
             reverseDependentAppCache: {},
             reverseDependentAppRequests: {},
@@ -303,6 +325,16 @@ export default {
         }
     },
     watch: {
+        '$route.fullPath'(){
+            this.$nextTick(()=>{
+                const contentRef = this.$refs.nativeContentScroller;
+                const scroller = contentRef?.$el || contentRef;
+                if(scroller instanceof HTMLElement){
+                    scroller.scrollTop = 0;
+                    scroller.scrollLeft = 0;
+                }
+            });
+        },
         '$route.name'(v,ov){
             this.selectMenu = [this.$route.meta.routekey];
             this.isHelmPage = /^group\-helm(\-|$)/.test(v);
@@ -322,6 +354,7 @@ export default {
         '$route.params.group'(v,ov){
             if(v===ov){return;}
             this.groupTitle = v;
+            this.appManifestType = '';
             // When switching groups on the same detail route, Vue reuses this
             // component and the route-name watcher does not run.
             this.getData();
@@ -384,13 +417,6 @@ export default {
                 padding: this.isTopAppEntry && this.hideAppMenu ? '0' : '20px',
             };
         },
-        appDetailMinHeight(){
-            if((window).__POWERED_BY_WUJIE__){
-                return 'calc(100vh - 62px)';
-            }
-            const hasNavbar = this.appStore.navbar && window.self === window.top;
-            return hasNavbar ? 'calc(100vh - 60px)' : '100vh';
-        },
         appMenuCollapsed: {
             get(){
                 return this.appStore.device === 'desktop' && this.appStore.menuCollapse;
@@ -407,6 +433,8 @@ export default {
                 return {
                     visible: this.appMenuDrawerVisible,
                     placement: 'left',
+                    bodyClass: 'w7-menu-drawer-body w7-menu-scroll',
+                    header: false,
                     footer: false,
                     maskClosable: true,
                     closable: false,
@@ -423,14 +451,14 @@ export default {
         },
         appMenuScrollStyle(){
             return this.appStore.hideMenu
-                ? {height:'100%', overflow:'auto'}
-                : {flex:'1 1 auto', minHeight:0, overflow:'auto'};
+                ? {height:'100%', overflow:'hidden'}
+                : {flex:'1 1 auto', minHeight:0, overflow:'hidden'};
         },
         detailBreadcrumbRoutes(){
             const appTarget = this.getBreadcrumbAppTarget();
             const routes = [
                 {name:'root'},
-                {name:'app', label:'应用管理'},
+                {name:getAppGroupListRouteName(this.appManifestType), label:'应用管理'},
                 {
                     ...appTarget,
                     label: this.groupTitle || this.$route.params.group || '',
@@ -464,20 +492,6 @@ export default {
         },
         bottomMenus(){
             return this.menuLocationGroups.bottomMenus;
-        },
-        microPanelHeight(){
-            if(this.isTopAppEntry){
-                const headerOffset = 62;
-                const paddingOffset = this.hideAppMenu ? 0 : 40;
-                return `calc(100vh - ${headerOffset + paddingOffset}px)`;
-            }
-            return this.hideAppMenu ? 'calc(100vh - 86px)' : 'calc(100vh - 146px)';
-        },
-        microPanelStyle(){
-            return {
-                height: this.microPanelHeight,
-                transform: 'translate(0,0)',
-            };
         },
         modalExcludeWujieEvents(){
             const group = this.$route.params.group || '';
@@ -547,7 +561,7 @@ export default {
                     params: {group, kind:app.kind, id:app.name},
                 };
             }
-            return {name:'app-apps'};
+            return {name:getAppGroupListRouteName(this.appManifestType)};
         },
         getCurrentBreadcrumbLabel(){
             if(this.isMicroPage){
@@ -826,7 +840,7 @@ export default {
             }
             const target = {
                 name: this.isTopAppEntry ? 'topapp-direct' : 'group-app-direct',
-                params: {...this.$route.params, group:this.microAppGroup || this.$route.params.group},
+                params: {...this.$route.params, group:this.getNavigationGroup()},
                 query,
             };
             const navigation = replace
@@ -834,6 +848,12 @@ export default {
                 : this.$router.push(target);
             navigation.catch(()=>{});
             return true;
+        },
+        getNavigationGroup(){
+            if(this.isTopAppEntry){
+                return this.topAppName || this.$route.params.group;
+            }
+            return this.microAppGroup || this.$route.params.group;
         },
         applyMenuRuntimeConfig(route){
             const userRole = getK8sinfo()['w7.cc/role'];
@@ -1129,7 +1149,7 @@ export default {
                     };
                 this.$router.push({
                     name: this.isTopAppEntry ? 'topapp-micro' : 'group-micro',
-                    params: {...this.$route.params, group:this.microAppGroup || this.$route.params.group},
+                    params: {...this.$route.params, group:this.getNavigationGroup()},
                     query,
                 });
             }
@@ -1152,7 +1172,7 @@ export default {
                     || sortedItems[0];
                 this.applyMicroApp(item);
                 if(this.isMicroPage){
-                    const routeMenu = this.microAppGroup === this.$route.params.group
+                    const routeMenu = this.isTopAppEntry || this.microAppGroup === this.$route.params.group
                         ? this.getRequestedMicroRoute()
                         : '';
                     const appDetailMicro = this.normalizeMicroMenuRoute(routeMenu);
@@ -1225,6 +1245,7 @@ export default {
             });
             return {
                 groupName: resolvedGroupName,
+                topAppName: selected?.metadata?.name || groupName,
                 items: resolvePresentedMicroApps([...microAppMap.values()], resolvedGroupName),
             };
         },
@@ -1598,10 +1619,10 @@ export default {
         },
         async getTopAppData(){
             const requestedGroup = String(this.$route.params.group || '');
-            const topApp = this.appStore.topApps.find(item=>item?.name === requestedGroup);
+            const initialTopApp = findTopAppByRouteGroup(this.appStore.topApps, requestedGroup);
 
             this.groupRedirecting = true;
-            this.groupTitle = topApp?.title || requestedGroup;
+            this.groupTitle = initialTopApp?.title || requestedGroup;
             this.title = this.groupTitle;
             this.appGroups = [];
             this.activeGroup = '';
@@ -1612,12 +1633,20 @@ export default {
             this.microApp = null;
             this.microApps = [];
             this.microAppGroup = '';
+            this.topAppName = '';
             this.appGroupName = '';
             this.activeMicroAppName = '';
 
-            const {groupName, items} = await this.loadTopMicroApps(requestedGroup);
+            const {groupName, topAppName, items} = await this.loadTopMicroApps(requestedGroup);
             if(!this.isTopAppEntry || String(this.$route.params.group || '') !== requestedGroup){
                 return;
+            }
+            const topApp = initialTopApp
+                || findTopAppByRouteGroup(this.appStore.topApps, requestedGroup)
+                || findTopAppByRouteGroup(this.appStore.topApps, groupName);
+            if(topApp?.title){
+                this.groupTitle = topApp.title;
+                this.title = topApp.title;
             }
 
             this.appGroups = [{
@@ -1627,6 +1656,7 @@ export default {
             }];
             this.activeGroup = groupName;
             this.microAppGroup = groupName;
+            this.topAppName = topApp?.name || topAppName;
             this.groupRedirecting = false;
             if(!items.length){
                 this.microLoading = false;
@@ -1651,6 +1681,7 @@ export default {
             this.microApp = null;
             this.microApps = [];
             this.microAppGroup = '';
+            this.topAppName = '';
             this.appGroupName = '';
             this.activeMicroAppName = '';
 
@@ -1686,6 +1717,7 @@ export default {
             }).catch(()=>false);
             await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ this.$route.params.group, {
             }).then(async res=>{
+                this.appManifestType = getAppGroupApplicationType(res?.data);
                 this.groupTitle = res?.data?.spec?.title
                     || res?.data?.metadata?.annotations?.title
                     || this.groupTitle;
@@ -1928,8 +1960,9 @@ export default {
 .point.red{background:#D00805;}
 .point.green{background:#00A870;}
 
-.routerviewbox{border:1px solid var(--color-neutral-3);border-top:0;}
-.app-detail-micro-container{position:relative;}
+.routerviewbox{min-height:0;border:1px solid var(--color-neutral-3);border-top:0;}
+.app-detail-micro-container{position:relative;min-height:0;overscroll-behavior:contain;}
+.app-detail-micro-panel{height:100%;min-height:0;transform:translate(0,0);}
 .app-detail-micro-loading{
     position:absolute;
     inset:0;
@@ -1939,25 +1972,29 @@ export default {
     justify-content:center;
     background:var(--color-bg-1);
 }
-.app-detail-page{height:auto;}
-.app-detail-layout{min-width:0;min-height:inherit;}
-.app-detail-main{box-sizing:border-box;min-width:0;min-height:inherit;}
+.app-detail-page{height:100%;min-height:0;overflow:hidden;}
+.app-detail-layout{height:100%;min-width:0;min-height:0;overflow:hidden;}
+.app-detail-main{box-sizing:border-box;height:100%;min-width:0;min-height:0;overflow:hidden;}
+.app-detail-content{min-height:0;overflow:hidden;}
+.app-detail-content--native > .routerviewbox{min-height:0;overflow:auto;}
+.app-detail-content--micro > .routerviewbox{height:100%;overflow:auto;}
 .app-detail-menu-container:not(.app-detail-menu-container--drawer){
     display:flex;
     flex-direction:column;
     align-self:stretch;
-    height:auto;
+    height:100%;
     min-height:0;
+    overflow:hidden;
 }
 :deep(.app-detail-menu-container:not(.app-detail-menu-container--drawer) > .arco-layout-sider-children){
     display:flex;
     flex:1 1 auto;
     flex-direction:column;
-    height:auto;
+    height:100%;
     min-height:0;
     overflow:hidden;
 }
-.app-detail-menu-scroll{width:100%;min-height:0;}
+.app-detail-menu-scroll{flex:1 1 auto;width:100%;height:100%;min-height:0;overflow:hidden;}
 .microapp-role-header{
     box-sizing:border-box;
     height:40px;

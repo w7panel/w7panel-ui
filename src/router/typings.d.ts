@@ -19,5 +19,8 @@ declare module 'vue-router' {
     routekey?: string; // Internal tab/menu key used by some detail pages
     menuGroup?: MenuGroup; // Top-level menu grouping used by navbar and side menu filtering
     replaceRootMenu?: boolean; // Replace the system side menu with a page-level primary menu
+    appManifestType?: string; // AppGroup manifest type used by shared application list routes
+    appMarketRouteName?: string; // Product market route used by the typed application list
+    marketTag?: string; // Fixed product market category tag
   }
 }

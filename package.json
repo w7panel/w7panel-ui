@@ -11,6 +11,7 @@
     "report": "cross-env REPORT=true npm run build",
     "preview": "npm run build && vite preview --host",
     "test:browser:easy-command": "node scripts/browser/easy-command-e2e.mjs",
+    "test:topapp-menu-identity": "node scripts/topapp-menu-identity.test.cjs",
     "type:check": "vue-tsc --noEmit --skipLibCheck",
     "prepare": "husky install"
   },

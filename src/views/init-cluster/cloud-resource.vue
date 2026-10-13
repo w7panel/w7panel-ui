@@ -1,6 +1,6 @@
 <template>
     <a-layout v-if="micro.show" class="layout">
-        <a-layout-header>
+        <a-layout-header class="layout-header">
             <NavBar />
         </a-layout-header>
         <a-layout-content class="layout-content " >
@@ -11,8 +11,8 @@
             ></micro-app>
         </a-layout-content>
     </a-layout>
-    <a-layout v-else style="height:100vh;">
-        <a-layout-header>
+    <a-layout v-else class="layout">
+        <a-layout-header class="layout-header">
             <div class="df ai-c jc-b navbar">
                 <div>
                     <img alt="logo" :src="logoimg" style="height:30px;" class="nav-logo" />
@@ -40,7 +40,7 @@
                 </div>
             </div>
         </a-layout-header>
-        <a-layout-content style="overflow: auto;">
+        <a-layout-content class="layout-scroll-content">
             <div class="df df-c" style="min-height:calc(100vh - 210px);">
                 <div class="fs-28 txt-c mt-20" style="font-weight:500;">云主机</div>
                 <div class="box df df-c ai-c padding-20">
@@ -239,13 +239,25 @@ export default{
 
 .layout {
     width: 100%;
-    height: 100vh;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+.layout-header {
+    flex: 0 0 60px;
+    height: 60px;
 }
 .layout-content {
-    height: 100%;
-    overflow-y: hidden;
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
     background-color: var(--color-fill-2);
     transition: padding 0.2s cubic-bezier(0.34, 0.69, 0.1, 1);
+}
+.layout-scroll-content {
+    min-height: 0;
+    overflow: auto;
 }
 
 .navbar{

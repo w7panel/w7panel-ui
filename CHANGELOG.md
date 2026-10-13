@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-10-08
+
+- 应用管理新增“传统应用”和“轻量虚拟机”菜单，复用应用列表并按 AppGroup 的 `w7.cc/manifest-type` 标签分别筛选 `tradition`、`system-image`；普通应用列表排除这两类应用，同时继续兜底展示缺少类型标签或尚未独立管理的其他类型。
+- 两个专用列表提供“新建”入口，分别以“传统应用”和“系统镜像”固定分类打开制品市场。
+- 制品安装完成页的“返回列表”、制品安装页与应用详情顶部面包屑中的“应用管理”，会按制品或当前 AppGroup 的 `w7.cc/manifest-type` 返回普通应用、传统应用或轻量虚拟机列表；专用制品市场页的面包屑同步返回入口对应的专用列表，不再固定跳转普通应用列表。
+- AppGroup 应用类型读取改为 label 优先、annotation 兼容，并在跨分类定位待卸载应用时自动跳转到正确列表。
+- 影响模块：应用管理路由、应用列表、制品市场入口和 AppGroup 元数据工具。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；`vue-tsc` 仍受仓库现有 TypeScript 与 `@types/node` 语法版本不兼容阻断，`pnpm run type:check` 还会先被依赖构建脚本审批策略拦截。
+
 ## 2026-09-28
 
 - 应用详情、顶部微应用和网关插件配置中的制品试用状态检查改为 3 秒超时的后台请求；仍提示明确的试用到期响应，但制品服务超时或异常不再阻断已安装 MicroApp 打开。
@@ -305,3 +314,41 @@
 - 验证：`LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建仅有项目既有的深度选择器弃用和图片压缩提示。
 - 2026-09-29 重构：应用详情、顶部应用和网关插件统一通过 `appendWujieModalHandles` 向 Wujie 顶层 props 注入 `getAppDynamicValues` 与 `validateApp`，避免各入口在 props 字面量中重复维护动态值能力；MicroApp 调用协议保持不变。
 - 2026-09-29 更正：`getAppDynamicValues` 与 `validateApp` 统一放入 `props.handles`；动态值请求只向面板传 AppGroup，ZPK URL 由后端从已安装 AppGroup 解析，不再依赖 MicroApp 注解或 `reverse_dependent_apps` 范围，因此没有 MicroApp 的依赖应用也可按 AppGroup 获取动态上下文。
+
+## 2026-09-30（应用校验制品标题）
+
+- `getAppDynamicValues` 接收面板返回的当前制品 `title`，`validateApp` 返回值补充该字段，原有 `valid`、`reason`、`message` 协议保持不变；影响模块：Wujie 应用动态值与授权校验句柄。
+- 验证：TypeScript 类型检查与生产构建通过。
+
+## 2026-09-30（顶部 MicroApp root 菜单状态）
+
+- 顶部应用恢复以 `/microapp/top` 返回的 root MicroApp `metadata.name` 作为菜单 key 与顶部路由标识，并单独保留 `w7.cc/group-name` 作为 AppGroup 上下文；root URL 与旧 AppGroup URL 均可映射到同一选中项，精确 root 标识优先于 AppGroup 别名。
+- 顶部应用在 MicroApp 与应用直达之间切换时继续保留 root 路由标识，root URL 的 `do`、`appmicro` 深链不再因 AppGroup 比较失败而回落默认菜单；文件管理与应用直达配置改用已解析的 AppGroup，避免把 root MicroApp 名误作 AppGroup。
+- 新增顶部菜单身份回归测试及 npm 脚本。影响模块：顶部导航、顶部应用详情、Wujie 弹窗、应用直达及顶部 MicroApp 路由。
+- 验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过；`npm run type:check` 仍被仓库既有的 `route-listener` 缺失、Axios 扩展字段、ES lib 及登录页类型错误阻塞，本次修改文件没有新增诊断。
+- 2026-09-30 复核修正：文件管理优先使用宿主解析的 AppGroup，MicroApp payload 仅在宿主无上下文时兜底；顶部应用直达在 AppGroup 完整解析后才挂载和允许保存，并以请求代次及 AppGroup 双重校验丢弃迟到响应，避免快速切组时旧配置覆盖当前表单。
+- 2026-09-30 测试补强：将 `/microapp/top` 资源到顶部菜单项的转换抽为纯函数，回归测试直接断言 root `metadata.name`、AppGroup 别名、文件跳转上下文优先级及异步请求失效规则；复核验证 `npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过，类型检查仍仅报告上述仓库存量错误。
+
+## 2026-10-08（站点管理菜单调整）
+
+- 站点管理不再显示为面板一级菜单；保留 `/sitemanage` 路由兼容历史链接和已有内部跳转。影响模块：主导航菜单。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。
+- 2026-10-08 更正：站点管理不再保留兼容路由；删除 `/sitemanage` 路由模块、专用跳转页面及权限树配置，旧地址将进入未找到页面。
+
+## 2026-10-08（MicroApp 页面滚动区域）
+
+- 基座、应用详情、新版 root 入口及首页 root 直达入口改为固定可视区高度并隐藏宿主溢出，右侧原生内容独立滚动，MicroApp 页面保留子应用自身滚动，避免宿主与子应用同时出现纵向滚动条。
+- 系统菜单、应用详情菜单和 root 级菜单统一由侧栏内部承载滚动；滚动条默认透明，在鼠标悬停或键盘聚焦菜单时显示，无悬停能力的设备保持可见。
+- 影响模块：应用根布局、应用详情布局、root 级 MicroApp 容器、左侧菜单与全局滚动条样式。验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过；`npm run type:check` 仍仅报告修改前已有的 16 条类型诊断，本次修改文件无新增诊断。
+
+## 2026-10-09（应用容器溢出修正）
+
+- 应用详情与 root 直达链路的 MicroApp 内容容器改为内部滚动，超出可视区域的应用内容不再被裁剪；基座外层仍保持固定高度并隐藏自身溢出，避免恢复页面级双滚动条。
+- 影响模块：应用详情 MicroApp 容器、root 级 MicroApp 容器。验证结果将在本次回归完成后补充。
+- 验证：`npm run test:topapp-menu-identity`、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过。
+
+## 2026-10-09（制品安装集群等级校验）
+
+- 安装页读取 ZPK 配置下发的 `supportCluster`，根据面板当前主/子集群等级停止不受支持的安装，不依赖制品市场入口。
+- 根应用和必装依赖在配置加载时校验；未启用的可选依赖不再阻止整个制品安装，可选依赖在预设启用或用户打开开关时单独校验并回退不支持的选择。
+- 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。

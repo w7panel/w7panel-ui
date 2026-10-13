@@ -163,7 +163,7 @@ import { useDarkStore } from '@/store';
 import { getK8sinfo, getWebshell, getUserInfo, getPermission } from '@/utils/auth';
 import { useRoute, useRouter } from 'vue-router';
 import { hasPermission } from '@/utils/permission-match';
-import { getTopAppGroupName } from '@/utils/w7panel-resource';
+import { findTopAppByRouteGroup, mapTopAppResourceToMenuItem } from '@/utils/w7panel-resource';
 
 const appStore = useAppStore();
 const route = useRoute();
@@ -180,6 +180,7 @@ const permissions = ref(getPermission());
 const hasClusterConsole = computed(() => hasPermission(permissions.value || [], 'cluster', 'cluster'));
 const hasUsermanage = computed(() => hasPermission(permissions.value || [], 'usermanage', 'system-manage'));
 const hasSystem = computed(() => hasPermission(permissions.value || [], 'system', 'system'));
+const topApps = computed(() => appStore.topApps);
 
 const currentMenuGroup = computed(() => {
     const matchedGroup = [...route.matched]
@@ -195,7 +196,12 @@ const selkeys = computed(() => {
     }
 
     if (currentMenuGroup.value === 'topapp') {
-        return route.params.group ? [String(route.params.group)] : [];
+        const routeGroup = String(route.params.group || '');
+        if (!routeGroup) {
+            return [];
+        }
+        const activeTopApp = findTopAppByRouteGroup(topApps.value, routeGroup);
+        return [activeTopApp?.name || routeGroup];
     }
 
     return [];
@@ -278,7 +284,6 @@ const submitPwd = () => {
 };
 
 const namespaceList = useNamespaceStore().namespaceList;
-const topApps = computed(() => appStore.topApps);
 
 const userRole = getK8sinfo()['w7.cc/role'];
 const hasPwd = ref(getK8sinfo()['w7.cc/has-password']);
@@ -293,22 +298,7 @@ const getMenutop = () => {
     appStore.setTopAppsLoading(true);
     panelApi.get('/microapp/top').then((res) => {
         const items = res.data?.items || [];
-        appStore.setTopApps(items.map((i: any) => {
-            const roles: string[] = [];
-            try {
-                let rl = i?.spec?.bindings || [];
-                rl = rl.filter((item: any) => item.support === 'thirdparty_cd');
-                rl.forEach((r: any) => {
-                    roles.push(r.name);
-                });
-            } catch {}
-
-            return {
-                title: i?.metadata?.annotations?.title || i?.spec?.title,
-                name: getTopAppGroupName(i),
-                roles,
-            };
-        }));
+        appStore.setTopApps(items.map(mapTopAppResourceToMenuItem));
     }).finally(() => {
         appStore.setTopAppsLoading(false);
     });

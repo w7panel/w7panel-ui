@@ -3,6 +3,7 @@ import type { RouteRecordNormalized } from 'vue-router';
 export interface TopAppMenuItem {
   title: string;
   name: string;
+  appGroupName: string;
   roles: string[];
 }
 

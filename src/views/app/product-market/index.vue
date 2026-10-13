@@ -11,6 +11,7 @@
 <script>
 import { startApp, destroyApp } from 'wujie';
 import { panelApi } from '@/utils/api';
+import { getK8sinfo } from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
 
@@ -18,30 +19,59 @@ const PRODUCT_MARKET_URL = 'https://zm.w7.com/#/panel-store-list';
 const PRODUCT_MARKET_APP_NAME = 'product-market';
 
 export default {
-    data() {
+    data(){
         return {
-            remoteUrl: PRODUCT_MARKET_URL,
+            marketMounted: false,
+            marketLoadId: 0,
         };
     },
     components: {
         wujieModals
     },
     computed: {
+        remoteUrl(){
+            const marketTag = String(this.$route.meta.marketTag || '').trim();
+            if(!marketTag){return PRODUCT_MARKET_URL}
+            const query = new URLSearchParams({
+                tag: marketTag,
+                hidetags: '1',
+            });
+            return `${PRODUCT_MARKET_URL}?${query.toString()}`;
+        },
         modalExcludeWujieEvents(){
             return [];
         },
     },
+    watch: {
+        remoteUrl(){
+            this.reloadMarket();
+        },
+    },
     mounted() {
+        this.marketMounted = true;
         this.initMarket();
     },
     beforeUnmount() {
+        this.marketMounted = false;
         this.destroyMarket();
     },
     methods: {
+        async reloadMarket(){
+            this.destroyMarket();
+            await this.$nextTick();
+            this.initMarket();
+        },
         async initMarket() {
-            if (!this.remoteUrl) { return; }
+            if (!this.marketMounted || !this.remoteUrl) { return; }
+            const loadId = ++this.marketLoadId;
+            const remoteUrl = this.remoteUrl;
             const data = await panelApi.get('/microapp/global-frontprops', { noAlert: true })
+            if (!this.marketMounted || loadId !== this.marketLoadId) { return; }
+            const clusterLevel = String(getK8sinfo()?.['w7.cc/is-ckm-req']) === 'true'
+                ? 'sub'
+                : 'main';
             const props = {
+                cluster_level: clusterLevel,
                 frontend_props: {
                     ...(data?.data || {})
                 }
@@ -49,7 +79,7 @@ export default {
             appendWujieModalHandles(props, () => this.$refs.wujieModals)
             startApp({
                 name: PRODUCT_MARKET_APP_NAME,
-                url: this.remoteUrl,
+                url: remoteUrl,
                 el: '#product-market-wujie',
                 exec: true,
                 sync: true,
@@ -57,6 +87,7 @@ export default {
             });
         },
         destroyMarket() {
+            this.marketLoadId += 1;
             try {
                 destroyApp(PRODUCT_MARKET_APP_NAME);
             } catch {}

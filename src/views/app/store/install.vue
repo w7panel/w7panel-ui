@@ -1,8 +1,8 @@
 <template>
     <div class="df df-c" :class="{'padding-20':$route.name=='app-store-install'}" style="height:100%;">
-        <route-breadcrumb v-if="$route.name=='app-store-install'" class="df-s0" />
+        <Breadcrumb v-if="$route.name=='app-store-install'" class="df-s0" :routes="installBreadcrumbRoutes" />
         <div class="padding-20 bg-white fc">
-            <store-install ref="si" :version="version" @needInstall="needInstall" />
+            <store-install ref="si" :version="version" @needInstall="needInstall" @manifestTypeChange="appManifestType=$event" />
             
             <md-description v-if="Object.keys(mds||{}).length" :files="mds" class="topline mt-40"></md-description>
         </div>
@@ -17,6 +17,7 @@ import storeInstall from "@/components/store-install.vue"
 import installDrawer from './install-drawer.vue'
 import axios from 'axios'
 import mdDescription from './md-description.vue'
+import { getAppGroupListRouteName } from '@/utils/appgroup';
 
 // 测试
 // let t = {
@@ -35,6 +36,7 @@ export default {
             info: {},
             versionlist: [],
             version: '',
+            appManifestType: '',
 
             mds: {},
         }
@@ -43,6 +45,15 @@ export default {
         storeInstall,
         installDrawer,
         mdDescription,
+    },
+    computed: {
+        installBreadcrumbRoutes(){
+            return [
+                {name:'root'},
+                {name:getAppGroupListRouteName(this.appManifestType), label:'应用管理'},
+                {name:'app-store-install', label:'安装应用', query:{...this.$route.query}},
+            ];
+        },
     },
     created(){
         this.getInfo();
