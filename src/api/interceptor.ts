@@ -10,6 +10,7 @@ import { clearToken } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';
 import { getToken, setToken, setRefreshToken, getRefreshToken, } from '@/utils/auth';
 import router from "@/router";
+import { showRepoHtmlNotice } from '@/utils/repo-notice';
 
 interface CustomAxiosRequestConfig extends AxiosRequestConfig {
     loading?: boolean;
@@ -196,6 +197,9 @@ axios.interceptors.response.use(
         if (error?.response?.status == 408) { return; }
 
         if (error?.config?.noAlert){
+            return Promise.reject(error);
+        }
+        if (!error?.config?.dontalert && showRepoHtmlNotice(error)) {
             return Promise.reject(error);
         }
         if (!error?.config?.dontalert) {

@@ -1,31 +1,5 @@
 <template>
     <div class="df df-c ai-c">
-		<a-modal v-model:visible="installConflict.show" title="制品安装冲突" :footer="false" :mask-closable="false">
-			<div v-if="installConflict.reason==='domain_mismatch'">
-				<div>当前域名与订单原绑定域名不一致。</div>
-				<div class="mt-10">原绑定域名：<strong>{{ installConflict.domain || '未知' }}</strong></div>
-				<div class="mt-20 txt-r"><a-button type="primary" @click="installConflict.show=false">知道了</a-button></div>
-			</div>
-			<div v-else-if="installConflict.reason==='app_identify_exists'">
-				<a-alert v-if="isCaptureMode" type="warning">该订单已有应用安装记录，采集模式不会强制清除或重新安装；请先在原面板卸载后重试。</a-alert>
-				<a-alert v-else-if="installConflict.params || installConflict.retryConfig" type="warning">该订单已有应用安装记录，请先卸载原应用，或强制清除旧记录后重新安装。</a-alert>
-				<a-alert v-else type="warning">该订单已有应用安装记录，请先卸载原应用后重试。</a-alert>
-				<div class="mt-10">原面板地址：<strong>{{ installConflict.panelUrl || '未知' }}</strong></div>
-				<div class="mt-20 df jc-e">
-					<a-button class="mr-10" @click="installConflict.show=false">取消</a-button>
-					<a-button class="mr-10" :disabled="!installConflict.panelUrl" @click="openOriginalPanel">前往原面板卸载</a-button>
-					<a-popconfirm v-if="!isCaptureMode && (installConflict.params || installConflict.retryConfig)" content="强制清除会覆盖旧应用的安装记录，可能导致老应用状态丢失、无法继续升级。确定继续吗？" type="warning" position="bottom" @ok="forceReinstall">
-						<a-button status="danger">强制清除并安装</a-button>
-					</a-popconfirm>
-				</div>
-			</div>
-			</a-modal>
-			<a-modal v-model:visible="trialExpired.show" title="试用已到期" :footer="false" :mask-closable="false">
-				<a-alert type="warning">该制品的免费试用已到期，请通过应用菜单中的“授权与续费”完成购买后再继续操作。</a-alert>
-				<div class="mt-20 df jc-e">
-					<a-button class="mr-10" @click="trialExpired.show=false">知道了</a-button>
-				</div>
-			</a-modal>
         <a-result v-if="clusterInstallUnsupported" status="warning"
             title="当前集群不支持安装该应用"
             :subtitle="clusterInstallUnsupportedDescription">
@@ -305,6 +279,7 @@ import {
 } from '@/utils/appgroup';
 
 import axios from 'axios';
+import { showRepoHtmlNotice } from '@/utils/repo-notice';
 import { useNamespaceStore,useLoadingStore } from '@/store';
 import zoneDrawer from '@/views/storage/zone-drawer.vue';
 import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
@@ -392,16 +367,6 @@ export default {
             },
 
             thirdparty_cd_token: '',
-			installConflict: {
-				show: false,
-				reason: '',
-				domain: '',
-				panelUrl: '',
-				appIdentify: '',
-				params: null,
-				retryConfig: false,
-			},
-			trialExpired: { show: false, marketUrl: '', orderSn: '', expireAt: '' },
 			reinstallConfirmed: false,
 			clusterInstallUnsupported: false,
         }
@@ -1115,8 +1080,7 @@ export default {
                 if(!this.releaseName && res?.data?.[0]?.releaseName){ this.releaseName = res.data[0].releaseName; }
 				return true;
 			}).catch(error=>{
-				if(this.handleTrialExpired(error)){return false}
-				if(this.handleInstallConflict(error, null, true)){return false}
+				if(this.handleRepoNotice(error, null, true)){return false}
 				this.$message.error(error?.response?.data?.error || error?.message || '获取安装配置失败');
 				return false;
             })
@@ -1317,10 +1281,8 @@ export default {
             },noAlert:true}).then(res=>{
                 return res.data?.[0]?.name;
 				}).catch(error=>{
-					if(this.handleTrialExpired(error)){return name}
-					if(!this.handleInstallConflict(error)){
+					if(this.handleRepoNotice(error)){return name}
 					this.$message.error(error?.response?.data?.error || error?.message || '获取依赖应用信息失败');
-				}
 				return name;
             })
         },
@@ -1581,63 +1543,24 @@ export default {
                     });
                 }
 			}).catch(error=>{
-				if(this.handleTrialExpired(error)){return}
-				if(this.handleInstallConflict(error, {...params})){return}
+				if(this.handleRepoNotice(error, {...params})){return}
 				this.$message.error(error?.response?.data?.error || error?.message || '安装失败');
 			});
         },
-			handleInstallConflict(error, params = null, retryConfig = false){
-			let responseData = error?.response?.data;
-			let conflict = responseData?.data;
-			let isConflictResponse = error?.response?.status===409 || responseData?.code===409;
-			if(!isConflictResponse || !['domain_mismatch','app_identify_exists'].includes(conflict?.conflict_reason)){
-				return false;
-			}
-			this.installConflict = {
-				show: true,
-				reason: conflict.conflict_reason,
-				domain: conflict.domain || '',
-				panelUrl: conflict.panel_url || '',
-				appIdentify: conflict.app_identify || '',
-				params,
-				retryConfig,
-			};
-			return true;
-			},
-			handleTrialExpired(error){
-				const data = error?.response?.data || {};
-				if(data?.code !== 'ZPK_TRIAL_EXPIRED') return false;
-				const detail = data.data || {};
-				this.trialExpired = {show:true, marketUrl:detail.market_url || '', orderSn:detail.order_sn || '', expireAt:detail.trial_expire_at || ''};
-				return true;
-			},
-		openOriginalPanel(){
-			if(!this.installConflict.panelUrl){return}
-			let targetUrl = this.installConflict.panelUrl;
-			try{
-				let url = new URL(targetUrl, window.location.origin);
-				let basePath = url.pathname.replace(/\/+$/, '');
-				url.pathname = basePath.endsWith('/app/apps') ? basePath : basePath + '/app/apps';
-				if(this.installConflict.appIdentify){
-					url.searchParams.set('uninstallApp', this.installConflict.appIdentify);
-				}
-				targetUrl = url.toString();
-			}catch{}
-			window.open(targetUrl, '_blank', 'noopener,noreferrer');
-			this.installConflict.show = false;
-		},
-		forceReinstall(){
+        handleRepoNotice(error, params = null, retryConfig = false){
+            const canReinstall = !this.isCaptureMode && Boolean(params || retryConfig);
+            return showRepoHtmlNotice(error, {
+                onReinstall: canReinstall ? () => this.forceReinstall(params, retryConfig) : undefined,
+            });
+        },
+		forceReinstall(params = null, retryConfig = false){
 			if(this.isCaptureMode){return}
-			if(this.installConflict.retryConfig){
+			if(retryConfig){
 				this.reinstallConfirmed = true;
-				this.installConflict.show = false;
-				this.init(true);
-				return;
+				return this.init(true);
 			}
-			let params = this.installConflict.params;
 			if(!params){return}
-			this.installConflict.show = false;
-			panelApi.put('/zpk/install', {...params, reinstall:true}, {loading:true,noAlert:true}).then(res=>{
+			return panelApi.put('/zpk/install', {...params, reinstall:true}, {loading:true,noAlert:true}).then(res=>{
 				this.step = 3;
 				let { releaseName } = res?.data || {};
 				this.releaseName = releaseName;
@@ -1648,8 +1571,7 @@ export default {
 					this.$router.push({query:{...this.$route.query,completeName:releaseName}}).then(()=>this.getStatus(releaseName));
 				}
 				}).catch(error=>{
-					if(this.handleTrialExpired(error)){return}
-					if(this.handleInstallConflict(error, {...params, reinstall:true})){return}
+					if(this.handleRepoNotice(error, {...params, reinstall:true})){return}
 				this.$message.error(error?.response?.data?.error || error?.message || '强制安装失败');
 			});
 		},
