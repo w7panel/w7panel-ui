@@ -1,5 +1,5 @@
 import { h } from 'vue';
-import { Message, Modal } from '@arco-design/web-vue';
+import { Button, Message, Modal } from '@arco-design/web-vue';
 
 export const MAX_HTML_NOTICE_LENGTH = 64 * 1024;
 const handledKeys = new WeakSet<object>();
@@ -16,7 +16,18 @@ const allowedStyles = new Set(['color', 'background-color', 'font-size', 'font-w
   'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
   'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
   'border', 'border-color', 'border-width', 'border-style', 'border-radius',
-  'display', 'gap', 'flex-wrap', 'justify-content', 'align-items']);
+  'display', 'gap', 'row-gap', 'column-gap', 'flex-wrap', 'justify-content', 'align-items',
+  // Browsers expand shorthand declarations when iterating CSSStyleDeclaration.
+  'text-decoration-line', 'text-decoration-style', 'text-decoration-color', 'text-decoration-thickness',
+  'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+  'border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style',
+  'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
+  'border-top-left-radius', 'border-top-right-radius', 'border-bottom-right-radius', 'border-bottom-left-radius']);
+const themedColors: Record<string, string> = {
+  'rgb(29, 33, 41)': 'var(--color-text-1, #1d2129)',
+  'rgb(22, 93, 255)': 'rgb(var(--primary-6, 22, 93, 255))',
+  'rgb(245, 63, 63)': 'rgb(var(--danger-6, 245, 63, 63))',
+};
 export function sanitizeNoticeHtml(html: string, allowedActions: readonly string[] = []): string {
   const template = document.createElement('template');
   template.innerHTML = html;
@@ -28,6 +39,7 @@ export function sanitizeNoticeHtml(html: string, allowedActions: readonly string
     for (const attribute of Array.from(element.attributes)) {
       if (!['style', 'title'].includes(attribute.name)
         && !(element.tagName === 'A' && attribute.name === 'href')
+        && !(element.tagName === 'DIV' && attribute.name === 'data-notice-footer')
         && !(element.tagName === 'BUTTON' && attribute.name === 'data-panel-action')) {
         element.removeAttribute(attribute.name);
       }
@@ -38,7 +50,11 @@ export function sanitizeNoticeHtml(html: string, allowedActions: readonly string
       if (!allowedStyles.has(property) || /url|image|expression|var\s*\(|[\\@]/i.test(value)) {
         styled.style.removeProperty(property);
       } else {
-        styled.style.setProperty(property, value); // Drop remote !important.
+        // Convert known palette colors locally; remote CSS variables remain forbidden.
+
+        const themed = (property === 'color' || property.endsWith('-color'))
+          ? themedColors[value] : undefined;
+        styled.style.setProperty(property, themed || value); // Drop remote !important.
       }
     }
     if (element.tagName === 'BUTTON') {
@@ -86,55 +102,75 @@ export function showHtmlNotice(options: HtmlNoticeOptions): boolean {
   checked.innerHTML = sanitized;
   const hasContent = Boolean(checked.content.textContent?.replace(/[\s\u200b-\u200d\ufeff]/g, ''));
   if (!hasContent && !options.fallbackText?.trim()) return false;
+  const footerParts: string[] = [];
+  for (const section of Array.from(checked.content.querySelectorAll('div[data-notice-footer]'))) {
+    // Only move outermost marked sections; nested sections stay inside them.
+    if (section.parentElement?.closest('div[data-notice-footer]')) continue;
+    if (section.textContent?.trim()) footerParts.push(section.outerHTML);
+    section.remove();
+  }
+  const footerHtml = footerParts.join('');
+  const contentHtml = checked.innerHTML;
+  const regions = new Set<HTMLElement>();
   const title = options.title?.trim() ? options.title.slice(0, 120) : '提示';
   let pending = false;
   let closed = false;
   const close = () => { closed = true; modal.close(); };
+  const renderRegion = (html: string, footer = false) => h('div', {
+    ref: (host: any) => {
+      if (!(host instanceof HTMLElement) || host.shadowRoot) return;
+      const root = host.attachShadow({ mode: 'open' });
+      const style = document.createElement('style');
+      style.textContent = ':host{display:block;max-height:60vh;overflow:auto;font:14px/1.7 sans-serif;color:var(--color-text-1,#1d2129);overflow-wrap:anywhere}a{color:rgb(var(--primary-6,22,93,255))}button{cursor:pointer;font:inherit}button:disabled{opacity:.5;cursor:not-allowed}button:disabled[aria-busy="true"]{cursor:wait}pre{white-space:pre-wrap}table{max-width:100%}';
+      const body = document.createElement('div');
+      if (hasContent) body.innerHTML = html;
+      else body.textContent = options.fallbackText || '';
+      regions.add(body);
+      body.addEventListener('click', async event => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const button = target.closest('button[data-panel-action]');
+        const action = button?.getAttribute('data-panel-action');
+        if (action && allowedActions.includes(action)) {
+          event.preventDefault();
+          if (pending || closed) return;
+          pending = true;
+          const buttons = Array.from(regions).flatMap(region => Array.from(region.querySelectorAll<HTMLButtonElement>('button[data-panel-action]')));
+          buttons.forEach(item => { item.disabled = true; item.setAttribute('aria-busy', 'true'); });
+          try {
+            await options.onAction?.(action, { close });
+          } catch (error) {
+            if (options.onActionError) {
+              try { options.onActionError(error); }
+              catch { Message.error('操作失败，请重试'); }
+            } else {
+              Message.error('操作失败，请重试');
+            }
+          } finally {
+            pending = false;
+            buttons.forEach(item => { item.disabled = closed; item.removeAttribute('aria-busy'); });
+          }
+        }
+      });
+      if (footer) {
+        body.style.cssText = 'display:flex;align-items:center;gap:16px;flex-wrap:wrap';
+        style.textContent += ':host{max-height:none;overflow:visible}p{margin:0}';
+      }
+      root.append(style, body);
+    },
+  });
   const modal = Modal.warning({
     onClose: () => { closed = true; },
     title,
-    content: () => h('div', {
-      ref: (host: any) => {
-        if (!(host instanceof HTMLElement) || host.shadowRoot) return;
-        const root = host.attachShadow({ mode: 'open' });
-        const style = document.createElement('style');
-        style.textContent = ':host{display:block;max-height:60vh;overflow:auto;font:14px/1.7 sans-serif;color:#1d2129;overflow-wrap:anywhere}a{color:#165dff}button{cursor:pointer;font:inherit}pre{white-space:pre-wrap}table{max-width:100%}';
-        const body = document.createElement('div');
-        if (hasContent) body.innerHTML = sanitized;
-        else body.textContent = options.fallbackText || '';
-        body.addEventListener('click', async event => {
-          const target = event.target;
-          if (!(target instanceof Element)) return;
-          const button = target.closest('button[data-panel-action]');
-          const action = button?.getAttribute('data-panel-action');
-          if (action && allowedActions.includes(action)) {
-            event.preventDefault();
-            if (pending || closed) return;
-            pending = true;
-            const buttons = Array.from(body.querySelectorAll<HTMLButtonElement>('button[data-panel-action]'));
-            buttons.forEach(item => { item.disabled = true; item.setAttribute('aria-busy', 'true'); });
-            try {
-              await options.onAction?.(action, { close });
-            } catch (error) {
-              if (options.onActionError) {
-                try { options.onActionError(error); }
-                catch { Message.error('操作失败，请重试'); }
-              } else {
-                Message.error('操作失败，请重试');
-              }
-            } finally {
-              pending = false;
-              buttons.forEach(item => { item.disabled = closed; item.removeAttribute('aria-busy'); });
-            }
-          }
-        });
-        root.append(style, body);
-      },
-    }),
+    content: () => renderRegion(contentHtml),
+    footer: () => h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap' } }, [
+      ...(footerHtml ? [renderRegion(footerHtml, true)] : []),
+      h(Button, { onClick: close }, () => '关闭'),
+    ]),
     okText: '关闭',
     hideCancel: true,
     maskClosable: false,
-    width: 560,
+    width: 480,
   });
   if (options.dedupeKey) handledKeys.add(options.dedupeKey);
   return true;
