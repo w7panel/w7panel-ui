@@ -10,7 +10,7 @@
                     </a-select>
                     <!-- <a-input v-model="tlsForm.domain" disabled></a-input> -->
                     <div class="df ai-c mt-16">
-                        <a-checkbox v-model="tlsForm.auto_ssl">自动https</a-checkbox>
+                        <a-checkbox v-if="!manualOnly" v-model="tlsForm.auto_ssl">自动https</a-checkbox>
                         <span v-if="tlsForm.testStatus && tlsForm.auto_ssl" class="ml-10">
                             <icon-check-circle v-if="tlsForm.testStatus.status=='success'" class="c-green fs-16"/>
                             <span v-else-if="tlsForm.testStatus.status=='warning'" class="df ai-c">
@@ -114,6 +114,8 @@ export default {
             localDataList: [],
             localDomainList: [],
             tlsForm: getDefaultTlsForm(),
+            manualOnly: false,
+            externalOnSuccess: null,
         }
     },
     created(){
@@ -160,7 +162,7 @@ export default {
                 domainName: item?.name || "",
                 domain: item?.domain || item?.host || "",
                 tlsName: item?.secretName || "",
-                auto_ssl: item?.is_auto_ssl || item?.autoSsl || false,
+                auto_ssl: this.manualOnly ? false : (item?.is_auto_ssl || item?.autoSsl || false),
                 redirect: item?.redirect || item?.sslRedirect || false,
             };
             this.getSecrets(this.tlsForm.domainName);
@@ -169,6 +171,9 @@ export default {
             if(!data){return}
             let domainName = data?.domainName || data?.name;
             if(!domainName){return}
+
+            this.manualOnly = data.manualOnly === true;
+            this.externalOnSuccess = typeof data.onSuccess === 'function' ? data.onSuccess : null;
 
             this.namespaceActive = data?.namespace || this.namespace || this.namespaceActive || useNamespaceStore().namespace;
             let domain = null;
@@ -351,7 +356,7 @@ export default {
             let secretName = "";
 
             if(inChild.parent){
-                this.tlsForm.auto_ssl = inChild.autoSsl;
+                this.tlsForm.auto_ssl = this.manualOnly ? false : inChild.autoSsl;
                 this.tlsForm.redirect = inChild.sslRedirect;
                 this.tlsForm.domain = inChild.domain;
                 secretName = this.domainToname(this.tlsForm.domain) + "-tls-secret";
@@ -359,7 +364,7 @@ export default {
                 let is_auto_ssl = data?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == AUTO_SSL_ISSUER;
                 let redirect = data?.metadata?.annotations?.['w7.cc/ssl-redirect'] == 'true';
 
-                this.tlsForm.auto_ssl = is_auto_ssl;
+                this.tlsForm.auto_ssl = this.manualOnly ? false : is_auto_ssl;
                 this.tlsForm.redirect = redirect;
 
                 this.tlsForm.domain = data?.spec?.rules?.[0]?.host || inChild.domain;
@@ -446,6 +451,10 @@ export default {
             return operation;
         },
         async submitTls(){
+            if(this.manualOnly && (!this.tlsForm.crt.trim() || !this.tlsForm.key.trim())){
+                this.$message.error('请填写证书和私钥');
+                return;
+            }
             let selected = this.tlsForm?.list?.find?.(i=>i.name==this.tlsForm.domainName) || {};
             let parentName = selected?.parent;
             let data = this.findIngress(parentName || this.tlsForm.domainName);
@@ -533,11 +542,13 @@ export default {
                     this.$message.success("操作成功");
                     this.tlsForm.show = false;
                     this.$emit('success');
+                    this.externalOnSuccess?.();
                 })
             }else{
                 this.$message.success("操作成功")
                 this.tlsForm.show = false;
                 this.$emit('success');
+                this.externalOnSuccess?.();
             }
         },
         // 设置子域名证书

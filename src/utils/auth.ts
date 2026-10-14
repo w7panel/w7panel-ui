@@ -11,6 +11,9 @@ const FILEEDITOR_KEY = 'w7panel-fileeditor';
 const WEBSHELL_KEY = 'w7panel-webshell';
 const K8SINFO_KEY = 'w7panel-k8sinfo';
 const isSubapp = (window as any).__POWERED_BY_WUJIE__;
+const ckmSession = () => (window as any).$wujie?.props;
+const isCkmSession = () => typeof ckmSession()?.getCkmPanelToken === 'function';
+const authPrefix = () => isCkmSession() ? ckmSession().getCkmPanelStoragePrefix() : (isSubapp ? PRE : '');
 
 const getDialogPanelToken = () => {
     if (typeof window === 'undefined' || !window.location.pathname.includes('/dialog/appgroup/')) {
@@ -25,6 +28,7 @@ const getDialogPanelToken = () => {
 };
 
 const isLogin = () => {
+    if (isCkmSession()) return !!ckmSession().getCkmPanelToken();
     if (getDialogPanelToken()) {
         return true;
     }
@@ -34,10 +38,11 @@ const isLogin = () => {
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return true;
     }
-    return !!localStorage.getItem((isSubapp? PRE : '' ) + TOKEN_KEY);
+    return !!localStorage.getItem(authPrefix() + TOKEN_KEY);
 };
 
 const getToken = () => {
+    if (isCkmSession()) return ckmSession().getCkmPanelToken();
     const dialogPanelToken = getDialogPanelToken();
     if (dialogPanelToken) {
         return dialogPanelToken;
@@ -52,13 +57,14 @@ const getToken = () => {
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return (window as any)?.microApp?.getData()?.token;
     }
-    return localStorage.getItem((isSubapp? PRE : '' ) + TOKEN_KEY);
+    return localStorage.getItem(authPrefix() + TOKEN_KEY);
 };
 const getRefreshToken = () => {
+    if (isCkmSession()) return '';
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.refreshToken){
         return (window as any)?.$wujie?.props?.refreshToken;
     }
-    return localStorage.getItem((isSubapp? PRE : '' ) + REFRESH_TOKEN);
+    return localStorage.getItem(authPrefix() + REFRESH_TOKEN);
 };
 // const getExpire = () => {
 //     return Number(localStorage.getItem(EXPIRE));
@@ -66,14 +72,14 @@ const getRefreshToken = () => {
 const getPermission = () => {
     let permission = [];
     try{
-        permission = JSON.parse(localStorage.getItem((isSubapp? PRE : '' ) + PERMISSION));
+        permission = JSON.parse(localStorage.getItem(authPrefix() + PERMISSION));
     }catch{}
     return permission?.length? expandPermissionValues(permission) : null;
 };
 const getUserInfo = () => {
     let userInfo = {};
     try{
-        userInfo = JSON.parse(localStorage.getItem((isSubapp? PRE : '' ) + USERINFO));
+        userInfo = JSON.parse(localStorage.getItem(authPrefix() + USERINFO));
     }catch{}
     return userInfo;
 }
@@ -83,9 +89,10 @@ const dispatchAuthChange = () => {
 };
 
 const setToken = (token: string) => {
-    localStorage.setItem((isSubapp? PRE : '' ) + TOKEN_KEY, token);
+    localStorage.setItem(authPrefix() + TOKEN_KEY, token);
 };
 const setRefreshToken = (token: string) => {
+    if (isCkmSession()) return;
     localStorage.setItem(REFRESH_TOKEN, token);
 }
 const setIframeToken = (token: string) => {
@@ -104,14 +111,20 @@ const getIframeRefreshToken = () => {
 //     localStorage.setItem(EXPIRE, String(v));
 // };
 const setPermission = (v: string[]) => {
-    localStorage.setItem((isSubapp? PRE : '' ) + PERMISSION, JSON.stringify(expandPermissionValues(v)));
+    localStorage.setItem(authPrefix() + PERMISSION, JSON.stringify(expandPermissionValues(v)));
     dispatchAuthChange();
 };
 const setUserInfo = (v: string[]) => {
-    localStorage.setItem((isSubapp? PRE : '' ) + USERINFO, JSON.stringify(v));
+    localStorage.setItem(authPrefix() + USERINFO, JSON.stringify(v));
 };
 
 const clearToken = () => {
+    if (isCkmSession()) {
+        const prefix = authPrefix();
+        Object.keys(localStorage).filter(key => key.startsWith(prefix)).forEach(key => localStorage.removeItem(key));
+        dispatchAuthChange();
+        return;
+    }
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN);
     localStorage.removeItem(USERINFO);
@@ -134,26 +147,26 @@ const clearIframeToken = () => {
 
 
 const getFileEditor = () => {
-    return localStorage.getItem((isSubapp? PRE : '' ) + FILEEDITOR_KEY);
+    return localStorage.getItem(authPrefix() + FILEEDITOR_KEY);
 };
 const setFileEditor = (boo: string) => {
-    localStorage.setItem((isSubapp? PRE : '' ) + FILEEDITOR_KEY, boo);
+    localStorage.setItem(authPrefix() + FILEEDITOR_KEY, boo);
 };
 const getWebshell = () => {
-    return localStorage.getItem((isSubapp? PRE : '' ) + WEBSHELL_KEY);
+    return localStorage.getItem(authPrefix() + WEBSHELL_KEY);
 };
 const setWebshell = (boo: string) => {
-    localStorage.setItem((isSubapp? PRE : '' ) + WEBSHELL_KEY, boo);
+    localStorage.setItem(authPrefix() + WEBSHELL_KEY, boo);
 };
 const getK8sinfo = () => {
     let k8sinfo = {};
     try{
-        k8sinfo = JSON.parse(localStorage.getItem((isSubapp? PRE : '' ) + K8SINFO_KEY));
+        k8sinfo = JSON.parse(localStorage.getItem(authPrefix() + K8SINFO_KEY));
     }catch{}
-    return k8sinfo
+    return k8sinfo || {};
 };
 const setK8sinfo = (v) => {
-    localStorage.setItem((isSubapp? PRE : '' ) + K8SINFO_KEY, JSON.stringify(v));
+    localStorage.setItem(authPrefix() + K8SINFO_KEY, JSON.stringify(v));
     window.dispatchEvent(new CustomEvent('w7panel-k8sinfo-change'));
 };
 

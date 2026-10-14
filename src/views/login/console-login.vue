@@ -61,26 +61,7 @@ export default {
                     this.$router.push('/appgroup/w7panel-ckm-root/micro')
                     return;
                 }
-                if(!data.isK3kUser){
-                    // if(k3kInfo?.['w7.cc/support-cvm']=='true' && k3kInfo?.['w7.cc/is-cvm-req']=='false'){
-                    //     this.$router.push('/fp/usermanage-resource')
-                    //     return;
-                    // }
-                    this.beforeTest();
-                }else{
-                    let couponCode = this.$route.query?.couponCode || '';
-
-                    // if(k3kInfo?.['w7.cc/support-cvm']=='true' && k3kInfo?.['w7.cc/is-cvm-req']=='false'){
-                    //     this.$router.push('/usermanage/resource')
-                    // }else
-                    if(k3kInfo?.['w7.cc/need-create-order']=='true' || k3kInfo?.['w7.cc/need-renew']=='true'){
-                        this.$router.push('/order-base?couponCode=' + couponCode);
-                    }else if(k3kInfo?.['w7.cc/k3k-job-status']=='complete'){
-                        this.beforeTest()
-                    }else{
-                        this.$router.push('/init-cluster')
-                    }
-                }
+                this.beforeTest();
             })
         },
         
@@ -88,18 +69,11 @@ export default {
             await useNamespaceStore().setNamespaceList().catch(()=>{})
             await k8sproxy.get('/api/v1/namespaces/default/services/kubernetes', {loading:true, noAlert:true}).then(async res=>{
                 let boo = await this.testWeihu()
-                if(boo){
-                    this.$router.push('/init-cluster')
-                    return;
-                };
                 const redirect = this.$route.query?.redirect;
                 const isMicroAppDirect = Boolean(window?.w7_microapp?.name);
                 this.$router.push(isMicroAppDirect ? '/' : (redirect? redirect : {name:'cluster-panel'}));
                 this.$message.success('欢迎使用');
-            }).catch(()=>{
-                this.$router.push('/init-cluster')
-                // this.$router.push('/resource-loading')
-            });
+            }).catch(()=> this.$router.push({name:'cluster-panel'}));
         },
 
         async testWeihu(){

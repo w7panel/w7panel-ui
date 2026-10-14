@@ -75,8 +75,6 @@
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
-import axios from 'axios';
-import { getToken } from '@/utils/auth';
 import jsyaml from "js-yaml";
 
 export default {
@@ -100,6 +98,8 @@ export default {
                 filenmae: '',
                 uploading: false,
             },
+            outEditorInfo: { agentUrl: '' },
+            partPath: '',
 
             match: {
                 apps: [],
@@ -127,13 +127,18 @@ export default {
                 valuesContent: '',
                 namespace: this.namespaceActive,
                 editor: null,
+                pid: '',
+                subPid: '',
             }
+            this.upload.file = null;
+            this.upload.filename = '';
+            this.upload.noAlert = true;
         },
         getYaml(){
             if(!this.form.repo){return;}
             // /k8s/v1/https:project-hami.github.io:443/proxy/HAMi/index.yaml
-            panelApi.get('/proxy-url/',{
-                params: {proxyUrl:this.form.repo.replace(/\/$/,'')+'/index.yaml'},
+            panelApi.get('/artifacts/helm-index',{
+                params: {repository:this.form.repo.replace(/\/$/,'')},
                 noAlert: true
             }).then(res=>{
                 let data = {};
@@ -156,28 +161,21 @@ export default {
             this.$emit('close',refreshList);
         },
         // input file 选择文件
-        selectFile(event){
+        async selectFile(event){
             let files = event.target.files;
             if(!files.length){return}
             if(files.length>1){this.$message.warning('请选择一个文件');return;}
             if(!/\.tgz$/.test(files[0].name)){this.$message.warning('上传文件必须为.tgz格式');return;}
             this.upload.file = files[0];
             this.upload.filename = files[0].name.replace(/\s/g,'');
-            this.upload.uploading = false;
-            
-            let data = new FormData();
-            data.append('file',this.upload.file);
-            // data.append('X-Amz-Credential', 'AKIAIOSFODNN7EXAMPLE/20151229/us-east-1/s3/aws4_request');
-            // data.append('X-Amz-Algorithm', 'AWS4-HMAC-SHA256');
-            data.append('key', 'upload/helm/'+this.upload.filename);
-
-            this.upload.uploading = true;
-            axios.post('/s3bucket',data).then(res=>{
-                this.upload.uploading = false;
-                let host = window?.microApp?.getData()?.baseURL || window.location.origin;
-                let url = host + '/panel-api/v1/download/upload/helm/' + this.upload.filename + '?api-token=' + getToken();
-                this.form.chart = url;
-            }).catch(()=>{this.upload.uploading = false;})
+            try {
+                const { handleFileUpload } = await import('./files.upload.js');
+                await handleFileUpload(this);
+                const grant = await panelApi.post('/download-grants', { path: this.upload.filename });
+                this.form.chart = window.location.origin + grant.data.url;
+            } catch {
+                this.$message.error('上传失败');
+            }
         },
         submit(){
             this.$refs.form.validate((err) => {

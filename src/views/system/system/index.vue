@@ -3,8 +3,8 @@
         <route-breadcrumb />
         <div class="padding-20 bg-white">
             <a-tabs v-model:active-key="tab">
-                <a-tab-pane key="2" title="超卖配置"></a-tab-pane>
                 <a-tab-pane key="4" title="域名解析记录"></a-tab-pane>
+                <a-tab-pane key="6" title="登录配置"></a-tab-pane>
             </a-tabs>
             <div v-if="tab=='1'">
                 <a-form ref="register" :model="register" auto-label-width class="padding-20">
@@ -27,85 +27,8 @@
                             <input id="uploadlogoinput" type="file" accept="image/*" @change="selectFile" />
                         </div>
                     </a-form-item>
-                    <a-form-item label="首页配置">
-                        <a-radio-group v-model="register.indexpage">
-                            <a-radio value="login">登录页</a-radio>
-                            <a-radio value="resource">云资源聚合页</a-radio>
-                        </a-radio-group>
-                    </a-form-item>
                     <a-form-item label="">
                         <a-button type="primary" @click="submitRegister">确定</a-button>
-                    </a-form-item>
-                </a-form>
-            </div>
-            <div v-else-if="tab=='2'">
-                <a-form :model="oversold" auto-label-width>
-                    <a-form-item label="CPU">
-                        <div class="df fc">
-                            <a-form-item label="节点资源">
-                                <a-input v-model="oversold.cpu" disabled>
-                                    <template #append>核</template>
-                                </a-input>
-                            </a-form-item>
-                        </div>
-                        <div class="df fc ml-20">
-                            <a-form-item label="超卖比例">
-                                <a-input-number v-model="oversold.cpuPercent" :min="100">
-                                    <template #append>%</template>
-                                </a-input-number>
-                            </a-form-item>
-                        </div>
-                    </a-form-item>
-                    <a-form-item label="内存">
-                        <div class="df fc">
-                            <a-form-item label="节点资源">
-                                <a-input v-model="oversold.memory" disabled>
-                                    <template #append>Gi</template>
-                                </a-input>
-                            </a-form-item>
-                        </div>
-                        <div class="df fc ml-20">
-                            <a-form-item label="超卖比例">
-                                <a-input-number v-model="oversold.memoryPercent" :min="100">
-                                    <template #append>%</template>
-                                </a-input-number>
-                            </a-form-item>
-                        </div>
-                    </a-form-item>
-                    <a-form-item label="存储">
-                        <div class="df fc">
-                            <a-form-item label="节点资源">
-                                <a-input v-model="oversold.storage" disabled>
-                                    <template #append>Gi</template>
-                                </a-input>
-                            </a-form-item>
-                        </div>
-                        <div class="df fc ml-20">
-                            <a-form-item label="超卖比例">
-                                <a-input-number v-model="oversold.storagePercent" :min="100">
-                                    <template #append>%</template>
-                                </a-input-number>
-                            </a-form-item>
-                        </div>
-                    </a-form-item>
-                    <a-form-item label="带宽">
-                        <div class="df fc">
-                            <a-form-item label="节点资源">
-                                <a-input v-model="oversold.bandwidth">
-                                    <template #append>Mbps</template>
-                                </a-input>
-                            </a-form-item>
-                        </div>
-                        <div class="df fc ml-20">
-                            <a-form-item label="超卖比例">
-                                <a-input-number v-model="oversold.bandwidthPercent" :min="100">
-                                    <template #append>%</template>
-                                </a-input-number>
-                            </a-form-item>
-                        </div>
-                    </a-form-item>
-                    <a-form-item label="">
-                        <a-button type="primary" @click="submitOversold">确定</a-button>
                     </a-form-item>
                 </a-form>
             </div>
@@ -161,11 +84,38 @@
             <div v-else-if="tab=='5'">
                 <contact-us></contact-us>
             </div>
+            <div v-else-if="tab=='6'" class="padding-20">
+                <a-tabs v-model:active-key="loginTab" type="card-gutter">
+                    <a-tab-pane key="we7-cloud" title="微擎云端登录">
+                        <a-card :bordered="false" class="login-provider-card">
+                            <a-form auto-label-width>
+                                <a-form-item label="状态">
+                                    <a-switch :model-value="true" disabled />
+                                    <span class="ml-10 c-99">内置登录方式，默认开启且不可修改</span>
+                                </a-form-item>
+                            </a-form>
+                        </a-card>
+                    </a-tab-pane>
+                    <a-tab-pane key="oidc" title="OIDC 登录">
+                        <a-card :bordered="false" class="login-provider-card">
+                            <a-form :model="loginConfig.oidc" auto-label-width>
+                                <a-form-item label="启用 OIDC"><a-switch v-model="loginConfig.oidc.enabled" /></a-form-item>
+                                <template v-if="loginConfig.oidc.enabled">
+                                    <a-form-item label="Discovery URL" required><a-input v-model="loginConfig.oidc.discoveryUrl" placeholder="https://主集群/panel-api/v1/oidc/.well-known/openid-configuration" /></a-form-item>
+                                    <a-form-item label="Client ID" required><a-input v-model="loginConfig.oidc.clientId" placeholder="主集群预先创建的 OIDC Client ID" /></a-form-item>
+                                    <a-form-item label="Scopes"><a-input v-model="loginConfig.oidc.scopesText" placeholder="openid profile" /></a-form-item>
+                                    <a-alert type="info">请在主集群 OIDCClient 中预先登记 callback URL：{{ oidcCallbackUrl }}</a-alert>
+                                </template>
+                                <a-form-item class="mt-20"><a-button type="primary" @click="submitLoginConfig">保存</a-button></a-form-item>
+                            </a-form>
+                        </a-card>
+                    </a-tab-pane>
+                </a-tabs>
+            </div>
         </div>
     </div>
 </template>
 <script>
-import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 
 import axios from 'axios';
@@ -176,28 +126,50 @@ export default{
     data(){
         return {
             namespaceActive: 'default',
-            tab: '2',
-            oversold: {},
+            tab: '4',
+            loginTab: 'we7-cloud',
             register: {},
             filing: {},
             domainParse: {},
+            loginConfig: {exist: false, providers: [], oidc: {enabled: false, discoveryUrl: '', clientId: '', scopesText: 'openid profile'}},
             permissionPackageList: [],
         }
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
-        this.initOversold();
+        this.initDomainparse();
+        this.initLoginConfig();
     },
     components: {
         ContactUs,
     },
     watch: {
         tab(v){
-            if(v=='2'){this.initOversold()}
             if(v=='4'){this.initDomainparse()}
+            if(v=='6'){this.initLoginConfig()}
         }
     },
     methods: {
+        oidcCallbackUrl(){ return window.location.origin + '/login/oidc/callback'; },
+        initLoginConfig(){
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/loginconfigs/default',{noAlert:true}).then(res=>{
+                const providers = res.data?.spec?.providers || [];
+                const oidc = providers.find(item=>item.type === 'oidc') || {};
+                this.loginConfig = {exist: true, providers, oidc: {enabled: Boolean(oidc.enabled), discoveryUrl: oidc.discoveryUrl || '', clientId: oidc.clientId || '', scopesText: (oidc.scopes || ['openid','profile']).join(' ')}};
+            }).catch(()=>{ this.loginConfig = {exist: false, providers: [], oidc: {enabled: false, discoveryUrl: '', clientId: '', scopesText: 'openid profile'}}; });
+        },
+        submitLoginConfig(){
+            const oidc = this.loginConfig.oidc;
+            if(oidc.enabled && (!oidc.discoveryUrl || !oidc.clientId)){ this.$message.error('启用 OIDC 时请填写 Discovery URL 和 Client ID'); return; }
+            const provider = {type: 'oidc', enabled: Boolean(oidc.enabled), discoveryUrl: oidc.discoveryUrl, clientId: oidc.clientId, scopes: oidc.scopesText.split(/[\s,]+/).filter(Boolean)};
+            const providers = (this.loginConfig.providers || []).filter(item=>item.type !== 'oidc');
+            providers.push(provider);
+            const body = {spec: {providers}};
+            const request = this.loginConfig.exist
+                ? k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/loginconfigs/default', body, {headers: {'Content-Type': 'application/merge-patch+json'}})
+                : k8sproxy.post('/apis/w7panel.w7.com/v1alpha1/loginconfigs', {apiVersion: 'w7panel.w7.com/v1alpha1', kind: 'LoginConfig', metadata: {name: 'default'}, ...body});
+            request.then(()=>{ this.$message.success('操作成功'); this.initLoginConfig(); }).catch(()=>{});
+        },
         selectFile(event){
             let files = event.target.files;
             if(!files.length){return}
@@ -298,7 +270,6 @@ export default{
                     ...this.register,
                     allowConsoleRegister: res?.data?.spec?.data?.allowConsoleRegister === 'true',
                     // showInShop: res?.data?.spec?.data?.showInShop === 'true',
-                    indexpage: res?.data?.spec?.data?.indexpage || 'login',
                     defaultPermissionName: 'normal',
                     // defaultPermissionName: res?.data?.spec?.data?.defaultPermissionName,
                 }
@@ -328,7 +299,6 @@ export default{
                         allowConsoleRegister: false,
                         // showInShop: false,
                         defaultPermissionName: 'normal',
-                        indexpage: 'login',
                     }
                 });
             })
@@ -377,7 +347,6 @@ export default{
                         allowConsoleRegister: String(this.register.allowConsoleRegister),
                         // showInShop: String(this.register.showInShop),
                         defaultPermissionName: this.register.defaultPermissionName,
-                        indexpage: this.register.indexpage,
                     },
                 }
             },{
@@ -453,85 +422,6 @@ export default{
                 }).catch(()=>{});
             }
         },
-        async initOversold(){
-            
-            await panelApi.get('/metrics/usage/normal',{loading:true}).then(res=>{
-                let data = res.data;
-
-                let cpu = data?.cpu?.total || 0;
-                cpu = cpu / 1000;
-                cpu = Number(cpu.toFixed(2));
-                this.oversold.cpu = cpu;
-                
-                let memory = data?.memory?.total || 0;
-                memory = memory / 1024 / 1024 / 1024;
-                memory = Number(memory.toFixed(2));
-                this.oversold.memory = memory;
-
-            })
-            
-            await panelApi.get('/metrics/usage/disk').then(res=>{
-                let data = res?.data;
-
-                let fs = data?.disk?.total || 0;
-                fs = fs / 1024 / 1024 / 1024;
-                fs = Number(fs.toFixed(2));
-                this.oversold.storage = fs;
-            });
-            
-            this.oversold = {
-                ...this.oversold,
-                cpuPercent: 1000,
-                memoryPercent: 1000,
-                storagePercent: 1000,
-                bandwidth: 1000,
-                bandwidthPercent: 1000,
-            };
-            await k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/config',{noAlert:true}).then(res=>{
-                this.oversold.exist = true;
-                let spec = res.data.spec;
-                this.oversold.cpuPercent = Number(spec.cpu);
-                this.oversold.memoryPercent = Number(spec.memory);
-                this.oversold.storagePercent = Number(spec.storage);
-                this.oversold.bandwidthPercent = Number(spec.bandwidth);
-                this.oversold.bandwidth = Number(spec.bandwidthNum);
-            }).catch(()=>{
-                this.oversold.exist = false;
-            });
-        },
-        async submitOversold(){
-            let exist = this.oversold.exist;
-            
-            let spec = {
-                cpu: Number(this.oversold.cpuPercent),
-                memory: Number(this.oversold.memoryPercent),
-                storage: Number(this.oversold.storagePercent),
-                bandwidth: Number(this.oversold.bandwidthPercent),
-                bandwidthNum: Number(this.oversold.bandwidth),
-            }
-
-            if(exist){
-                k8sproxy.patch("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs/config",{spec},{
-                    loading: true,
-                    headers: {'Content-Type': 'application/merge-patch+json'},
-                }).then(()=>{
-                    this.$message.success('操作成功');
-                })
-            }else{
-                k8sproxy.post("/apis/w7panel.w7.com/v1alpha1/oversellingconfigs", {
-                    apiVersion: 'w7panel.w7.com/v1alpha1',
-                    kind: 'OverSellingConfig',
-                    metadata: {
-                        name: 'config',
-                        labels: {},
-                        annotations: {},
-                    },
-                    spec,
-                },{loading:true}).then(res=>{
-                    this.$message.success('操作成功');
-                });
-            }
-        },
     }
 }
 </script>
@@ -541,4 +431,7 @@ export default{
 .upload{position:relative;}
 .upload input[type='file']{min-width:0; position:absolute; top:0; left:0; right:0; bottom:0; z-index:1; opacity:0; cursor:pointer;}
 
+</style>
+<style scoped>
+.login-provider-card{max-width:760px;}
 </style>

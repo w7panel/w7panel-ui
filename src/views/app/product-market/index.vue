@@ -77,7 +77,8 @@ export default {
                 cluster_level: clusterLevel,
                 frontend_props: {
                     ...(data?.data || {})
-                }
+                },
+                is_sub_cluster: data?.data?.is_sub_cluster === true,
             }
             appendWujieModalHandles(props, () => this.$refs.wujieModals)
             startApp({

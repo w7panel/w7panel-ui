@@ -26,6 +26,7 @@
                     <div v-if="canInitUser.allowConsoleRegister" class="cursor c-blue" @click="consoleLogin">控制台登录</div>
                 </div>
                 <a-button type="primary" :disabled="$route.query.consolelogin=='1'" html-type="submit" long :loading="loading">登录</a-button>
+                <a-button v-if="canInitUser.oidcEnabled" long :loading="loading" @click="oidcLogin">使用 OIDC 登录</a-button>
             </a-space>
         </a-form>
         <a-form v-else ref="initForm" :model="canInitUser" class="login-form" layout="vertical" @submit="toInit">
@@ -82,34 +83,8 @@ const LOGIN_REQUEST_TIMEOUT = 10000;
 const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png')
 const microLogin = (window as any)?.w7_microapp?.site?.login || {};
 const isMicroAppDirect = Boolean((window as any)?.w7_microapp?.name);
-
-if(microLogin?.indexPage){
-    if(microLogin.indexPage=='resource' && !sessionStorage.getItem('passResourcePage')){
-        router.push({
-            path: '/',
-            query: router?.currentRoute?.value?.query || {},
-        });
-    }
-}else{
-    panelApi.get('/noauth/site/k3k-config',{
-        noAlert: true,
-        noTokenRequired: true,
-    }).then(res=>{
-        if(res?.data?.data?.indexpage=='resource' && !sessionStorage.getItem('passResourcePage')){
-            router.push({
-                path: '/',
-                query: router?.currentRoute?.value?.query || {},
-            });
-        }
-    }).catch(()=>{})
-}
-
-if(getToken()){
-    panelApi.get('/k3k/info',{noAlert:true}).then(res=>{
-        // already login
-        handleSubmit({passLogin:true})
-    })
-}
+const panelLogin = router?.currentRoute?.value?.query?.oidclogin === '1';
+let invalidToken = false;
 
 
 const canInitUser = reactive({
@@ -119,8 +94,26 @@ const canInitUser = reactive({
     checkpwd: '',
     allowConsoleRegister: false,
     captchaEnabled: true,
+    oidcEnabled: false,
     configLoaded: false, // 配置是否已加载
 });
+const redirectPanelLogin = () => {
+    if(panelLogin && canInitUser.oidcEnabled && (!getToken() || invalidToken)) oidcLogin();
+};
+if(getToken()){
+    panelApi.get('/k3k/info',{noAlert:true}).then(res=>{
+        if(res) {
+            // already login
+            handleSubmit({passLogin:true})
+        } else {
+            invalidToken = true;
+            redirectPanelLogin();
+        }
+    }).catch(()=>{
+        invalidToken = true;
+        redirectPanelLogin();
+    })
+}
 const toInit = ({ errors, values, })=>{
     if (loading.value){ return };
     if (errors) { return };
@@ -168,13 +161,23 @@ const loadLoginConfig = () => {
 const waitLoginConfig = () => loadLoginConfigPromise || loadLoginConfig();
 loadLoginConfig();
 
+panelApi.get('/noauth/site/login-config', {noTokenRequired: true, noAlert: true, timeout: LOGIN_REQUEST_TIMEOUT}).then(res => {
+    let data:any = res.data?.data || res.data || {};
+    canInitUser.oidcEnabled = data.oidcEnabled === true || data.oidcEnabled === 'true';
+    redirectPanelLogin();
+}).catch(()=>{});
+
 const consoleLogin = ()=>{
     let policyName = router?.currentRoute?.value?.query?.policyName || '';
     let couponCode = router?.currentRoute?.value?.query?.couponCode || '';
     window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+encodeURIComponent(window.location.origin + '/console-login?policyName=' + policyName + '&couponCode=' + couponCode);
 }
+const oidcLogin = ()=>{ window.location.href = '/panel-api/v1/auth/oidc/start'; }
 if(router?.currentRoute?.value?.query?.consolelogin=='1'){
     consoleLogin();
+}
+if(router?.currentRoute?.value?.query?.oidc_error){
+    errorMessage.value = String(router.currentRoute.value.query.oidc_error);
 }
 
 const loginConfig = useStorage('login-config', {
@@ -234,19 +237,12 @@ const beforeTest = async ()=>{
         timeout: LOGIN_REQUEST_TIMEOUT,
     }).then(async ()=>{
         let boo = await testWeihu()
-        if(boo){
-            router.push('/init-cluster')
-            return;
-        };
         const { redirect } = router.currentRoute.value.query;
         router.push(isMicroAppDirect ? '/' : (redirect? redirect : {name:'cluster-panel'} as any));
         Message.success({
             content: '登录成功',
         });
-    }).catch(()=>{
-        router.push('/init-cluster')
-        // router.push('/resource-loading')
-    });
+    }).catch(()=> router.push({name:'cluster-panel'}));
 }
 
 const submit = async ({ errors, values, })=>{
@@ -316,19 +312,7 @@ const handleSubmit = async (am?:any) => {
         if(k3kInfo?.['w7.cc/role']=='normal'){
             router.push('/appgroup/w7panel-ckm-root/micro')
         }else{
-            if(!loginData.isK3kUser){
-                await beforeTest();
-            }else{
-                let couponCode = router?.currentRoute?.value?.query?.couponCode || '';
-                
-                if(k3kInfo?.['w7.cc/need-create-order']=='true' || k3kInfo?.['w7.cc/need-renew']=='true'){
-                    router.push('/order-base?couponCode=' + couponCode);
-                }else if(k3kInfo?.['w7.cc/k3k-job-status']=='complete'){
-                    await beforeTest();
-                }else{
-                    router.push('/init-cluster')
-                }
-            }
+            await beforeTest();
         }
         const { rememberPassword } = loginConfig.value;
         const { username, password } = userInfo;

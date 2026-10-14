@@ -16,7 +16,7 @@
     </div>
 </template>
 <script>
-import { panelApi, k8sproxy } from '@/utils/api';
+import { panelApi } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import { getToken, getK8sinfo } from '@/utils/auth';
 import { bus, startApp, destroyApp } from "wujie";
@@ -31,6 +31,7 @@ import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
+import { createOpenCkmPanel } from '@/utils/ckm-panel-session';
 import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
 import {
     loadMicroAppReverseDependentApps,
@@ -460,10 +461,12 @@ export default{
                 runningFirstPod,
                 podShell,
                 microappProxy: createMicroappProxy(proxyBackendUrl),
+                openCkmPanel: createOpenCkmPanel(),
                 k8sproxy: createK8sProxy(),
                 panelProxy: createPanelProxy(),
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
+                is_sub_cluster: frontProps.is_sub_cluster === true,
             }
             appendWujieModalHandles(props, () => this.$refs.wujieModals, {
                 getAppDynamicValues,

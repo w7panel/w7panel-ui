@@ -1,7 +1,28 @@
 # CHANGELOG
 
+## 2026-10-12
+
+- 域名解析配置接口去掉 `zpk` 前缀，`domain-parse-alert.vue` 与 `store-install.vue` 的调用路径由 `/zpk/domain-parse` 改为 `/domain-parse`，与后端迁移到 application 模块后的路由一致；影响模块：域名解析提示组件、制品安装完成页。验证：`grep` 确认 `src` 下已无 `zpk/domain-parse` 残留，`git diff --check` 通过（未执行前端构建）。
+
+## 2026-10-10
+
+- 修复系统模板应用表单初始化失败：模板编辑不再进入新建应用的标识写入逻辑，避免模板缺少 Pod 标签时抛错并在保存时误报“编辑器尚未初始化”；影响模块：系统模板应用编辑器。验证：生产构建与 `git diff --check` 通过。
+- 节点页 tls-san 设置移除独立的“绑定域名”输入及相关配置写入，kubeconfig 地址只使用启用的 TLS SAN 地址；影响模块：集群节点认证信息。验证：前端生产构建通过，`git diff --check` 通过。
+
 ## 2026-10-08
 
+- 宿主统一证书抽屉接收 CKM 泛域名的手动证书模式，隐藏自动 HTTPS 开关并要求填写证书和私钥；保存成功后通知 CKM 刷新协议状态。此前该抽屉始终提供自动签发入口，泛域名在 DNS-01 尚未统一支持时可能被误操作。
+- 影响模块：Wujie 宿主域名证书组件。
+- 验证：Vue 证书组件单独编译及 `git diff --check` 通过；本仓库未安装 Vite 依赖，完整构建未运行。
+
+2026-10-08: 菜单渲染时隐藏站点管理一级入口；影响模块：侧边栏菜单。验证：未运行测试。
+
+## 2026-09-30
+
+- 集群概览页标题统一改为“集群认证信息”，与节点页的同名入口及 Kubeconfig/TLS-SAN 双 Tab 展示保持一致，主子集群共用该文案。
+- 节点页“集群信息”改为“集群认证信息”双 Tab：展示宿主 kubeconfig 并按所选地址替换 API server；管理 IP/域名 TLS SAN，支持手动填写并保存网关绑定域名，应用后等待 server 节点恢复。
+- 影响模块：集群节点页。
+- 验证：`LOCAL_MOCK=true npm run build` 通过（仅有项目已有的构建警告）。
 - 应用管理新增“传统应用”和“轻量虚拟机”菜单，复用应用列表并按 AppGroup 的 `w7.cc/manifest-type` 标签分别筛选 `tradition`、`system-image`；普通应用列表排除这两类应用，同时继续兜底展示缺少类型标签或尚未独立管理的其他类型。
 - 两个专用列表提供“新建”入口，分别以“传统应用”和“系统镜像”固定分类打开制品市场。
 - 制品安装完成页的“返回列表”、制品安装页与应用详情顶部面包屑中的“应用管理”，会按制品或当前 AppGroup 的 `w7.cc/manifest-type` 返回普通应用、传统应用或轻量虚拟机列表；专用制品市场页的面包屑同步返回入口对应的专用列表，不再固定跳转普通应用列表。
@@ -33,6 +54,17 @@
 
 ## 2026-09-21
 
+- 新增独立运维 Copilot 页面：通过服务端 OpenAI 兼容接口流式生成受限 OpenUI Lang 诊断卡片；资源变更先 dry-run，再由用户确认执行。
+- 影响模块：集群管理、OpenUI Vue 渲染与面板 API。
+- 验证：`npm run build`、OpenUI Lang 解析自检。
+
+- 集群概览的 CKM/CVM 请求判断改为读取后端 `/app-info` 返回的 `isSubCluster`，不再依赖 `/k3k/info` 的用户标记。
+- 影响模块：集群概览的系统信息与资源信息展示。
+- 验证：`npm run build`。
+
+- Helm 下载包上传改用与构建镜像一致的认证分片上传和短时 `download-ticket` 流程，移除旧 `/s3bucket` 上传路径，避免两套上传行为不一致。
+- 影响模块：应用列表 Helm 创建。
+- 验证：`npm run build` 与 `git diff --check`。
 - Wujie 通用宿主 handles 新增关联应用自动升级检测、前往面板升级和卸载能力；升级检测复用应用列表的版本检查接口，仅在可升级时显示入口，卸载复用面板 AppGroup 删除流程，关联应用身份由订单关系业务层判定。
 - 影响模块：Wujie MicroApp 宿主能力、制品市场关联插件操作。
 - 验证：`LOCAL_MOCK=true` 生产构建通过，`git diff --check` 通过；类型检查受项目现有 pnpm 依赖脚本批准策略及 TypeScript/`@types/node` 版本冲突阻断。
@@ -55,6 +87,31 @@
 
 ## 2026-09-17
 
+- 修复 Helm 下载包与传统代码包上传仍使用旧 `/s3bucket` 相对路径导致 401/跳转登录；统一改用认证的 `/panel-api/v1/s3bucket` 调用。
+- 验证：`npm run build`。
+
+- 修复构建镜像、Helm 上传 Chart 和微应用文件下载仍在 URL 中携带 `api-token` 的遗漏：改为统一申请短时下载票据，避免构建 Job 下载 ZIP/TGZ 时被服务端的新认证边界拒绝。
+- 验证：`npm run build`。
+
+- Helm 仓库索引改用已认证的受限制品 API，传统代码包安装改为先签发短时下载票据；前端不再拼接可长期重放的下载 JWT URL。
+- 验证：待本次 `npm run build`。
+
+- 开发代理支持通过 `W7PANEL_PROXY_URL` 指定本地源码 Server，避免 Vite 在切换本地测试端口时继续使用旧的代理配置。
+- 影响模块：本地 UI/Server 联调。
+- 验证：待重启 Vite 后进行 Pod Shell 联调。
+
+- WebShell 增加固定 `w7panel-terminal` 子协议，认证凭据继续使用独立的 `w7panel-bearer.*`；Server 可明确协商终端协议，避免经 Vite/反向代理时握手无响应。
+- 影响模块：容器、节点和 CKM 子面板终端握手。
+- 验证：本地 Server/UI 实际 Pod Shell 握手返回 101。
+
+- 修复容器列表和 CKM 子面板 WebShell 在移除 `w7panel_session` Cookie 后无法建立连接的问题：所有终端 WebSocket 统一从当前面板会话取 token，通过 `w7panel-bearer.*` 子协议认证，并从 URL 清除遗留 `api-token`。
+- 影响模块：容器终端、节点终端与 CKM 子面板终端。
+- 验证：`node --test scripts/ckm-panel-session.test.cjs`、`npm run build` 与 `git diff --check`。
+
+- 应用列表点击应用时改用面板 `GET /microapp/:name/info` 判定 MicroApp，避免子用户因 Kubernetes RBAC 缺少 MicroApp 读取权限而无法继续跳转。
+- 影响模块：应用列表详情跳转。
+- 验证：`npm run build` 与 `git diff --check` 通过。
+
 - 制品安装页中带 `module_name` 的启动参数统一按自身 `name` 匹配配置接口应用列表中的同名来源参数，不再使用 `values_text` 决定同制品应用间的参数映射。
 - 影响模块：多应用 ZPK 安装参数同步与表单展示。
 - 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
@@ -64,6 +121,18 @@
 - 修复制品安装子应用的 `PVC_NAME` 已指定 `module_name`、但 `values_text` 为空时未完整继承来源应用 PVC 的问题；空值现在按 `%PVC_NAME%` 处理，并同时写入子应用的 `envKv` 和安装选项 `pvcname`。
 - 影响模块：多应用 ZPK 安装参数同步与提交。
 - 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
+
+## 2026-08-28
+
+- 新增按一级及二级菜单拆分的真实点击 E2E 脚本（共 23 个入口），通过 CDP 操作菜单和安全按钮。
+- 测试登录凭据仅从 `W7PANEL_USER`、`W7PANEL_PASS` 环境变量读取，不写入代码。
+- 统一执行时复用同一 Chrome 页面和登录会话，避免每个菜单测试重复打开登录页。
+- 菜单 E2E 新增 `W7PANEL_E2E_MUTATIONS=1` 测试环境变更模式，可操作新建/创建/删除按钮并优先取消表单。
+- 新增应用管理制品市场流程测试：搜索 `whoami`、点击安装并填写随机 `*.fan.b2.sz.w7.com` 测试域名。
+
+## 2026-08-28
+
+- 开发环境 Vite 代理默认指向本机 W7Panel 服务端 `http://172.16.1.18:18000`，便于本地联调。
 
 ## 2026-09-10
 
@@ -233,7 +302,41 @@
 - 个人中心注册提示改为问号图标悬浮提示，并将“注册集群”保留为单行小字热点；已完成前端构建验证。
 - 个人中心注册提示调整为头像底部对齐，避免悬浮图标出现在头像中间；已完成前端构建验证。
 - 注册集群回跳逻辑支持携带站内返回地址，个人中心发起的注册完成后返回账号页；已完成前端构建验证。
+- API 请求将面板会话与 Kubernetes 凭据分离，仅调整 `/k8s-proxy` 原生 Kubernetes API 的凭据传递，暂不迁移集群业务接口。
+
+## 2026-09-07
+
+- 为 CKM 提供 `openCkmPanel`，创建并按目标隔离保存子面板会话；子面板优先读取专用会话，不再误用宿主 token、权限缓存或 refresh token。
+- 子会话 401 仅重新授权目标 CKM 并重试一次，失败返回 CKM，不刷新或清除主账号。终端使用专用 WebSocket 子协议，子面板文件下载使用认证请求，避免 token 出现在 URL。
+- 验证：会话存储隔离、目标切换、旧会话续期拒绝和 WebSocket 凭据测试通过；远程 Chrome 模拟接口验证目标账号、401 换取新会话及主账号凭据保留。生产构建通过，未部署。
+
+## 2026-09-10
+
+- 新增 `make dev` 本地 UI 联调入口，默认端口 8011；开发代理保持指向本机 w7panel-server 的 18000 端口。已用 `make -n dev` 验证命令展开。
+
+## 2026-09-10
+
+- 补齐网关管理“统计分析”路由 `/gateway/traffic`，复用现有流量统计页面，修复静态菜单配置指向不存在页面的问题；待浏览器联调验证。
+
+- 按产品约定撤销上述统计分析路由：该入口处于有意停用状态，保持不在网关路由中注册。
 2026-09-14: Updated repository ignore rules to retain only `.mcp.json`, `opencode.jsonc`, `AGENTS.md`, and `.gitignore` among untracked files; verified with Git ignore checks.
+## 2026-09-15
+
+- 独立子集群入口移除集群初始化、资源购买、超卖和 CVM 资源页面；登录成功后直接进入集群概览。
+- 保留 CKM 管理及 K3K 配置 CRD 的前端配置入口。
+## 2026-09-15
+
+- 根路径 `/` 默认跳转至集群概览 `/cluster/panel`；未登录用户仍由路由守卫进入登录页。
+
+## 2026-09-15
+
+- 本地开发代理改为 `172.16.1.3:18000`，用于本机 server 联调。
+
+## 2026-09-17
+
+- CKM 微应用宿主仅通过 Panel API 查询唯一的 MicroApp，移除加载菜单时对 MicroApp CRD 的两条 `k8s-proxy` 请求。
+- 登录页支持 `?panellogin=1`：OIDC 已启用的子集群会自动进入既有 OIDC 授权流程。
+- 修复 OIDC 回调仅保存 token 而未初始化 `k3k/info`：普通用户现按角色进入 CKM，缺失本地 K8s 信息时不再导致导航与菜单读取 role/ckm-name 发生空值崩溃。
 
 ## 2026-09-20
 
@@ -254,6 +357,7 @@
 - 2026-09-21 验证：恢复面包屑原跳转行为后，`npm run build` 与 `git diff --check` 均通过。
 - 2026-09-21 修复：应用详情页改用与导航栏、微应用嵌入态匹配的可视区最小高度，并由内部布局继承，避免 Helm 等右侧内容较短时左侧应用菜单无法撑满屏幕。影响模块：应用详情一级侧栏；验证结果见本次构建检查。
 - 2026-09-21 验证：上述应用详情侧栏高度修复已通过 `npm run build`、Chrome 1400×768 视口页面回归和 `git diff --check`。
+- 2026-09-21 修复：`/login?panellogin=1` 遇到本地残留的失效 token 时，`k3k/info` 校验失败后会继续既有 OIDC 自动登录流程；验证：`npm run build` 与 `git diff --check`。
 - 2026-09-21 调整：顶部应用入口与旧 `/appgroup` 地址统一跳转并复用应用详情页；通过顶部入口打开时隐藏右侧面包屑及左侧底部的应用详情、域名管理、应用直达等原生菜单，同时保留顶部应用选中状态和历史微应用路由参数。影响模块：顶部导航、顶部应用兼容路由、应用详情页；验证结果见本次构建检查。
 - 2026-09-21 验证：上述顶部应用入口复用已通过 `npm run build` 与 `git diff --check`；Chrome 实测旧顶部地址正确转换到带 `from=topapp` 的应用详情路由，顶部入口隐藏面包屑和原生菜单，普通应用列表入口仍保持原布局。
 - 2026-09-21 更正：顶部应用入口不再通过 `from=topapp` query 区分，恢复并直接复用旧 `topapp-micro` 路由渲染应用详情组件，并新增同父级 `topapp-direct` 兼容应用直达；详情页按路由 name 隐藏面包屑和原生底部菜单。影响模块：顶部导航、顶部应用路由、应用详情页。
@@ -267,7 +371,8 @@
 - 2026-09-21 修复：根级顶部应用切换菜单时恢复旧版 `routeChange` 单参数事件格式，仅在面板本身作为无界子应用运行时附带嵌套来源标记，避免限流应用将普通菜单切换误判为子面板事件而只更新 URL、不切换页面。影响模块：顶部应用微应用菜单路由；验证结果见本次构建及浏览器回归。
 - 2026-09-21 更正：连续双向回归确认限流微应用切换页面后会丢失后续路由总线监听，因此撤回单参数事件兼容方案；顶部应用菜单改为按目标路由重新初始化无界实例，浏览器前进后退同步也采用相同策略，普通应用详情仍保留原总线路由与嵌套来源标记。影响模块：顶部应用微应用菜单路由；验证结果见本次构建及双向切换回归。
 - 2026-09-21 验证：限流应用已在 Chrome 中连续完成“通用设置 → 限流管理 → 通用设置 → 限流管理”双向切换，URL 与右侧内容均同步更新；`npm run build` 和 `git diff --check` 通过，构建仅保留项目既有的 Vue 深度选择器弃用警告。
-
+- 2026-09-21 修复：`/cluster/panel` 系统信息始终按主集群显示集群版本、创建时间和集群模式；仅子集群的集群地址显示当前面板地址，并移除不再展示的 CKM 配额请求。影响模块：集群概览系统信息。
+- 2026-09-21 验证：上述集群概览系统信息调整已通过 `npm run build` 与 `git diff --check`；构建仅保留项目既有的 Vue 深度选择器弃用警告。
 ## 2026-09-21（AppGroup 级联卸载）
 
 - 新增通用 AppGroup 级联卸载方法：卸载前通过 `w7.cc/depends-<releaseName>` 和 `spec.dependencies` 生成完整反向依赖顺序，先卸载依赖应用并等待 finalizer、卸载 Hook 完成，再卸载目标应用；查询失败、循环依赖、卸载失败或等待超时均停止后续删除。
@@ -312,6 +417,7 @@
 - 进入非“授权与续费”MicroApp 页面时在后台检查当前应用可用性，并复用默认 30 秒缓存；市场返回 `valid=false` 时展示详细原因和处理入口，查询失败时静默继续打开应用。应用主动请求仍可使用 `force` 强制刷新。
 - 删除 Axios 全局拦截器中旧的 `ZPK_TRIAL_EXPIRED` 专用弹窗；安装页继续自行处理旧错误码，已安装应用统一使用市场 `validate` 提示，避免两套机制重复。
 - 验证：`LOCAL_MOCK=true node_modules/.bin/vite build --config ./config/vite.config.prod.ts` 通过；构建仅有项目既有的深度选择器弃用和图片压缩提示。
+- 2026-09-29 合并：解决 CHANGELOG.md 冲突，保留两侧已有记录；验证：git diff --check。
 - 2026-09-29 重构：应用详情、顶部应用和网关插件统一通过 `appendWujieModalHandles` 向 Wujie 顶层 props 注入 `getAppDynamicValues` 与 `validateApp`，避免各入口在 props 字面量中重复维护动态值能力；MicroApp 调用协议保持不变。
 - 2026-09-29 更正：`getAppDynamicValues` 与 `validateApp` 统一放入 `props.handles`；动态值请求只向面板传 AppGroup，ZPK URL 由后端从已安装 AppGroup 解析，不再依赖 MicroApp 注解或 `reverse_dependent_apps` 范围，因此没有 MicroApp 的依赖应用也可按 AppGroup 获取动态上下文。
 
@@ -319,6 +425,15 @@
 
 - `getAppDynamicValues` 接收面板返回的当前制品 `title`，`validateApp` 返回值补充该字段，原有 `valid`、`reason`、`message` 协议保持不变；影响模块：Wujie 应用动态值与授权校验句柄。
 - 验证：TypeScript 类型检查与生产构建通过。
+
+## 2026-09-30
+
+- 节点管理的镜像源编辑改为通过面板 API 读取和保存，后端统一处理主集群 ConfigMap 与子集群本地文件。未运行测试。
+
+## 2026-09-30（统一免费版）
+
+- 移除授权管理页面、证书导入流程和团队版/企业版展示；云端页面固定展示免费版，免费版不再隐藏用户组权限。
+- 验证：`npm run build` 通过。
 
 ## 2026-09-30（顶部 MicroApp root 菜单状态）
 
@@ -333,6 +448,7 @@
 
 - 站点管理不再显示为面板一级菜单；保留 `/sitemanage` 路由兼容历史链接和已有内部跳转。影响模块：主导航菜单。
 - 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。
+
 - 2026-10-08 更正：站点管理不再保留兼容路由；删除 `/sitemanage` 路由模块、专用跳转页面及权限树配置，旧地址将进入未找到页面。
 
 ## 2026-10-08（MicroApp 页面滚动区域）
@@ -352,6 +468,17 @@
 - 安装页读取 ZPK 配置下发的 `supportCluster`，根据面板当前主/子集群等级停止不受支持的安装，不依赖制品市场入口。
 - 根应用和必装依赖在配置加载时校验；未启用的可选依赖不再阻止整个制品安装，可选依赖在预设启用或用户打开开关时单独校验并回退不支持的选择。
 - 验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过；构建仅保留项目既有的 Vue 深度选择器弃用及图片压缩提示。
+
+## 2026-10-10（CKM 系统模板应用编辑）
+
+- 通过 Wujie 提供系统模板专用应用编辑弹窗，复用现有 Deployment 容器、数据卷和节点调度表单；模板模式固定工作负载类型与首容器位置，隐藏首容器资源限制及当前命名空间的 Secret、ConfigMap、PVC 选择。
+- 导出时只合并表单实际修改的字段，保留编辑器未展示的 Kubernetes 配置，避免一次模板编辑覆盖启动探针等原字段。影响模块：Wujie 弹窗、应用表单和模板数据合并。
+- 验证：定向 Node 测试、前端构建和 `git diff --check` 通过。
+
+## 2026-10-12（系统模板 Shell 简易模式识别）
+
+- 应用容器表单识别系统模板中的 `/bin/sh -c`，以简易模式显示 Shell 脚本；编辑后保留原有 `/bin/sh` 命令前缀。
+- 影响模块：应用容器表单及 CKM 系统模板编辑。验证：定向命令解析检查和 `git diff --check` 通过。
 
 ## 2026-10-13 传统应用列表包含应用插件
 

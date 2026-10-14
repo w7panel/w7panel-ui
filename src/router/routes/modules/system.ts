@@ -52,17 +52,6 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             },
         },
         {
-            path: 'license',
-            name: 'license-index',
-            component: () => import('@/views/system/license/license.vue'),
-            meta: {
-                locale: '授权管理',
-                requiresAuth: true,
-                roles: ['*'],
-                key: 'system-license',
-            },
-        },
-        {
             path: 'audit',
             name: 'system-audit',
             component: () => import('@/views/system/audit/index.vue'),

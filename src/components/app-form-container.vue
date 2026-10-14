@@ -145,7 +145,7 @@
                 <!-- cronjob 高级配置 -->
                 <div v-show="showExtra || layout!='cronjob'">
 
-                <a-form-item label="CPU/内存限制" row-class="ac-form-item">
+                <a-form-item v-if="!isTemplate || index !== 0 || form.isInitContainers" label="CPU/内存限制" row-class="ac-form-item">
                     <a-space direction="vertical" style="padding:20px;width:500px;background:var(--color-neutral-1);" fill :size="0">
                         <a-form-item label="CPU内核" :label-col-style="subItemStyle">
                             <a-input type="number" v-model="form.cpu" @blur="testLimitCpuMemory(form)" @change="testLimitCpuMemory(form)" size="large" placeholder="cpu内核">
@@ -170,7 +170,7 @@
                     </a-space>
                 </a-form-item>
 
-                <a-form-item v-if="gpuSupport || isPlugin" label="GPU限制" row-class="ac-form-item">
+                <a-form-item v-if="(!isTemplate || index !== 0 || form.isInitContainers) && (gpuSupport || isPlugin)" label="GPU限制" row-class="ac-form-item">
                     <a-space direction="vertical" fill :size="0">
                         <a-form-item label="GPU支持状态" :label-col-style="subItemStyle" row-class="ac-form-item" :style="form.gpuEnabled?'margin-bottom:10px;':'margin-bottom:0;'">
                             <a-switch v-model="form.gpuEnabled"></a-switch>
@@ -219,7 +219,7 @@
                     <span v-if="!isTemplate" class="ml-20 cursor c-blue" @click="openBuildImage(form)">代码包构建</span>
                 </a-form-item>
 
-                <a-form-item label="镜像仓库" row-class="ac-form-item">
+                <a-form-item v-if="!isTemplate" label="镜像仓库" row-class="ac-form-item">
                     <a-select v-model="form.imagePullSecrets" :options="mirror" placeholder="请选择" style="width:500px;">
                         <template #label="{ data }">
                             <span>{{data?.label+(data.namespace?'/':'')+data.namespace}}</span>
@@ -381,7 +381,7 @@
                         </div>
                     </a-form-item>
 
-                    <a-form-item v-if="layout!='cronjob' && !isPlugin" label="环境变量来源" row-class="ac-form-item">
+                    <a-form-item v-if="layout!='cronjob' && !isPlugin && !isTemplate" label="环境变量来源" row-class="ac-form-item">
                         <div style="flex:1;">
                             <table class="com-table ftable"><tbody>
                                 <tr class="thead"><td>类型</td><td>资源名称</td><td>变量前缀</td><td>可选引用</td><td>操作</td></tr>
@@ -517,7 +517,7 @@
                     </a-form-item>
 
                     <!-- v-if="!fl.find(i=>i.isInitContainers) || form.isInitContainers" -->
-                    <a-form-item label="初始化容器" row-class="ac-form-item">
+                    <a-form-item v-if="!isTemplate || index !== 0" label="初始化容器" row-class="ac-form-item">
                         <a-switch v-model="form.isInitContainers" @change="sortFormByInitcontoiner" />
                         <span class="fs-12 c-99 ml-20 lh-1">容器标识为init containers</span>
                     </a-form-item>
@@ -665,7 +665,7 @@ export default{
         this.namespaceActive = useNamespaceStore().namespace;
         this.userInfo = getUserInfo();
         this.init();
-        if(this.layout!='cronjob' && !this.isPlugin){
+        if(this.layout!='cronjob' && !this.isPlugin && !this.isTemplate){
             this.getEnvFromResources();
         }
     },
@@ -759,6 +759,7 @@ export default{
             })
         },
         startDrag(){
+            if(this.isTemplate) return;
             let el = document.querySelector('.a-form-container-tabs .arco-tabs-nav-tab-list');
             if(!el){return}
             
@@ -811,7 +812,7 @@ export default{
             let args = Array.isArray(form?.args) ? form.args : [];
             let commandValues = command.filter(i=>i);
             let argsValues = args.filter(i=>i);
-            let shellPrefix = commandValues[0]=='sh' && commandValues[1]=='-c';
+            let shellPrefix = ['sh', '/bin/sh'].includes(commandValues[0]) && commandValues[1]=='-c';
             let commandPass = commandValues.length<=1 || (shellPrefix && commandValues.length<=3);
             let argsPass = argsValues.length==0 || (shellPrefix && commandValues.length==2 && argsValues.length==1);
             let pass = commandPass && argsPass;
@@ -826,7 +827,7 @@ export default{
             return {
                 pass,
                 commandPass,
-                command: ['sh','-c', easyValue],
+                command: [shellPrefix ? commandValues[0] : 'sh','-c', easyValue],
                 args: [''],
             }
         },
@@ -846,7 +847,7 @@ export default{
                 .join(' ');
         },
         enableEasyCmd(form, command){
-            form.command = ['sh', '-c', command];
+            form.command = [form.command?.[0] === '/bin/sh' ? '/bin/sh' : 'sh', '-c', command];
             form.args = [''];
             form.easyCmd = true;
         },
@@ -869,13 +870,14 @@ export default{
                 });
             }else{
                 form.easyCmd = false;
-                if(form.command?.length==3 && form.command[0]=='sh' && form.command[1]=='-c'){
+                if(form.command?.length==3 && ['sh', '/bin/sh'].includes(form.command[0]) && form.command[1]=='-c'){
                     form.command = [form.command[2] || ''];
                 }
                 form.args = form.args?.length ? form.args : [''];
             }
         },
         testImage(index){
+            if (this.isTemplate) return;
             let mirror = this.mirror || [];
             let form = this.fl[index]
             let host = form.image.replace(/\/.*$/,'')?.trim();
@@ -891,7 +893,7 @@ export default{
             this.icl = JSON.parse(JSON.stringify(this?.data?.spec?.template?.spec?.initContainers||[]))
             this.cl = JSON.parse(JSON.stringify(this?.data?.spec?.template?.spec?.containers||[]))
             this.dataToForm();
-            this.getConfigmap();
+            if (!this.isTemplate) this.getConfigmap();
             this.$nextTick(()=>{
                 this.startDrag();
             })

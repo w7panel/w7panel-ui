@@ -12,7 +12,7 @@ import useK3kinfo from '@/hooks/k3k-info';
 NProgress.configure({ showSpinner: false });
 
 const DYNAMIC_IMPORT_RELOAD_KEY = 'w7panel-dynamic-import-reloaded';
-const MICRO_APP_ALLOWED_ROUTE_NAMES = ['cloud-resource', 'login', 'console-login'];
+const MICRO_APP_ALLOWED_ROUTE_NAMES = ['login', 'console-login', 'oidc-login-callback'];
 
 const isMicroAppDirect = () => Boolean((window as any)?.w7_microapp?.name);
 
@@ -59,12 +59,16 @@ const router = createRouter(({
       },
     },
     {
-      path: '/resource-loading',
-      name: 'resource-loading',
-      component: () => import('@/views/init-cluster/resource-loading.vue'),
+      path: '/login/oidc/callback',
+      name: 'oidc-login-callback',
+      component: () => import('@/views/login/oidc-callback.vue'),
       meta: {
         requiresAuth: false,
       },
+    },
+    {
+      path: '/',
+      redirect: { name: 'cluster-panel' },
     },
     ...appRoutes,
     REDIRECT_MAIN,
@@ -96,7 +100,7 @@ router.beforeEach(async (to, from, next) => {
   const appStore = useAppStore();
 
   if (isMicroAppDirect() && !isMicroAppAllowedRoute(to)) {
-    next({ name: isLogin() ? 'cloud-resource' : 'login', replace: true });
+    next({ name: isLogin() ? 'cluster-panel' : 'login', replace: true });
     return;
   }
 

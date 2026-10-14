@@ -20,6 +20,7 @@ import '@xterm/xterm/css/xterm.css';
 import {FitAddon} from '@xterm/addon-fit';
 
 import { AdventureTime } from 'xterm-theme';
+import { createPanelWebSocket } from '@/utils/panel-websocket';
 
 export default {
     props: ['token','command','show','type','keepAliveOnHide'],
@@ -166,7 +167,7 @@ export default {
             if (normalized === 'bin/bash') return '/bin/bash';
             return '/bin/sh';
         },
-        initSocket(callback){
+        async initSocket(callback){
             this.ready = false;
             this.manualClose = false;
 
@@ -183,7 +184,7 @@ export default {
             const params = new URLSearchParams();
             params.set('api-token', this.token || '');
             params.set('shell', shellPath);
-            this.socket = new WebSocket(`${baseURL.replace(/\/$/,'')}${this.socketUrl}?${params.toString()}`);
+            this.socket = await createPanelWebSocket(`${baseURL.replace(/\/$/,'')}${this.socketUrl}?${params.toString()}`);
             this.socket.onopen = () => {
                 this.socketClose = false;
                 this.reconnectAttempts = 0;

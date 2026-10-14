@@ -2,7 +2,7 @@
     <div class="com-container">
         <div class="bg-white padding-20">
             <div class="df jc-b">
-                <div class="fs-16 b">集群信息</div>
+                <div class="fs-16 b">集群认证信息</div>
                 <!-- <div class="df ai-c">
                     <a-button @click="drawer.show=true;" >监控</a-button>
                 </div> -->

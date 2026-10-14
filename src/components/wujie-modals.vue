@@ -65,7 +65,7 @@
 
     <podLog :show="logCpn.show" :data="logCpn.data" @close="logCpn.show=false;"></podLog>
 
-    <micro-app-form :show="maf.show" :yaml="maf.yaml" :callback="maf.callback" @close="maf.show=false;"></micro-app-form>
+    <micro-app-form :show="maf.show" :yaml="maf.yaml" :json="maf.json" :template-mode="maf.templateMode" :callback="maf.callback" @close="maf.show=false;"></micro-app-form>
 
     <a-modal :visible="appDialogConfirm.show" @ok="appDialog.show=false;appDialogConfirm.show=false;" @cancel="appDialogConfirm.show=false;">
         <template #title>提示</template>
@@ -673,6 +673,14 @@ export default {
                 callback: callback,
             };
         },
+        openSystemTemplateAppForm(data, callback) {
+            this.maf = {
+                show: true,
+                json: data.json,
+                templateMode: true,
+                callback,
+            };
+        },
 
         // ========== 文件管理 ==========
         getFileAppgroup(data) {
@@ -870,10 +878,8 @@ export default {
             }
             return panelApi.post('/cp', params.toString(), {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            }).then(res => {
-                const token = getToken();
-                return '/panel-api/v1/download/' + data.name + '?api-token=' + token;
-            });
+            }).then(() => panelApi.post('/download-grants', {path: data.name}))
+              .then(grant => grant.data.url);
         },
 
         // ========== 应用商店安装 ==========

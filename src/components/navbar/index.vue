@@ -28,6 +28,12 @@
                     >
                         {{ item.title }}
                     </a-menu-item>
+                    <a-menu-item
+                        v-for="item in mainPanelApps"
+                        :key="`main-panel:${item.url}`"
+                    >
+                        <a :href="mainPanelAppHref(item.url)" target="_blank" rel="noopener noreferrer" @click.stop>{{ item.title }}</a>
+                    </a-menu-item>
                 </a-menu>
             </div>
             <div class="df ai-c">
@@ -284,6 +290,7 @@ const submitPwd = () => {
 };
 
 const namespaceList = useNamespaceStore().namespaceList;
+const mainPanelApps = ref<Array<{ title: string; url: string }>>([]);
 
 const userRole = getK8sinfo()['w7.cc/role'];
 const hasPwd = ref(getK8sinfo()['w7.cc/has-password']);
@@ -314,9 +321,41 @@ const getConsoleInfo = () => {
     }).catch(() => {});
 };
 
+const getMainPanelApps = () => {
+    panelApi.get('/app-info').then((res) => {
+        const mainPanelUrl = res.data?.isSubCluster && res.data?.mainPanelUrl;
+        if (!mainPanelUrl) return;
+        const url = new URL('/panel-api/v1/noauth/microapp/normal', mainPanelUrl);
+        const callback = `w7panelNormalApps${Date.now()}`;
+        const script = document.createElement('script');
+        (window as any)[callback] = (items: unknown) => {
+            mainPanelApps.value = Array.isArray(items) ? items.filter((item): item is { title: string; url: string } =>
+                typeof item?.title === 'string' && typeof item?.url === 'string') : [];
+            script.remove();
+            delete (window as any)[callback];
+        };
+        script.src = `${url.toString()}?callback=${callback}`;
+        script.onerror = () => {
+            script.remove();
+            delete (window as any)[callback];
+        };
+        document.head.appendChild(script);
+    }).catch(() => {});
+};
+
+const mainPanelAppHref = (value: string) => {
+    try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
 if (!isMicroAppDirect) {
     getMenutop();
     getConsoleInfo();
+    getMainPanelApps();
 }
 
 watch(() => route.name, () => {
