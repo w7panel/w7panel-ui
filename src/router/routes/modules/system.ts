@@ -92,7 +92,18 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                         requiresAuth: true,
                         roles: ['*'],
                     },
-                }
+                },
+                {
+                    path: 'mcp-server',
+                    name: 'mcp-server',
+                    component: () => import('@/views/system/access-key/mcp-server.vue'),
+                    meta: {
+                        locale: 'MCP Server 配置',
+                        hideInMenu: true,
+                        requiresAuth: true,
+                        roles: ['*'],
+                    },
+                },
             ],
         },
     ],

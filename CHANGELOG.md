@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2026-10-15
+
+- 在访问密钥下增加不显示菜单的 MCP Server 配置路由，展示可编辑服务地址及包含当前浏览器登录 token 的客户端连接示例；影响模块：系统管理路由、MCP 配置页。验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
+
 ## 2026-10-12
 
 - 域名解析配置接口去掉 `zpk` 前缀，`domain-parse-alert.vue` 与 `store-install.vue` 的调用路径由 `/zpk/domain-parse` 改为 `/domain-parse`，与后端迁移到 application 模块后的路由一致；影响模块：域名解析提示组件、制品安装完成页。验证：`grep` 确认 `src` 下已无 `zpk/domain-parse` 残留，`git diff --check` 通过（未执行前端构建）。
