@@ -17,3 +17,8 @@ src/components/*
 !scripts/
 scripts/*
 !scripts/topapp-menu-identity.test.cjs
+!scripts/detail-micro-entry.test.cjs
+
+!src/utils/repo-notice.ts
+!src/utils/html-notice.ts
+!scripts/repo-html-notice.test.cjs

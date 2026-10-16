@@ -1,5 +1,5 @@
 <template>
-    <div class="app-detail-page">
+    <div class="app-detail-page" :class="{'app-detail-page--dialog': isDialogMicroEntry}">
         <a-layout class="app-detail-layout">
             <component
                 :is="appMenuContainer"
@@ -38,7 +38,7 @@
                         </template>
 
                         <a-divider
-                            v-if="topMenuRoles.length && (bottomMenus.length || (!isTopAppEntry && $route.name!='group-micro2'))"
+                            v-if="topMenuRoles.length && (bottomMenus.length || (!isMicroEntry && $route.name!='group-micro2'))"
                             class="app-detail-menu-divider"
                         />
                         <template v-if="hasGroupedBottomRoles">
@@ -60,7 +60,7 @@
                         </template>
                         <MicroappMenuItems v-else :menus="bottomMenus" />
 
-                        <template v-if="$route.name!='group-micro2' && !isTopAppEntry">
+                        <template v-if="$route.name!='group-micro2' && !isMicroEntry">
                             <a-divider v-if="bottomMenus.length" class="app-detail-menu-divider" />
                             <template v-if="isHelmPage || ((isMicroPage||isAppDirectPage)&&isHelmApp)">
                                 <a-menu-item key="group-helm-detail" class="app-detail-native-menu-item">
@@ -112,7 +112,7 @@
             </component>
 
             <a-layout class="app-detail-main df df-c" :style="appDetailMainStyle">
-                <Breadcrumb v-if="!isTopAppEntry" class="df-s0" :routes="detailBreadcrumbRoutes" />
+                <Breadcrumb v-if="!isMicroEntry" class="df-s0" :routes="detailBreadcrumbRoutes" />
                 <a-layout-content v-if="isAppDirectPage" class="app-detail-content app-detail-content--native df df-c">
                     <app-direct
                         v-if="appGroupName"
@@ -124,7 +124,7 @@
                 </a-layout-content>
                 <a-layout-content v-else-if="isMicroPage" class="app-detail-content app-detail-content--micro df df-c">
                     <div class="app-detail-micro-container bg-white routerviewbox fc">
-                        <div v-show="downOk" id="app-detail-micro" class="app-detail-micro-panel"></div>
+                        <div v-show="downOk" ref="microContainer" :id="microRuntimeName" class="app-detail-micro-panel"></div>
                         <a-spin v-if="!downOk" class="app-detail-micro-panel" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;">
                             <div style="height:100%;" class="bg-white"></div>
                         </a-spin>
@@ -198,7 +198,7 @@ import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
 import { useAppStore,useNamespaceStore,useLoadingStore } from '@/store';
 import formDrawer from '@/views/app/pages/form-drawer.vue';
-import { bus, startApp } from "wujie";
+import { bus, startApp, destroyApp } from "wujie";
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute, normalizeWujieNavigationRoute, joinWujieUrlRoute } from '@/utils/wujie-route';
@@ -242,7 +242,6 @@ const ROLE_NAME = {
 }
 
 const APP_DETAIL_MICRO_NAME = 'app-detail-micro-runtime';
-const APP_DETAIL_MICRO_EL = '#app-detail-micro';
 const APP_DETAIL_MICRO_QUERY = 'app-detail-micro';
 const APP_DETAIL_MICRO_RESOURCE_QUERY = 'microapp';
 const LEGACY_APP_DIRECT_DO = '__topapp_app_direct__';
@@ -258,6 +257,12 @@ function resolveFrontendPropTemplates(frontendProps, frontProps) {
 }
 
 export default {
+    props: {
+        embeddedMicro: Boolean,
+        group: String,
+        do: String,
+        showMenu: {type: [Boolean, String], default: undefined},
+    },
     setup(){
         return {
             appStore: useAppStore(),
@@ -296,6 +301,7 @@ export default {
 
             roles: [],
             menus: [],
+            menuActive: '',
             selectMenu: [],
             info: {},
             microAppBaseInfo: {},
@@ -318,6 +324,9 @@ export default {
             wujieInitSignature: '',
             wujiePendingSignature: '',
             wujieDestroy: null,
+            microRuntimeStarted: false,
+            microRuntimeName: `${APP_DETAIL_MICRO_NAME}-${globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`}`,
+            microDisposed: false,
             downOk: true,
             microLoading: false,
             hideAppMenu: false,
@@ -339,7 +348,7 @@ export default {
         '$route.name'(v,ov){
             this.selectMenu = [this.$route.meta.routekey];
             this.isHelmPage = /^group\-helm(\-|$)/.test(v);
-            if(['group-micro', 'group-micro2', 'topapp-micro'].includes(v)){
+            if(this.isMicroPage){
                 this.microLoading = true;
             }
             if(this.isHelmPage){
@@ -352,7 +361,7 @@ export default {
             }
             this.getData();
         },
-        '$route.params.group'(v,ov){
+        entryGroup(v,ov){
             if(v===ov){return;}
             this.groupTitle = v;
             this.appManifestType = '';
@@ -369,6 +378,12 @@ export default {
         },
         '$route.query.showMenu'(){
             this.hideAppMenu = this.isHideMenu();
+        },
+        showMenu(){
+            this.hideAppMenu = this.isHideMenu();
+        },
+        do(value){
+            this.syncRequestedMicroRoute(value || this.getRequestedMicroRoute(), true);
         },
         '$route.query.do'(value){
             this.syncRequestedMicroRoute(value || this.getRequestedMicroRoute(), true);
@@ -389,7 +404,7 @@ export default {
         this.userRole = getK8sinfo()?.['w7.cc/role'] || '';
         this.selectMenu = [this.$route.meta.routekey]
         this.namespaceActive = useNamespaceStore().namespace;
-        this.groupTitle = this.$route.params.group;
+        this.groupTitle = this.entryGroup;
         this.hideAppMenu = this.isHideMenu();
         if(this.isMicroPage){
             this.microLoading = true;
@@ -398,14 +413,23 @@ export default {
         await this.getData();
     },
     computed:{
+        entryGroup(){
+            return this.group || this.$route.params.group || '';
+        },
         isTopAppEntry(){
             return this.$route.name === 'topapp-micro' || this.$route.name === 'topapp-direct';
+        },
+        isDialogMicroEntry(){
+            return this.$route.name === 'dialog-micro';
+        },
+        isMicroEntry(){
+            return this.isTopAppEntry || this.isDialogMicroEntry || this.embeddedMicro;
         },
         showTopAppMenu(){
             return this.roles.length > 1 || this.roles[0]?.menus?.length > 1;
         },
         shouldRenderAppMenu(){
-            if(!this.isTopAppEntry){
+            if(!this.isMicroEntry){
                 return true;
             }
             if(!this.showTopAppMenu){
@@ -415,7 +439,7 @@ export default {
         },
         appDetailMainStyle(){
             return {
-                padding: this.isTopAppEntry && this.hideAppMenu ? '0' : '20px',
+                padding: this.isMicroEntry && this.hideAppMenu ? '0' : '20px',
             };
         },
         appMenuCollapsed: {
@@ -476,7 +500,7 @@ export default {
             }
             return routes;
         },
-        isMicroPage(){ return this.$route.name == 'group-micro' || this.$route.name == 'group-micro2' || this.$route.name == 'topapp-micro'; },
+        isMicroPage(){ return this.embeddedMicro || this.isDialogMicroEntry || this.$route.name == 'group-micro' || this.$route.name == 'group-micro2' || this.$route.name == 'topapp-micro'; },
         isAppDirectPage(){ return this.$route.name == 'group-app-direct' || this.$route.name == 'topapp-direct'; },
         showAppDirect(){ return this.hasThirdpartyCd && this.userRole == 'founder'; },
         menuLocationGroups(){
@@ -513,6 +537,7 @@ export default {
         window.addEventListener('toggle-drawer', this.toggleAppMenuDrawer);
     },
     beforeUnmount(){
+        this.microDisposed = true;
         if(this.watchInterval){
             clearInterval(this.watchInterval);
         }
@@ -582,9 +607,9 @@ export default {
             this.title = app?.title || this.groupTitle || this.$route.params.group || '';
         },
         isHideMenu(){
-            const showMenu = Array.isArray(this.$route.query.showMenu)
-                ? this.$route.query.showMenu[0]
-                : this.$route.query.showMenu;
+            if(this.isDialogMicroEntry){ return true; }
+            const value = this.showMenu ?? this.$route.query.showMenu;
+            const showMenu = Array.isArray(value) ? value[0] : value;
             return showMenu === false || showMenu === 'false';
         },
         changeAppMenu(show){
@@ -704,7 +729,7 @@ export default {
             return normalizeWujieSyncRoute(value, this.getMicroNormalizePrefix());
         },
         getRequestedMicroRoute(){
-            const value = this.$route.query?.[APP_DETAIL_MICRO_QUERY]
+            const value = this.do || this.$route.query?.[APP_DETAIL_MICRO_QUERY]
                 || this.$route.query?.do
                 || this.$route.query?.appmicro;
             return Array.isArray(value) ? value[0] : value;
@@ -715,7 +740,7 @@ export default {
                 [APP_DETAIL_MICRO_RESOURCE_QUERY]: microAppName,
             };
             delete query.appmicro;
-            if(this.isTopAppEntry){
+            if(this.isMicroEntry){
                 delete query[APP_DETAIL_MICRO_QUERY];
                 query.do = route;
             }else{
@@ -780,10 +805,8 @@ export default {
                 return;
             }
 
-            if(menu){
-                this.menuActive = menu.do;
-                this.selectMenu = [menu.key];
-            }
+            this.menuActive = targetRoute;
+            this.selectMenu = [menu?.key || targetRoute];
             this.replaceMicroRouteQuery(targetRoute, microAppName);
         },
         syncRequestedMicroRoute(requestedRoute, shouldNavigate){
@@ -801,9 +824,11 @@ export default {
             const menu = this.findMenu(normalizedRoute, requestedMicroAppName)
                 || this.findMenu(normalizedRoute);
             if(!menu){
-                if(!shouldNavigate){
-                    this.selectMenu = [normalizedRoute];
-                }
+                this.selectMenu = [normalizedRoute];
+                if(!shouldNavigate || this.menuActive === normalizedRoute){ return; }
+                this.menuActive = normalizedRoute;
+                this.applyMenuRuntimeConfig(normalizedRoute);
+                this.wujieInit();
                 return;
             }
 
@@ -840,7 +865,7 @@ export default {
                 query[APP_DETAIL_MICRO_RESOURCE_QUERY] = microAppName;
             }
             const target = {
-                name: this.isTopAppEntry ? 'topapp-direct' : 'group-app-direct',
+                name: this.isMicroEntry ? 'topapp-direct' : 'group-app-direct',
                 params: {...this.$route.params, group:this.getNavigationGroup()},
                 query,
             };
@@ -851,8 +876,8 @@ export default {
             return true;
         },
         getNavigationGroup(){
-            if(this.isTopAppEntry){
-                return this.topAppName || this.$route.params.group;
+            if(this.isMicroEntry){
+                return this.topAppName || this.entryGroup;
             }
             return this.microAppGroup || this.$route.params.group;
         },
@@ -901,6 +926,7 @@ export default {
             this.applyMenuRuntimeConfig('');
         },
         wujieInit(){
+            if(this.microDisposed){ return Promise.resolve(); }
             const signature = [
                 this.activeMicroAppName,
                 this.getMenuBindingName(this.selectMenu?.[0] || this.menuActive),
@@ -931,14 +957,14 @@ export default {
             });
             return this.wujieInitPromise;
         },
-        async destroyWujieApp(){
-            const destroy = this.wujieDestroy;
-            if(!destroy){
+        async destroyWujieApp(destroy = this.wujieDestroy, container = this.$refs.microContainer){
+            if(!destroy && !this.microRuntimeStarted){
                 return;
             }
             this.wujieDestroy = null;
+            this.microRuntimeStarted = false;
             if(this.info.load_mode === 'iframe'){
-                const iframe = document.querySelector(`${APP_DETAIL_MICRO_EL} iframe`);
+                const iframe = container?.querySelector('iframe');
                 if(iframe){
                     let isCrossOrigin = false;
                     try{
@@ -957,12 +983,17 @@ export default {
                 }
             }
             try{
-                await destroy();
+                if(destroy){
+                    await destroy();
+                }else{
+                    await destroyApp(this.microRuntimeName);
+                }
             }catch(error){
                 console.warn('Failed to destroy detail app', error);
             }
         },
         async _wujieInit(){
+            if(this.microDisposed){ return; }
             
             const {data} = await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
                 version: this.extra.version,
@@ -1071,14 +1102,17 @@ export default {
             if(this.info.load_mode === 'iframe'){
                 plugins.unshift(createWujieRequestCredentialsPlugin(), createWujieRequirePlugin());
             }
+            if(this.microDisposed || !this.$refs.microContainer){ return; }
+            const container = this.$refs.microContainer;
+            this.microRuntimeStarted = true;
             try{
-                this.wujieDestroy = await startApp({
-                name: APP_DETAIL_MICRO_NAME,
+                const destroy = await startApp({
+                name: this.microRuntimeName,
                 url: appUrl,
 // 测试
 // url: 'http://172.16.1.162:9090' + this.info.frontendUrl + (this.menuActive || ''),
 // url: 'http://218.23.2.48:9090' + this.info.frontendUrl + (this.menuActive || ''),
-                el: APP_DETAIL_MICRO_EL,
+                el: container,
                 // alive: true,
                 degrade: this.info.load_mode === 'iframe',
                 degradeAttrs: { style: 'border:0;display:block;' },
@@ -1091,8 +1125,14 @@ export default {
                     console.log(`appdetail loadError`, url, error);
                 },
                 });
+                if(this.microDisposed){
+                    await this.destroyWujieApp(destroy, container);
+                    return;
+                }
+                this.wujieDestroy = destroy;
                 console.log(`appdetail start success`, appUrl);
             }catch(error){
+                await this.destroyWujieApp();
                 console.log(`appdetail start error`, appUrl, error);
             }
             // startApp({name: APP_DETAIL_MICRO_NAME});
@@ -1141,7 +1181,7 @@ export default {
                     this.routeChange(this.menuActive);
                 }
             }else{
-                const query = this.isTopAppEntry
+                const query = this.isMicroEntry
                     ? {
                         do: this.menuActive,
                         [APP_DETAIL_MICRO_RESOURCE_QUERY]: this.activeMicroAppName,
@@ -1151,7 +1191,7 @@ export default {
                         [APP_DETAIL_MICRO_RESOURCE_QUERY]: this.activeMicroAppName,
                     };
                 this.$router.push({
-                    name: this.isTopAppEntry ? 'topapp-micro' : 'group-micro',
+                    name: this.isMicroEntry ? 'topapp-micro' : 'group-micro',
                     params: {...this.$route.params, group:this.getNavigationGroup()},
                     query,
                 });
@@ -1160,29 +1200,33 @@ export default {
         getFront(microApps){
             const getMicroApps = microApps
                 ? Promise.resolve(Array.isArray(microApps) ? microApps : [microApps])
-                : this.loadMicroApps(this.microAppGroup || this.$route.params.group);
-            getMicroApps.then(items=>{
-                if(!items.length){ return; }
+                : this.loadMicroApps(this.microAppGroup || this.entryGroup);
+            return getMicroApps.then(items=>{
+                if(this.microDisposed || !items.length){ return; }
                 const sortedItems = sortVisibleAppGroupMicroApps(
                     items,
-                    this.microAppGroup || this.$route.params.group,
+                    this.microAppGroup || this.entryGroup,
                 );
                 this.microApps = sortedItems;
                 this.getMenu(sortedItems);
-                const requestedMicroAppName = this.$route.query?.[APP_DETAIL_MICRO_RESOURCE_QUERY];
+                const requestedMicroApp = this.$route.query?.[APP_DETAIL_MICRO_RESOURCE_QUERY];
+                const requestedMicroAppName = Array.isArray(requestedMicroApp) ? requestedMicroApp[0] : requestedMicroApp;
                 const item = sortedItems.find(item=>item?.metadata?.name===requestedMicroAppName)
                     || sortedItems.find(item=>item?.metadata?.name===this.activeMicroAppName)
                     || sortedItems[0];
                 this.applyMicroApp(item);
                 if(this.isMicroPage){
-                    const routeMenu = this.isTopAppEntry || this.microAppGroup === this.$route.params.group
+                    const routeMenu = this.isMicroEntry || this.microAppGroup === this.entryGroup
                         ? this.getRequestedMicroRoute()
                         : '';
                     const appDetailMicro = this.normalizeMicroMenuRoute(routeMenu);
                     const selectedMenu = this.findMenu(appDetailMicro, this.activeMicroAppName)
-                        || this.roles.flatMap(role=>role.menus || []).find(menu=>menu.microAppName===this.activeMicroAppName && menu.is_default==1)
-                        || this.roles.flatMap(role=>role.menus || []).find(menu=>menu.microAppName===this.activeMicroAppName)
-                        || this.roles?.[0]?.menus?.[0];
+                        || (!requestedMicroAppName && this.findMenu(appDetailMicro))
+                        || (!appDetailMicro && (
+                            this.roles.flatMap(role=>role.menus || []).find(menu=>menu.microAppName===this.activeMicroAppName && menu.is_default==1)
+                            || this.roles.flatMap(role=>role.menus || []).find(menu=>menu.microAppName===this.activeMicroAppName)
+                            || this.roles?.[0]?.menus?.[0]
+                        ));
                     if(this.redirectLegacyAppDirect(selectedMenu?.do || appDetailMicro, selectedMenu?.microAppName, true)){
                         return;
                     }
@@ -1192,9 +1236,10 @@ export default {
                     this.menuActive = selectedMenu?.do || appDetailMicro || '';
                     this.selectMenu = [selectedMenu?.key || this.menuActive];
                     this.applyMenuRuntimeConfig(this.selectMenu[0]);
-                    this.$nextTick(async()=>{
+                    return this.$nextTick(async()=>{
+                        if(this.microDisposed){ return; }
                         await this.replaceMicroRouteQuery(this.menuActive, this.activeMicroAppName);
-                        this.wujieInit();
+                        return this.wujieInit();
                     })
                 }
             }).catch(()=>{
@@ -1313,7 +1358,7 @@ export default {
             }catch{}
             roles.sort((a, b) => (b.name === 'founder') - (a.name === 'founder'));
 
-            if(this.isTopAppEntry){
+            if(this.isMicroEntry){
                 const visibleRoles = userRole=='founder'
                     ? roles
                     : roles.filter(i=>i.name==userRole);
@@ -1333,7 +1378,7 @@ export default {
         },
         noMicroJump(){
             if(!this.isMicroPage){return}
-            if(this.isTopAppEntry){return}
+            if(this.isMicroEntry){return}
             if(this.isHelmApp){
                 this.$router.push({path:'/app/appgroup/'+ this.$route.params.group+'/helm/detail'}).then(()=>{
                     this.selectMenu = [this.$route.meta.routekey]
@@ -1621,7 +1666,7 @@ export default {
             }
         },
         async getTopAppData(){
-            const requestedGroup = String(this.$route.params.group || '');
+            const requestedGroup = String(this.entryGroup || '');
             const initialTopApp = findTopAppByRouteGroup(this.appStore.topApps, requestedGroup);
 
             this.groupRedirecting = true;
@@ -1641,7 +1686,7 @@ export default {
             this.activeMicroAppName = '';
 
             const {groupName, topAppName, items} = await this.loadTopMicroApps(requestedGroup);
-            if(!this.isTopAppEntry || String(this.$route.params.group || '') !== requestedGroup){
+            if(this.microDisposed || !this.isMicroEntry || String(this.entryGroup || '') !== requestedGroup){
                 return;
             }
             const topApp = initialTopApp
@@ -1669,7 +1714,7 @@ export default {
             this.microApps = items;
             this.microApp = items[0];
             this.hasThirdpartyCd = true;
-            this.getFront(items);
+            await this.getFront(items);
         },
         async getData(){
             if(this.isMicroPage){
@@ -1679,7 +1724,7 @@ export default {
             this.reverseDependentAppCache = {};
             this.reverseDependentAppRequests = {};
 
-            const currentGroup = this.$route.params.group;
+            const currentGroup = this.entryGroup;
             this.hasThirdpartyCd = false;
             this.microApp = null;
             this.microApps = [];
@@ -1694,11 +1739,11 @@ export default {
             }else{
                 this.appname = (this.$route.params.kind && this.$route.params.id) ? this.$route.params.kind + this.$route.params.id : '';
             }
-            if(this.isTopAppEntry){
+            if(this.isMicroEntry){
                 try{
                     await this.getTopAppData();
                 }catch(error){
-                    if(this.$route.params.group === currentGroup && this.isMicroPage){
+                    if(this.entryGroup === currentGroup && this.isMicroPage){
                         this.microLoading = false;
                     }
                     throw error;
@@ -1976,6 +2021,7 @@ export default {
     background:var(--color-bg-1);
 }
 .app-detail-page{height:100%;min-height:0;overflow:hidden;}
+.app-detail-page--dialog .routerviewbox{border:0;}
 .app-detail-layout{height:100%;min-width:0;min-height:0;overflow:hidden;}
 .app-detail-main{box-sizing:border-box;height:100%;min-width:0;min-height:0;overflow:hidden;}
 .app-detail-content{min-height:0;overflow:hidden;}

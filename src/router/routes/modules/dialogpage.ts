@@ -22,7 +22,7 @@ const DASHBOARD = [
     {
         path: '/dialog/appgroup/:group/micro',
         name: 'dialog-micro',
-        component: () => import('@/views/topapp/dialog-page.vue'),
+        component: () => import('@/views/app/apps/detail.vue'),
         meta: {
             hideInMenu: true,
             requiresAuth: true,
