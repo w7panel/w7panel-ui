@@ -502,3 +502,9 @@
 - 统一入口保留 `do` 动态子路由及 `paneltoken`，通过 MicroApp API 解析上下文；子应用路由同步避免重复启动，Wujie 实例与容器按页面隔离，并清理关闭后迟到或启动失败的实例。
 - 影响模块：MicroApp 弹窗、旧顶部嵌入入口、应用详情及 Wujie 生命周期。验证：10 项 `test:detail-micro-entry` 回归测试、`test:topapp-menu-identity`、生产构建及 `git diff --check` 通过。
 - 2026-10-16 浏览器验证：使用构建产物与本地模拟 API，确认动态路由和 token 保留、路由切换不重启、嵌套弹窗可打开和关闭，初始化未请求 AppGroup API；未部署线上。
+
+
+## 2026-10-19（容器镜像打包 WebSocket 认证）
+
+- 镜像打包状态组件 `src/views/cluster/nodes/build-image-status.vue` 移除 WebSocket URL 中的 `api-token`，复用 `createPanelWebSocket`，通过服务端支持的 `Sec-WebSocket-Protocol` 传递面板 token，并沿用 CKM 会话刷新和子协议协商。
+- 影响模块：容器镜像打包执行命令的 WebSocket 连接。验证：组件 SFC 解析、脚本语法、模板编译及 `git diff --check` 通过；`LOCAL_MOCK=true npm run build` 因 Copilot 页面依赖 `@openuidev/vue-lang` 无法解析而未通过。

@@ -88,7 +88,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { FitAddon } from '@xterm/addon-fit';
 import axios from 'axios';
-import { getToken } from '@/utils/auth';
+import { createPanelWebSocket } from '@/utils/panel-websocket';
 export default{
     props: ['show','data','serverInfo'],
     data(){
@@ -170,11 +170,10 @@ export default{
             params.append('command', '-c');
             params.append('command', data.command);
             params.set('tty', 'false');
-            params.set('api-token', getToken());
             
+            this.socket = await createPanelWebSocket(`${url}?${params.toString()}`);
             return new Promise((resolve, reject) => { 
                 let result = '';
-                this.socket = new WebSocket(`${url}?${params.toString()}`);
                 this.socket.onopen = () => {
                     this.socketClose = false;
                 }
