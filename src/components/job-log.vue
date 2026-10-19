@@ -47,6 +47,40 @@
                     <span>{{ loading ? '加载中...' : '无数据' }}</span>
                 </div>
                 <template v-else>
+                <div class="diagnostic-entry">
+                    <template v-if="installation">
+                        <span class="install-progress" :class="{ 'diagnostic-error': podSummary.error }">{{ installationProgress }}</span>
+                        <a-button type="text" size="small" :status="podSummary.error ? 'danger' : 'normal'" @click="toggleDiagnostics">
+                            {{ diagnosticsOpen ? '收起详情' : podSummary.error ? '查看原因' : '启动详情' }}
+                        </a-button>
+                    </template>
+                    <a-button v-else size="small" :status="podSummary.error ? 'danger' : 'normal'" @click="toggleDiagnostics">
+                        容器状态：{{ podSummary.text }} · {{ diagnosticsOpen ? '收起' : '查看' }}
+                    </a-button>
+                    <span v-if="podSummary.error" class="diagnostic-error">{{ podSummary.reason }}</span>
+                </div>
+                <div v-if="diagnosticsOpen" class="job-diagnostics">
+                    <div class="diagnostic-toolbar">
+                        <a-select v-if="podList.length" v-model="currentPodName" style="width:320px;max-width:100%" @change="selectPod">
+                            <a-option v-for="pod in podList" :key="pod.metadata.name" :value="pod.metadata.name">{{ pod.metadata.name }}</a-option>
+                        </a-select>
+                        <a-button size="small" @click="refreshDiagnostics">刷新状态</a-button>
+                    </div>
+                    <div class="diagnostic-summary" :class="{ 'diagnostic-error': podSummary.error }">
+                        {{ installation ? installationProgress : podSummary.text }}<span v-if="podSummary.reason">：{{ podSummary.reason }}</span>
+                    </div>
+                    <a-alert v-if="eventError" type="error">{{ eventError }}</a-alert>
+                    <a-table :data="eventList" :loading="eventsLoading" :pagination="false" :bordered="false" size="small">
+                        <template #columns>
+                            <a-table-column title="资源" data-index="involvedObject.name" />
+                            <a-table-column title="级别" data-index="type" />
+                            <a-table-column title="原因" data-index="reason" />
+                            <a-table-column title="详细描述" data-index="message" />
+                            <a-table-column title="次数" data-index="count" />
+                            <a-table-column title="时间"><template #cell="{ record }">{{ record.displayTime }}</template></a-table-column>
+                        </template>
+                    </a-table>
+                </div>
                 <div class="log-toolbar">
                     <div class="df ai-c">
                         <div class="df ai-c">
@@ -110,6 +144,40 @@
                     <span>{{ loading ? '加载中...' : '无数据' }}</span>
                 </div>
                 <template v-else>
+                <div class="diagnostic-entry">
+                    <template v-if="installation">
+                        <span class="install-progress" :class="{ 'diagnostic-error': podSummary.error }">{{ installationProgress }}</span>
+                        <a-button type="text" size="small" :status="podSummary.error ? 'danger' : 'normal'" @click="toggleDiagnostics">
+                            {{ diagnosticsOpen ? '收起详情' : podSummary.error ? '查看原因' : '启动详情' }}
+                        </a-button>
+                    </template>
+                    <a-button v-else size="small" :status="podSummary.error ? 'danger' : 'normal'" @click="toggleDiagnostics">
+                        容器状态：{{ podSummary.text }} · {{ diagnosticsOpen ? '收起' : '查看' }}
+                    </a-button>
+                    <span v-if="podSummary.error" class="diagnostic-error">{{ podSummary.reason }}</span>
+                </div>
+                <div v-if="diagnosticsOpen" class="job-diagnostics">
+                    <div class="diagnostic-toolbar">
+                        <a-select v-if="podList.length" v-model="currentPodName" style="width:320px;max-width:100%" @change="selectPod">
+                            <a-option v-for="pod in podList" :key="pod.metadata.name" :value="pod.metadata.name">{{ pod.metadata.name }}</a-option>
+                        </a-select>
+                        <a-button size="small" @click="refreshDiagnostics">刷新状态</a-button>
+                    </div>
+                    <div class="diagnostic-summary" :class="{ 'diagnostic-error': podSummary.error }">
+                        {{ installation ? installationProgress : podSummary.text }}<span v-if="podSummary.reason">：{{ podSummary.reason }}</span>
+                    </div>
+                    <a-alert v-if="eventError" type="error">{{ eventError }}</a-alert>
+                    <a-table :data="eventList" :loading="eventsLoading" :pagination="false" :bordered="false" size="small">
+                        <template #columns>
+                            <a-table-column title="资源" data-index="involvedObject.name" />
+                            <a-table-column title="级别" data-index="type" />
+                            <a-table-column title="原因" data-index="reason" />
+                            <a-table-column title="详细描述" data-index="message" />
+                            <a-table-column title="次数" data-index="count" />
+                            <a-table-column title="时间"><template #cell="{ record }">{{ record.displayTime }}</template></a-table-column>
+                        </template>
+                    </a-table>
+                </div>
                 <div class="log-toolbar">
                     <div class="df ai-c">
                         <div class="df ai-c">
@@ -163,6 +231,7 @@ import { FitAddon } from '@xterm/addon-fit';
 export default {
     name: 'JobLog',
     props: {
+        installation: { type: Boolean, default: false },
         show: {
             type: Boolean,
             required: true,
@@ -242,6 +311,7 @@ export default {
             currentTailLines: 100,
             term: null,
             fitAddon: null,
+            terminalResizeObserver: null,
             controller: null,
             containerList: [],
             container: '',
@@ -249,17 +319,52 @@ export default {
             list: [],
             activeIndex: 0,
             currentPodName: '',
+            podList: [],
+            diagnosticsOpen: false,
+            eventList: [],
+            eventError: '',
+            eventsLoading: false,
+            diagnosticVersion: 0,
             podcont: '',
             currentJobName: '',
             loading: false,
         };
     },
     computed: {
+        installationProgress() {
+            const text = this.podSummary.text;
+            if (this.podSummary.error) return '安装任务遇到问题';
+            return ({ '暂无 Pod': '正在准备安装任务', '等待调度': '等待分配安装资源', '启动中': '正在启动安装任务', '运行中': '正在安装', '已结束': '安装任务已结束' })[text] || text;
+        },
         currentNamespace() {
             return this.namespace || useNamespaceStore().namespace;
         },
         hasJobRecords() {
             return this.list.length > 0;
+        },
+        podSummary() {
+            const pod = this.podList.find(p => p.metadata.name === this.currentPodName);
+            if (!pod) {
+                const job = this.list[this.activeIndex]?.dataItem;
+                const failed = job?.status?.conditions?.find(c => c.type === 'Failed' && c.status === 'True');
+                if (failed) return { text: '任务失败', error: true, reason: failed.message || failed.reason };
+                return { text: '暂无 Pod', error: false, reason: '尚未创建或已被清理，可展开查看任务事件' };
+            }
+            const status = pod.status || {};
+            const states = [...(status.initContainerStatuses || []), ...(status.containerStatuses || [])];
+            const failed = states.find(c => c.state?.waiting && ['ErrImagePull', 'ImagePullBackOff', 'CrashLoopBackOff', 'CreateContainerConfigError', 'CreateContainerError', 'InvalidImageName', 'RunContainerError'].includes(c.state.waiting.reason))
+                || states.find(c => c.state?.terminated?.exitCode > 0);
+            if (failed) {
+                const state = failed.state.waiting || failed.state.terminated;
+                return { text: '启动或运行异常', error: true, reason: `${failed.name}: ${state.reason || '退出码 ' + state.exitCode}${state.message ? ' · ' + state.message : ''}` };
+            }
+            const unscheduled = status.conditions?.find(c => c.type === 'PodScheduled' && c.status === 'False');
+            if (unscheduled) return { text: '等待调度', error: unscheduled.reason === 'Unschedulable', reason: unscheduled.message || unscheduled.reason };
+            if (status.phase === 'Failed') return { text: '容器失败', error: true, reason: status.message || status.reason };
+            if (status.phase === 'Succeeded') return { text: '已结束', error: false, reason: '' };
+            const waiting = states.find(c => c.state?.waiting);
+            if (waiting) return { text: '启动中', error: false, reason: waiting.state.waiting.message || waiting.state.waiting.reason };
+            return { text: status.phase === 'Running' ? '运行中' : '启动中', error: false, reason: status.message || '' };
         },
         // currentJobName() {
         //     return this.jobName || this.name;
@@ -301,6 +406,7 @@ export default {
             this.currentJobName = this.jobName || this.name;
             this.currentJobName = this.jobName || this.name;
             // 重置状态
+            this.diagnosticsOpen = false;
             this.containerList = [];
             this.container = '';
             this.currentContainer = '';
@@ -346,6 +452,11 @@ export default {
 
                 this.fitAddon = new FitAddon();
                 this.term.loadAddon(this.fitAddon);
+                // 事件异步加载、展开诊断和弹窗缩放都会改变终端可用空间。
+                this.terminalResizeObserver = new ResizeObserver(() => {
+                    if (dom.clientWidth && dom.clientHeight) this.fitAddon?.fit();
+                });
+                this.terminalResizeObserver.observe(dom);
 
                 // 延迟 fit 确保 DOM 完全渲染
                 this.$nextTick(() => {
@@ -354,9 +465,13 @@ export default {
             });
         },
         cleanup() {
+            this.diagnosticVersion++;
+            this.podList = [];
+            this.eventList = [];
             this.stopStream();
             this.disposeTerm();
             // 重置状态
+            this.diagnosticsOpen = false;
             this.containerList = [];
             this.container = '';
             this.list = [];
@@ -373,6 +488,8 @@ export default {
             }
         },
         disposeTerm() {
+            this.terminalResizeObserver?.disconnect();
+            this.terminalResizeObserver = null;
             try {
                 if (this.term) {
                     this.term.dispose();
@@ -458,7 +575,53 @@ export default {
                 this.loading = false;
             });
         },
+        toggleDiagnostics() {
+            this.diagnosticsOpen = !this.diagnosticsOpen;
+            if (this.diagnosticsOpen) this.fetchEvents();
+            this.$nextTick(() => this.fitAddon?.fit());
+        },
+        refreshDiagnostics() {
+            this.fetchPodInfo();
+        },
+        selectPod() {
+            const pod = this.podList.find(p => p.metadata.name === this.currentPodName);
+            this.containerList = [...(pod?.spec?.initContainers || []), ...(pod?.spec?.containers || [])].map(c => c.name);
+            if (!this.containerList.includes(this.currentContainer)) this.currentContainer = this.containerList[0] || '';
+            if (this.diagnosticsOpen) this.fetchEvents();
+            this.fetchLog();
+        },
+        async fetchEvents() {
+            const version = ++this.diagnosticVersion;
+            const job = this.list[this.activeIndex]?.dataItem;
+            const pod = this.podList.find(p => p.metadata.name === this.currentPodName);
+            const resources = [job, pod].filter(r => r?.metadata?.uid);
+            this.eventList = [];
+            this.eventError = '';
+            this.eventsLoading = true;
+            try {
+                const responses = await Promise.all(resources.map(resource => k8sproxy.get(`/api/v1/namespaces/${this.currentNamespace}/events`, {
+                    params: { fieldSelector: `involvedObject.uid=${resource.metadata.uid}`, ...(this.local ? { local: 1 } : {}) },
+                    noAlert: true,
+                })));
+                if (version !== this.diagnosticVersion) return;
+                this.eventList = responses.flatMap(res => res?.data?.items || []).sort((a, b) =>
+                    new Date(b.lastTimestamp || b.eventTime || b.metadata.creationTimestamp) - new Date(a.lastTimestamp || a.eventTime || a.metadata.creationTimestamp)
+                ).map(event => ({ ...event, displayTime: window.formatDate(event.lastTimestamp || event.eventTime || event.metadata.creationTimestamp) }));
+            } catch (error) {
+                if (version === this.diagnosticVersion) this.eventError = '容器事件加载失败，请刷新重试或检查访问权限。';
+            } finally {
+                if (version === this.diagnosticVersion) this.eventsLoading = false;
+            }
+        },
         fetchPodInfo() {
+            this.stopStream();
+            this.diagnosticVersion++;
+            this.eventList = [];
+            this.eventError = '';
+            this.eventsLoading = false;
+            this.podList = [];
+            this.currentPodName = '';
+            this.currentContainer = '';
             // 如果有外部传入的容器列表，直接使用
             if (this.containers && this.containers.length > 0) {
                 this.containerList = this.containers.map(c => typeof c === 'string' ? c : c.name);
@@ -501,11 +664,14 @@ export default {
                 ...(this.local ? { local: 1 } : {}),
             };
 
+            const jobName = this.currentJobName;
             k8sproxy.get(`/api/v1/namespaces/${this.currentNamespace}/pods`, {
                 params,
                 noAlert: true,
             }).then(res => {
-                const items = res?.data?.items || [];
+                if (!this.visible || jobName !== this.currentJobName) return;
+                const items = [...(res?.data?.items || [])].sort((a, b) => new Date(b.metadata?.creationTimestamp || 0) - new Date(a.metadata?.creationTimestamp || 0));
+                this.podList = items;
                 const first = items[0];
                 if (!first) {
                     this.containerList = [];
@@ -523,17 +689,19 @@ export default {
                 this.containerList = containers.map(c => c.name);
 
                 if (this.containerList.length > 0 && !this.currentContainer) {
-                    this.currentContainer = this.containerList[0];
+                    this.currentContainer = first.spec?.containers?.[0]?.name || this.containerList[0];
                 }
 
-                this.fetchLog();
+                this.selectPod();
             }).catch(err => {
+                if (!this.visible || jobName !== this.currentJobName) return;
                 console.error('Failed to get pod:', err);
                 this.containerList = [];
                 this.fetchLog();
             });
         },
         fetchLog() {
+            if (!this.currentPodName && this.diagnosticsOpen) this.fetchEvents();
             if (!this.currentPodName && !this.labelSelector) {
                 // 无 Pod 时显示空
                 this.displayLog('');
@@ -648,6 +816,8 @@ export default {
 
 <style scoped>
 .job-log-content {
+    min-height: 0;
+    overflow: hidden;
     display: flex;
     gap: 20px;
     height: 100%;
@@ -660,11 +830,60 @@ export default {
 }
 
 .job-log-main {
+    overflow: hidden;
     flex: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+}
+
+.diagnostic-entry, .diagnostic-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+.diagnostic-entry > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+}
+
+.diagnostic-entry > .install-progress {
+    flex: initial;
+    color: var(--color-text-2);
+}
+
+.diagnostic-entry > .install-progress.diagnostic-error {
+    color: rgb(var(--danger-6));
+}
+
+.diagnostic-error {
+    color: rgb(var(--danger-6));
+}
+
+.job-diagnostics {
+    box-sizing: border-box;
+    min-height: 0;
+    max-height: 45%;
+    overflow: auto;
+    flex-shrink: 1;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: var(--color-fill-1);
+    border: 1px solid var(--color-neutral-3);
+    border-radius: 4px;
+}
+
+.diagnostic-summary {
+    margin-bottom: 10px;
+    overflow-wrap: anywhere;
 }
 
 .job-log-state {
@@ -682,10 +901,18 @@ export default {
 }
 
 .log-terminal {
+    background: #000;
+    box-sizing: border-box;
+    overflow: hidden;
     width: 100%;
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
     border: 1px solid var(--color-neutral-3);
+}
+
+/* 让滚动视口覆盖整个黑框，避免终端行高取整后滚动轨道底部留空。 */
+.log-terminal :deep(.xterm) {
+    height: 100%;
 }
 
 .job-log-inline {
@@ -704,12 +931,15 @@ export default {
 }
 
 .job-log-inline .job-log-main {
+    overflow: hidden;
     flex: 1;
 }
 </style>
 <style>
 .job-log-modal .arco-modal-body {
-    padding: 20px;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 20px 20px 0;
     height: 450px;
 }
 
@@ -722,10 +952,6 @@ export default {
 }
 
 .job-log-modal .arco-modal-fullscreen .arco-modal-body > div {
-    height: 100%;
-}
-
-.job-log-modal .arco-modal-fullscreen .log-terminal {
     height: 100%;
 }
 
