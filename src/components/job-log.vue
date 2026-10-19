@@ -48,14 +48,9 @@
                 </div>
                 <template v-else>
                 <div class="diagnostic-entry">
-                    <template v-if="installation">
-                        <span class="install-progress" :class="{ 'diagnostic-error': podSummary.error }">{{ installationProgress }}</span>
-                        <a-button type="text" size="small" :status="podSummary.error ? 'danger' : 'normal'" @click="toggleDiagnostics">
-                            {{ diagnosticsOpen ? '收起详情' : podSummary.error ? '查看原因' : '启动详情' }}
-                        </a-button>
-                    </template>
-                    <a-button v-else size="small" :status="podSummary.error ? 'danger' : 'normal'" @click="toggleDiagnostics">
-                        容器状态：{{ podSummary.text }} · {{ diagnosticsOpen ? '收起' : '查看' }}
+                    <span class="install-progress" :class="{ 'diagnostic-error': podSummary.error }">{{ taskProgress }}</span>
+                    <a-button type="text" size="small" :status="podSummary.error ? 'danger' : 'normal'" @click="toggleDiagnostics">
+                        {{ diagnosticsOpen ? '收起详情' : podSummary.error ? '查看原因' : '启动详情' }}
                     </a-button>
                     <span v-if="podSummary.error" class="diagnostic-error">{{ podSummary.reason }}</span>
                 </div>
@@ -67,7 +62,7 @@
                         <a-button size="small" @click="refreshDiagnostics">刷新状态</a-button>
                     </div>
                     <div class="diagnostic-summary" :class="{ 'diagnostic-error': podSummary.error }">
-                        {{ installation ? installationProgress : podSummary.text }}<span v-if="podSummary.reason">：{{ podSummary.reason }}</span>
+                        {{ taskProgress }}<span v-if="podSummary.reason">：{{ podSummary.reason }}</span>
                     </div>
                     <a-alert v-if="eventError" type="error">{{ eventError }}</a-alert>
                     <a-table :data="eventList" :loading="eventsLoading" :pagination="false" :bordered="false" size="small">
@@ -145,14 +140,9 @@
                 </div>
                 <template v-else>
                 <div class="diagnostic-entry">
-                    <template v-if="installation">
-                        <span class="install-progress" :class="{ 'diagnostic-error': podSummary.error }">{{ installationProgress }}</span>
-                        <a-button type="text" size="small" :status="podSummary.error ? 'danger' : 'normal'" @click="toggleDiagnostics">
-                            {{ diagnosticsOpen ? '收起详情' : podSummary.error ? '查看原因' : '启动详情' }}
-                        </a-button>
-                    </template>
-                    <a-button v-else size="small" :status="podSummary.error ? 'danger' : 'normal'" @click="toggleDiagnostics">
-                        容器状态：{{ podSummary.text }} · {{ diagnosticsOpen ? '收起' : '查看' }}
+                    <span class="install-progress" :class="{ 'diagnostic-error': podSummary.error }">{{ taskProgress }}</span>
+                    <a-button type="text" size="small" :status="podSummary.error ? 'danger' : 'normal'" @click="toggleDiagnostics">
+                        {{ diagnosticsOpen ? '收起详情' : podSummary.error ? '查看原因' : '启动详情' }}
                     </a-button>
                     <span v-if="podSummary.error" class="diagnostic-error">{{ podSummary.reason }}</span>
                 </div>
@@ -164,7 +154,7 @@
                         <a-button size="small" @click="refreshDiagnostics">刷新状态</a-button>
                     </div>
                     <div class="diagnostic-summary" :class="{ 'diagnostic-error': podSummary.error }">
-                        {{ installation ? installationProgress : podSummary.text }}<span v-if="podSummary.reason">：{{ podSummary.reason }}</span>
+                        {{ taskProgress }}<span v-if="podSummary.reason">：{{ podSummary.reason }}</span>
                     </div>
                     <a-alert v-if="eventError" type="error">{{ eventError }}</a-alert>
                     <a-table :data="eventList" :loading="eventsLoading" :pagination="false" :bordered="false" size="small">
@@ -331,6 +321,11 @@ export default {
         };
     },
     computed: {
+        taskProgress() {
+            if (this.installation) return this.installationProgress;
+            if (this.podSummary.error) return '任务遇到问题';
+            return ({ '暂无 Pod': '正在准备任务', '等待调度': '等待分配任务资源', '启动中': '正在启动任务', '运行中': '正在执行任务', '已结束': '任务已结束' })[this.podSummary.text] || this.podSummary.text;
+        },
         installationProgress() {
             const text = this.podSummary.text;
             if (this.podSummary.error) return '安装任务遇到问题';
