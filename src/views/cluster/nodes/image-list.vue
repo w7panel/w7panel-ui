@@ -4,7 +4,7 @@
         <route-breadcrumb />
 
         <div class="bg-white padding-20">
-            <div class="df ai-c ">
+            <div class="df ai-c " style="flex-wrap:wrap;row-gap:12px;">
                 <div class="df ai-c">
                     <span class="df-s0">选择节点：</span>
                     <a-select v-model="node" @change="getPid" placeholder="请选择节点" style="width:300px;">
@@ -25,6 +25,8 @@
                 <a-button type="primary" class="ml-20" @click="buildImageTasks.show=true">镜像构建任务</a-button>
 
                 <a-button type="primary" class="ml-20" @click="openBuildContainer">打包容器镜像</a-button>
+
+                <a-button v-if="permission.includes('cluster/nodes/registries')&&usermode!='cluster'" type="outline" class="image-source-action" @click="openImgorigin">修改镜像源</a-button>
             </div>
             
             <a-table :data="list" :pagination="false" class="mt-20 nodeimagelisttable" :bordered="false">
@@ -67,6 +69,8 @@
             </a-table>
 
         </div>
+
+        <yaml-drawer :show="yamlData.show" :title="yamlData.title" :returnYaml="yamlData.returnYaml" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false" />
 
         <a-drawer :width="1100" :visible="buildImageTasks.show" title="镜像构建任务" @cancel="buildImageTasks.show=false">
             <build-image v-if="buildImageTasks.show" :hideList="false" :showCreateBtn="false"></build-image>
@@ -148,6 +152,8 @@ import { useLoadingStore, useNamespaceStore } from '@/store';
 import { k8sproxy, panelApi } from '@/utils/api';
 import axios from 'axios';
 import dayjs from 'dayjs';
+import yamlDrawer from '@/components/yaml-drawer.vue';
+import { getPermission, getUserInfo } from '@/utils/auth';
 import buildImage from '@/views/cluster/nodes/build-image.vue';
 import selectContainer from '@/components/select-container.vue';
 import buildImageStatus from '@/views/cluster/nodes/build-image-status.vue';
@@ -156,6 +162,9 @@ export default {
     data(){
         return {
             namespaceActive: 'default',
+            permission: [],
+            usermode: '',
+            yamlData: { show: false },
             nodeList: [],
             node: '',
             list: [],
@@ -216,10 +225,13 @@ export default {
         }
     },
     created(){
+        this.permission = getPermission() || [];
+        this.usermode = getUserInfo()?.['w7.cc/user-mode'];
         this.namespaceActive = useNamespaceStore().namespace;
         this.getNodes();
     },
     components: {
+        yamlDrawer,
         buildImage,
         selectContainer,
         buildImageStatus,
@@ -232,6 +244,32 @@ export default {
     mounted(){
     },
     methods: {
+        openImgorigin(){
+            panelApi.get("/registry/registries",{noAlert:true}).then(res=>{
+                this.yamlData = {
+                    show: true,
+                    data: res?.data || '',
+                    title: 'registries',
+                    returnYaml: true,
+                    submit: this.submitImgorigin,
+                }
+            }).catch(()=>{
+                this.yamlData = {
+                    show: true,
+                    data: '',
+                    title: 'registries',
+                    returnYaml: true,
+                    submit: this.submitImgorigin,
+                }
+            })
+        },
+        submitImgorigin(data){
+            panelApi.put('/registry/registries',{data},{loading:true}).then(()=>{
+                this.$message.success("操作成功");
+                this.yamlData = {...this.yamlData, show:false,};
+            })
+        },
+
         
         async exec(data){
             return panelApi.post(`/exec2`,{
@@ -490,6 +528,11 @@ export default {
 </script>
 
 <style scoped>
+.image-source-action {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
 
 .upload{position:relative;}
 .upload input[type='file']{min-width:0; position:absolute; top:0; left:0; right:0; bottom:0; z-index:1; opacity:0; cursor:pointer;}
