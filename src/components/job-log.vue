@@ -315,6 +315,8 @@ export default {
             eventError: '',
             eventsLoading: false,
             diagnosticVersion: 0,
+            podRefreshTimer: null,
+            podRequestVersion: 0,
             podcont: '',
             currentJobName: '',
             loading: false,
@@ -460,6 +462,8 @@ export default {
             });
         },
         cleanup() {
+            clearTimeout(this.podRefreshTimer);
+            this.podRequestVersion++;
             this.diagnosticVersion++;
             this.podList = [];
             this.eventList = [];
@@ -609,6 +613,8 @@ export default {
             }
         },
         fetchPodInfo() {
+            clearTimeout(this.podRefreshTimer);
+            this.podRequestVersion++;
             this.stopStream();
             this.diagnosticVersion++;
             this.eventList = [];
@@ -647,7 +653,7 @@ export default {
             const label = Object.keys(selector).map(key => `${key}=${selector[key]}`).join(',');
             this.fetchPodByLabel(label);
         },
-        fetchPodByLabel(label = this.labelSelector) {
+        fetchPodByLabel(label = this.labelSelector, refresh = false) {
             if (!label) {
                 this.containerList = [];
                 this.fetchLog();
@@ -660,21 +666,32 @@ export default {
             };
 
             const jobName = this.currentJobName;
+            const version = ++this.podRequestVersion;
+            const isCurrent = () => this.visible && version === this.podRequestVersion && jobName === this.currentJobName;
             k8sproxy.get(`/api/v1/namespaces/${this.currentNamespace}/pods`, {
                 params,
                 noAlert: true,
             }).then(res => {
-                if (!this.visible || jobName !== this.currentJobName) return;
+                if (!isCurrent()) return;
                 const items = [...(res?.data?.items || [])].sort((a, b) => new Date(b.metadata?.creationTimestamp || 0) - new Date(a.metadata?.creationTimestamp || 0));
+                const previousPod = this.podList.find(p => p.metadata.name === this.currentPodName);
+                const previousState = JSON.stringify([previousPod?.status?.initContainerStatuses, previousPod?.status?.containerStatuses]);
+                const selected = items.find(p => p.metadata.name === this.currentPodName);
+                const first = refresh && selected && !['Failed', 'Succeeded'].includes(selected.status?.phase) ? selected : items[0];
                 this.podList = items;
-                const first = items[0];
                 if (!first) {
                     this.containerList = [];
                     this.fetchLog();
                     return;
                 }
 
+                const podChanged = this.currentPodName !== first.metadata?.name;
+                const containerStateChanged = previousState !== JSON.stringify([first.status?.initContainerStatuses, first.status?.containerStatuses]);
                 this.currentPodName = first.metadata?.name;
+                if (refresh && !podChanged && !containerStateChanged) {
+                    if (this.diagnosticsOpen) this.fetchEvents();
+                    return;
+                }
 
                 // 获取容器列表
                 const containers = [
@@ -689,15 +706,21 @@ export default {
 
                 this.selectPod();
             }).catch(err => {
-                if (!this.visible || jobName !== this.currentJobName) return;
+                if (!isCurrent()) return;
                 console.error('Failed to get pod:', err);
-                this.containerList = [];
-                this.fetchLog();
+                if (!refresh) {
+                    this.containerList = [];
+                    this.fetchLog();
+                }
+            }).finally(() => {
+                if (isCurrent()) {
+                    this.podRefreshTimer = setTimeout(() => this.fetchPodByLabel(label, true), 3000);
+                }
             });
         },
         fetchLog() {
             if (!this.currentPodName && this.diagnosticsOpen) this.fetchEvents();
-            if (!this.currentPodName && !this.labelSelector) {
+            if (!this.currentPodName) {
                 // 无 Pod 时显示空
                 this.displayLog('');
                 return;
@@ -741,11 +764,12 @@ export default {
 
             const url = `/k8s-proxy/api/v1/namespaces/${this.currentNamespace}/pods/${podName}/log?${queryString}`;
 
-            this.controller = new AbortController();
+            const controller = new AbortController();
+            this.controller = controller;
             const authToken = getToken();
 
             fetch(url, {
-                signal: this.controller.signal,
+                signal: controller.signal,
                 headers: {
                     accept: 'application/json, text/plain, */*',
                     ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
@@ -762,8 +786,8 @@ export default {
                 const readStream = () => {
                     return reader.read().then(({ done, value }) => {
                         if (done) return;
-                        if (!this.follow || !this.visible) {
-                            this.controller.abort();
+                        if (controller.signal.aborted || !this.follow || !this.visible) {
+                            controller.abort();
                             return;
                         }
 
