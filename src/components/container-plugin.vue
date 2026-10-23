@@ -24,12 +24,14 @@
         </a-form-item>
         <!-- 数据卷 -->
         <app-form-volumes
+            ref="appformvolumes"
             :data="data"
             :isPlugin="true"
             :kind="kind"
             :isTemplate="propsData?.isTemplate"
             :pluginData="pluginData"
-            @submit="v=>{volumes=v.volumes;volumeClaimTemplates=v.volumeClaimTemplates;}"
+            @renameVolume="v=>$refs.appformcontainer.renameVolume(v)"
+            @submit="handleVolumesSubmit"
         ></app-form-volumes>
         
         <div class="title">容器（Containers）</div>
@@ -43,6 +45,7 @@
             :isPlugin="true"
             :isTemplate="propsData?.isTemplate"
             :pluginData="pluginData"
+            @addVolumes="v=>$refs.appformvolumes.addItemFromOut(v)"
             @getMirror="getMirror"
             @editMirror="v=>{createImage.name=v;createImage.show=true;}"
             @delMirror="delMirror"
@@ -57,6 +60,7 @@ import appFormContainer from '@/components/app-form-container.vue';
 import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
 import { useNamespaceStore } from '@/store';
 import { k8sproxy } from '@/utils/api';
+import { applyTemplateAppEdit } from '@/utils/template-app-edit.mjs';
 
 const dataTemplate = {
     apiVersion: 'apps/v1',
@@ -101,6 +105,7 @@ export default{
             data: {},
             volumes: [],
             volumeClaimTemplates: [],
+            claimBaseline: null,
             mirror: [],
             namespaceActive: 'default',
             createImage: {
@@ -133,29 +138,29 @@ export default{
     },
     methods: {
         init(){
+            // 插件协议仍使用独立数组；在适配层转换为组件使用的 Kubernetes 层级。
+            const input=JSON.parse(JSON.stringify(this.propsData || {}));
             this.data = JSON.parse(JSON.stringify(dataTemplate));
-            if(this.propsData?.pluginData){
-                this.pluginData = this.propsData.pluginData;
-                if(this.pluginData.kind){
-                    this.kind = this.pluginData.kind.toLowerCase() + 's';
-                }
+            this.claimBaseline=null;
+            this.pluginData=input.pluginData || {};
+            const kind=String(this.pluginData.kind || 'Deployment').toLowerCase();
+            this.kind={deployment:'deployments',deployments:'deployments',statefulset:'statefulsets',statefulsets:'statefulsets',daemonset:'daemonsets',daemonsets:'daemonsets'}[kind] || 'deployments';
+            this.data.kind=this.types[this.kind];
+            if(input.containers) this.data.spec.template.spec.containers=input.containers;
+            this.data.spec.template.spec.initContainers=input.initContainers || [];
+            // isInitContainer 是 ZPK 协议字段，组件内部以所属数组区分角色。
+            for(const container of [...this.data.spec.template.spec.containers,...this.data.spec.template.spec.initContainers]){
+                delete container.isInitContainer;
             }
-            if(this.propsData?.containers){
-                this.data.spec.template.spec.containers = this.propsData.containers;
-            }
-            if(this.propsData?.initContainers){
-                this.data.spec.template.spec.initContainers = this.propsData.initContainers;
-            }
-            if(this.propsData?.volumes){
-                if(this.data?.spec?.template?.spec){
-                    this.data.spec.template.spec.volumes = this.propsData.volumes;
-                }
-            }
-            if(this.propsData?.volumeClaimTemplates){
-                if(this.data?.spec?.template?.spec){
-                    this.data.spec.template.spec.volumeClaimTemplates = this.propsData.volumeClaimTemplates;
-                }
-            }
+            this.data.spec.template.spec.volumes=input.volumes || [];
+            this.data.spec.volumeClaimTemplates=input.volumeClaimTemplates || [];
+            this.volumes=JSON.parse(JSON.stringify(input.volumes || []));
+            this.volumeClaimTemplates=JSON.parse(JSON.stringify(input.volumeClaimTemplates || []));
+        },
+        handleVolumesSubmit(value){
+            if(this.claimBaseline===null){this.claimBaseline=JSON.parse(JSON.stringify(value.volumeClaimTemplates));}
+            this.volumes=value.volumes;
+            this.volumeClaimTemplates=value.volumeClaimTemplates;
         },
         submit(callback){
             let {
@@ -165,14 +170,18 @@ export default{
                 imagePullSecrets, // 镜像仓库
                 pluginData,
             } = this.$refs.appformcontainer.formToData();
-            console.log('panel callback',{initContainers, containers, hostPorts, imagePullSecrets, pluginData})
+            // 从最终所属数组生成角色标记，避免转换后的容器残留旧标记。
+            containers=containers.map(container=>{const value={...container};delete value.isInitContainer;return value;});
+            initContainers=initContainers.map(container=>({...container,isInitContainer:true}));
+            const claims=this.claimBaseline===null ? this.volumeClaimTemplates :
+                applyTemplateAppEdit(this.data.spec.volumeClaimTemplates || [],this.claimBaseline,this.volumeClaimTemplates);
             callback({
                 initContainers,
                 containers,
                 hostPorts, // 暴露端口
                 imagePullSecrets, // 镜像仓库
                 volumes: this.volumes,
-                volumeClaimTemplates: this.volumeClaimTemplates,
+                volumeClaimTemplates: claims,
                 pluginData: {
                     ...pluginData,
                     kind: this.types[this.kind],

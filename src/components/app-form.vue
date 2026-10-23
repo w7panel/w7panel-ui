@@ -69,10 +69,12 @@
 
                 <!-- 数据卷 -->
                 <app-form-volumes
+                    ref="appformvolumes"
                     :id="id"
                     :data="data"
                     :kind="form.kind"
                     :is-template="templateMode"
+                    @renameVolume="v=>$refs.appformcontainer.renameVolume(v)"
                     @submit="v=>{volumes=v.volumes;volumeClaimTemplates=v.volumeClaimTemplates;}"
                 ></app-form-volumes>
 
@@ -85,6 +87,7 @@
                     :volumeClaimTemplates="volumeClaimTemplates"
                     :mirror="mirror"
                     :is-template="templateMode"
+                    @addVolumes="v=>$refs.appformvolumes.addItemFromOut(v)"
                     @getMirror="getMirror"
                     @editMirror="v=>{createImage.name=v;createImage.show=true;}"
                     @delMirror="delMirror"
@@ -205,6 +208,7 @@ export default {
             volumeClaimTemplates:[],
             showExtra: false,
             templateBaseline: null,
+            editBaseline: null,
         }
     },
     async created(){
@@ -306,12 +310,16 @@ export default {
             });
         },
         init(){
+            this.dataLoadVersion = (this.dataLoadVersion || 0) + 1;
+            this.editBaseline = null;
+            this.templateBaseline = null;
             if(this.id){
                 this.getData();
             }else if(this.defaultData){
                 this.data = JSON.parse(JSON.stringify(this.defaultData));
                 this.dataToForm();
-                if (this.templateMode) this.$nextTick(() => { this.templateBaseline = this.buildFormData(); });
+                if (this.templateMode) this.$nextTick(() => { this.templateBaseline = JSON.parse(JSON.stringify(this.buildFormData())); });
+                else this.captureEditBaseline();
             }else{
                 let nameAfter = this.afterName || this.createName(8);
                 this.form = {
@@ -336,10 +344,22 @@ export default {
                 this.data.spec.suffix = nameAfter;
             }
         },
+        captureEditBaseline(){
+            const version = this.dataLoadVersion;
+            this.editBaseline = null;
+            return this.$nextTick(()=>{
+                if(version!==this.dataLoadVersion) return;
+                this.editBaseline = JSON.parse(JSON.stringify(this.buildFormData()));
+            });
+        },
         getData(){
-            k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ this.kind +"/"+this.id,{loading:true}).then(res=>{
+            const version = this.dataLoadVersion = (this.dataLoadVersion || 0) + 1;
+            const id = this.id, kind = this.kind, namespace = this.namespaceActive;
+            return k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ this.kind +"/"+this.id,{loading:true}).then(res=>{
+                if(version!==this.dataLoadVersion || id!==this.id || kind!==this.kind || namespace!==this.namespaceActive) return;
                 this.data = res.data;
                 this.dataToForm();
+                this.captureEditBaseline();
             })
         },
         dataToForm(){
@@ -402,19 +422,21 @@ export default {
                 data.spec.volumeClaimTemplates = this.volumeClaimTemplates;
             }
             data.kind = {
-                'Deployment': 'deployments',
-                'StatefulSet': 'statefulsets',
-                'DaemonSet': 'daemonsets',
+                'deployments': 'Deployment',
+                'statefulsets': 'StatefulSet',
+                'daemonsets': 'DaemonSet',
             }[this.form.kind];
 
             let spec = data?.spec?.template?.spec || {};
             
             
-            // 容忍度
-            if(this.tlrt){
-                spec.tolerations = [{key:'node.kubernetes.io/unschedulable',operator:'Exists',effect:'NoSchedule'}];
-            }else{
-                delete spec.tolerations;
+            // Toggle only this control's toleration; keep unrelated scheduling rules.
+            const originalTolerations = spec.tolerations || [];
+            const hasToleration = originalTolerations.some(i=>i.key=='node.kubernetes.io/unschedulable');
+            if(this.tlrt && !hasToleration){
+                spec.tolerations = [...originalTolerations, {key:'node.kubernetes.io/unschedulable',operator:'Exists',effect:'NoSchedule'}];
+            }else if(!this.tlrt && hasToleration){
+                spec.tolerations = originalTolerations.filter(i=>i.key!='node.kubernetes.io/unschedulable');
             }
 
             // 节点调度
@@ -491,35 +513,47 @@ export default {
                 
                 return data;
         },
+        validateWorkloadReferences(data){
+            const spec = data.spec.template.spec;
+            const volumes = [...(spec.volumes || []), ...(data.spec.volumeClaimTemplates || [])];
+            const names = new Set(volumes.map(volume=>volume.name || volume.metadata?.name));
+            const containers = [...(spec.containers || []), ...(spec.initContainers || [])];
+            const oldSpec=this.data?.spec?.template?.spec || {};
+            const oldContainerNames=new Set([...(oldSpec.containers || []), ...(oldSpec.initContainers || [])].map(container=>container.name));
+            const containerNames=new Set(containers.map(container=>container.name));
+            const danglingResourceReference=containers.flatMap(container=>(container.env || [])
+                .filter(env=>oldContainerNames.has(env.valueFrom?.resourceFieldRef?.containerName) && !containerNames.has(env.valueFrom.resourceFieldRef.containerName))
+                .map(env=>`容器 ${container.name} 的变量 ${env.name} 引用了已删除的容器 ${env.valueFrom.resourceFieldRef.containerName}`))[0];
+            const error = !spec.containers?.length ? '至少保留一个普通容器' :
+                new Set((spec.volumes || []).map(volume=>volume.name)).size!==(spec.volumes || []).length ? '数据卷名称重复' :
+                new Set(containers.map(container=>container.name)).size!==containers.length ? '容器名称重复' :
+                containers.flatMap(container=>[...(container.volumeMounts || []), ...(container.volumeDevices || [])]
+                    .filter(mount=>!names.has(mount.name)).map(mount=>`容器 ${container.name} 引用了不存在的数据卷 ${mount.name}`))[0];
+            const validationError=error || danglingResourceReference;
+            if(validationError){this.$message.error(validationError);throw new Error(validationError);}
+            return data;
+        },
         exportFormData(){
             return this.validate().then(()=>{
                 if (this.templateMode && !this.templateBaseline) throw new Error('模板编辑器尚未初始化，请稍后重试');
                 const data = this.buildFormData();
-                return this.templateMode
+                return this.validateWorkloadReferences(this.templateMode
                     ? applyTemplateAppEdit(this.data, this.templateBaseline, data)
-                    : data;
+                    : this.editBaseline ? applyTemplateAppEdit(this.data, this.editBaseline, data) : data);
             })
         },
         submit(hideMessage){
             return this.validate().then(()=>{
                 
-                let data = this.formTodata();
+                if((this.id || this.defaultData) && !this.editBaseline){
+                    throw new Error('应用编辑器尚未初始化，请稍后重试');
+                }
+                const edited = this.buildFormData();
+                let data = this.editBaseline
+                    ? applyTemplateAppEdit(this.data, this.editBaseline, edited)
+                    : edited;
 
-                let {
-                    initContainers,
-                    containers,
-                    hostPorts,
-                    imagePullSecrets,
-                } = this.$refs.appformcontainer.formToData();
-                
-                data.spec.template.spec.volumes = this.volumes || [];
-                data.spec.volumeClaimTemplates = this.volumeClaimTemplates || [];
-                data.spec.template.spec.initContainers = initContainers;
-                data.spec.template.spec.containers = containers;
-                
-                data.spec.template.spec.imagePullSecrets = imagePullSecrets;
-                data.metadata.annotations['w7.cc.app/ports'] = JSON.stringify(hostPorts);
-
+                this.validateWorkloadReferences(data);
                 if(this.id){
                     // 不修改volumeClaimTemplates
                     data.spec.volumeClaimTemplates = this.data?.spec?.volumeClaimTemplates;

@@ -17,8 +17,9 @@
                 </td></tr>
                 <tr v-for="(item,index) in list" :key="index" style="background:var(--color-neutral-1);">
                     <td>{{ item.name }}</td>
-                    <td>{{ types[item.type] }}</td>
+                    <td>{{ types[item.type] || item.sourceType + '（保留原配置）' }}</td>
                     <td>
+                        <span v-if="item.type=='unsupported'">{{ item.originalVolume?.csi?.driver || item.sourceType }}：保留原配置，可主动转换类型</span>
                         <span v-if="item.type=='pvc'">PVC：{{ item.pvcName }}</span>
                         <span v-if="item.type=='configmap'">{{ item.configmapName }}{{ item.configmapAllKey?'':' 指定部分key' }}</span>
                         <span v-if="item.type=='nfs'">NFS路径：{{ item.nfsPathServer }}</span>
@@ -41,8 +42,9 @@
             </tr>
             <tr v-for="(item,index) in list" :key="index" style="background:var(--color-neutral-1);">
                 <td>{{ item.name }}</td>
-                <td>{{ types[item.type] }}</td>
+                <td>{{ types[item.type] || item.sourceType + '（保留原配置）' }}</td>
                 <td>
+                    <span v-if="item.type=='unsupported'">{{ item.originalVolume?.csi?.driver || item.sourceType }}：保留原配置，可主动转换类型</span>
                     <span v-if="item.type=='pvc'">PVC：{{ item.pvcName }}</span>
                     <span v-if="item.type=='configmap'">{{ item.configmapName }}{{ item.configmapAllKey?'':' 指定部分key' }}</span>
                     <span v-if="item.type=='nfs'">NFS路径：{{ item.nfsPathServer }}</span>
@@ -57,6 +59,7 @@
             <a-form :model="edit" auto-label-width="">
                 <a-form-item label="数据卷类型">
                     <a-select v-model="edit.type" placeholder="请选择" @change="changeEditType">
+                        <a-option v-if="edit.originalType=='unsupported'" :label="edit.sourceType + '（保留原配置）'" value="unsupported"></a-option>
                         <a-option label="使用NFS盘" value="nfs"></a-option>
                         <a-option label="使用临时目录" value="emptyDir"></a-option>
                         <a-option label="使用主机目录" value="hostPath"></a-option>
@@ -294,16 +297,16 @@ export default{
             kind = kind? kind.toLowerCase() + 's' : '';
             if(!this.kind){this.appKind = kind; }
             let volumes = this.data?.spec?.template?.spec?.volumes || [];
-            let volumeClaimTemplates = this.data?.spec?.template?.spec?.volumeClaimTemplates || [];
+            let volumeClaimTemplates = this.data?.spec?.volumeClaimTemplates || [];
 
             this.list = this.dataToForm({volumes,volumeClaimTemplates});
             this.submit();
         },
         addItemFromOut(addVolumes){
             
-            let volumes = this.data?.spec?.template?.spec?.volumes || [];
-            volumes = volumes.concat(addVolumes);
-            let volumeClaimTemplates = this.data?.spec?.template?.spec?.volumeClaimTemplates || [];
+            const current = this.submit();
+            const volumes = current.volumes.concat(addVolumes.filter(volume=>!current.volumes.some(item=>item.name==volume.name)));
+            const volumeClaimTemplates = current.volumeClaimTemplates;
 
             this.list = this.dataToForm({volumes,volumeClaimTemplates});
             this.submit();
@@ -320,7 +323,8 @@ export default{
                 }
             })
             
-            let arr = volumes.map(i=>{
+            let arr = volumes.map(original=>{
+                const i = JSON.parse(JSON.stringify(original));
                 let type = '';
                 let nfsPathServer = '';
                 let pvcName = '';
@@ -370,7 +374,10 @@ export default{
                 }
                 return {
                     name: i.name,
-                    type,
+                    originalVolume: JSON.parse(JSON.stringify(original)),
+                    originalType: type || 'unsupported',
+                    sourceType: Object.keys(original).find(key=>key!='name') || '未知类型',
+                    type: type || 'unsupported',
                     nfsPathServer,
                     pvcName,
                     configmapName,
@@ -404,18 +411,26 @@ export default{
             let volumeClaimTemplates = [];
             this.list.map(i=>{
                 let o = {name: i.name};
-                if(i.type=='emptyDir'){}
+                if(i.originalVolume && !i.volumeEdited){
+                    volumes.push(JSON.parse(JSON.stringify(i.originalVolume)));
+                    return;
+                }
+                if(i.type=='unsupported'){
+                    volumes.push({...JSON.parse(JSON.stringify(i.originalVolume)), name:i.name});
+                    return;
+                }
+                if(i.type=='emptyDir'){o.emptyDir = {}; }
                 if(i.type=='hostPath'){
                     o.hostPath = {
                         path: i.hostPathPath,
                         type: i.hostPathType,
                     }
                 }
-                if(i.type=='nsfs'){
+                if(i.type=='nfs'){
                     let match = i.nfsPathServer.match(/^(.+):(.+)$/);
                     o.nfs = {
-                        path: match?.[1] || '',
-                        server: match?.[2] || '',
+                        path: match?.[2] || '',
+                        server: match?.[1] || '',
                     }
                 }
                 if(i.type=='pvc'){ o.persistentVolumeClaim = {claimName:i.pvcName}; }
@@ -426,8 +441,9 @@ export default{
                     }
                     if(!i.configmapAllKey){
                         o.configMap.items = i.configmapKey.map(i=>{
-                            i.mode = Number("0o" + i.mode);
-                            return i;
+                            const item = {...i};
+                            if(item.mode !== undefined && item.mode !== ''){ item.mode = Number('0o' + item.mode); }else{ delete item.mode; }
+                            return item;
                         })
                     }
                 }
@@ -438,8 +454,9 @@ export default{
                     }
                     if(!i.secretAllKey){
                         o.secret.items = i.secretKey.map(i=>{
-                            i.mode = Number("0o" + i.mode);
-                            return i;
+                            const item = {...i};
+                            if(item.mode !== undefined && item.mode !== ''){ item.mode = Number('0o' + item.mode); }else{ delete item.mode; }
+                            return item;
                         })
                     }
                 }
@@ -457,17 +474,30 @@ export default{
                         },
                     })
                 }else{
-                    volumes.push(o)
+                    if(i.originalVolume && i.type==i.originalType){
+                        const original = JSON.parse(JSON.stringify(i.originalVolume));
+                        const source = Object.keys(o).find(key=>key!='name');
+                        if(source){
+                            o[source] = {...original[source], ...o[source]};
+                            if(source=='secret' || source=='configMap'){
+                                if(original[source]?.defaultMode !== undefined){o[source].defaultMode = original[source].defaultMode;}
+                                if((source=='secret' && i.secretAllKey) || (source=='configMap' && i.configmapAllKey)){delete o[source].items;}
+                            }
+                        }
+                        o = {...original, ...o};
+                    }
+                    volumes.push(o);
+                    i.originalVolume = JSON.parse(JSON.stringify(o));
+                    i.originalType = i.type;
+                    i.volumeEdited = false;
                 }
             })
-            this.$emit('submit', {
-                volumes,
-                volumeClaimTemplates,
-            });
+            const result = {volumes, volumeClaimTemplates};
+            this.$emit('submit', result);
+            return result;
         },
         addItem(){
             this.edit = {
-                ...this.edit,
                 show: true,
                 isEdit: -1,
                 type: 'nfs',
@@ -492,13 +522,31 @@ export default{
             this.edit = {
                 show: true,
                 isEdit: index,
-                ...this.list[index],
+                ...JSON.parse(JSON.stringify(this.list[index])),
             }
             this.changeEditType();
             this.filterPvc = false;
         },
         submitEdit(){
+            const original = this.list[this.edit.isEdit];
+            if(original?.originalVolume && this.edit.type!=original.originalType){
+                this.$modal.confirm({
+                    title: '确认转换数据卷类型',
+                    content: '转换类型会移除原数据卷配置，现有容器挂载将使用新卷，请确认配置兼容。',
+                    onOk: ()=>this.applyEdit(),
+                });
+                return;
+            }
+            this.applyEdit();
+        },
+        applyEdit(){
+            const previous = this.list[this.edit.isEdit];
+            if(this.list.some((item,index)=>index!==this.edit.isEdit && item.name===this.edit.name)){
+                this.$message.error('数据卷名称重复，请使用其他名称');
+                return;
+            }
             let o = {...this.edit}
+            o.volumeEdited = true;
             delete o.show;
             delete o.isEdit;
             if(this.edit.isEdit != -1){
@@ -507,6 +555,7 @@ export default{
                 this.list.push(o);
             }
             this.edit.show = false;
+            if(previous && previous.name!==o.name){this.$emit('renameVolume', {from:previous.name,to:o.name});}
             this.submit();
         },
         changeEditType(){
