@@ -59,6 +59,7 @@
                                                 <a-option label="自定义" value="custom"></a-option>
                                                 <a-option label="Field" value="field"></a-option>
                                                 <a-option label="ResourceField" value="resource_field"></a-option>
+                                                <a-option v-if="item.type==='reference'" label="引用" value="reference"></a-option>
                                             </a-select>
                                         </td>
                                         <td>
@@ -66,6 +67,7 @@
                                         </td>
                                         <td>
                                             <a-input v-if="item.type=='custom'" v-model="item.value" @change="yamlData=formTodata()" size="large" style="width:200px;" placeholder="变量值" />
+                                            <span v-if="item.type==='reference'">{{ item.valueFrom?.secretKeyRef ? 'Secret ' + item.valueFrom.secretKeyRef.name + '/' + item.valueFrom.secretKeyRef.key : item.valueFrom?.configMapKeyRef ? 'ConfigMap ' + item.valueFrom.configMapKeyRef.name + '/' + item.valueFrom.configMapKeyRef.key : '引用值' }}</span>
                                             <a-select v-else-if="item.type=='field'" @change="yamlData=formTodata()" v-model="item.value" size="large" style="width:200px;">
                                                 <a-option value="metadata.name" label="metadata.name"></a-option>
                                                 <a-option value="metadata.namespace" label="metadata.namespace"></a-option>
@@ -473,7 +475,8 @@ export default {
                 this.form.env = this.form.env?.map(v=>({
                     name: v.name,
                     value: v.value || v?.valueFrom?.fieldRef?.fieldPath || v?.valueFrom?.resourceFieldRef?.resource,
-                    type: v.value?'custom': (v?.valueFrom?.fieldRef? 'field' : 'resource_field')
+                    type: v?.valueFrom?.fieldRef ? 'field' : v?.valueFrom?.resourceFieldRef ? 'resource_field' : v?.valueFrom ? 'reference' : 'custom',
+                    ...(v?.valueFrom && !v.valueFrom.fieldRef && !v.valueFrom.resourceFieldRef ? { valueFrom: v.valueFrom } : {}),
                 }))
                 
                 let {mounts,mountsFile} = this.extractVolumeMounts(this.data);
@@ -522,6 +525,8 @@ export default {
                             divisor: '0',
                         }
                     }
+                }else if(v.type==='reference'){
+                    o.valueFrom = v.valueFrom;
                 }
                 return o;
             })

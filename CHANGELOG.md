@@ -512,3 +512,7 @@
 ## 2026-10-19（微应用 API Skill 纳入仓库）
 
 - 将 `w7panel-microapp-api` Skill 放入仓库 `skills/`，补充当前分支镜像打包 WebSocket 已复用统一连接方法的说明；用户级 Skill 改为指向仓库版本的软链接。影响模块：微应用 API 开发指引。验证：Skill 基础格式、软链接目标和 `git diff --check` 检查通过。
+
+## 2026-10-27（编辑应用保留环境变量引用）
+
+- 应用编辑表单保留 Secret、ConfigMap 等 `env.valueFrom` 引用，保存时原样写回，并在环境变量表格显示引用来源。影响模块：应用编辑抽屉及独立编辑页。验证：生产构建通过；在 218 集群以临时 Deployment 通过本地 UI 编辑保存后，`secretKeyRef` 仍完整保留；测试资源已删除。
