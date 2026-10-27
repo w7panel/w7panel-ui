@@ -508,3 +508,7 @@
 
 - 镜像打包状态组件 `src/views/cluster/nodes/build-image-status.vue` 移除 WebSocket URL 中的 `api-token`，复用 `createPanelWebSocket`，通过服务端支持的 `Sec-WebSocket-Protocol` 传递面板 token，并沿用 CKM 会话刷新和子协议协商。
 - 影响模块：容器镜像打包执行命令的 WebSocket 连接。验证：组件 SFC 解析、脚本语法、模板编译及 `git diff --check` 通过；`LOCAL_MOCK=true npm run build` 因 Copilot 页面依赖 `@openuidev/vue-lang` 无法解析而未通过。
+
+## 2026-10-19（微应用 API Skill 纳入仓库）
+
+- 将 `w7panel-microapp-api` Skill 放入仓库 `skills/`，补充当前分支镜像打包 WebSocket 已复用统一连接方法的说明；用户级 Skill 改为指向仓库版本的软链接。影响模块：微应用 API 开发指引。验证：Skill 基础格式、软链接目标和 `git diff --check` 检查通过。

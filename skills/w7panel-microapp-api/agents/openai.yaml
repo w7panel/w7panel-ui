@@ -1,0 +1,4 @@
+interface:
+  display_name: "W7Panel Microapp API"
+  short_description: "Implement W7Panel HTTP, WebSocket, K8s proxy, and Pod helper calls"
+  default_prompt: "Use $w7panel-microapp-api to add or troubleshoot an HTTP API, WebSocket, Kubernetes proxy, or Pod helper call in this W7Panel microapp."

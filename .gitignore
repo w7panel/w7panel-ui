@@ -5,6 +5,9 @@
 !.mcp.json
 !opencode.jsonc
 !AGENTS.md
+!skills/
+!skills/w7panel-microapp-api/
+!skills/w7panel-microapp-api/**
 !src/
 src/*
 !src/utils/
