@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2026-10-28
+
+- 注册节点的“外网”改为“边缘节点”，根据主 server 公网 IP 显示状态与操作提示；内嵌 SQLite 仅限制新增 server 节点，并在节点 IP 更新后同步连接地址。影响模块：集群节点注册页。验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
+
 ## 2026-10-15
 
 - 在访问密钥下增加不显示菜单的 MCP Server 配置路由，展示可编辑服务地址及包含当前浏览器登录 token 的客户端连接示例；影响模块：系统管理路由、MCP 配置页。验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。

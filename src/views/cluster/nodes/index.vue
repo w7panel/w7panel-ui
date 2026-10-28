@@ -277,7 +277,13 @@
                 <a-form-item label="主服务器地址"  field="k3s_url" :rules="[{required:true,message:'请输入主服务器地址'}]">
                     <div style="flex:1;">
                         <a-input v-model="form.k3s_url" placeholder="请输入"></a-input>
-                        <a-checkbox v-model="form.ww" @change="form.k3s_url = form.ww?publicIp:form.defaultURL" class="mt-8" :disabled="!publicIp">外网</a-checkbox>
+                        <div class="df ai-c mt-8">
+                            <a-checkbox v-model="form.ww" @change="form.k3s_url = form.ww?publicIp:form.defaultURL" :disabled="!publicIp">边缘节点</a-checkbox>
+                            <icon-check-circle v-if="publicIp" class="c-green fs-16 ml-8" aria-label="主 server 已配置公网 IP" />
+                            <a-tooltip v-else content="请在server节点配置公网IP后再操作！">
+                                <icon-close-circle class="c-red fs-16 ml-8" aria-label="主 server 未配置公网 IP" />
+                            </a-tooltip>
+                        </div>
                     </div>
                     <template #extra>主服务器(节点)apiserver地址: https://服务器内网ip:6443</template>
                 </a-form-item>
@@ -1132,9 +1138,6 @@ export default {
                 let data = res.data?.items || [];
                 this.data = data;
                 let list = data.map(item=>{
-                    if(item?.metadata?.labels?.['node-role.kubernetes.io/master'] && item.metadata.labels?.['w7.public-ip']){
-                        this.publicIp = 'https://' + item.metadata.labels?.['w7.public-ip'] + ':6443';
-                    }
                     let ready = item?.status?.conditions?.find(i=>i.type=='Ready')?.status == 'True';
                     
                     return {
@@ -1177,9 +1180,17 @@ export default {
 
                 this.list = list;
                 
-                let ip = this.list?.find(i=>i.master)?.internalIP;
-                if(ip){
-                    this.form.defaultURL = 'https://' + ip + ':6443';
+                let previousDefaultURL = this.form.defaultURL;
+                let master = this.list.find(i=>i.master);
+                this.form.defaultURL = master?.internalIP ? 'https://' + master.internalIP + ':6443' : '';
+                this.publicIp = master?.publicIp ? 'https://' + master.publicIp + ':6443' : '';
+                if(this.form.show){
+                    let wasEdge = this.form.ww;
+                    if(!this.publicIp){this.form.ww = false;}
+                    if(wasEdge || this.form.k3s_url === previousDefaultURL){
+                        this.form.k3s_url = this.form.ww ? this.publicIp : this.form.defaultURL;
+                    }
+                    console.assert(!this.form.ww || !!this.publicIp, '边缘节点需要主 server 公网 IP');
                 }
             }).then(()=>{
                 return k8sproxy.get('/apis/metrics.k8s.io/v1beta1/nodes')
