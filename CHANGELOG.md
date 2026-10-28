@@ -2,6 +2,7 @@
 
 ## 2026-10-28
 
+- 修复旧版应用表单批量编辑环境变量时重复保留普通变量的问题，同时保留 Secret/ConfigMap 引用变量。影响模块：应用编辑表单。验证：针对性批量编辑测试、`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
 - 注册节点的“外网”改为“边缘节点”，根据主 server 公网 IP 显示状态与操作提示；内嵌 SQLite 仅限制新增 server 节点，并在节点 IP 更新后同步连接地址。影响模块：集群节点注册页。验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
 - 节点列表统一标注公网 IP，改用弹层配置并提供只读自动获取、提交 loading 和控制节点重启提示；集群认证信息将控制节点公网 IP 显示为不可编辑的内置 tls-san。影响模块：节点管理与集群认证信息。验证：`npm run build` 通过。
 

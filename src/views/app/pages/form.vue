@@ -709,18 +709,17 @@ export default {
                     value: match[2],
                     title: match[4] || '',
                     description: match[6] || '',
-                    env_type: 'custom',
                     type: 'custom',
                 });
             })
-            arr = this.form.env.filter(i=>i.env_type!='custom').concat(arr);
+            arr = this.form.env.filter(i=>i.type!='custom').concat(arr);
             this.form.env = arr;
             this.envedit.show = false;
         },
 
         openEnvEdit(){
             this.envedit.show = true;
-            let values = this.form.env.filter(i=>i.env_type=='custom').map(i=>`${i.name}=${i.value} #${i.title}${i.description?':'+i.description:''}`);
+            let values = this.form.env.filter(i=>i.type=='custom').map(i=>`${i.name}=${i.value} #${i.title}${i.description?':'+i.description:''}`);
             this.envedit.values = values.join('\n');
         },
         
