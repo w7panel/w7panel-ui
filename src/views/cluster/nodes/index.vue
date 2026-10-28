@@ -18,6 +18,7 @@
                     <a-menu-item key="1">节点管理</a-menu-item>
                     <a-menu-item key="2">存储节点管理</a-menu-item>
                     <a-menu-item key="3">GPU节点管理</a-menu-item>
+                    <a-menu-item v-if="isFounder" key="4">组网管理</a-menu-item>
                 </a-menu>
             </a-layout-sider>
             <a-layout-content class="ml-6 bg-white padding-20">
@@ -162,6 +163,14 @@
                 </div>
                 <div v-if="selectMenu[0]=='3'">
                     <set-gpu :show="selectMenu[0]=='3'" @close="clscf.dialog=false;" />
+                </div>
+                <div v-if="isFounder && selectMenu[0]=='4'">
+                    <a-spin :loading="kiloStatus=='loading'" class="fc">
+                        <a-empty v-if="kiloStatus=='missing'" class="mt-40">组网组件未安装，<span class="c-blue cursor" @click="installKilo.show=true">点击安装</span></a-empty>
+                        <a-empty v-else-if="kiloStatus=='installing'" class="mt-40">组网组件尚未安装完成，<span class="c-blue cursor" @click="testKilo">刷新状态</span></a-empty>
+                        <a-empty v-else-if="kiloStatus=='error'" class="mt-40">组网组件加载失败，<span class="c-blue cursor" @click="testKilo">重试</span></a-empty>
+                        <gateway-plugin-microapp v-else-if="kiloMicroApp" :microapp="kiloMicroApp" route="#/" instance-name="w7panel-kilo" @error="kiloStatus='error'" />
+                    </a-spin>
                 </div>
             </a-layout-content>
         </a-layout>
@@ -354,6 +363,7 @@
         </a-drawer>
 
         <store-install-drawer :show="installLonghornPlugin.show" :path="installLonghornPlugin.path" @close="installLonghornPlugin.show=false;" @installedStatusSuccess="installLonghornPlugin.show=false;testLonghornSystem();"></store-install-drawer>
+        <store-install-drawer :show="installKilo.show" path="https://zpk.w7.cc/zpk/respo/info/w7panel-kilo" @close="installKilo.show=false" @installedStatusSuccess="installKilo.show=false;testKilo()" />
         <!-- <node-bind :show="nodebindshow" :list="list" @close="v=>{nodebindshow=false;v?getList():null;}"></node-bind> -->
     </div>
 </template>
@@ -367,7 +377,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import {FitAddon} from '@xterm/addon-fit';
 import { useNamespaceStore,useLoadingStore } from '@/store'
-import { getToken } from '@/utils/auth';
+import { getToken, getK8sinfo } from '@/utils/auth';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import setGpu from "./set-gpu.vue";
 import { getUserInfo } from '@/utils/auth';
@@ -380,6 +390,7 @@ import yamlEditor from "@/components/yaml-editor.vue";
 import { getPermission,getWebshell,getFileEditor } from '@/utils/auth';
 import jsyaml from "js-yaml";
 import storeInstallDrawer from '@/components/store-install-drawer.vue';
+import gatewayPluginMicroapp from '@/components/gateway-plugin-microapp.vue';
 
 const templateYaml = `apiVersion: helm.cattle.io/v1
 kind: HelmChart
@@ -521,6 +532,11 @@ export default {
 
             selectMenu: ['1'],
             hasLonghornSystem: false,
+            isFounder: getK8sinfo()?.['w7.cc/role'] === 'founder',
+            kiloStatus: '',
+            kiloMicroApp: null,
+            kiloRequestId: 0,
+            installKilo: { show: false },
 
             installLonghornPlugin: {
                 show: false,
@@ -546,7 +562,14 @@ export default {
         this.testLonghornSystem();
     },
     watch: {
-        selectMenu: 'testLonghornSystem',
+        selectMenu(){
+            this.testLonghornSystem();
+            if(this.selectMenu[0]=='4') this.testKilo();
+            else this.kiloRequestId++;
+        },
+    },
+    beforeUnmount(){
+        this.kiloRequestId++;
     },
     components: {
         yamlDrawer,
@@ -557,6 +580,7 @@ export default {
         ddcNode,
         ndSet,
         storeInstallDrawer,
+        gatewayPluginMicroapp,
     },
     computed: {
         kubeconfigAddresses(){
@@ -564,6 +588,28 @@ export default {
         },
     },
     methods: {
+        async testKilo(){
+            if(!this.isFounder || this.selectMenu[0]!='4') return;
+            const requestId = ++this.kiloRequestId;
+            this.kiloStatus = 'loading';
+            this.kiloMicroApp = null;
+            const groupRequest = k8sproxy.get(`/apis/w7panel.w7.com/v1alpha1/namespaces/${encodeURIComponent(this.namespaceActive)}/appgroups/w7panel-kilo`, {noAlert:true})
+                .catch(error => ({error}));
+            try{
+                const microApp = await panelApi.get('/microapp/w7panel-kilo/info', {noAlert:true});
+                if(requestId !== this.kiloRequestId) return;
+                if(!microApp?.data?.metadata?.name) throw new Error('组网组件前端未就绪');
+                this.kiloMicroApp = microApp.data;
+                this.kiloStatus = 'ready';
+            }catch(error){
+                if(requestId !== this.kiloRequestId) return;
+                const group = await groupRequest;
+                if(requestId !== this.kiloRequestId) return;
+                this.kiloStatus = group?.error
+                    ? group.error?.response?.status === 404 ? 'missing' : 'error'
+                    : group?.data?.status?.deployStatus === 'deployed' ? 'error' : 'installing';
+            }
+        },
         insLonghorn(){
             this.installLonghornPlugin = {
                 show: true,
