@@ -1,5 +1,5 @@
 <template>
-    <div class="com-container df df-c">
+    <div class="com-container df df-c" :class="{'kilo-layout': selectMenu[0]=='4'}">
         <route-breadcrumb />
         <div>
             <a-button v-if="permission.includes('cluster/nodes/add')" type="primary" @click="openForm()"><template #icon><icon-plus /></template>注册节点</a-button>
@@ -21,7 +21,7 @@
                     <a-menu-item v-if="isFounder" key="4">组网管理</a-menu-item>
                 </a-menu>
             </a-layout-sider>
-            <a-layout-content class="ml-6 bg-white padding-20">
+            <a-layout-content class="ml-6 bg-white padding-20" :class="{'kilo-content': selectMenu[0]=='4'}">
                 <a-table v-if="selectMenu[0]=='1'" :data="list" class="nodestable" :scroll="{ x: 1600 }" :pagination="false" :bordered="false">
                     <template #columns>
                         <a-table-column title="节点名称" fixed="left" :width="300">
@@ -164,8 +164,8 @@
                 <div v-if="selectMenu[0]=='3'">
                     <set-gpu :show="selectMenu[0]=='3'" @close="clscf.dialog=false;" />
                 </div>
-                <div v-if="isFounder && selectMenu[0]=='4'">
-                    <a-spin :loading="kiloStatus=='loading'" class="fc">
+                <div v-if="isFounder && selectMenu[0]=='4'" class="kilo-page">
+                    <a-spin :loading="kiloStatus=='loading'" class="kilo-spin">
                         <a-empty v-if="kiloStatus=='missing'" class="mt-40">组网组件未安装，<span class="c-blue cursor" @click="installKilo.show=true">点击安装</span></a-empty>
                         <a-empty v-else-if="kiloStatus=='installing'" class="mt-40">组网组件尚未安装完成，<span class="c-blue cursor" @click="testKilo">刷新状态</span></a-empty>
                         <a-empty v-else-if="kiloStatus=='error'" class="mt-40">组网组件加载失败，<span class="c-blue cursor" @click="testKilo">重试</span></a-empty>
@@ -1310,6 +1310,11 @@ body[arco-theme='dark'] .filetable .opt-icon{color:#3c7eff;}
 .nodestable .opt-icon + .opt-icon{margin-left:10px;}
 </style>
 <style scoped>
+.kilo-layout{height:100%;min-height:0;}
+.kilo-layout > .arco-layout,.kilo-content{min-height:0;}
+.kilo-page,.kilo-spin{width:100%;height:100%;min-height:480px;}
+.kilo-spin{display:flow-root;}
+.kilo-page :deep(wujie-app){display:block;height:100%;overflow:auto;}
 .mb-10{margin-bottom:10px;}
 .pods{max-height:500px; overflow:auto;}
 .pods .item{min-height:36px; padding:4px 10px 4px 0; border-bottom:1px solid #eee;}
