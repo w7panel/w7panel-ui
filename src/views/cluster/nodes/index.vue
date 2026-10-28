@@ -262,10 +262,11 @@
                     <div style="flex:1;">
                         <a-input v-model="form.k3s_url" placeholder="请输入"></a-input>
                         <div class="df ai-c mt-8">
-                            <a-checkbox v-model="form.ww" @change="form.k3s_url = form.ww?publicIp:form.defaultURL" :disabled="!publicIp">边缘节点</a-checkbox>
-                            <icon-check-circle v-if="publicIp" class="c-green fs-16 ml-8" aria-label="主 server 已配置公网 IP" />
+                            <a-checkbox v-model="form.ww" @change="form.k3s_url = form.ww?publicIp:form.defaultURL" :disabled="edgeStatus!='available'">边缘节点</a-checkbox>
+                            <a-spin v-if="edgeStatus=='checking'" :loading="true" class="ml-8" />
+                            <icon-check-circle v-else-if="edgeStatus=='available'" class="c-green fs-16 ml-8" aria-label="主 server 公网 IP 可达" />
                             <a-tooltip v-else content="请在server节点配置公网IP后再操作！">
-                                <icon-close-circle class="c-red fs-16 ml-8" aria-label="主 server 未配置公网 IP" />
+                                <icon-close-circle class="c-red fs-16 ml-8" aria-label="主 server 公网 IP 不可达" />
                             </a-tooltip>
                         </div>
                     </div>
@@ -480,6 +481,8 @@ export default {
             },
             term: null,
             publicIp: '',
+            edgeStatus: 'idle',
+            edgeCheckId: 0,
             yamlData: {},
             // commandModal: {
             //     pod_name: '',
@@ -567,9 +570,14 @@ export default {
             if(this.selectMenu[0]=='4') this.testKilo();
             else this.kiloRequestId++;
         },
+        'form.show'(show){
+            if(show) this.checkEdgePublicIP();
+            else this.edgeCheckId++;
+        },
     },
     beforeUnmount(){
         this.kiloRequestId++;
+        this.edgeCheckId++;
     },
     components: {
         yamlDrawer,
@@ -588,6 +596,24 @@ export default {
         },
     },
     methods: {
+        async checkEdgePublicIP(){
+            const requestId = ++this.edgeCheckId;
+            this.edgeStatus = 'checking';
+            this.publicIp = '';
+            if(this.form.ww){
+                this.form.ww = false;
+                this.form.k3s_url = this.form.defaultURL;
+            }
+            try{
+                const res = await panelApi.get('/cluster/nodes/public-ip/check', {noAlert:true});
+                if(requestId !== this.edgeCheckId || !this.form.show) return;
+                this.publicIp = res?.data?.available && res?.data?.ip ? `https://${res.data.ip}:6443` : '';
+                this.edgeStatus = this.publicIp ? 'available' : 'unavailable';
+            }catch{
+                if(requestId !== this.edgeCheckId || !this.form.show) return;
+                this.edgeStatus = 'unavailable';
+            }
+        },
         async testKilo(){
             if(!this.isFounder || this.selectMenu[0]!='4') return;
             const requestId = ++this.kiloRequestId;
@@ -1252,14 +1278,9 @@ export default {
                 let previousDefaultURL = this.form.defaultURL;
                 let master = this.list.find(i=>i.master);
                 this.form.defaultURL = master?.internalIP ? 'https://' + master.internalIP + ':6443' : '';
-                this.publicIp = master?.publicIp ? 'https://' + master.publicIp + ':6443' : '';
                 if(this.form.show){
-                    let wasEdge = this.form.ww;
-                    if(!this.publicIp){this.form.ww = false;}
-                    if(wasEdge || this.form.k3s_url === previousDefaultURL){
-                        this.form.k3s_url = this.form.ww ? this.publicIp : this.form.defaultURL;
-                    }
-                    console.assert(!this.form.ww || !!this.publicIp, '边缘节点需要主 server 公网 IP');
+                    if(this.form.k3s_url === previousDefaultURL) this.form.k3s_url = this.form.defaultURL;
+                    this.checkEdgePublicIP();
                 }
             }).then(()=>{
                 return k8sproxy.get('/apis/metrics.k8s.io/v1beta1/nodes')

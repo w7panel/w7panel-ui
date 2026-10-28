@@ -3,6 +3,7 @@
 ## 2026-10-28
 
 - 修复收藏地址直达主集群时仅凭本地 token 放行的问题：首次进入受保护路由先核验服务端会话与菜单权限，normal 用户转到 CKM；401 刷新成功后重试原请求，失败则清理会话并回登录页。影响模块：前端路由守卫与请求拦截器。验证：`node --test scripts/auth-bookmark-guard.test.cjs`、`npm run build`、`git diff --check` 通过；`npm run type:check` 受现有 TypeScript 与 zod 声明语法不兼容影响未通过。
+- 边缘节点注册改为调用服务端公网 API 实际 HTTP 可达性检测，检测期间禁用勾选，成功后使用可达 server 公网地址。影响模块：集群节点注册页与 API 描述。验证：状态切换测试、`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
 - 修正组网管理页面宽度与高度，使 MicroApp 占满节点管理右侧内容区，加载提示在内容区居中，并保持与其他二级菜单相同的 20px 内边距。影响模块：集群节点页。验证：本地 Vite 浏览器检查页面边距、嵌入页尺寸与 loading 中心，`LOCAL_MOCK=true npm run build` 和 `git diff --check` 通过。
 - 节点管理新增仅创始人可见的组网管理入口，按固定 AppGroup 名检查 w7panel-kilo 安装状态，复用制品安装抽屉和 Wujie 宿主展示其默认前端。影响模块：集群节点页。验证：安装状态与过期请求场景测试、`LOCAL_MOCK=true npm run build`、`git diff --check` 通过。
 - 修复旧版应用表单批量编辑环境变量时重复保留普通变量的问题，同时保留 Secret/ConfigMap 引用变量。影响模块：应用编辑表单。验证：针对性批量编辑测试、`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
