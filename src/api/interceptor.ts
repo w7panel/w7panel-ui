@@ -18,6 +18,7 @@ interface CustomAxiosRequestConfig extends AxiosRequestConfig {
     noTokenRequired?: boolean; // 其他接口401时 不中止该请求
     name?: string;
     noAlert?:boolean;
+    _authRetried?: boolean;
 }
 interface CustomAxiosResponse extends AxiosResponse<HttpResponse> {
     config: CustomAxiosRequestConfig;
@@ -64,6 +65,7 @@ axios.get = function (url: string, config?: CustomAxiosRequestConfig) {
 
 
 const pendingRequests = new Map();
+let refreshPromise: Promise<void> | null = null;
 
 const removeAppmicroFromHash = (hash: string) => {
     if(!hash || !hash.includes('?')){
@@ -182,37 +184,39 @@ axios.interceptors.response.use(
                     pendingRequests.delete(key);
                 }
             }catch{console.log('401停止其他接口请求错误')}
+
+            if (!error?.config?.customToken && !error?.config?._authRetried
+                && error?.config?.url !== '/panel-api/v1/auth/refresh-token2'
+                && error?.config?.headers?.Authorization !== `Bearer ${getToken()}` && getToken()) {
+                return axios({ ...error.config, _authRetried: true, signal: undefined });
+            }
             
-            if(!error?.config?.customToken && error?.config?.url!='/panel-api/v1/auth/refresh-token2' && getRefreshToken()){
-                let t = await axios.post('/panel-api/v1/auth/refresh-token2',{token: getRefreshToken()},{
-                    customToken: '',
-                    noAlert: true,
-                    timeout: 3000,
-                } as CustomAxiosRequestConfig).then(res=>{
-                    let refreshToken = res.data.refreshToken;
-                    let token = res.data.token;
-                    setRefreshToken(refreshToken);
-                    setToken(token);
-                    return res.data;
-                }).catch(()=>{
-                    clearToken();
-                    if(router?.currentRoute.value?.name == 'login'){
-                        router?.push({ name: 'login'});
-                        return;
+            if (!error?.config?.customToken && !error?.config?._authRetried
+                && error?.config?.url !== '/panel-api/v1/auth/refresh-token2' && getRefreshToken()) {
+                let refreshed = false;
+                try {
+                    if (!refreshPromise) {
+                        refreshPromise = axios.post('/panel-api/v1/auth/refresh-token2', { token: getRefreshToken() }, {
+                            noAlert: true,
+                            timeout: 3000,
+                        } as CustomAxiosRequestConfig).then(res => {
+                            if (!res?.data?.token) throw new Error('刷新登录状态失败');
+                            setRefreshToken(res.data.refreshToken);
+                            setToken(res.data.token);
+                        }).finally(() => { refreshPromise = null; });
                     }
-                    router?.push({ name: 'login', query: {redirect: getCleanLoginRedirect(router?.currentRoute.value.fullPath)}});
-                    return {}
-                })
-                if(t.token){return}
+                    await refreshPromise;
+                    refreshed = true;
+                } catch {}
+                if (refreshed) return axios({ ...error.config, _authRetried: true, signal: undefined });
             }
             clearToken();
             if(router?.currentRoute.value?.name == 'login'){
                 router?.push({ name: 'login'});
-                return;
+                return Promise.reject(error);
             }
             router?.push({ name: 'login', query: {redirect: getCleanLoginRedirect(router?.currentRoute.value.fullPath)}});
-            // window.location.reload();
-            return;
+            return Promise.reject(error);
         }
 
         if (error?.response?.status == 429) { return; }

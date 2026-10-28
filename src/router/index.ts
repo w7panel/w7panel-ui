@@ -5,7 +5,8 @@ import { useNamespaceStore, useAppStore } from '@/store';
 
 import { appRoutes } from './routes';
 import { REDIRECT_MAIN, NOT_FOUND_ROUTE } from './routes/base';
-import { isLogin, getPermission } from '@/utils/auth';
+import { isLogin, getPermission, getToken, getK8sinfo } from '@/utils/auth';
+import { hasPermission } from '@/utils/permission-match';
 
 import useK3kinfo from '@/hooks/k3k-info';
 
@@ -13,6 +14,8 @@ NProgress.configure({ showSpinner: false });
 
 const DYNAMIC_IMPORT_RELOAD_KEY = 'w7panel-dynamic-import-reloaded';
 const MICRO_APP_ALLOWED_ROUTE_NAMES = ['login', 'console-login', 'oidc-login-callback'];
+const NORMAL_HOME = '/appgroup/w7panel-ckm-root/micro';
+let verifiedToken = '';
 
 const isMicroAppDirect = () => Boolean((window as any)?.w7_microapp?.name);
 
@@ -112,12 +115,38 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
-  if (isLogin()) {
+  if (to.meta.requiresAuth !== false && isLogin()) {
     try {
-      if (!getPermission()) {
-        await useK3kinfo();
+      const token = getToken() || '';
+      if (token !== verifiedToken) {
+        const { data } = await useK3kinfo();
+        if (!data || !Object.prototype.hasOwnProperty.call(data, 'w7.cc/menu')) {
+          throw new Error('用户权限信息缺失');
+        }
+        verifiedToken = getToken() || '';
       }
-    } catch {}
+    } catch {
+      if (!isLogin()) {
+        next({ name: 'login', query: { redirect: to.fullPath }, replace: true });
+      } else {
+        next(false);
+      }
+      return;
+    }
+    if (!isLogin()) {
+      next({ name: 'login', query: { redirect: to.fullPath }, replace: true });
+      return;
+    }
+
+    const permissions = getPermission() || [];
+    const forbidden = to.matched.some((record) => record.meta?.key
+      && !hasPermission(permissions, record.path, String(record.meta.key)));
+    if (forbidden) {
+      next(getK8sinfo()?.['w7.cc/role'] === 'normal'
+        ? { path: NORMAL_HOME, replace: true }
+        : { name: 'notFound', replace: true });
+      return;
+    }
   }
 
   return new Promise<void>((resolve) => {
