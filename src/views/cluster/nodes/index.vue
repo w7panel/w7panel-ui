@@ -54,38 +54,13 @@
                                             </span>
                                         </a-tooltip>
                                     </div>
-                                    <div v-if="editPublicIp.show && editPublicIp.name==record.name">
-                                        <a-input v-model="editPublicIp.ip" placeholder="请输入ip" style="width:200px;" size="small"></a-input>
-                                        <a-button type="primary" class="ml-4" size="small" @click="toEditPublicIp">确定</a-button>
-                                    </div>
-                                    <div v-else-if="record.publicIp">
-                                        <div class="df ai-c">
-                                            <span class="va-middle">{{record.publicIp}}（公网）</span>
-                                            <!-- <span class="opt-icon" @click="onekeyCopy(record.publicIp)"><icon-copy /></span> -->
-                                            
-                                            <a-tooltip content="复制">
-                                                <span class="opt-icon" style="margin-left:0;" @click="onekeyCopy(record.publicIp)">
-                                                    <icon-copy />
-                                                </span>
-                                            </a-tooltip>
-                                            <a-tooltip content="修改IP">
-                                                <span class="opt-icon" style="margin-left:0;" @click="editPublicIp={show:true,name:record.name,ip:record.publicIp}">
-                                                    <icon-pen />
-                                                </span>
-                                            </a-tooltip>
-                                        </div>
-                                    </div>
-                                    <div v-else >
-                                        <span>-</span>
-                                        <a-tooltip content="修改IP">
-                                            <span class="opt-icon ml-4" @click="editPublicIp={show:true,name:record.name,ip:''}">
-                                                <icon-pen />
-                                            </span>
+                                    <div class="df ai-c">
+                                        <span class="va-middle">{{record.publicIp || '-'}}（公网）</span>
+                                        <a-tooltip v-if="record.publicIp" content="复制">
+                                            <span class="opt-icon" style="margin-left:0;" @click="onekeyCopy(record.publicIp)"><icon-copy /></span>
                                         </a-tooltip>
-                                        <a-tooltip content="自动获取IP">
-                                            <span class="opt-icon" style="margin-left:0;" @click="refreshPublicIp(record)">
-                                                <icon-sync />
-                                            </span>
+                                        <a-tooltip v-if="!isSubCluster" content="修改公网 IP">
+                                            <span class="opt-icon" style="margin-left:0;" @click="openPublicIp(record)"><icon-pen /></span>
                                         </a-tooltip>
                                     </div>
                                 </div>
@@ -323,6 +298,21 @@
             <a-textarea v-model="commandModal.command" placeholder="请输入命令" allow-clear style="height:100px;" :spellcheck="false" />
         </a-modal> -->
 
+        <a-modal :visible="editPublicIp.show" title="配置公网 IP" :mask-closable="false" :closable="!editPublicIp.loading && !editPublicIp.detecting" :popup-container="$popupContainer" @cancel="(editPublicIp.loading || editPublicIp.detecting) || (editPublicIp.show=false)">
+            <a-alert v-if="editPublicIp.server" type="warning" class="mb-20">修改公网 IP 会造成集群 apiserver 短暂重启，请勿频繁操作。</a-alert>
+            <a-form :model="editPublicIp" auto-label-width>
+                <a-form-item label="节点">{{editPublicIp.name}}</a-form-item>
+                <a-form-item label="公网 IP">
+                    <a-input v-model="editPublicIp.ip" placeholder="请输入 IPv4 地址，留空可移除" :disabled="editPublicIp.loading" />
+                    <a-button type="text" :loading="editPublicIp.detecting" :disabled="editPublicIp.loading" @click="detectPublicIp"><template #icon><icon-sync /></template>自动获取</a-button>
+                </a-form-item>
+            </a-form>
+            <template #footer>
+                <a-button :disabled="editPublicIp.loading || editPublicIp.detecting" @click="editPublicIp.show=false">取消</a-button>
+                <a-button type="primary" :loading="editPublicIp.loading" :disabled="editPublicIp.detecting" @click="toEditPublicIp">提交</a-button>
+            </template>
+        </a-modal>
+
         <a-drawer :visible="clusterInfo.show" width="800px" @cancel="clusterInfo.show=false;" :popup-container="$popupContainer">
             <template #title>集群认证信息</template>
             <a-tabs v-model:active-key="clusterInfo.activeTab">
@@ -341,6 +331,7 @@
                             <div v-for="(item,index) in clusterInfo.ips" class="df ai-c padding-10" :key="index">
                                 <a-tag>{{item.type === 'ip' ? 'IP' : '域名'}}</a-tag>
                                 <a-input v-model="item.address" :disabled="item.default" placeholder="请输入 IP 或域名" class="f1 ml-8" />
+                                <a-tag v-if="item.default" class="ml-8">内置</a-tag>
                                 <a-switch v-model="item.enable" :disabled="item.default" class="ml-10" />
                                 <a-button v-if="!item.default" type="text" status="danger" class="ml-6" @click="clusterInfo.ips.splice(index,1)">删除</a-button>
                             </div>
@@ -437,6 +428,8 @@ export default {
                 'node-role.kubernetes.io/control-plane',
                 'node-role.kubernetes.io/master',
                 'node.kubernetes.io/instance-type',
+                'w7.public-ip',
+                'w7.cc/load-public-ip',
             ],
             
             setlabel: {
@@ -503,7 +496,12 @@ export default {
                 show: false,
                 name: '',
                 ip: '',
+                initialIP: '',
+                server: false,
+                detecting: false,
+                loading: false,
             },
+            isSubCluster: true,
             clusterInfo: {
                 show: false,
                 loading: false,
@@ -541,6 +539,7 @@ export default {
         this.getList();
         this.appInfoPromise = panelApi.get('/app-info', { noAlert: true }).then(res=>{
             const isSubCluster = res.data?.isSubCluster === true;
+            this.isSubCluster = isSubCluster;
             if (!isSubCluster) this.getConfig();
             return isSubCluster;
         }).catch(()=>null);
@@ -680,15 +679,16 @@ export default {
                 this.clusterInfo.applying = false;
             }
         },
-        async waitForClusterReady(){
+        async waitForClusterReady(nodeName){
             const startedAt = Date.now();
-            const firstServer = this.getFirstServer();
-            if (!firstServer) throw new Error('未找到 server 节点');
+            const serverName = nodeName || this.getFirstServer()?.metadata.name;
+            if (!serverName) throw new Error('未找到 server 节点');
+            // shortcut: Ready after 20 seconds can precede a delayed restart; use an apply status when K3sConfig exposes one.
             while (Date.now() - startedAt < 5 * 60 * 1000) {
                 if (Date.now() - startedAt >= 20000) {
                     try {
                         const res = await k8sproxy.get('/api/v1/nodes');
-                        const node = (res.data?.items || []).find(item => item.metadata?.name === firstServer.metadata.name);
+                        const node = (res.data?.items || []).find(item => item.metadata?.name === serverName);
                         if (node?.status?.conditions?.some(condition => condition.type === 'Ready' && condition.status === 'True')) return;
                     } catch {}
                 }
@@ -701,6 +701,7 @@ export default {
             if (isSubCluster === null) {
                 try {
                     isSubCluster = (await panelApi.get('/app-info')).data?.isSubCluster === true;
+                    this.isSubCluster = isSubCluster;
                     if (!isSubCluster) this.getConfig();
                 } catch {
                     this.$message.error('读取集群信息失败');
@@ -727,7 +728,11 @@ export default {
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(configRes=>{
                 const data = configRes?.data?.spec?.data || {};
                 const split = key => (data[key] || '').split(',').filter(Boolean);
-                const defaults = [...new Set([serverIp, ...split('k3s.default-tls-san')].filter(Boolean))];
+                const serverPublicIPs = this.data.filter(node => {
+                    const labels = node.metadata?.labels || {};
+                    return 'node-role.kubernetes.io/control-plane' in labels || 'node-role.kubernetes.io/master' in labels;
+                }).map(node => node.metadata.labels?.['w7.public-ip']).filter(Boolean);
+                const defaults = [...new Set([serverIp, ...split('k3s.default-tls-san'), ...split('k3s.public-tls-san'), ...serverPublicIPs].filter(Boolean))];
                 const configured = new Map();
                 split('k3s.tls-san').forEach(address => configured.set(address, true));
                 split('k3s.tls-san.disabled').forEach(address => configured.set(address, false));
@@ -753,32 +758,46 @@ export default {
                 return 'node-role.kubernetes.io/control-plane' in labels || 'node-role.kubernetes.io/master' in labels;
             });
         },
-        toEditPublicIp(){
-            k8sproxy.patch('/api/v1/nodes/'+this.editPublicIp.name,[{
-                op: 'add',
-                path: '/metadata/labels/w7.public-ip',
-                value: this.editPublicIp.ip
-            }],{
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(res=>{
-                this.$message.success('操作成功');
-                this.getList();
-                this.editPublicIp.show = false;
-            });
+        openPublicIp(record){
+            this.editPublicIp = {
+                show: true, name: record.name, ip: record.publicIp || '', initialIP: record.publicIp || '',
+                server: record.controlPlane || record.isServer, detecting: false, loading: false,
+            };
         },
-        refreshPublicIp(row){
-            k8sproxy.patch('/api/v1/nodes/'+row.name,[{
-                op: 'replace',
-                path: '/metadata/labels/w7.cc~1load-public-ip',
-                value: 'true'
-            }],{
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(res=>{
-                this.$message.success('操作成功');
-                setTimeout(()=>{
-                    this.getList();
-                },3600);
-            });
+        async detectPublicIp(){
+            this.editPublicIp.detecting = true;
+            try {
+                const res = await panelApi.get(`/cluster/nodes/${encodeURIComponent(this.editPublicIp.name)}/public-ip/detect`);
+                this.editPublicIp.ip = res.data.ip;
+            } catch (error) {
+                this.$message.error(error?.message || '自动获取公网 IP 失败');
+            } finally {
+                this.editPublicIp.detecting = false;
+            }
+        },
+        async toEditPublicIp(){
+            const ip = this.editPublicIp.ip.trim();
+            if (ip && (ip.includes(':') || !this.isValidTlsAddress(ip, 'ip'))) {
+                this.$message.warning('请输入有效的 IPv4 地址');
+                return;
+            }
+            if (ip === this.editPublicIp.initialIP && !this.editPublicIp.server) {
+                this.editPublicIp.show = false;
+                return;
+            }
+            this.editPublicIp.loading = true;
+            try {
+                const res = await panelApi.put(`/cluster/nodes/${encodeURIComponent(this.editPublicIp.name)}/public-ip`, {ip});
+                this.editPublicIp.initialIP = ip;
+                this.getList();
+                if (res.data.restartTriggered) await this.waitForClusterReady(this.editPublicIp.name);
+                this.$message.success('公网 IP 已更新');
+                this.editPublicIp.show = false;
+            } catch (error) {
+                this.$message.error(error?.message || '保存或等待集群恢复失败，请确认集群状态');
+            } finally {
+                this.editPublicIp.loading = false;
+            }
         },
         getConfig(){
             // config
@@ -1087,6 +1106,10 @@ export default {
         },
         // 提交编辑标签
         submitSetlabel(){
+            if (this.setlabel.custom.some(item => this.labelReserve.includes(item.key))) {
+                this.$message.warning('不能修改保留标签');
+                return;
+            }
             this.setlabel.custom = this.setlabel.custom.filter(i=> (i.key && i.value) );
             let arr = this.setlabel.reserve.concat(this.setlabel.custom);
             let obj = {};
@@ -1152,7 +1175,7 @@ export default {
                         unschedulable: !!item.spec.unschedulable,
                         labels: item.metadata.labels,
                         taints: item.spec.taints,
-                        master: item?.metadata?.labels?.['node-role.kubernetes.io/master'],
+                        master: item?.metadata?.labels?.['node-role.kubernetes.io/master'] !== undefined || item?.metadata?.labels?.['node-role.kubernetes.io/control-plane'] !== undefined,
                         controlPlane: item?.metadata?.labels?.['node-role.kubernetes.io/control-plane'] !== undefined,
                         customTag: item?.metadata?.labels?.['node-role.kubernetes.io/custom'],
                         storage: item?.metadata?.labels?.['node.kubernetes.io/storage'],
@@ -1160,7 +1183,7 @@ export default {
                         containerName: '',
                         version: item?.status?.nodeInfo.kubeletVersion,
                         swap: item?.metadata?.annotations?.['w7.cc.swap'],
-                        isServer: item?.metadata?.labels?.['node-role.kubernetes.io/master'] === 'true',
+                        isServer: item?.metadata?.labels?.['node-role.kubernetes.io/master'] !== undefined,
                         
                         cpu: item.status.allocatable.cpu,
                         memory: (Number(item.status.allocatable.memory.replace(/[a-zA-z]/g,'')) / 1024 / 1024 ).toFixed(2),
