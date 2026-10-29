@@ -21,7 +21,7 @@
                     <a-menu-item v-if="isFounder" key="4">组网管理</a-menu-item>
                 </a-menu>
             </a-layout-sider>
-            <a-layout-content class="ml-6 bg-white padding-20" :class="{'kilo-content': selectMenu[0]=='4'}">
+            <a-layout-content class="ml-6 bg-white" :class="{'padding-20': selectMenu[0]!='4', 'kilo-content': selectMenu[0]=='4'}">
                 <a-table v-if="selectMenu[0]=='1'" :data="list" class="nodestable" :scroll="{ x: 1600 }" :pagination="false" :bordered="false">
                     <template #columns>
                         <a-table-column title="节点名称" fixed="left" :width="300">
@@ -165,12 +165,11 @@
                     <set-gpu :show="selectMenu[0]=='3'" @close="clscf.dialog=false;" />
                 </div>
                 <div v-if="isFounder && selectMenu[0]=='4'" class="kilo-page">
-                    <a-spin :loading="kiloStatus=='loading'" class="kilo-spin">
-                        <a-empty v-if="kiloStatus=='missing'" class="mt-40">组网组件未安装，<span class="c-blue cursor" @click="installKilo.show=true">点击安装</span></a-empty>
-                        <a-empty v-else-if="kiloStatus=='installing'" class="mt-40">组网组件尚未安装完成，<span class="c-blue cursor" @click="testKilo">刷新状态</span></a-empty>
-                        <a-empty v-else-if="kiloStatus=='error'" class="mt-40">组网组件加载失败，<span class="c-blue cursor" @click="testKilo">重试</span></a-empty>
-                        <gateway-plugin-microapp v-else-if="kiloMicroApp" :microapp="kiloMicroApp" route="#/" instance-name="w7panel-kilo" @error="kiloStatus='error'" />
-                    </a-spin>
+                    <div v-if="kiloStatus=='loading'" class="kilo-status">正在检查组网组件…</div>
+                    <a-empty v-else-if="kiloStatus=='missing'" class="mt-40">组网组件未安装，<span class="c-blue cursor" @click="installKilo.show=true">点击安装</span></a-empty>
+                    <a-empty v-else-if="kiloStatus=='installing'" class="mt-40">组网组件尚未安装完成，<span class="c-blue cursor" @click="testKilo">刷新状态</span></a-empty>
+                    <a-empty v-else-if="kiloStatus=='error'" class="mt-40">组网组件加载失败，<span class="c-blue cursor" @click="testKilo">重试</span></a-empty>
+                    <gateway-plugin-microapp v-else-if="kiloMicroApp" :microapp="kiloMicroApp" route="#/" instance-name="w7panel-kilo" @error="kiloStatus='error'" />
                 </div>
             </a-layout-content>
         </a-layout>
@@ -1333,8 +1332,9 @@ body[arco-theme='dark'] .filetable .opt-icon{color:#3c7eff;}
 <style scoped>
 .kilo-layout{height:100%;min-height:0;}
 .kilo-layout > .arco-layout,.kilo-content{min-height:0;}
-.kilo-page,.kilo-spin{width:100%;height:100%;min-height:480px;}
-.kilo-spin{display:flow-root;}
+.kilo-content{padding:0;}
+.kilo-page{width:100%;height:100%;min-height:480px;}
+.kilo-status{padding:20px;color:var(--color-text-3);}
 .kilo-page :deep(wujie-app){display:block;height:100%;overflow:auto;}
 .mb-10{margin-bottom:10px;}
 .pods{max-height:500px; overflow:auto;}
