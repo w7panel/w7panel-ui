@@ -27,8 +27,8 @@
                         <span v-if="item.type=='hostPath'">主机路径：{{ item.hostPathPath }}，检查类型：{{ item.hostPathType }}</span>
                     </td>
                     <td>
-                        <span v-if="(!isTemplate || !['pvc','pvcTemplate','configmap','secret'].includes(item.type)) && (item.type!='pvcTemplate'||!id)" class="c-blue cursor" @click="editItem(index);">修改</span>
-                        <span v-if="(!isTemplate || !['pvc','pvcTemplate','configmap','secret'].includes(item.type)) && (item.type!='pvcTemplate'||!id)" class="c-blue cursor ml-10" @click="list.splice(index,1);submit();">删除</span>
+                        <span v-if="(!isTemplate || !['pvcTemplate','configmap','secret'].includes(item.type)) && (item.type!='pvcTemplate'||!id)" class="c-blue cursor" @click="editItem(index);">修改</span>
+                        <span v-if="(!isTemplate || !['pvcTemplate','configmap','secret'].includes(item.type)) && (item.type!='pvcTemplate'||!id)" class="c-blue cursor ml-10" @click="list.splice(index,1);submit();">删除</span>
                     </td>
                 </tr>
             </tbody></table>
@@ -63,7 +63,7 @@
                         <a-option label="使用NFS盘" value="nfs"></a-option>
                         <a-option label="使用临时目录" value="emptyDir"></a-option>
                         <a-option label="使用主机目录" value="hostPath"></a-option>
-                        <a-option v-if="!isTemplate" label="使用已有PVC" value="pvc"></a-option>
+                        <a-option label="使用已有PVC" value="pvc"></a-option>
                         <a-option v-if="appKind=='statefulsets'" label="创建动态PVC" value="pvcTemplate" :disabled="Boolean(id)"></a-option>
                         <a-option v-if="!isPlugin && !isTemplate" label="使用ConfigMap" value="configmap"></a-option>
                         <a-option v-if="!isPlugin && !isTemplate" label="使用Secret" value="secret"></a-option>
@@ -93,12 +93,13 @@
                         </a-select>
                     </a-form-item>
                 </template>
-                <template v-if="edit.type=='pvc' && !isTemplate">
+                <template v-if="edit.type=='pvc'">
                     <a-form-item label="PVC">
-                        <a-select v-model="edit.pvcName" placeholder="请选择">
+                        <a-input v-if="isTemplate" v-model="edit.pvcName" placeholder="请输入安装环境中已有的 PVC 名称"></a-input>
+                        <a-select v-else v-model="edit.pvcName" placeholder="请选择">
                             <a-option v-for="(item,index) in pvcs.filter(i=>filterPvc?i.isCustom:i)" :key="index" :label="item.name" :value="item.name"></a-option>
                         </a-select>
-                        <a-checkbox v-model="filterPvc" class="ml-20"><span style="text-wrap:nowrap;">存储分区</span></a-checkbox>
+                        <a-checkbox v-if="!isTemplate" v-model="filterPvc" class="ml-20"><span style="text-wrap:nowrap;">存储分区</span></a-checkbox>
                     </a-form-item>
                 </template>
                 <template v-if="edit.type=='pvcTemplate' && !isTemplate">
