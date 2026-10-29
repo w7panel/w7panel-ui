@@ -586,3 +586,13 @@
 - 保持 containerPlugin 事件及回调字段不变，不向 ZPK 配置入口增加严格校验或额外限制。
 
 - 验证：面板 87 项回归（新增 8 项插件兼容测试，其中 7 项执行同级 w7panel-zpk 的实际 openAppset/回调代码）、container-plugin 脚本/模板编译和 diff 空白检查通过；ZPK 现有 8 项 UI 单测通过。缺少同级 ZPK 源码时仅跳过跨仓库集成测试。未改动 ZPK 代码或事件协议，未部署；完整构建仍有之前记录的 Copilot 缺依赖限制。
+
+## 2026-10-29（微应用加载占位）
+
+- 微应用初始化统一使用局部 loading，合并前端下载与启动提示；加载期间隐藏已挂载的子应用内容并保留不透明背景，避免宿主与子应用 loading 同时显示，普通页面保留全局 loading。
+- 影响模块：应用详情、顶部 MicroApp、弹窗和嵌入入口。验证：`node --test scripts/detail-micro-entry.test.cjs` 的 12 项测试、Vue 模板与样式编译、`git diff --check` 通过；使用实际模板和 Arco 样式完成本机隔离视觉检查，确认加载/下载只有一个可见 spinner、子应用恢复显示且容器尺寸不变、明暗主题遮罩不透明。`LOCAL_MOCK=true npm run build` 仍因现有 Copilot 依赖 `@openuidev/vue-lang` 缺失而未通过。
+
+## 2026-10-29（微应用首屏焦点修复）
+
+- 移除加载期间对子应用容器的 `visibility:hidden` 处理，避免 Wujie Shadow DOM 子应用挂载时的自动聚焦失效；保留不透明背景遮罩和单一局部 loading。
+- 影响模块：应用详情及共用 MicroApp 宿主。验证：12 项入口回归测试、Vue 模板与样式编译、`git diff --check` 通过；使用实际模板和样式及 Wujie 1.0.29 验证 Shadow DOM、iframe 两种模式，挂载、启动返回和加载结束后焦点均保留，加载态白底遮罩覆盖子应用且仅显示一个宿主 spinner，结束后移除遮罩。

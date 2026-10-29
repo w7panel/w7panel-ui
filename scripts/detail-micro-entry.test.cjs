@@ -33,7 +33,7 @@ function harness({ routeName = 'dialog-micro', query = {}, props = {}, startApp 
   const resource = microApp();
   const requests = [], starts = [], destroys = [];
   const appStore = { topApps: [], hideMenu: false, menu: true, topMenu: false, device: 'desktop' };
-  const loadingStore = {};
+  const loadingStore = { loading: false };
   const bus = { $on() {}, $off() {}, $emit() {} };
   const panelApi = {
     async get(url) {
@@ -142,7 +142,7 @@ function harness({ routeName = 'dialog-micro', query = {}, props = {}, startApp 
     });
   }
   ctx.hideAppMenu = ctx.isHideMenu();
-  return { ctx, component, requests, starts, destroys, load };
+  return { ctx, component, requests, starts, destroys, loadingStore, load };
 }
 
 function elements(template, predicate) {
@@ -315,4 +315,57 @@ test('a failed Wujie startup cleans up only its own runtime by name', async () =
   assert.equal(destroys.length, 1);
   assert.equal(destroys[0], starts[0].name);
   assert.equal(ctx.wujieDestroy, null);
+});
+
+test('micro entries use local loading throughout startup and leave global loading untouched', async () => {
+  for (const entry of [
+    { routeName: 'topapp-micro' },
+    { routeName: 'dialog-micro' },
+    { routeName: 'cloud-resource', props: { embeddedMicro: true, group: 'w7-php' } },
+  ]) {
+    for (const globalLoading of [false, true]) {
+      for (const fail of [false, true]) {
+        let finishStart, markStarted;
+        const started = new Promise(resolve => { markStarted = resolve; });
+        const { ctx, loadingStore } = harness({
+          ...entry,
+          startApp: () => {
+            markStarted();
+            return new Promise((resolve, reject) => {
+              finishStart = () => fail ? reject(new Error('startup failed')) : resolve(() => {});
+            });
+          },
+        });
+        loadingStore.loading = globalLoading;
+        const request = ctx.getData();
+        await started;
+        assert.equal(ctx.microLoading, true, 'the local placeholder must cover pending startup');
+        assert.equal(loadingStore.loading, globalLoading, 'micro startup must not enable global loading');
+        finishStart();
+        await request;
+        assert.equal(ctx.microLoading, false, 'success and failure must both release local loading');
+        assert.equal(loadingStore.loading, globalLoading, 'micro startup must not clear another operation\'s loading');
+      }
+    }
+  }
+});
+
+test('native app entries retain global loading on success and failure', async () => {
+  for (const fail of [false, true]) {
+    const { ctx, loadingStore } = harness({ routeName: 'topapp-direct' });
+    let finishLoad;
+    ctx.getTopAppData = () => new Promise((resolve, reject) => {
+      finishLoad = () => fail ? reject(new Error('entry failed')) : resolve();
+    });
+    const request = ctx.getData();
+    assert.equal(loadingStore.loading, true);
+    assert.equal(ctx.microLoading, false);
+    finishLoad();
+    if (fail) {
+      await assert.rejects(request, /entry failed/);
+    } else {
+      await request;
+    }
+    assert.equal(loadingStore.loading, false);
+  }
 });
