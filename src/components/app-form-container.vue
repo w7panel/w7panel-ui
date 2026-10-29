@@ -47,6 +47,7 @@
                                 <tr v-for="(item,index) in form.env" :key="index" style="background:var(--color-neutral-1);">
                                     <td>
                                         <a-select v-model="item.type" :disabled="item.disabled" style="width:120px" size="large" @change="item.value=''">
+                                            <a-option v-if="item.originalValueFrom" label="原引用（保留）" value="preserved"></a-option>
                                             <a-option label="自定义" value="custom"></a-option>
                                             <a-option label="Field" value="field"></a-option>
                                             <a-option label="ResourceField" value="resource_field"></a-option>
@@ -57,6 +58,7 @@
                                         <a-input v-model="item.name" :disabled="item.disabled" @paste="envPaste($event,index,form)" size="large" style="width:170px;" placeholder="变量名" />
                                     </td>
                                     <td>
+                                        <span v-if="item.type=='preserved'">{{ item.originalValueFrom.secretKeyRef ? 'Secret 引用' : 'ConfigMap / 其他引用' }}（保留原配置，切换类型会替换引用）</span>
                                         <a-input v-if="item.type=='custom'" :disabled="item.disabled" v-model="item.value" size="large" style="width:170px;" placeholder="变量值" />
                                         <span v-if="item.type==='reference'">{{ item.valueFrom?.secretKeyRef ? 'Secret ' + item.valueFrom.secretKeyRef.name + '/' + item.valueFrom.secretKeyRef.key : item.valueFrom?.configMapKeyRef ? 'ConfigMap ' + item.valueFrom.configMapKeyRef.name + '/' + item.valueFrom.configMapKeyRef.key : '引用值' }}</span>
                                         
@@ -319,6 +321,7 @@
                                 <tr v-for="(item,index) in form.env" :key="index" style="background:var(--color-neutral-1);">
                                     <td>
                                         <a-select v-model="item.type" :disabled="item.disabled" style="width:120px" size="large" @change="item.value=''">
+                                            <a-option v-if="item.originalValueFrom" label="原引用（保留）" value="preserved"></a-option>
                                             <a-option label="自定义" value="custom"></a-option>
                                             <a-option label="Field" value="field"></a-option>
                                             <a-option label="ResourceField" value="resource_field"></a-option>
@@ -329,6 +332,7 @@
                                         <a-input v-model="item.name" :disabled="item.disabled" @paste="envPaste($event,index,form)" size="large" style="width:170px;" placeholder="变量名" />
                                     </td>
                                     <td>
+                                        <span v-if="item.type=='preserved'">{{ item.originalValueFrom.secretKeyRef ? 'Secret 引用' : 'ConfigMap / 其他引用' }}（保留原配置，切换类型会替换引用）</span>
                                         <a-input v-if="item.type=='custom'" :disabled="item.disabled" v-model="item.value" size="large" style="width:170px;" placeholder="变量值" />
                                         <span v-if="item.type==='reference'">{{ item.valueFrom?.secretKeyRef ? 'Secret ' + item.valueFrom.secretKeyRef.name + '/' + item.valueFrom.secretKeyRef.key : item.valueFrom?.configMapKeyRef ? 'ConfigMap ' + item.valueFrom.configMapKeyRef.name + '/' + item.valueFrom.configMapKeyRef.key : '引用值' }}</span>
                                         
@@ -492,6 +496,7 @@
                             <div class="df">
                                 <div class="" style="width:100px;line-height:32px;">启动后执行</div>
                                 <div class="df df-c">
+                                    <div v-if="form.originalContainer?.lifecycle?.postStart && !form.originalContainer.lifecycle.postStart.exec" class="c-99">保留原启动处理器，填写命令将替换该处理器。</div>
                                     <div v-for="(item,index) in form.post_start" :key="index" class="df ai-c" style="margin-bottom:10px;">
                                         <a-input v-model="form.post_start[index]" placeholder="请输入" size="large" style="width:400px;"></a-input>
                                         <div>
@@ -504,6 +509,7 @@
                             <div class="df mt-10">
                                 <div class="" style="width:100px;line-height:32px;">关闭前执行</div>
                                 <div class="df df-c">
+                                    <div v-if="form.originalContainer?.lifecycle?.preStop && !form.originalContainer.lifecycle.preStop.exec" class="c-99">保留原停止处理器，填写命令将替换该处理器。</div>
                                     <div v-for="(item,index) in form.pre_stop" :key="index" class="df" style="margin-bottom:10px;">
                                         <a-input v-model="form.pre_stop[index]" placeholder="请输入" size="large" style="width:400px;"></a-input>
                                         <div>
@@ -522,7 +528,7 @@
 
                     <!-- v-if="!fl.find(i=>i.isInitContainers) || form.isInitContainers" -->
                     <a-form-item v-if="!isTemplate || index !== 0" label="初始化容器" row-class="ac-form-item">
-                        <a-switch v-model="form.isInitContainers" @change="sortFormByInitcontoiner" />
+                        <a-switch :model-value="form.isInitContainers" @change="v=>toggleInitContainer(form,v)" />
                         <span class="fs-12 c-99 ml-20 lh-1">容器标识为init containers</span>
                     </a-form-item>
 
@@ -577,9 +583,10 @@
             </a-tab-pane>
         </a-tabs>
         
-        <a-modal width="700px" v-model:visible="envedit.show" @ok="submitEnvEdit" @cancel="envedit.show=false;" :popup-container="$popupContainer">
+        <a-modal width="700px" v-model:visible="envedit.show" :on-before-ok="submitEnvEdit" @cancel="envedit.show=false;" :popup-container="$popupContainer">
             <template #title>环境变量</template>
-            <span class="c-66">格式：键=值</span>
+            <span class="c-66">格式：键=值，值中的空格、等号和 # 均按原文保存。</span>
+            <div v-if="envedit.preservedCount" class="c-99 mt-10">引用、只读及多行变量保留原配置，不在此处编辑。删除文本行只删除对应变量。</div>
             <a-textarea
                 v-model="envedit.values"
                 class="mt-10"
@@ -609,6 +616,7 @@ import healthProbe from '@/components/health-probe.vue';
 import Sortable from 'sortablejs';
 import buildImageDrawer from '@/components/build-image-drawer.vue'
 import selectContainer from '@/components/select-container.vue'
+import { applyTemplateAppEdit } from '@/utils/template-app-edit.mjs';
 
 export default{
     props: ['data','volumes','volumeClaimTemplates','mirror','isPlugin','isTemplate','pluginData','layout'],
@@ -636,7 +644,7 @@ export default{
             envFromConfigMaps: [],
             envFromSecrets: [],
             
-            envedit:{ show: false, values: '', },
+            envedit:{ show: false, values: '', editableNames: [], preservedCount: 0 },
             createImage: {show: false, name: '', submit: ()=>{ this.$emit('getMirror') } },
 
             gpuSupport: false,
@@ -691,6 +699,32 @@ export default{
         }
     },
     methods: {
+        toggleInitContainer(form, checked){
+            const original=form.originalContainer || {};
+            const nativeSidecar=original.restartPolicy==='Always';
+            const removesHandlers=checked && !nativeSidecar && (
+                original.livenessProbe || original.readinessProbe || original.startupProbe || original.lifecycle ||
+                form.healthProbeInit?.liveness_probe || form.healthProbeInit?.readiness_probe ||
+                form.post_start?.some(value=>value) || form.pre_stop?.some(value=>value));
+            const apply=()=>{form.isInitContainers=checked;this.sortFormByInitcontoiner();};
+            if(removesHandlers || !checked && nativeSidecar){
+                this.$modal.confirm({
+                    title:'确认转换容器类型',
+                    content:removesHandlers ? '普通 init 容器不支持健康探针、启动探针和生命周期处理器，保存时将移除这些配置。是否继续？' :
+                        '转换为普通容器后将移除 init sidecar 的 restartPolicy: Always，并改变其启动和生命周期顺序。是否继续？',
+                    onOk:apply,
+                });
+                return;
+            }
+            apply();
+        },
+        renameVolume({from,to}){
+            for(const form of this.fl){
+                for(const mount of [...(form.volumeMounts || []), ...(form.volumeDevices || [])]){
+                    if(mount.name===from) mount.name=to;
+                }
+            }
+        },
         getEnvFromOptions(item){
             let options = item?.type=='secret'?this.envFromSecrets:this.envFromConfigMaps;
             if(item?.name && !options.some(i=>i.value==item.name)){
@@ -730,18 +764,47 @@ export default{
                 name: oldForm.name,
             }
             
-            let newForm = this.containerToForm(data.containerObj);
+            const source = JSON.parse(JSON.stringify(data.containerObj));
+            const references = [...(source.volumeMounts || []), ...(source.volumeDevices || [])];
+            const volumes = JSON.parse(JSON.stringify(data.volumes || []))
+                .filter(volume=>references.some(mount=>mount.name===volume.name));
+            const claimNames = (this.volumeClaimTemplates || []).map(claim=>claim.metadata.name);
+            const occupied = new Set([...(this.volumes || []).map(volume=>volume.name), ...claimNames, ...volumes.map(volume=>volume.name)]);
+            for(const volume of volumes){
+                const existing = (this.volumes || []).find(item=>item.name===volume.name);
+                if(!claimNames.includes(volume.name) && (!existing || JSON.stringify(existing)===JSON.stringify(volume))) continue;
+                const oldName = volume.name;
+                let suffix=1, name;
+                do{name=oldName.slice(0,54)+'-copy-'+suffix++;}while(occupied.has(name));
+                occupied.add(name);volume.name=name;
+                for(const mount of references){if(mount.name===oldName)mount.name=name;}
+            }
+            for(const env of source.env || []){
+                const ref=env.valueFrom?.resourceFieldRef;
+                if(ref?.containerName===source.name)ref.containerName=oldForm.name;
+            }
+            const missingReference=(source.env || []).find(env=>{
+                const name=env.valueFrom?.resourceFieldRef?.containerName;
+                return name && !this.fl.some(form=>form.name===name);
+            });
+            if(missingReference){
+                this.$message.error(`复用容器的变量 ${missingReference.name} 引用了未导入的其他容器，请先调整来源配置`);
+                return;
+            }
+            if(oldForm.isInitContainers && oldForm.originalContainer?.restartPolicy==='Always') source.restartPolicy='Always';
+            else delete source.restartPolicy;
+            let newForm = this.containerToForm({
+                ...source,
+                name: oldForm.name,
+                isInitContainers: oldForm.isInitContainers,
+            });
             newForm = {
                 ...newForm,
                 ...obj,
                 saveSelectContainerLabels: data.podLabels,
             }
             this.fl[index] = newForm;
-
-            let volumes = data.volumes;
-            let cv = data.containerObj.volumeMounts;
-            volumes = volumes.filter(i=>cv.find(j=>j.name==i.name));
-            
+            this.formToData(true);
             this.$emit('addVolumes', volumes);
 
         },
@@ -815,7 +878,7 @@ export default{
             let command = Array.isArray(form?.command) ? form.command : [];
             let args = Array.isArray(form?.args) ? form.args : [];
             let commandValues = command.filter(i=>i);
-            let argsValues = args.filter(i=>i);
+            let argsValues = (form.easyCmd || form.keyid && !form.originalContainer?.args?.length) && args.length===1 && args[0]==='' ? [] : args;
             let shellPrefix = ['sh', '/bin/sh'].includes(commandValues[0]) && commandValues[1]=='-c';
             let commandPass = commandValues.length<=1 || (shellPrefix && commandValues.length<=3);
             let argsPass = argsValues.length==0 || (shellPrefix && commandValues.length==2 && argsValues.length==1);
@@ -846,7 +909,7 @@ export default{
             let command = Array.isArray(form?.command) ? form.command : [];
             let args = Array.isArray(form?.args) ? form.args : [];
             return [...command, ...args]
-                .filter(i=>i !== '' && i !== null && i !== undefined)
+                .filter(i=>i !== null && i !== undefined)
                 .map(i=>this.shellQuote(i))
                 .join(' ');
         },
@@ -873,11 +936,14 @@ export default{
                     },
                 });
             }else{
-                form.easyCmd = false;
-                if(form.command?.length==3 && ['sh', '/bin/sh'].includes(form.command[0]) && form.command[1]=='-c'){
-                    form.command = [form.command[2] || ''];
+                if(!form.easyCmd) return;
+                if(form.originalContainer && JSON.stringify(form.command)===JSON.stringify(form.containerBaseline?.command)){
+                    form.command = [...(form.originalContainer.command || [''])];
+                    form.args = [...(form.originalContainer.args || [''])];
+                }else{
+                    form.args = [];
                 }
-                form.args = form.args?.length ? form.args : [''];
+                form.easyCmd = false;
             }
         },
         testImage(index){
@@ -941,6 +1007,8 @@ export default{
         },
 
         containerToForm(containers){
+            const originalContainer = JSON.parse(JSON.stringify(containers));
+            delete originalContainer.isInitContainers;
             let imagePS = this.data?.spec?.template?.spec?.imagePullSecrets || [];
             let form = {};
             
@@ -1033,6 +1101,7 @@ export default{
                 hostPorts = JSON.parse(this.data?.metadata?.annotations?.['w7.cc.app/ports']);
             } catch(e){}
             ports = ports.map(i=>({
+                originalPort: JSON.parse(JSON.stringify(i)),
                 name: i.name,
                 containerPort: String(i.containerPort || ''),
                 protocol: i.protocol, // || 'TCP'
@@ -1041,7 +1110,7 @@ export default{
             // env
             let env = ctn?.env || [];
             env = env?.map(v=>{
-                let type = 'custom';
+                let type = v.valueFrom ? 'preserved' : 'custom';
                 if(v.value){
                     type = 'custom';
                 }else if(v.valueFrom?.fieldRef?.fieldPath){
@@ -1060,7 +1129,9 @@ export default{
                 }
                 let o = {
                     name: v.name,
-                    value: v.value || v?.valueFrom?.fieldRef?.fieldPath || v?.valueFrom?.resourceFieldRef?.resource,
+                    originalEnv: JSON.parse(JSON.stringify(v)),
+                    originalValueFrom: v.valueFrom ? JSON.parse(JSON.stringify(v.valueFrom)) : undefined,
+                    value: v.value ?? v?.valueFrom?.fieldRef?.fieldPath ?? v?.valueFrom?.resourceFieldRef?.resource,
                     type: type,
                     ...(type === 'reference' ? { valueFrom: v.valueFrom } : {}),
                     ...(divisor?{
@@ -1134,6 +1205,7 @@ export default{
                 healthProbeInit: healthProbeInit,
                 imagePullPolicy: ctn?.imagePullPolicy,
                 volumeMounts: volumeMounts,
+                volumeDevices: ctn.volumeDevices ? JSON.parse(JSON.stringify(ctn.volumeDevices)) : undefined,
                 imagePullSecrets: imagePullSecrets,
                 isInitContainers: containers.isInitContainers,
                 
@@ -1143,6 +1215,7 @@ export default{
             }
 
             this.testLimitCpuMemory(form);
+            form.originalContainer = originalContainer;
             return form;
         },
 
@@ -1163,10 +1236,17 @@ export default{
                 let form = this.containerToForm(containers);
                 this.fl.push(form);
             })
+            this.formToData(true);
             this.activeIndex = this.fl?.[0]?.keyid;
         },
 
-        formToData(){
+        serializeCommandList(values, original){
+            if(!values) return [];
+            // 单个空行是表单默认占位；已存在的空参数和多行中的空参数有执行语义。
+            if(values.length===1 && values[0]==='' && !original?.length) return [];
+            return [...values];
+        },
+        formToData(captureBaseline=false){
             let initContainers = [];
             let containers = [];
             let hostPorts = {};
@@ -1174,6 +1254,9 @@ export default{
             let pluginData = {};
             let saveSelectContainerLabels = [];
             
+            const renamedContainers = new Map(this.fl
+                .filter(form=>form.originalContainer?.name && form.originalContainer.name!==form.name)
+                .map(form=>[form.originalContainer.name,form.name]));
             this.fl.map(form=>{
                 saveSelectContainerLabels.push(form?.saveSelectContainerLabels||{})
 
@@ -1181,17 +1264,23 @@ export default{
                 let o = {};
                 let ports = form.ports?.filter(i=>i.containerPort&&i.containerPort!='0')?.map(v=>{
                     hostPorts[v.containerPort] = Number(v.hostPort) || 0;
-                    return {
+                    const port = {
                         containerPort: Number(v.containerPort),
                         name: v.name || "port-"+v.containerPort,
                         protocol: v.protocol,
-                        // hostPort: Number(v.hostPort),
+                    };
+                    if(v.originalPort){
+                        if(!v.portBaseline) v.portBaseline = JSON.parse(JSON.stringify(port));
+                        return applyTemplateAppEdit(v.originalPort, v.portBaseline, port);
                     }
+                    return port;
                 })
                 
                 let env = form.env.map(v=>{
                     let o = { name: v.name };
-                    if(v.type=='custom' || !v.type){
+                    if(v.type=='preserved'){
+                        o.valueFrom = JSON.parse(JSON.stringify(v.originalValueFrom));
+                    }else if(v.type=='custom' || !v.type){
                         o.value = v.value;
                     }else if(v.type=='field'){
                         o.valueFrom = {
@@ -1203,13 +1292,22 @@ export default{
                     }else if(v.type=='resource_field'){
                         o.valueFrom = {
                             resourceFieldRef: {
-                                containerName: form.name,
+                                containerName: v.originalValueFrom?.resourceFieldRef?.containerName || form.name,
                                 resource: v.value,
-                                divisor: (v.divisor || 0) + (v.divisorAppend || ''),
+                                divisor: (v.divisor || 1) + (v.divisorAppend || ''),
                             }
                         }
                     }else if(v.type==='reference'){
                         o.valueFrom = v.valueFrom;
+                    }
+                    if(v.originalEnv){
+                        if(!v.envBaseline) v.envBaseline = JSON.parse(JSON.stringify(o));
+                        o = applyTemplateAppEdit(v.originalEnv, v.envBaseline, o);
+                    }
+                    // 只重映射原有显式引用；新增引用已经使用当前容器名。
+                    const ref=o.valueFrom?.resourceFieldRef;
+                    if(ref && v.originalValueFrom?.resourceFieldRef?.containerName && renamedContainers.has(ref.containerName)){
+                        ref.containerName=renamedContainers.get(ref.containerName);
                     }
                     return o;
                 })
@@ -1242,10 +1340,12 @@ export default{
                 }
 
                 let volumeMounts = form.volumeMounts || [];
-                volumeMounts = volumeMounts.map(i=>{
+                volumeMounts = volumeMounts.map(value=>{
+                    const i = {...value};
                     if(!i.readOnly){ delete i.readOnly }
                     delete i.mpFocus;
                     delete i.spFocus;
+                    if(i.subPath) delete i.subPathExpr;
                     return i;
                 })
                 // 健康检查
@@ -1255,8 +1355,8 @@ export default{
                 }
                 // 生命周期
                 let lifecycle = {};
-                let post_start = form.post_start?.filter(i=>i) || [];
-                let pre_stop = form.pre_stop?.filter(i=>i) || [];
+                let post_start = this.serializeCommandList(form.post_start, form.originalContainer?.lifecycle?.postStart?.exec?.command);
+                let pre_stop = this.serializeCommandList(form.pre_stop, form.originalContainer?.lifecycle?.preStop?.exec?.command);
 
                 if(post_start.length){
                     lifecycle.postStart = {
@@ -1273,7 +1373,7 @@ export default{
                 let securityContext = {
                     privileged: form.privileged,
                     // fsGroup: form.fsGroup,
-                    ...(form.privileged?{}:(() => {
+                    ...(() => {
                         // 先过滤空值，得到最终的drop和add数组
                         const dropArr = form?.capabilities_drop?.filter?.(i => i) || [];
                         const addArr = form?.capabilities_add?.filter?.(i => i) || [];
@@ -1281,7 +1381,7 @@ export default{
                         return (dropArr.length > 0 || addArr.length > 0) 
                             ? { capabilities: { drop: dropArr, add: addArr } } 
                             : {};
-                    })()),
+                    })(),
                     ...(form.runAsUser?{runAsUser:Number(form.runAsUser)}:{}),
                     ...(form.runAsGroup?{runAsGroup:Number(form.runAsGroup)}:{}),
                     runAsNonRoot: form.runAsNonRoot,
@@ -1289,13 +1389,13 @@ export default{
                 };
 
                 // 运行命令
-                let command = form.command?.filter(i=>i) || [];
-                let args = form.args?.filter(i=>i) || [];
+                let command = this.serializeCommandList(form.command, form.originalContainer?.command);
+                let args = this.serializeCommandList(form.args, form.originalContainer?.args);
                 if(form.easyCmd){
                     command = this.normalizeEasyCmd(form).command.filter(i=>i);
                     args = [];
                 }
-                if(command.length==2&&command[0]=='sh'&&command[1]=='-c'){
+                if(form.easyCmd && command.length==2&&command[0]=='sh'&&command[1]=='-c'){
                     command = [];
                 }
                 o = {
@@ -1308,6 +1408,7 @@ export default{
                     envFrom: envFrom,
                     resources: resources,
                     volumeMounts: volumeMounts,
+                    ...(form.volumeDevices ? {volumeDevices:form.volumeDevices.map(device=>({...device}))} : {}),
                     ...(form.isInitContainers?{}:{
                         lifecycle: lifecycle,
                     }),
@@ -1316,9 +1417,26 @@ export default{
                     args: args,
                 }
 
+                if(captureBaseline && !form.containerBaseline){
+                    form.containerBaseline = JSON.parse(JSON.stringify(o));
+                }else if(form.originalContainer && form.containerBaseline){
+                    o = applyTemplateAppEdit(form.originalContainer, form.containerBaseline, o);
+                }
+                if(form.easyCmd && form.containerBaseline && JSON.stringify(command)!==JSON.stringify(form.containerBaseline.command)){
+                    o.command=command;
+                    o.args=[];
+                }
                 if(form.isInitContainers){
+                    if(o.restartPolicy!=='Always'){
+                        delete o.livenessProbe;
+                        delete o.readinessProbe;
+                        delete o.startupProbe;
+                        delete o.lifecycle;
+                    }
                     initContainers.push(o);
                 }else{
+                    // restartPolicy 是原生 init sidecar 字段，普通容器不允许携带。
+                    delete o.restartPolicy;
                     containers.push(o);
                 }
                 // 制品库获取
@@ -1394,30 +1512,55 @@ export default{
             }
             return {value, unit}
         },
-        // 批量输入环境变量
+        // Split at the first separator; everything after it is the literal value.
+        parseEnvText(text, allowColon=false){
+            const entries = [];
+            const names = new Set();
+            const lines = text.split(/\r?\n/);
+            for(let index=0; index<lines.length; index++){
+                const line = lines[index];
+                if(!line.trim()) continue;
+                const match = line.match(allowColon ? /^\s*([^\s=:]+)\s*[=:](.*)$/ : /^\s*([^\s=]+)\s*=(.*)$/);
+                if(!match) throw new Error(`第 ${index+1} 行格式错误，请使用“名称=值”`);
+                if(names.has(match[1])) throw new Error(`变量 ${match[1]} 重复，请检查后再保存`);
+                names.add(match[1]);
+                entries.push({name:match[1], value:match[2], type:'custom'});
+            }
+            return entries;
+        },
         openEnvEdit(form){
-            this.envedit.show = true;
-            let values = form.env.filter(i=>i.type=='custom').map(i=>`${i.name}=${i.value}`);
+            const editable = form.env.filter(item=>item.type=='custom' && !item.disabled && !/[\r\n]/.test(item.value ?? ''));
             this.envedit.form = form;
-            this.envedit.values = values.join('\n');
+            this.envedit.editableNames = editable.map(item=>item.name);
+            this.envedit.preservedCount = form.env.length - editable.length;
+            this.envedit.values = editable.map(item=>`${item.name}=${item.value ?? ''}`).join('\n');
+            this.envedit.show = true;
         },
         submitEnvEdit(){
-            let values = this.envedit.values.split('\n');
-            let arr = [];
-            values.map(i=>{
-                let match = i.match(/^([^\s=#]+)\s*=\s*([^\s=#]+)\s*(#([^:：]*)(\s*[:：]\s*(.*))?)?$/);
-                if(!match){return}
-                arr.push({
-                    name: match[1],
-                    value: match[2],
-                    title: match[4] || '',
-                    description: match[6] || '',
-                    type: 'custom',
-                });
-            })
-            arr = this.envedit.form.env.filter(i=>i.type!='custom').concat(arr);
-            this.envedit.form.env = arr;
+            let entries;
+            try{
+                entries = this.parseEnvText(this.envedit.values);
+                const editable = new Set(this.envedit.editableNames);
+                const protectedNames = new Set(this.envedit.form.env.filter(item=>!editable.has(item.name)).map(item=>item.name));
+                const conflict = entries.find(item=>protectedNames.has(item.name));
+                if(conflict) throw new Error(`变量 ${conflict.name} 已有保留配置，请在单项中修改`);
+            }catch(error){
+                this.$message.error(error.message);
+                return false;
+            }
+            const remaining = new Map(entries.map(item=>[item.name,item]));
+            const editable = new Set(this.envedit.editableNames);
+            const next = [];
+            for(const item of this.envedit.form.env){
+                if(!editable.has(item.name)) next.push(item);
+                else if(remaining.has(item.name)){
+                    next.push({...item, value:remaining.get(item.name).value});
+                    remaining.delete(item.name);
+                }
+            }
+            this.envedit.form.env = next.concat([...remaining.values()]);
             this.envedit.show = false;
+            return true;
         },
         createName(length){
             let len = length || 8;
@@ -1429,22 +1572,20 @@ export default{
             return p;
         },
         
-        // 粘贴 环境变量
+        // Import only into the current row; never discard the following variables.
         envPaste(e,index,form){
-            let value = e.clipboardData.getData('text/plain');
-            if(!/^\s*(\S+\s?[=:]\s?\S+\s*)+$/.test(value)){return}
+            const text = e.clipboardData.getData('text/plain');
+            if(!/^\s*[^\s=:]+\s*[=:]/.test(text)) return;
             e.preventDefault();
-            let arr = value.match(/(\S+\s?[=:]\s?\S+)/g);
-            let obj = [];
-            for(let i=0; i<arr.length; i++){
-                let o = arr[i];
-                obj.push({
-                    type:'custom',
-                    name:o.replace(/\s?[=:]\s?\S+/,''),
-                    value:o.replace(/\S+\s?[=:]\s?/,''),
-                });
+            try{
+                const entries = this.parseEnvText(text,true);
+                const existing = new Set(form.env.filter((item,row)=>row!=index).map(item=>item.name));
+                const conflict = entries.find(item=>existing.has(item.name));
+                if(conflict) throw new Error(`变量 ${conflict.name} 已存在，请修改原变量`);
+                if(entries.length) form.env.splice(index,1,...entries);
+            }catch(error){
+                this.$message.error(error.message);
             }
-            form.env.splice(index,form.env.length-index,...obj);
         },
     }
 }

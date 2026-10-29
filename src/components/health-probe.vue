@@ -11,6 +11,7 @@
             <div v-if="show_liveness_probe" class="show_readiness_probe">
                 <a-form-item label="检查方法" class="mt-12">
                     <a-select v-model="livenessType" @change="probeType('livenessType')" style="width:300px;">
+                        <a-option v-if="data?.liveness_probe?.grpc" label="gRPC（保留原配置）" value="preserved"></a-option>
                         <a-option label="HTTP请求检查" value="httpGet"></a-option>
                         <a-option label="执行命令检查" value="exec"></a-option>
                         <a-option label="TCP端口检查" value="tcpSocket"></a-option>
@@ -122,6 +123,7 @@
             <div v-if="show_readiness_probe" class="show_readiness_probe">
                 <a-form-item label="检查方法" class="mt-12">
                     <a-select v-model="readinessType" @change="probeType('readinessType')" style="width:300px;">
+                        <a-option v-if="data?.readiness_probe?.grpc" label="gRPC（保留原配置）" value="preserved"></a-option>
                         <a-option label="HTTP请求检查" value="httpGet"></a-option>
                         <a-option label="执行命令检查" value="exec"></a-option>
                         <a-option label="TCP端口检查" value="tcpSocket"></a-option>
@@ -225,10 +227,13 @@
 </template>
 
 <script>
+import { applyTemplateAppEdit } from '@/utils/template-app-edit.mjs';
 export default {
     props: ['data'],
     data(){
         return {
+            initializing: true,
+            probeBaseline: null,
             form: {
                 // 存活检测
                 liveness_probe: {
@@ -236,7 +241,7 @@ export default {
                     timeoutSeconds: 1,
                     periodSeconds: 10,
                     failureThreshold: 3,
-                    successThershold: 1,
+                    successThreshold: 1,
                 },
                 // 就绪检测
                 readiness_probe: {
@@ -244,7 +249,7 @@ export default {
                     timeoutSeconds: 1,
                     periodSeconds: 10,
                     failureThreshold: 3,
-                    successThershold: 1,
+                    successThreshold: 1,
                 },
             },
             show_liveness_probe: false, //存活检查
@@ -256,22 +261,32 @@ export default {
     created(){
         this.probeType('livenessType');
         this.probeType('readinessType');
-        if(this.data){ this.init(this.data); }
+        this.init(this.data);
+        this.initializing = false;
     },
     watch: {
         data(){ this.init(this.data); }
     },
     methods: {
         init(data){
+            this.initializing = true;
+            data = JSON.parse(JSON.stringify(data || {}));
             // console.log(data.liveness_probe)
             let l = data?.liveness_probe || {};
             let r = data?.readiness_probe || {};
+            const defaults = {initialDelaySeconds:0, timeoutSeconds:1, periodSeconds:10, failureThreshold:3, successThreshold:1};
+            const defaultHTTP = {httpHeaders:[], path:'/', port:80, host:'', scheme:'HTTP'};
+            this.form.liveness_probe = {...defaults, ...(Object.keys(l).length ? l : {httpGet:{...defaultHTTP}})};
+            this.form.readiness_probe = {...defaults, ...(Object.keys(r).length ? r : {httpGet:{...defaultHTTP}})};
+            this.livenessType = 'httpGet';
+            this.readinessType = 'httpGet';
             if(l && Object.keys(l).length){
                 this.show_liveness_probe = true;
                 switch(true){
                     case !!l.httpGet: this.livenessType = 'httpGet'; this.form.liveness_probe.httpGet = l.httpGet; break;
                     case !!l.tcpSocket: this.livenessType = 'tcpSocket'; this.form.liveness_probe.tcpSocket = l.tcpSocket; break;
                     case !!l.exec: this.livenessType = 'exec'; this.form.liveness_probe.exec = l.exec; break;
+                    default: this.livenessType = 'preserved';
                 }
             } else {
                 this.show_liveness_probe = false;
@@ -282,9 +297,10 @@ export default {
                     case !!r.httpGet: this.readinessType = 'httpGet'; this.form.readiness_probe.httpGet = r.httpGet; break;
                     case !!r.tcpSocket: this.readinessType = 'tcpSocket'; this.form.readiness_probe.tcpSocket = r.tcpSocket; break;
                     case !!r.exec: this.readinessType = 'exec'; this.form.readiness_probe.exec = r.exec; break;
+                    default: this.readinessType = 'preserved';
                 }
             } else {
-                this.readiness_probe = false;
+                this.show_readiness_probe = false;
             }
             
             this.form.liveness_probe.failureThreshold = l.failureThreshold || 3;
@@ -304,14 +320,20 @@ export default {
                 this.form.readiness_probe.httpGet.httpHeaders = [];
             }
 
-            this.changeForm();
+            this.probeBaseline = this.probeData();
+            this.initializing = false;
+        },
+        probeData(){
+            this.editType();
+            return JSON.parse(JSON.stringify({
+                liveness_probe: this.show_liveness_probe ? this.form.liveness_probe : null,
+                readiness_probe: this.show_readiness_probe ? this.form.readiness_probe : null,
+            }));
         },
         changeForm(){
+            if(this.initializing) return;
             this.editType();
-            this.$emit('returnData',{
-                liveness_probe: this.show_liveness_probe? this.form.liveness_probe : null,
-                readiness_probe: this.show_readiness_probe? this.form.readiness_probe : null,
-            });
+            this.$emit('returnData', applyTemplateAppEdit(this.data || {}, this.probeBaseline || {}, this.probeData()));
         },
         editType(){
             if(this.form.liveness_probe){
@@ -320,7 +342,7 @@ export default {
                 lp.timeoutSeconds = Number(lp.timeoutSeconds);
                 lp.periodSeconds = Number(lp.periodSeconds);
                 lp.failureThreshold = Number(lp.failureThreshold);
-                lp.successThershold = Number(lp.successThershold);
+                lp.successThreshold = Number(lp.successThreshold);
                 if(lp?.httpGet?.port){
                     lp.httpGet.port = /^\d+$/.test(String(lp.httpGet.port))? Number(lp.httpGet.port) : lp.httpGet.port;
                 }
@@ -334,7 +356,7 @@ export default {
                 rp.timeoutSeconds = Number(rp.timeoutSeconds);
                 rp.periodSeconds = Number(rp.periodSeconds);
                 rp.failureThreshold = Number(rp.failureThreshold);
-                rp.successThershold = Number(rp.successThershold);
+                rp.successThreshold = Number(rp.successThreshold);
                 if(rp?.httpGet?.port){
                     rp.httpGet.port = /^\d+$/.test(String(rp.httpGet.port))? Number(rp.httpGet.port) : rp.httpGet.port;
                 }
@@ -345,6 +367,14 @@ export default {
         },
         // 切换检查类型
         probeType(check){
+            const field = check=='livenessType' ? 'liveness_probe' : 'readiness_probe';
+            if(this[check]=='preserved'){
+                for(const key of ['httpGet','exec','tcpSocket','grpc']) delete this.form[field][key];
+                Object.assign(this.form[field], JSON.parse(JSON.stringify(this.data?.[field] || {})));
+                this.changeForm();
+                return;
+            }
+            delete this.form[field].grpc;
             let obj = {
                 httpGet: {
                     httpHeaders: [],

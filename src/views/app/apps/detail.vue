@@ -125,10 +125,7 @@
                 <a-layout-content v-else-if="isMicroPage" class="app-detail-content app-detail-content--micro df df-c">
                     <div class="app-detail-micro-container bg-white routerviewbox fc">
                         <div v-show="downOk" ref="microContainer" :id="microRuntimeName" class="app-detail-micro-panel"></div>
-                        <a-spin v-if="!downOk" class="app-detail-micro-panel" :loading="!downOk" :size="32" tip="前端下载中..." style="display:block;">
-                            <div style="height:100%;" class="bg-white"></div>
-                        </a-spin>
-                        <a-spin v-if="microLoading" class="app-detail-micro-loading" :loading="microLoading" :size="32">
+                        <a-spin v-if="microLoading || !downOk" class="app-detail-micro-loading" :loading="true" :size="32" :tip="downOk ? undefined : '前端下载中...'">
                             <div class="app-detail-micro-panel"></div>
                         </a-spin>
                     </div>
@@ -1717,10 +1714,12 @@ export default {
             await this.getFront(items);
         },
         async getData(){
-            if(this.isMicroPage){
+            const pageLoading = !this.isMicroPage;
+            if(pageLoading){
+                useLoadingStore().loading = true;
+            }else{
                 this.microLoading = true;
             }
-            useLoadingStore().loading = true;
             this.reverseDependentAppCache = {};
             this.reverseDependentAppRequests = {};
 
@@ -1748,7 +1747,9 @@ export default {
                     }
                     throw error;
                 }finally{
-                    useLoadingStore().loading = false;
+                    if(pageLoading){
+                        useLoadingStore().loading = false;
+                    }
                 }
                 return;
             }
@@ -1779,7 +1780,9 @@ export default {
                     this.noMicroJump();
                 }
                 this.watchStatus();
-                useLoadingStore().loading = false;
+                if(pageLoading){
+                    useLoadingStore().loading = false;
+                }
             }).then(()=>{
                 new Promise((resolve,reject)=>{
                     if(!this.isMicroPage && !this.isAppDirectPage && !this.appname && (!this.$route.params.kind || !this.$route.params.id)){
@@ -1822,7 +1825,9 @@ export default {
                     // } 
                 })
             }).catch(()=>{
-                useLoadingStore().loading = false;
+                if(pageLoading){
+                    useLoadingStore().loading = false;
+                }
             });
         },
         changeKey(val){

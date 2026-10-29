@@ -2,9 +2,10 @@
     <div>
         <div class="df ai-c mt-4">
             <a-checkbox v-model="node_notin" @change="handleChange">反选</a-checkbox>
-            <a-checkbox v-model="node_exists" @change="handleChange" class="ml-10">模糊匹配</a-checkbox>
+            <a-checkbox v-model="node_exists" @change="changeNodeExists" class="ml-10">模糊匹配</a-checkbox>
         </div>
-        <a-table :data="nodes" class="cptable mt-10" :scroll="{x:'100%',y:'320px'}" row-key="id" :row-selection="rowSelection" v-model:selectedKeys="node_selector" :pagination="false">
+        <div v-if="preservedExpressions.length" class="c-99 mt-10">另有 {{ preservedExpressions.length }} 条当前表格无法表示的调度条件，将保留原配置；可通过 YAML 编辑。</div>
+        <a-table :data="nodes" class="cptable mt-10" :scroll="{x:'100%',y:'320px'}" row-key="id" :row-selection="rowSelection" v-model:selectedKeys="node_selector" @selection-change="keys=>{node_selector=keys;handleChange();}" :pagination="false">
             <template #columns>
                 <a-table-column title="节点标签" fixed='left' :width="500" :filterable="filterable">
                     <template #cell="{ record }">
@@ -27,7 +28,7 @@
         </a-table>
         <!-- <div class="top df ai-c">
             <a-checkbox v-model="node_notin" @change="handleChange">反选</a-checkbox>
-            <a-checkbox v-model="node_exists" @change="handleChange" class="ml-10">模糊匹配</a-checkbox>
+            <a-checkbox v-model="node_exists" @change="changeNodeExists" class="ml-10">模糊匹配</a-checkbox>
         </div>
         <div class="list">
             <a-checkbox-group v-model="node_selector" @change="handleChange" class="df df-c">
@@ -59,6 +60,7 @@ export default {
             nodesall: [],
             nodes: [],
             node_selector: [],
+            preservedExpressions: [],
 
             filterable: {
                 filter: (value, record) => record.key.includes(value),
@@ -78,7 +80,8 @@ export default {
     },
     watch: {
         ns: "defaultData",
-        node_exists(v){
+        node_exists(v, previous){
+            const selected = this.nodes.filter(node=>this.node_selector.includes(node.id));
             let arr = [];
             this.nodesall.map((i,index)=>{
                 let find = arr.find(f=>f.key==i.key&&(v?1:f.value==i.value))
@@ -89,10 +92,14 @@ export default {
                 }
             })
             this.nodes = arr;
+            this.node_selector = arr.filter(node=>selected.some(old=>old.key==node.key && (v || previous || old.value==node.value))).map(node=>node.id);
         },
-        node_selector: 'handleChange',
+
     },
     methods:{
+        changeNodeExists(){
+            this.$nextTick(()=>this.handleChange());
+        },
         getNodes(){
             k8sproxy.get('/api/v1/nodes').then(res=>{
                 if(!res?.data){return}
@@ -122,24 +129,25 @@ export default {
             })
         },
         defaultData(ns){
-            let arr = ns?.nodeAffinity?.requiredDuringSchedulingIgnoredDuringExecution?.nodeSelectorTerms[0]?.matchExpressions || [];
-            let a = arr.map(i=>({
-                key: i.key,
-                operator: i.operator,
-                values: i.values?.toString(),
-            }))
-
-            let fn = [];
-            for(let i in a){
-                let item = a[i];
-                let find = this.nodes.find(i=>item.key==i.key&&(item.values?item.values==i.value:1))
-                if(find){fn.push(find.id)}
-            }
-            this.node_selector = fn;
-            if(a.length){
-                if(a[0].operator=='NotIn'||a[0].operator=='DoesNotExist'){this.node_notin=true;}
-                if(a[0].operator=='DoesNotExist'||a[0].operator=='Exists'){this.node_exists=true;}
-            }
+            const expressions = ns?.nodeAffinity?.requiredDuringSchedulingIgnoredDuringExecution?.nodeSelectorTerms?.[0]?.matchExpressions || [];
+            const keyCounts = new Map();
+            expressions.forEach(expression=>keyCounts.set(expression.key,(keyCounts.get(expression.key)||0)+1));
+            const representable = expression=>{
+                // Multiple constraints on one key are ANDed, not one merged selection.
+                if(keyCounts.get(expression.key)>1) return false;
+                if(!['In','NotIn','Exists','DoesNotExist'].includes(expression.operator)) return false;
+                if(['Exists','DoesNotExist'].includes(expression.operator)) return this.nodes.some(node=>node.key==expression.key);
+                return expression.values?.length && expression.values.every(value=>this.nodes.some(node=>node.key==expression.key && node.value==value));
+            };
+            const operator = expressions.find(representable)?.operator || 'In';
+            const editable = expressions.filter(expression=>expression.operator==operator && representable(expression));
+            this.preservedExpressions = JSON.parse(JSON.stringify(expressions.filter(expression=>!editable.includes(expression))));
+            this.node_selector = [...new Set(editable.flatMap(expression=>{
+                if(['Exists','DoesNotExist'].includes(expression.operator)) return [this.nodes.find(node=>node.key==expression.key).id];
+                return expression.values.map(value=>this.nodes.find(node=>node.key==expression.key && node.value==value).id);
+            }))];
+            this.node_notin = ['NotIn','DoesNotExist'].includes(operator);
+            this.node_exists = ['Exists','DoesNotExist'].includes(operator);
         },
         handleChange(){
             let ns = [];
@@ -162,14 +170,23 @@ export default {
                 ns.push(o)
             });
             
-            let affinity = {
-                nodeAffinity: {
-                    requiredDuringSchedulingIgnoredDuringExecution: {
-                        nodeSelectorTerms: [{matchExpressions: ns,},],
-                    },
-                },
-            };
-            if(ns.length==0){affinity = '';}
+            // This control edits only the first term's expressions, not other affinity rules.
+            const affinity = JSON.parse(JSON.stringify(this.ns || {}));
+            affinity.nodeAffinity = affinity.nodeAffinity || {};
+            const nodeAffinity = affinity.nodeAffinity;
+            const required = nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution || {};
+            const terms = required.nodeSelectorTerms || [];
+            const first = {...terms[0]};
+            const expressions = ns.concat(JSON.parse(JSON.stringify(this.preservedExpressions)));
+            if(expressions.length) first.matchExpressions = expressions;
+            else delete first.matchExpressions;
+            const nextTerms = [...(Object.keys(first).length ? [first] : []), ...terms.slice(1)];
+            if(nextTerms.length){
+                nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution = {...required, nodeSelectorTerms:nextTerms};
+            }else{
+                delete nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution;
+            }
+            if(!Object.keys(nodeAffinity).length) delete affinity.nodeAffinity;
             this.$emit('select', affinity);
         },
     },

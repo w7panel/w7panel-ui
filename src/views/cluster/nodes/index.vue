@@ -3,7 +3,6 @@
         <route-breadcrumb />
         <div>
             <a-button v-if="permission.includes('cluster/nodes/add')" type="primary" @click="openForm()"><template #icon><icon-plus /></template>注册节点</a-button>
-            <a-button v-if="permission.includes('cluster/nodes/registries')&&usermode!='cluster'" type="outline" class="ml-10" @click="openImgorigin">修改镜像源</a-button>
             <!-- <a-button v-if="permission.includes('cluster/nodes/gpu')" type="outline" class="ml-10" @click="clscf.dialog=true;">GPU管理</a-button> -->
             <!-- <a-button type="outline" class="ml-10" @click="nodebindshow=true;">专用存储管理</a-button> -->
             <a-button type="outline" class="ml-10" @click="openClusterInfo">集群认证信息</a-button>
@@ -883,31 +882,6 @@ export default {
                     this.config.type = 3;
                     this.config.value = data.spec?.data?.['k3s.datastore-endpoint'];
                 }
-            })
-        },
-        openImgorigin(){
-            panelApi.get("/registry/registries",{noAlert:true}).then(res=>{
-                this.yamlData = {
-                    show: true,
-                    data: res?.data || '',
-                    title: 'registries',
-                    returnYaml: true,
-                    submit: this.submitImgorigin,
-                }
-            }).catch(()=>{
-                this.yamlData = {
-                    show: true,
-                    data: '',
-                    title: 'registries',
-                    returnYaml: true,
-                    submit: this.submitImgorigin,
-                }
-            })
-        },
-        submitImgorigin(data){
-            panelApi.put('/registry/registries',{data},{loading:true}).then(()=>{
-                this.$message.success("操作成功");
-                this.yamlData = {...this.yamlData, show:false,};
             })
         },
         openYaml(row){
