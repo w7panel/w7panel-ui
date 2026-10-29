@@ -231,7 +231,11 @@
                                     <div class="fc df ai-c" style="overflow:hidden;">
                                         <span class="df-s0" @click="openLog(diItem)" :class="{'c-blue':diItem.kind=='Job',cursor:diItem.kind=='Job'||diItem.kind=='Deployment' }">{{diItem.deployTitle}}</span>
                                         
-                                        <span v-if="diItem.kind=='Job'" class="fc ml-20 c-99 txt-overhidden cursor" @click="openLog(diItem)">{{diItem.log}}</span>
+                                        <span v-if="diItem.kind=='Job'" class="fc ml-20 c-99 txt-overhidden cursor" :title="[diItem.jobState?.text, diItem.jobState?.reason, diItem.log].filter(Boolean).join(' · ')" @click="openLog(diItem)">
+                                            <span :class="{'c-red':diItem.jobState?.error}">{{ diItem.jobState?.text || (diItem.status==1 ? '已完成' : diItem.status==2 ? '任务失败' : '等待任务启动') }}</span>
+                                            <span v-if="diItem.jobState?.reason && (diItem.jobState.error || !diItem.log)"> · {{ diItem.jobState.reason }}</span>
+                                            <span v-if="diItem.log"> · {{ diItem.log }}</span>
+                                        </span>
                                         <span v-if="diItem.kind=='Deployment'" class="fc ml-20 c-99 txt-overhidden">{{diItem.message}}</span>
                                         <span v-if="diItem.kind=='Ingress'" class="fc ml-20 c-99 txt-overhidden">
                                             <a :href="'http://'+diItem.domain" target="_blank" class="c-blue">{{diItem.domain}}</a>
@@ -247,7 +251,7 @@
                                         <icon-check-circle-fill v-if="diItem.status==1" class="c-green" />
                                         <span v-if="diItem.status==1" class="ml-6">正常</span>
                                         <icon-close-circle-fill v-if="diItem.status==2" class="c-red" />
-                                        <span v-if="diItem.status==2 && diItem.kind!='Ingress'" class="ml-6">启动中</span>
+                                        <span v-if="diItem.status==2 && diItem.kind!='Ingress'" class="ml-6">失败</span>
                                         <span v-if="diItem.status==2 && diItem.kind=='Ingress'" class="ml-6">检测失败</span>
                                         <icon-loading v-if="diItem.status==3" />
                                         <span v-if="diItem.status==3" class="ml-6">执行中...</span>
@@ -265,7 +269,7 @@
             </div>
         </div>
         <zone-drawer :show="sdShow" @close="closeSD"></zone-drawer>
-        <jobLog :show="logs.show" :name="logs.name" @close="logs.show=false"></jobLog>
+        <jobLog installation title="安装日志" :show-tabs="false" :namespace="namespaceActive" :show="logs.show" :name="logs.name" @close="logs.show=false"></jobLog>
         <imageform-drawer :show="imgShow" @close="closeIMG"></imageform-drawer>
     </div>
 </template>
@@ -287,6 +291,34 @@ import jobLog from '@/components/job-log.vue';
 import customCheckbox from './custom-checkbox.vue';
 import { getK8sinfo, getUserInfo } from '@/utils/auth';
 import shortuuid from 'short-uuid';
+
+// 安装进度摘要：启动阶段来自 Pod 状态，终态优先使用 Job 条件。
+function installJobStatus(job, pod, events = []) {
+    const condition = job?.status?.conditions?.find(c => c.status === 'True' && ['Failed', 'Complete'].includes(c.type));
+    if (condition) return { text: condition.type === 'Complete' ? '已完成' : '任务失败', error: condition.type === 'Failed', reason: condition.message || condition.reason || '' };
+    const latest = [...events].sort((a, b) => new Date(b.lastTimestamp || b.eventTime || b.metadata?.creationTimestamp || 0) - new Date(a.lastTimestamp || a.eventTime || a.metadata?.creationTimestamp || 0));
+    if (!pod) {
+        const warning = latest.find(e => e.type === 'Warning');
+        return { text: warning ? '安装任务启动受阻' : '正在准备安装任务', error: Boolean(warning), reason: warning?.message || '' };
+    }
+    const status = pod.status || {};
+    if (status.phase === 'Succeeded') return { text: '已完成', error: false, reason: '' };
+    const states = [...(status.initContainerStatuses || []), ...(status.containerStatuses || [])];
+    const waiting = states.find(c => c.state?.waiting && !['ContainerCreating', 'PodInitializing'].includes(c.state.waiting.reason));
+    if (waiting) {
+        const state = waiting.state.waiting;
+        const imageError = ['ErrImagePull', 'ImagePullBackOff', 'InvalidImageName'].includes(state.reason);
+        return { text: imageError ? '镜像拉取失败' : '安装任务启动异常', error: true, reason: state.message || state.reason };
+    }
+    const terminated = states.find(c => c.state?.terminated?.exitCode > 0);
+    if (terminated || status.phase === 'Failed') return { text: '安装任务执行失败', error: true, reason: terminated?.state.terminated.message || terminated?.state.terminated.reason || status.message || status.reason || '' };
+    const scheduled = status.conditions?.find(c => c.type === 'PodScheduled' && c.status === 'False');
+    if (scheduled) return { text: '等待分配安装资源', error: scheduled.reason === 'Unschedulable', reason: scheduled.message || scheduled.reason || '' };
+    const initializing = status.conditions?.some(c => c.type === 'Initialized' && c.status === 'False');
+    if (status.phase === 'Running' && !initializing && !states.some(c => c.state?.waiting)) return { text: '运行中', error: false, reason: '' };
+    const event = latest[0];
+    return { text: event?.reason === 'Pulling' ? '正在准备安装环境' : '正在启动安装任务', error: event?.type === 'Warning', reason: event?.message || '' };
+}
 
 export default {
     props: ['is_component','path_identifie','version','release_name','start_params','install_params'],
@@ -1679,36 +1711,47 @@ export default {
                 })
             }
 
+            const releaseName = this.appGroup;
             let getBuild = async (item,i,j)=>{
-                let { data } = await k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/pods",{params:{
-                    labelSelector: 'job-name='+item.name,
-                }, noAlert:true });
-                let first = data?.items?.[0];
-                if(!first){return}
-                let pod_name = first?.metadata?.name;
-                let containers = (first?.spec?.initContainers || []).concat(first?.spec?.containers || []);
-                if(!containers.length){
-                    await k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/pods/'+ pod_name +'/log?container=',{noAlert:true}).then(res=>{
-                        let podcont = res.data || '';
-                        let arr = podcont.split('\n').filter(i=>/\w/.test(i));
-                        let log = arr.length? arr[arr.length-1] : '';
-                        log = log.replace(/\u001b\[\d{1,3}(;1)?m/g,'');
-                        this.complete.items[i].resourcesList[j].log = log;
-                    });
-                }else{
-                    for(let c in containers){
-                        let container = containers[c].name;
-                        let getLog = false;
-                        await k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/pods/'+ pod_name +'/log?container='+container,{noAlert:true}).then(res=>{
-                            let podcont = res.data || '';
-                            let arr = podcont.split('\n').filter(i=>/\w/.test(i));
-                            let log = arr.length? arr[arr.length-1] : '';
-                            log = log.replace(/\u001b\[\d{1,3}(;1)?m/g,'');
-                            this.complete.items[i].resourcesList[j].log = log;
-                            getLog = true;
-                        });
-                        if(getLog){break;}
+                const update = values => {
+                    if (this.appGroup !== releaseName) return;
+                    const target = this.complete.items[i]?.resourcesList?.[j];
+                    if (target?.name === item.name) Object.assign(target, values);
+                };
+                try {
+                    const [jobResult, podsResult] = await Promise.all([
+                        k8sproxy.get(`/apis/batch/v1/namespaces/${this.namespaceActive}/jobs/${item.name}`, { noAlert: true }),
+                        k8sproxy.get(`/api/v1/namespaces/${this.namespaceActive}/pods`, { params: { labelSelector: 'job-name='+item.name }, noAlert: true }),
+                    ]);
+                    const job = jobResult?.data;
+                    const pod = [...(podsResult?.data?.items || [])].sort((a,b) => new Date(b.metadata?.creationTimestamp || 0) - new Date(a.metadata?.creationTimestamp || 0))[0];
+                    update({ jobState: installJobStatus(job, pod) });
+                    // 容器未启动时查询事件，补充资源不足、创建失败等具体原因。
+                    const states = [...(pod?.status?.initContainerStatuses || []), ...(pod?.status?.containerStatuses || [])];
+                    if (!pod || pod.status?.phase === 'Pending' || states.some(c => c.state?.waiting)) {
+                        const resources = [job, pod].filter(r => r?.metadata?.uid);
+                        const results = await Promise.all(resources.map(resource => k8sproxy.get(`/api/v1/namespaces/${this.namespaceActive}/events`, {
+                            params: { fieldSelector: `involvedObject.uid=${resource.metadata.uid}` }, noAlert: true,
+                        }).catch(() => null)));
+                        update({ jobState: installJobStatus(job, pod, results.flatMap(r => r?.data?.items || [])) });
                     }
+                    if (!pod) { update({ log: '' }); return; }
+                    const containers = [...(pod.spec?.containers || []), ...(pod.spec?.initContainers || [])];
+                    for (const container of containers) {
+                        const state = states.find(c => c.name === container.name)?.state;
+                        if (!state?.running && !state?.terminated) continue;
+                        try {
+                            const res = await k8sproxy.get(`/api/v1/namespaces/${this.namespaceActive}/pods/${pod.metadata.name}/log`, {
+                                params: { container: container.name, tailLines: 50 }, noAlert: true,
+                            });
+                            const lines = String(res.data || '').split('\n').filter(line => line.trim());
+                            update({ log: (lines[lines.length-1] || '').replace(/\u001b\[\d{1,3}(;1)?m/g, '') });
+                            return;
+                        } catch { /* 当前容器日志不可用时继续尝试其他容器。 */ }
+                    }
+                    update({ log: '' });
+                } catch {
+                    update({ jobState: { text: '状态获取失败', error: true, reason: '请点击任务查看详情，稍后自动重试' } });
                 }
             }
 

@@ -91,6 +91,7 @@ import { useNamespaceStore, useLoadingStore } from '@/store'
 import { IconSearch } from '@arco-design/web-vue/es/icon';
 import {h} from 'vue'
 import { getUserInfo } from '@/utils/auth';
+import { RESOURCE_GROUP_LABEL } from '@/utils/w7panel-resource';
 
 export default {
     data(){
@@ -98,6 +99,8 @@ export default {
             namespaceActive: '',
             cardActive: 1,
             resources: [],
+            liveServices: [],
+            resourceRequest: 0,
             manifests: '',
             manifestsEditor: null,
             filterValue: '',
@@ -278,7 +281,24 @@ export default {
                     version: res.data.spec.version,
                 }
             })
-            panelApi.get('/helm/releases/'+this.$route.params.group,{loading:true}).then(res=>{
+            const group = this.$route.params.group;
+            const namespace = this.namespaceActive;
+            const request = ++this.resourceRequest;
+            this.liveServices = [];
+            Promise.all([
+                panelApi.get('/helm/releases/'+group,{loading:true}),
+                k8sproxy.get('/api/v1/namespaces/'+encodeURIComponent(namespace)+'/services', {
+                    params: { labelSelector: RESOURCE_GROUP_LABEL+'='+group },
+                    noAlert: true,
+                }).then(res => res?.data?.items || []).catch(() => {
+                    if(request === this.resourceRequest){
+                        this.$message.warning('关联 Service 查询失败，资源列表暂仅显示 Helm 记录');
+                    }
+                    return [];
+                }),
+            ]).then(([res, services])=>{
+                if(request !== this.resourceRequest){return;}
+                this.liveServices = services;
                 let data = res?.data;
                 this.info = {
                     ...this.info,
@@ -311,7 +331,7 @@ export default {
                     yaml: this.valuesConfig,
                     canEdit: true,
                 });
-                this.resources = this.getResources(this.manifest);
+                this.tableFilter();
             })
         },
         getResources(m){
@@ -321,7 +341,18 @@ export default {
                 'StatefulSet': '有状态应用',
                 'Deployment': '无状态应用',
             }
-            let datas = arr.map(i=>jsyaml.load(i));
+            let datas = arr.map(i=>jsyaml.load(i)).filter(i=>i);
+            const keyOf = resource => [resource.apiVersion, resource.kind,
+                resource.metadata?.namespace || this.namespaceActive, resource.metadata?.name].join('/');
+            const seen = new Set(datas.map(keyOf));
+            for(const service of this.liveServices){
+                const resource = { ...service, apiVersion: 'v1', kind: 'Service' };
+                const key = keyOf(resource);
+                if(!seen.has(key)){
+                    datas.push(resource);
+                    seen.add(key);
+                }
+            }
             
             let list = datas.filter(i=>i).map(i=>{
                 let kindTxt = '['+ ( types[i.kind] || i.kind) +']';

@@ -1,4 +1,5 @@
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { panelApi } from '@/utils/api';
 import { RouteRecordRaw, RouteRecordNormalized } from 'vue-router';
 import usePermission from '@/hooks/permission';
 import { useAppStore } from '@/store';
@@ -9,6 +10,14 @@ export default function useMenuTree() {
   const permission = usePermission();
 
   const appStore = useAppStore();
+  const isSubCluster = ref<boolean | null>(null);
+  onMounted(() => {
+    panelApi.get('/microapp/global-frontprops', { noAlert: true }).then((res) => {
+      isSubCluster.value = res.data?.is_sub_cluster === true;
+    }).catch(() => {
+      // 无法确认集群类型时，保持隐藏轻量虚拟机菜单。
+    });
+  });
   const appRoute = computed(() => {
     if (appStore.menuFromServer) {
       return appStore.appAsyncMenus;
@@ -30,6 +39,9 @@ export default function useMenuTree() {
       if (!_routes) return null;
 
       const collector: any = _routes.map((element) => {
+        if (element.name === 'app-lightweight-vms' && isSubCluster.value !== false) {
+          return null;
+        }
         const currentPath = joinRoutePath(parentPath, element.path);
         // no access
         if (!permission.accessRouter(element, currentPath)) {
