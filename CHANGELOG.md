@@ -652,3 +652,7 @@
 ## 2026-10-30（dev-v1-token UI 远端整合）
 
 - 整合远端路由菜单源和本地 API 密钥权限配置入口；保留 TAPD 1016210、1016213 相同代码并合并重复功能记录。影响模块：菜单权限、API 密钥管理、应用文件管理、域名提示。验证：`npm run build`、`git diff --check` 通过。
+
+## 2026-10-30（TAPD 1016216 子集群认证地址补齐）
+
+- 子集群认证信息合并读取 `k3s.default-tls-san`、`k3s.tls-san`、`k3s.public-tls-san`，保留旧版 `k3s.config` 回退，使 Server 写入的 svc 地址可展示和选择。影响模块：节点页集群认证信息。验证：生产构建与 `git diff --check` 通过。

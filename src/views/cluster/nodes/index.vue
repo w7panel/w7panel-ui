@@ -796,15 +796,25 @@ export default {
             if (isSubCluster) {
                 k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(async res=>{
                     const data = res?.data?.spec?.data || {};
-                    let addresses = (data['k3s.tls-san'] || '').split(',').filter(Boolean);
+                    const split = key => (data[key] || '').split(',').map(address => address.trim()).filter(Boolean);
+                    let legacyAddresses = [];
                     if (!Object.prototype.hasOwnProperty.call(data, 'k3s.tls-san')) {
                         const config = jsyaml.load(data['k3s.config'] || '') || {};
-                        addresses = Array.isArray(config['tls-san']) ? config['tls-san'] : [];
+                        legacyAddresses = Array.isArray(config['tls-san']) ? config['tls-san'] : [];
                     }
-                    this.clusterInfo.ips = [...new Set(addresses)].map(address => ({address, type: this.isValidTlsAddress(address, 'ip') ? 'ip' : 'domain', enable: true, default: true}));
+                    const addresses = [...new Set([
+                        ...split('k3s.default-tls-san'),
+                        ...split('k3s.tls-san'),
+                        ...split('k3s.public-tls-san'),
+                        ...legacyAddresses,
+                    ])];
+                    this.clusterInfo.ips = addresses.map(address => ({address, type: this.isValidTlsAddress(address, 'ip') ? 'ip' : 'domain', enable: true, default: true}));
                     this.clusterInfo.selectedAddress = this.kubeconfigAddresses[0] || '';
                     await this.getKubeconfig();
-                }).catch(()=>this.$message.error('读取 tls-san 配置失败')).finally(()=>{ this.clusterInfo.loading = false; });
+                }).catch(()=>{
+                    this.$message.error('读取 tls-san 配置失败');
+                    this.getKubeconfig();
+                }).finally(()=>{ this.clusterInfo.loading = false; });
                 return;
             }
             const server = this.getFirstServer();
