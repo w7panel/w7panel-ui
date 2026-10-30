@@ -63,8 +63,7 @@
                 </a-form>
             </div>
             <div v-else-if="tab=='4'">
-                <a-alert v-if="isSubCluster && !isCkmSession()" type="info">需从主面板进入</a-alert>
-                <a-alert v-else-if="mainSettingsError" type="error">读取主集群配置失败</a-alert>
+                <a-alert v-if="mainSettingsError" type="error">读取主集群配置失败</a-alert>
                 <div v-else-if="isSubCluster === null"></div>
                 <template v-else>
                 <a-form :model="domainParse" auto-label-width class="padding-20">
@@ -122,7 +121,6 @@
 </template>
 <script>
 import { k8sproxy, panelApi } from '@/utils/api';
-import { isCkmSession } from '@/utils/auth';
 
 import axios from 'axios';
 import { useNamespaceStore } from '@/store';
@@ -148,7 +146,7 @@ export default{
         panelApi.get('/app-info', { noAlert: true }).then(res=>{
             this.isSubCluster = res.data?.isSubCluster === true;
             this.initDomainparse();
-        }).catch(()=>{ this.isSubCluster = true; });
+        }).catch(()=>{ this.isSubCluster = true; this.mainSettingsError = true; });
         this.initLoginConfig();
     },
     components: {
@@ -161,7 +159,6 @@ export default{
         }
     },
     methods: {
-        isCkmSession,
         oidcCallbackUrl(){ return window.location.origin + '/login/oidc/callback'; },
         initLoginConfig(){
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/loginconfigs/default',{noAlert:true}).then(res=>{
@@ -196,7 +193,7 @@ export default{
             }
         },
         async initDomainparse(){
-            if(this.isSubCluster === null || (this.isSubCluster && !isCkmSession())){ return; }
+            if(this.isSubCluster === null){ return; }
             if(this.isSubCluster){
                 try{
                     const res = await panelApi.get('/auth/main-settings');
