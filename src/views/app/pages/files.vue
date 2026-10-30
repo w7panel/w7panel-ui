@@ -470,6 +470,7 @@
                             <a-auto-complete
                                 v-model="authority.chown"
                                 :data="userArr.map(u => ({ label: u.name, value: String(u.id) }))"
+                                :disabled="authority.row && isMountFileRecord(authority.row)"
                                 :filter-option="(inputValue, option) => {
                                     if (!inputValue) return true;
                                     return option.label.toLowerCase().startsWith(inputValue.toLowerCase()) || 
@@ -478,7 +479,7 @@
                                 placeholder="输入用户名或UID搜索"
                             >
                                 <template #suffix>
-                                    <div class="df ai-c cursor" @click="authority.chown='';">
+                                    <div class="df ai-c cursor" @click="openUserSearch">
                                         <icon-search />
                                         <span class="ml-2">选择用户</span>
                                     </div>
@@ -978,6 +979,15 @@ export default {
             }finally{
                 clearTimeout(timeoutId);
             }
+            return this.userArr.length > 0;
+        },
+        async openUserSearch(){
+            this.authority.chown = '';
+            if(!this.userArr.length && !await this.getUserByWebDAV()){
+                this.$message.warning('未能读取当前容器用户列表');
+                return;
+            }
+            this.$nextTick(()=>document.querySelector('.file-authority-drawer input[placeholder="输入用户名或UID搜索"]')?.focus());
         },
         // 是挂载目录 / 属于挂载目录
         testForever(path, isNotFile){
@@ -1549,7 +1559,7 @@ export default {
                 this.refreshCatch();
             })
         },
-        editMf({content,path,isEdit}){
+        editMf({content,path,isEdit,mode}){
             return panelApi[isEdit?'put':'post'](`/mountfiles`, {
                 name: this.appData.metadata.name,
                 namespace: this.appData.metadata.namespace,
@@ -1557,6 +1567,7 @@ export default {
                 kind: this.appData.kind,
                 content: content,
                 path: path,
+                mode: mode,
             });
         },
         deleteMf(path){
@@ -3101,6 +3112,7 @@ export default {
                     content: i.fileValue,
                     path: fullPath,
                     isEdit: false,
+                    mode: i.prower,
                 });
             })).then(async ()=>{
                 const mfOps = this.mfList
@@ -3113,7 +3125,6 @@ export default {
                 if(mfOps.length){
                     await Promise.all(mfOps);
                 }
-
                 this.$message.success('操作成功');
                 this.fileCatch = [];
                 this.mfEdit = false;
@@ -3462,6 +3473,26 @@ export default {
                 this.authority.show = false;
                 return;
             }
+            if(this.authority.row && this.isMountFileRecord(this.authority.row)){
+                try{
+                    await panelApi.put(`/mountfiles/chmod`, {
+                        name: this.appData.metadata.name,
+                        namespace: this.appData.metadata.namespace,
+                        apiVersion: this.appData.apiVersion,
+                        kind: this.appData.kind,
+                        path: this.authority.row.mf || this.getTransportPath(this.authority.row),
+                        mode: this.authority.chmod,
+                    });
+                    this.$message.success('操作成功');
+                    this.authority.show = false;
+                    await this.getMfList();
+                    this.getFileList();
+                    this.$emit('refresh');
+                }catch{
+                    this.$message.error('挂载文件权限修改失败');
+                }
+                return;
+            }
             if (!this.authority.row) {
                 const hasInvalid = this.selectedKeys.some(item => {
                     const row = this.fileList.find(i => i.key == item);
@@ -3485,11 +3516,6 @@ export default {
                         this.$message.success('操作成功');
                         this.refreshCatch();
                     }
-                    this.authority.show = false;
-                    return;
-                }
-                if(this.isMountFileRecord(this.authority.row)){
-                    this.$message.warning('挂载文件暂不支持权限修改');
                     this.authority.show = false;
                     return;
                 }
