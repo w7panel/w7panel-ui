@@ -24,6 +24,8 @@ scripts/*
 
 !src/utils/repo-notice.ts
 !src/utils/html-notice.ts
+!src/utils/permission-menu.ts
+!src/utils/permission-api-catalog.ts
 !scripts/repo-html-notice.test.cjs
 !scripts/auth-bookmark-guard.test.cjs
 !scripts/app-form-volumes.test.cjs

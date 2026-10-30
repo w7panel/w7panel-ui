@@ -1,8 +1,10 @@
-import treeData from '@/config/treedata.json';
+import appClientMenus from '@/router/app-menus';
 
 type MenuNode = {
   key?: string;
   route?: string;
+  path?: string;
+  meta?: { key?: string; hideInMenu?: boolean; permissionItems?: Array<{ key: string; route: string }> };
   children?: MenuNode[];
 };
 
@@ -33,14 +35,19 @@ function addMapping(key?: string, route?: string) {
   }
 }
 
-function collectMenuRoutes(nodes: MenuNode[] = []) {
+function collectMenuRoutes(nodes: MenuNode[] = [], parentPath = '') {
   nodes.forEach((node) => {
-    addMapping(node.key, node.route);
-    if (node.children?.length) collectMenuRoutes(node.children);
+    if (node.meta?.hideInMenu === true) return;
+    const route = node.path?.startsWith('/')
+      ? node.path
+      : `${parentPath.replace(/\/$/, '')}/${node.path || ''}`;
+    addMapping(node.meta?.key || node.key, node.route || route);
+    node.meta?.permissionItems?.forEach((item) => addMapping(item.key, item.route));
+    if (node.children?.length) collectMenuRoutes(node.children, route);
   });
 }
 
-collectMenuRoutes(treeData as MenuNode[]);
+collectMenuRoutes(appClientMenus as MenuNode[]);
 Object.entries(LEGACY_ROUTE_OVERRIDES).forEach(([key, route]) => addMapping(key, route));
 Object.entries(LEGACY_ROUTE_ALIASES).forEach(([route, key]) => {
   ROUTE_TO_KEY[normalizePermissionPath(route)] = normalizePermissionPath(key);

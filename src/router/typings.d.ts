@@ -15,6 +15,8 @@ declare module 'vue-router' {
     noAffix?: boolean; // if set true, the tag will not affix in the tab-bar
     ignoreCache?: boolean; // if set true, the page will not be cached
     key?: string; // Permission key used by the project menu/button filtering
+    exclusiveGroups?: string[]; // User groups allowed to select this menu in permission packages
+    permissionItems?: Array<{ title: string; key: string; route: string; exclusiveGroups?: string[] }>;
     linkIcon?: boolean; // Whether to show the launch-style icon in the menu
     routekey?: string; // Internal tab/menu key used by some detail pages
     menuGroup?: MenuGroup; // Top-level menu grouping used by navbar and side menu filtering
