@@ -2,6 +2,8 @@
     <div class="df df-c padding-20" style="height:100%;">
         <route-breadcrumb />
 
+        <a-tabs default-active-key="keys">
+            <a-tab-pane key="keys" title="密钥管理">
         <div class="mb-20">
             <a-button type="primary" @click="openCreate()"><template #icon><icon-plus /></template>新增</a-button>
         </div>
@@ -69,6 +71,11 @@
                 </template>
             </a-table>
         </div>
+            </a-tab-pane>
+            <a-tab-pane key="permissions" title="API权限配置">
+                <api-permission-config />
+            </a-tab-pane>
+        </a-tabs>
 
         <a-drawer v-model:visible="form.visible" title="API Client" :width="800" :footer="true" @ok="handleSubmit" @cancel="form.visible = false" :ok-loading="form.submitting" unmount-on-close>
             <a-form :model="form.data" ref="formRef" auto-label-width>
@@ -102,6 +109,7 @@ import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import dayjs from 'dayjs';
 import yamlDrawer from '@/components/yaml-drawer.vue';
+import apiPermissionConfig from './api-permission-config.vue';
 
 const GROUP = 'w7panel.w7.com';
 const VERSION = 'v1alpha1';
@@ -136,7 +144,7 @@ function buildSpec(data) {
 }
 
 export default {
-    components: { yamlDrawer },
+    components: { yamlDrawer, apiPermissionConfig },
     data() {
         return {
             namespaceActive: 'default',

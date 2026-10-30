@@ -349,7 +349,7 @@ export default {
         getList(){
             k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
-                list = list.map(i=>{
+                list = list.filter(i=>i?.metadata?.name !== 'api').map(i=>{
                     let permission = toTreeKeys(i?.spec?.menuRules || []);
                     let whitelist = i?.spec?.domainWhiteList || [];
                     return {
