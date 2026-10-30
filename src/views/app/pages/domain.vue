@@ -4,7 +4,7 @@
             <div v-if="domainCard && domainCard.length" class="df df-ww" style="margin-bottom:20px;">
                 <a-card v-for="(item,index) in domainCard" :title="item.name" :key="index" class="topcard">
                     <template #extra>
-                        <a-button type="text" size="small" @click="openFormCard({config_name:item.name})">
+                        <a-button type="text" size="small" :disabled="!whiteListReady" @click="openFormCard({config_name:item.name})">
                             <template #icon><icon-plus /></template>
                             <span>添加域名</span>
                         </a-button>
@@ -19,7 +19,7 @@
                 </a-card>
             </div>
             <div class="df jc-b">
-                <a-button type="primary" @click="domainFormShow({})"><template #icon><icon-plus /></template>添加域名</a-button>
+                <a-button type="primary" :disabled="!whiteListReady" @click="domainFormShow({})"><template #icon><icon-plus /></template>添加域名</a-button>
                 
                 <div v-if="checkList.length">
                     <!-- 策略 -->
@@ -571,7 +571,7 @@
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 
 import axios from 'axios'
 import domainStrategy from '@/components/domain-strategy.vue'
@@ -597,6 +597,7 @@ export default {
     data(){
         return {
             whiteList: [],
+            whiteListReady: false,
             
             appPorts: [],
             appList: [],
@@ -878,35 +879,18 @@ export default {
             callback(this.allAppPorts[app.name]);
         },
         async getWhiteList(){
-            let userInfo = getUserInfo();
-            let wl = userInfo?.['w7.cc/domain-white-list'] || '[]';
-            wl = JSON.parse(wl);
-            if(wl && wl.length){
-                this.whiteList = wl?.filter(i=>!i.disabled);
+            try {
+                const { data } = await panelApi.get('/auth/userinfo');
+                if(data?.code && data.code !== 200){ throw new Error('domain white list request failed'); }
+                const userInfo = data?.code === 200 ? data.data : data;
+                const whiteList = JSON.parse(userInfo?.['w7.cc/domain-white-list'] || '[]');
+                if(!Array.isArray(whiteList)){ throw new Error('invalid domain white list'); }
+                this.whiteList = whiteList.filter(i=>!i.disabled);
+                this.whiteListReady = true;
+            } catch {
+                this.whiteList = [];
+                this.$message.error('域名白名单加载失败，请刷新页面重试');
             }
-            return;
-            return new Promise((resolve,reject)=>{
-                
-                let userInfo = getUserInfo();
-                let wl = userInfo?.['w7.cc/domain-white-list'] || '[]';
-                wl = JSON.parse(wl);
-                if(wl.length){
-                    this.whiteList = wl?.filter(i=>!i.disabled);
-                    resolve();
-                    return;
-                }
-                resolve();
-                k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-white-list',{noAlert:true}).then(res=>{
-                    if(!res?.data){return}
-                    let list = [];
-                    try{
-                        list = JSON.parse(res?.data?.data?.whiteList)?.filter(i=>!i.disabled)
-                    }catch{}
-                    this.whiteList = list;
-                }).finally(()=>{
-                    resolve();
-                })
-            })
         },
         // 灰度发布
         openGrayRelease(part){
@@ -956,6 +940,7 @@ export default {
         },
         // 卡片创建域名
         formCardSubmit(){
+            if(!this.whiteListReady){ return; }
             let routes = this.domainCard?.find(i=>i.name==this.formcard.name)?.routes;
             if(!routes?.length){ return; }
             let primary = routes[0];
@@ -1687,6 +1672,7 @@ export default {
             }).catch(()=>{})
         },
         submitDomainForm(eve){
+            if(!this.whiteListReady){ return Promise.reject(new Error('域名白名单尚未加载')); }
             this.normalizeDirectAppTarget(this.domainForm);
             return new Promise((resolve,reject)=>{
                 if(this.domainForm.originType == 2 && !this.hasAppOptions){
