@@ -39,7 +39,7 @@ export default function useMenuTree() {
       if (!_routes) return null;
 
       const collector: any = _routes.map((element) => {
-        if (element.name === 'app-lightweight-vms' && isSubCluster.value !== false) {
+        if ((element.name === 'app-lightweight-vms' || element.path === '/usermanage' || String(element.path).startsWith('/usermanage/')) && isSubCluster.value !== false) {
           return null;
         }
         const currentPath = joinRoutePath(parentPath, element.path);

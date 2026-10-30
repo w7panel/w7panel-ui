@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2026-10-30
+
+- 1016214 交叉审查后统一只读 ConfigMap 缓存以名称索引，缓存缺失时不再回退到本地 K8s 代理；适配主配置响应的独立 logo 类型字段，并拒绝缺少站点字段的响应。影响模块：子集群站点设置只读加载。验证：`LOCAL_MOCK=true npm run build` 通过。
+- 子集群隐藏多租户入口；站点设置和域名解析在嵌入会话中读取主集群配置并只读展示，直接登录提示从主面板进入，本地 OIDC 登录配置继续可编辑。影响模块：导航、站点设置、系统设置。验证：`LOCAL_MOCK=true npm run build` 通过；类型检查受现有 TypeScript 与 Zod 声明版本冲突阻塞。
+
 ## 2026-10-30（kubeconfig 地址选择）
 
 - kubeconfig 页签提供 tls-san 地址选择，切换后同步更新 kubeconfig 中的 API server 地址，主集群和子集群均可使用；影响模块：节点页集群认证信息。验证：`git diff --check` 通过，未运行前端构建。

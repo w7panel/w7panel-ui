@@ -63,23 +63,28 @@
                 </a-form>
             </div>
             <div v-else-if="tab=='4'">
+                <a-alert v-if="isSubCluster && !isCkmSession()" type="info">需从主面板进入</a-alert>
+                <a-alert v-else-if="mainSettingsError" type="error">读取主集群配置失败</a-alert>
+                <div v-else-if="isSubCluster === null"></div>
+                <template v-else>
                 <a-form :model="domainParse" auto-label-width class="padding-20">
                     <a-form-item label="记录类型">
-                        <a-radio-group v-model="domainParse.type">
+                        <a-radio-group v-model="domainParse.type" :disabled="isSubCluster">
                             <a-radio value="A">A记录</a-radio>
                             <a-radio value="cname">CNAME记录</a-radio>
                         </a-radio-group>
                     </a-form-item>
                     <a-form-item label="记录值">
-                        <a-checkbox-group v-if="domainParse.type=='A'" v-model="domainParse.ips">
+                        <a-checkbox-group v-if="domainParse.type=='A'" v-model="domainParse.ips" :disabled="isSubCluster">
                             <a-checkbox v-for="(item,index) in domainParse.alist" :key="index" :value="item">{{ item }}</a-checkbox>
                         </a-checkbox-group>
-                        <a-input v-if="domainParse.type=='cname'" v-model="domainParse.cname" placeholder="请输入" style="width:300px;"></a-input>
+                        <a-input v-if="domainParse.type=='cname'" v-model="domainParse.cname" :disabled="isSubCluster" placeholder="请输入" style="width:300px;"></a-input>
                     </a-form-item>
                     <a-form-item label="">
-                        <a-button type="primary" @click="submitdomainParse">确定</a-button>
+                        <a-button v-if="!isSubCluster" type="primary" @click="submitdomainParse">确定</a-button>
                     </a-form-item>
                 </a-form>
+                </template>
             </div>
             <div v-else-if="tab=='5'">
                 <contact-us></contact-us>
@@ -116,7 +121,8 @@
     </div>
 </template>
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
+import { isCkmSession } from '@/utils/auth';
 
 import axios from 'axios';
 import { useNamespaceStore } from '@/store';
@@ -131,13 +137,18 @@ export default{
             register: {},
             filing: {},
             domainParse: {},
+            isSubCluster: null,
+            mainSettingsError: false,
             loginConfig: {exist: false, providers: [], oidc: {enabled: false, discoveryUrl: '', clientId: '', scopesText: 'openid profile'}},
             permissionPackageList: [],
         }
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
-        this.initDomainparse();
+        panelApi.get('/app-info', { noAlert: true }).then(res=>{
+            this.isSubCluster = res.data?.isSubCluster === true;
+            this.initDomainparse();
+        }).catch(()=>{ this.isSubCluster = true; });
         this.initLoginConfig();
     },
     components: {
@@ -150,6 +161,7 @@ export default{
         }
     },
     methods: {
+        isCkmSession,
         oidcCallbackUrl(){ return window.location.origin + '/login/oidc/callback'; },
         initLoginConfig(){
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/loginconfigs/default',{noAlert:true}).then(res=>{
@@ -184,6 +196,16 @@ export default{
             }
         },
         async initDomainparse(){
+            if(this.isSubCluster === null || (this.isSubCluster && !isCkmSession())){ return; }
+            if(this.isSubCluster){
+                try{
+                    const res = await panelApi.get('/auth/main-settings');
+                    const spec = res.data?.data?.domainParse?.spec || {};
+                    this.domainParse = { exist: !!res.data?.data?.domainParse, type: spec.type || 'A', cname: spec.cname || '', ips: spec.ips || [], alist: spec.ips || [] };
+                    this.mainSettingsError = false;
+                }catch(e){ this.mainSettingsError = true; }
+                return;
+            }
             await k8sproxy.get('/api/v1/nodes',{loading:true}).then(res=>{
                 if(!res?.data){return}
                 let data = res.data?.items || [];
@@ -311,6 +333,7 @@ export default{
             }).catch(()=>{});
         },
         submitdomainParse(){
+            if(this.isSubCluster !== false){ return; }
             let spec = {
                 type: this.domainParse.type,
                 ...(this.domainParse.type=='A'?{

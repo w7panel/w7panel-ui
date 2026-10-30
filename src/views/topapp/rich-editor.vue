@@ -1,6 +1,6 @@
 <template>
     <div class="rich-editor">
-        <Toolbar
+        <Toolbar v-if="!readonly"
             :editor="editor"
             :defaultConfig="toolbarConfig"
             mode="default"
@@ -31,6 +31,7 @@ export default {
             type: String,
             default: '请输入内容',
         },
+        readonly: Boolean,
     },
     emits: ['update:modelValue'],
     components: {
@@ -65,6 +66,7 @@ export default {
     methods: {
         handleCreated(editor){
             this.editor = Object.seal(editor);
+            if(this.readonly){ editor.disable(); }
         },
         destroyEditor(){
             if(!this.editor){ return; }
