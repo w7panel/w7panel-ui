@@ -110,7 +110,7 @@
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
-                            <a-switch v-model="form.apiAll" :disabled="form.name==founderName || !canGrantAllApi"></a-switch>
+                            <a-switch v-model="form.apiAll" :disabled="form.name==founderName || (!form.apiAll && (!canGrantAllApi || !canGrantAllExclusiveApi))"></a-switch>
                         </a-form-item>
                         <a-form-item label="API列表" v-if="!form.apiAll">
                             <div class="api-permission-panel">
@@ -182,6 +182,7 @@ import {
     resolveApiRouteDescription,
 } from '@/utils/api-route-description';
 import { loadPermissionApiCatalog } from '@/utils/permission-api-catalog';
+import { allowsExclusiveGrant, loadExclusiveRules } from '@/utils/permission-exclusives';
 
 const dataTemplate = {
     "kind": "Permission",
@@ -244,6 +245,7 @@ export default {
             apiRoutes: [],
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
+            exclusiveRules: null,
         }
     },
     created(){
@@ -251,6 +253,7 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.getApiRoutes();
         this.getList();
+        loadExclusiveRules().then(rules => { this.exclusiveRules = rules; }).catch(() => { this.exclusiveRules = null; });
     },
     computed: {
         apiRouteGroups(){
@@ -319,6 +322,9 @@ export default {
             if(!this.apiConstraintMap){return true}
             return Array.isArray(this.apiConstraintMap['*']) && this.apiConstraintMap['*'].includes('*');
         },
+		canGrantAllExclusiveApi(){
+			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules, this.permissionUserGroup, [], {'*': ['*']});
+		},
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;
         },
@@ -446,7 +452,7 @@ export default {
             });
         },
         submit(){
-            this.$refs.form.validate((err) => {
+            this.$refs.form.validate(async (err) => {
                 if (err) {
                     this.$refs.form.scrollToField(Object.keys(err)[0]);
                     return;
@@ -456,6 +462,11 @@ export default {
                 let api = this.formToApi();
                 this.applyFormConstraints();
                 api = this.formToApi();
+				let exclusiveRules;
+				try { exclusiveRules = await loadExclusiveRules(); } catch { this.$message.error('专属权限策略加载失败'); return; }
+				if (!allowsExclusiveGrant(exclusiveRules, this.permissionUserGroup, toPermissionPaths(this.form.permission), api)) {
+					this.$message.warning('所选菜单或 API 不允许授予该用户组'); return;
+				}
 
                 if(!this.form.name || this.form.isAdd){
                     let data = null;
@@ -529,7 +540,10 @@ export default {
                     show: true,
                     data: res?.data,
                     title: res?.data?.spec?.title || res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
-                    submit: (data)=>{
+                    submit: async (data)=>{
+						const rules = await loadExclusiveRules();
+						const group = data.spec?.role || 'normal';
+						if (!allowsExclusiveGrant(rules, group, data.spec?.menuRules || [], this.apiRulesToApi(data.spec?.apiRules || []))) throw new Error('所选菜单或 API 不允许授予该用户组');
                         delete data.metadata.namespace;
                         return k8sproxy.put("/apis/w7panel.w7.com/v1alpha1/permissions/" + data?.metadata?.name, data).then(res=>{
                             this.$message.success("修改成功");
@@ -667,7 +681,7 @@ export default {
             return api;
         },
         apiGroupAllowedRoutes(group){
-            return (group?.routes || []).filter(route => this.apiRouteAllowed(route));
+            return (group?.routes || []).filter(route => this.apiRouteAllowed(route) && this.exclusiveApiRouteAllowed(route));
         },
         apiGroupAllowedMethods(group){
             return this.apiGroupAllowedRoutes(group).map(route => route.method);
@@ -678,6 +692,9 @@ export default {
             const verbs = this.matchApiRuleMethods(this.apiConstraintMap, route.path);
             return verbs.includes('*') || verbs.includes(route.verb);
         },
+		exclusiveApiRouteAllowed(route){
+			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules, this.permissionUserGroup, [], {[route.path]: [route.verb]});
+		},
         matchApiRuleMethods(rules, path){
             let bestPattern = '';
             let bestMethods = [];
@@ -754,7 +771,7 @@ export default {
             this.form.apiSelectedKeys = Array.from(selected);
         },
         selectAllApiRoutes(){
-            this.form.apiSelectedKeys = this.apiRoutes.filter(route => this.apiRouteAllowed(route)).map(route => this.apiRouteKey(route));
+            this.form.apiSelectedKeys = this.apiRoutes.filter(route => this.apiRouteAllowed(route) && this.exclusiveApiRouteAllowed(route)).map(route => this.apiRouteKey(route));
         },
         clearApiRoutes(){
             this.form.apiSelectedKeys = [];

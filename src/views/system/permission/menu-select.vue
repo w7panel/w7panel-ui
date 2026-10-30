@@ -14,9 +14,10 @@
 </template>
 
 <script>
-import {useAppStore} from '@/store'
+import {useNamespaceStore} from '@/store'
 import appClientMenus from '@/router/app-menus'
-import { buildPermissionMenuTree } from '@/utils/permission-menu'
+import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu'
+import { allowsExclusiveMenu, loadExclusiveRules } from '@/utils/permission-exclusives'
 
 export default {
     props: ['permission','disabled','allowedKeys','userGroup'],
@@ -26,15 +27,18 @@ export default {
             checkedKeys: [],
             treeData: [],
             halfCheckedKeys: [],
+            microAppTreeData: [],
+            exclusiveRules: null,
         }
     },
     created(){
         this.init();
+        loadExclusiveRules().then(rules => { this.exclusiveRules = rules; this.init(); }).catch(() => { this.exclusiveRules = null; this.initTreeData(); });
+        loadPermissionMicroAppMenus(useNamespaceStore().namespace).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
     },
     computed: {
         sourceTreeData(){
-            const appStore = useAppStore();
-            return buildPermissionMenuTree(appStore.menuFromServer ? appStore.appAsyncMenus : appClientMenus);
+            return [...buildPermissionMenuTree(appClientMenus), ...this.microAppTreeData];
         },
     },
     watch: {
@@ -47,6 +51,8 @@ export default {
             this.initTreeData();
         },
         userGroup(){
+			this.checkedKeys = this.filterAllowedKeys(this.checkedKeys);
+			this.halfCheckedKeys = this.filterAllowedKeys(this.halfCheckedKeys);
             this.initTreeData();
         },
         sourceTreeData(){
@@ -75,16 +81,16 @@ export default {
             const allowed = this.allowedKeys ? new Set(this.allowedKeys) : null;
     
             const userGroup = this.userGroup;
+            const exclusiveRules = this.exclusiveRules;
             function traverseAndDisable(nodes, keyPath = [], disabled) {
                 const result = [];
                 nodes.forEach(node => {
                     const currentKeyPath = [...keyPath, node.key];
-                    if (node.children && node.children.length > 0) {
-                        node.children = traverseAndDisable(node.children, currentKeyPath, disabled);
-                    }
                     const nodeAllowed = !allowed || allowed.has(node.key) || allowed.has(node.route);
-                    const exclusiveGroups = node.exclusiveGroups || [];
-                    const groupRestricted = userGroup && exclusiveGroups.length && !exclusiveGroups.includes(userGroup);
+                    const groupRestricted = !exclusiveRules || !allowsExclusiveMenu(exclusiveRules, userGroup, node.route || '', node.key);
+                    if (node.children && node.children.length > 0) {
+                        node.children = traverseAndDisable(node.children, currentKeyPath, disabled || groupRestricted);
+                    }
                     if ((allowed && !nodeAllowed) || keys.includes(node.key) || disabled || groupRestricted) {
                         node.disabled = true;
                     }
@@ -95,9 +101,10 @@ export default {
             return traverseAndDisable(menuDataCopy, [], this.disabled);
         },
         filterAllowedKeys(keys){
-            if(!this.allowedKeys){return keys || []}
+			const permitted = (keys || []).filter(key => !this.exclusiveRules || allowsExclusiveMenu(this.exclusiveRules, this.userGroup, key, key));
+			if(!this.allowedKeys){return permitted}
             const allowed = new Set(this.allowedKeys);
-            return (keys || []).filter(key => allowed.has(key));
+            return permitted.filter(key => allowed.has(key));
         },
         disabledTree(arr,boo){
             function traverse(node) {

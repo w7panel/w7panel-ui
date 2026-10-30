@@ -25,10 +25,12 @@ scripts/*
 !src/utils/repo-notice.ts
 !src/utils/html-notice.ts
 !src/utils/permission-menu.ts
+!src/utils/permission-exclusives.ts
 !src/utils/permission-api-catalog.ts
 !scripts/repo-html-notice.test.cjs
 !scripts/auth-bookmark-guard.test.cjs
 !scripts/domain-parse-alert.test.cjs
 !scripts/child-main-settings.test.cjs
+!scripts/permission-menu.test.cjs
 !scripts/app-form-volumes.test.cjs
 !scripts/app-form-preservation.test.cjs

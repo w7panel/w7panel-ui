@@ -25,11 +25,11 @@ const LEGACY_ROUTE_ALIASES: Record<string, string> = {
 const KEY_TO_ROUTE: Record<string, string> = {};
 const ROUTE_TO_KEY: Record<string, string> = {};
 
-function addMapping(key?: string, route?: string) {
+function addMapping(key?: string, route?: string, overwrite = true) {
   const normalizedKey = normalizePermissionPath(key);
   const normalizedRoute = normalizePermissionPath(route);
   if (!normalizedKey || !normalizedRoute) return;
-  KEY_TO_ROUTE[normalizedKey] = normalizedRoute;
+  if (overwrite || !KEY_TO_ROUTE[normalizedKey]) KEY_TO_ROUTE[normalizedKey] = normalizedRoute;
   if (!ROUTE_TO_KEY[normalizedRoute]) {
     ROUTE_TO_KEY[normalizedRoute] = normalizedKey;
   }
@@ -37,11 +37,10 @@ function addMapping(key?: string, route?: string) {
 
 function collectMenuRoutes(nodes: MenuNode[] = [], parentPath = '') {
   nodes.forEach((node) => {
-    if (node.meta?.hideInMenu === true) return;
     const route = node.path?.startsWith('/')
       ? node.path
       : `${parentPath.replace(/\/$/, '')}/${node.path || ''}`;
-    addMapping(node.meta?.key || node.key, node.route || route);
+    addMapping(node.meta?.key || node.key, node.route || route, node.meta?.hideInMenu !== true);
     node.meta?.permissionItems?.forEach((item) => addMapping(item.key, item.route));
     if (node.children?.length) collectMenuRoutes(node.children, route);
   });

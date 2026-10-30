@@ -50,7 +50,7 @@
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
-                            <a-switch :disabled="editDisabledMenu" v-model="pmsForm.apiAll" @change="markCustomPermission"></a-switch>
+                            <a-switch :disabled="editDisabledMenu || (!pmsForm.apiAll && !canGrantAllApi)" v-model="pmsForm.apiAll" @change="markCustomPermission"></a-switch>
                         </a-form-item>
                         <a-form-item label="API列表" v-if="!pmsForm.apiAll">
                             <div class="api-permission-panel">
@@ -88,6 +88,7 @@
                                                             :key="apiRouteKey(route)"
                                                             :label="route.method"
                                                             :value="route.method"
+									:disabled="!apiRouteAllowed(route)"
                                                         ></a-option>
                                                     </a-select>
                                                 </td>
@@ -106,9 +107,10 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import { useAppStore, useNamespaceStore } from '@/store';
+import { useNamespaceStore } from '@/store';
 import appClientMenus from '@/router/app-menus';
-import { buildPermissionMenuTree } from '@/utils/permission-menu';
+import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu';
+import { allowsExclusiveGrant, allowsExclusiveMenu, loadExclusiveRules } from '@/utils/permission-exclusives';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
 import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
@@ -169,6 +171,8 @@ export default {
             sharedTreeData: [],
             virtualTreeData: [],
             globalTreeData: [],
+            microAppTreeData: [],
+            exclusiveRules: null,
             apiRoutes: [],
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
@@ -190,6 +194,12 @@ export default {
         sourceTreeData(){
             this.initTreeData();
         },
+        'pmsForm.userMode'(){
+			this.initTreeData();
+		},
+		'pmsForm.permissionPackage'(){
+			this.initTreeData();
+		},
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
@@ -197,11 +207,12 @@ export default {
         this.taocan();
         this.getApiRoutes();
         this.initTreeData();
+        loadPermissionMicroAppMenus(this.namespaceActive).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
+        loadExclusiveRules().then(rules => { this.exclusiveRules = rules; this.initTreeData(); }).catch(() => { this.exclusiveRules = null; this.initTreeData(); });
     },
     computed: {
         sourceTreeData(){
-            const appStore = useAppStore();
-            return buildPermissionMenuTree(appStore.menuFromServer ? appStore.appAsyncMenus : appClientMenus);
+            return [...buildPermissionMenuTree(appClientMenus), ...this.microAppTreeData];
         },
         apiRouteGroups(){
             let groupMap = {};
@@ -241,8 +252,17 @@ export default {
             return this.disabledBase || !this.pmsForm.customPermission;
         },
         editDisabledMenu(){
-            return this.disabledMenu || !this.pmsForm.customPermission;
+            return this.disabledMenu || !this.pmsForm.customPermission || !this.exclusiveRules;
         },
+        canGrantAllApi(){
+			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules, this.targetUserGroup, [], {'*': ['*']});
+		},
+		targetUserGroup(){
+			const selected = this.permissionPackageList.find(item => item.name === this.pmsForm.permissionPackage);
+			const parent = selected?.parentPermission
+				? this.permissionPackageList.find(item => item.name === selected.parentPermission) : null;
+			return selected?.role || parent?.role || this.pmsForm.userMode || 'normal';
+		},
     },
     components: {
         whitelistComponent,
@@ -272,12 +292,13 @@ export default {
             });
             
             this.pmsls = this.getVisiblePermissionPackages();
+			this.initTreeData();
 
             // this.pmsls = this.permissionPackageList;
             // if(this.type=='shared'){ this.pmsls = this.permissionPackageListShared; }
             // if(this.type=='virtual'){ this.pmsls = this.permissionPackageListVirtual; }
         },
-        submit(){
+        async submit(){
             let whitelist = this.$refs.whitelist.getList() || [];
             if(!this.pmsForm.customPermission && !this.pmsForm.permissionPackage){
                 this.$message.warning('请选择权限套餐');
@@ -289,9 +310,15 @@ export default {
                 ? this.permissionPackageList.find(i=>i.name==find.parentPermission)
                 : null;
             let role = find?.role || parent?.role || '';
+			let rules;
+			try { rules = await loadExclusiveRules(); } catch { this.$message.error('专属权限策略加载失败'); return; }
+			const group = this.targetUserGroup;
+			const menus = toPermissionPaths(this.pmsForm.list);
+			const api = this.formToApi();
+			if (!allowsExclusiveGrant(rules, group, menus, api)) { this.$message.warning('所选菜单或 API 不允许授予该用户组'); return; }
             this.$emit('submit',{
-                list: toPermissionPaths(this.pmsForm.list),
-                api: this.formToApi(),
+                list: menus,
+                api,
                 permissionPackage: this.pmsForm.permissionPackage,
                 role: role,
                 debug: this.pmsForm.debug,
@@ -471,7 +498,11 @@ export default {
         setPmsApiGroupMethods(group, methods){
             if(this.editDisabledMenu){return}
             this.markCustomPermission();
-            this.pmsForm.apiSelectedKeys = this.nextApiSelectedKeysForGroup(group, methods, this.pmsForm.apiSelectedKeys);
+			this.pmsForm.apiSelectedKeys = this.nextApiSelectedKeysForGroup(group, methods, this.pmsForm.apiSelectedKeys)
+				.filter(key => {
+					const route = this.apiRoutes.find(item => this.apiRouteKey(item) === key);
+					return route && this.apiRouteAllowed(route);
+				});
         },
         normalizeApiSelectedKeys(keys){
             let valid = new Set(this.apiRoutes.map(route => this.apiRouteKey(route)));
@@ -530,6 +561,7 @@ export default {
         },
         toggleApiRoute(route, checked){
             if(this.editDisabledMenu){return}
+			if(checked && !this.apiRouteAllowed(route)){return}
             this.markCustomPermission();
             let key = this.apiRouteKey(route);
             let selected = new Set(this.pmsForm.apiSelectedKeys || []);
@@ -543,8 +575,11 @@ export default {
         selectAllApiRoutes(){
             if(this.editDisabledMenu){return}
             this.markCustomPermission();
-            this.pmsForm.apiSelectedKeys = this.apiRoutes.map(route => this.apiRouteKey(route));
+            this.pmsForm.apiSelectedKeys = this.apiRoutes.filter(route => this.apiRouteAllowed(route)).map(route => this.apiRouteKey(route));
         },
+		apiRouteAllowed(route){
+			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules, this.targetUserGroup, [], {[route.path]: [route.verb]});
+		},
         clearApiRoutes(){
             if(this.editDisabledMenu){return}
             this.markCustomPermission();
@@ -558,17 +593,17 @@ export default {
         filterTree(keys){
             const menuDataCopy = JSON.parse(JSON.stringify(this.sourceTreeData));
     
-            const userGroup = this.pmsForm.userMode || 'normal';
+            const userGroup = this.targetUserGroup;
+            const exclusiveRules = this.exclusiveRules;
             function traverseAndDisable(nodes, keyPath = [], disabled) {
                 nodes.forEach(node => {
                     const currentKeyPath = [...keyPath, node.key];
-                    const exclusiveGroups = node.exclusiveGroups || [];
-                    const groupRestricted = exclusiveGroups.length && !exclusiveGroups.includes(userGroup);
+                    const groupRestricted = !exclusiveRules || !allowsExclusiveMenu(exclusiveRules, userGroup, node.route || '', node.key);
                     if (keys.includes(node.key) || disabled || groupRestricted) {
                         node.disabled = true;
                     }
                     if (node.children && node.children.length > 0) {
-                        traverseAndDisable(node.children, currentKeyPath, disabled);
+                        traverseAndDisable(node.children, currentKeyPath, disabled || groupRestricted);
                     }
                 });
             }
