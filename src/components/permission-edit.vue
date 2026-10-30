@@ -105,16 +105,17 @@
 </template>
 
 <script>
-import { k8sproxy, panelApi } from '@/utils/api';
-import axios from "axios";
-import { useNamespaceStore,useUserStore } from '@/store';
+import { k8sproxy } from '@/utils/api';
+import { useAppStore, useNamespaceStore } from '@/store';
+import appClientMenus from '@/router/app-menus';
+import { buildPermissionMenuTree } from '@/utils/permission-menu';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
 import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
     getLoadedApiRouteDescriptions,
-    loadApiRouteDescriptions,
     resolveApiRouteDescription,
 } from '@/utils/api-route-description';
+import { loadPermissionApiCatalog } from '@/utils/permission-api-catalog';
 
 const sharedPass = [
     'cluster-nodes',
@@ -154,7 +155,6 @@ export default {
                 type: 'virtual',
                 permissionPackage: '',
                 list: [],
-                treeData: [],
                 debug: false,
                 fileeditor: false,
                 webshell: false,
@@ -187,16 +187,22 @@ export default {
         'pmsForm.customPermission'(){
             this.initTreeData();
         },
+        sourceTreeData(){
+            this.initTreeData();
+        },
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
-        this.treeData = useUserStore().getTreeData;
         this.init();
         this.taocan();
         this.getApiRoutes();
         this.initTreeData();
     },
     computed: {
+        sourceTreeData(){
+            const appStore = useAppStore();
+            return buildPermissionMenuTree(appStore.menuFromServer ? appStore.appAsyncMenus : appClientMenus);
+        },
         apiRouteGroups(){
             let groupMap = {};
             this.apiRoutes.forEach(route => {
@@ -388,13 +394,9 @@ export default {
             if(this.apiRoutesPromise){
                 return this.apiRoutesPromise;
             }
-            this.apiRoutesPromise = Promise.all([
-                panelApi.get('/auth/permissions/routes', {noAlert:true}),
-                loadApiRouteDescriptions(),
-            ]).then(([res, descriptions])=>{
+            this.apiRoutesPromise = loadPermissionApiCatalog().then(({routes, descriptions})=>{
                 this.apiRouteDescriptions = descriptions;
-                let list = res?.data?.data || res?.data || [];
-                this.apiRoutes = Array.isArray(list) ? list.map(route => this.normalizeApiRoute(route)) : [];
+                this.apiRoutes = routes.map(route => this.normalizeApiRoute(route));
                 this.pmsForm.apiSelectedKeys = this.normalizeApiSelectedKeys(this.pmsForm.apiSelectedKeys);
                 return this.apiRoutes;
             }).finally(()=>{
@@ -554,12 +556,15 @@ export default {
             this.globalTreeData = this.filterTree([]);
         },
         filterTree(keys){
-            const menuDataCopy = JSON.parse(JSON.stringify(this.treeData));
+            const menuDataCopy = JSON.parse(JSON.stringify(this.sourceTreeData));
     
+            const userGroup = this.pmsForm.userMode || 'normal';
             function traverseAndDisable(nodes, keyPath = [], disabled) {
                 nodes.forEach(node => {
                     const currentKeyPath = [...keyPath, node.key];
-                    if (keys.includes(node.key) || disabled) {
+                    const exclusiveGroups = node.exclusiveGroups || [];
+                    const groupRestricted = exclusiveGroups.length && !exclusiveGroups.includes(userGroup);
+                    if (keys.includes(node.key) || disabled || groupRestricted) {
                         node.disabled = true;
                     }
                     if (node.children && node.children.length > 0) {

@@ -14,21 +14,28 @@
 </template>
 
 <script>
-import {useUserStore} from '@/store'
+import {useAppStore} from '@/store'
+import appClientMenus from '@/router/app-menus'
+import { buildPermissionMenuTree } from '@/utils/permission-menu'
 
 export default {
-    props: ['permission','disabled','allowedKeys'],
+    props: ['permission','disabled','allowedKeys','userGroup'],
     data(){
         return {
             expandKeys: [],
             checkedKeys: [],
-            sourceTreeData: useUserStore().getTreeData,
             treeData: [],
             halfCheckedKeys: [],
         }
     },
     created(){
         this.init();
+    },
+    computed: {
+        sourceTreeData(){
+            const appStore = useAppStore();
+            return buildPermissionMenuTree(appStore.menuFromServer ? appStore.appAsyncMenus : appClientMenus);
+        },
     },
     watch: {
         disabled(){
@@ -37,6 +44,12 @@ export default {
         allowedKeys(){
             this.checkedKeys = this.filterAllowedKeys(this.checkedKeys);
             this.halfCheckedKeys = this.filterAllowedKeys(this.halfCheckedKeys);
+            this.initTreeData();
+        },
+        userGroup(){
+            this.initTreeData();
+        },
+        sourceTreeData(){
             this.initTreeData();
         },
         checkedKeys(v){
@@ -52,8 +65,6 @@ export default {
                 this.checkedKeys = [];
             }
             this.checkedKeys = this.filterAllowedKeys(this.checkedKeys);
-            this.sourceTreeData = JSON.parse(JSON.stringify(this.sourceTreeData));
-
             this.initTreeData();
         },
         initTreeData(){
@@ -63,6 +74,7 @@ export default {
             const menuDataCopy = JSON.parse(JSON.stringify(this.sourceTreeData));
             const allowed = this.allowedKeys ? new Set(this.allowedKeys) : null;
     
+            const userGroup = this.userGroup;
             function traverseAndDisable(nodes, keyPath = [], disabled) {
                 const result = [];
                 nodes.forEach(node => {
@@ -71,7 +83,9 @@ export default {
                         node.children = traverseAndDisable(node.children, currentKeyPath, disabled);
                     }
                     const nodeAllowed = !allowed || allowed.has(node.key) || allowed.has(node.route);
-                    if ((allowed && !nodeAllowed) || keys.includes(node.key) || disabled) {
+                    const exclusiveGroups = node.exclusiveGroups || [];
+                    const groupRestricted = userGroup && exclusiveGroups.length && !exclusiveGroups.includes(userGroup);
+                    if ((allowed && !nodeAllowed) || keys.includes(node.key) || disabled || groupRestricted) {
                         node.disabled = true;
                     }
                     result.push(node);

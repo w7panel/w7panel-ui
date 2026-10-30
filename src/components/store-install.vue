@@ -1374,10 +1374,9 @@ export default {
                         i.startParams?.forEach(sp=>{
                             const moduleName = this.normalizeDependencyIdentifie(sp.module_name);
                             if(!dependencyModuleNames.has(moduleName)){return}
-                            const template = String(sp.values_text || sp.value || '');
-                            sp.value = template.replace(/%([^%]+)%/g, (match, p1) => {
-                                return envs[p1] ?? match;
-                            });
+                            const name = this.normalizeDependencyParamName(sp.name);
+                            if(!Object.prototype.hasOwnProperty.call(envs,name) || envs[name]==null){return}
+                            sp.value = String(envs[name]);
                         })
                     })
                 }

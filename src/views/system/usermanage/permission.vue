@@ -99,6 +99,7 @@
                                     :disabled="form.name==founderName || (menuConstraintKeys && !menuConstraintKeys.length)"
                                     :permission="form.permission"
                                     :allowed-keys="menuConstraintKeys"
+                                    :user-group="permissionUserGroup"
                                     @checked="v=>form.permission=v"
                                 ></menu-select>
                             </div>
@@ -169,7 +170,6 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import { panelApi } from '@/utils/api';
 import axios from 'axios';
 import menuSelect from '@/views/system/permission/menu-select.vue';
 import { useNamespaceStore } from '@/store';
@@ -179,9 +179,9 @@ import whitelistComponent from '../whitelist/whitelist-component.vue';
 import { expandPermissionValues, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
     getLoadedApiRouteDescriptions,
-    loadApiRouteDescriptions,
     resolveApiRouteDescription,
 } from '@/utils/api-route-description';
+import { loadPermissionApiCatalog } from '@/utils/permission-api-catalog';
 
 const dataTemplate = {
     "kind": "Permission",
@@ -322,6 +322,9 @@ export default {
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;
         },
+        permissionUserGroup(){
+            return this.form.originData?.spec?.role || (this.form.name === this.founderName ? 'founder' : 'normal');
+        },
     },
     components: {
         menuSelect,
@@ -376,13 +379,9 @@ export default {
             if(this.apiRoutesPromise){
                 return this.apiRoutesPromise;
             }
-            this.apiRoutesPromise = Promise.all([
-                panelApi.get('/auth/permissions/routes', {noAlert:true}),
-                loadApiRouteDescriptions(),
-            ]).then(([res, descriptions])=>{
+            this.apiRoutesPromise = loadPermissionApiCatalog().then(({routes, descriptions})=>{
                 this.apiRouteDescriptions = descriptions;
-                let list = res?.data?.data || res?.data || [];
-                this.apiRoutes = Array.isArray(list) ? list.map(route => this.normalizeApiRoute(route)) : [];
+                this.apiRoutes = routes.map(route => this.normalizeApiRoute(route));
                 this.form = {
                     ...this.form,
                     apiSelectedKeys: this.normalizeApiSelectedKeys(this.form.apiSelectedKeys),
