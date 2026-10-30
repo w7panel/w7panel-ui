@@ -1,5 +1,5 @@
 <template>
-    <div class="com-container df df-c">
+    <div class="com-container df df-c" :class="{'kilo-layout': selectMenu[0]=='4'}">
         <route-breadcrumb />
         <div>
             <a-button v-if="permission.includes('cluster/nodes/add')" type="primary" @click="openForm()"><template #icon><icon-plus /></template>注册节点</a-button>
@@ -17,9 +17,10 @@
                     <a-menu-item key="1">节点管理</a-menu-item>
                     <a-menu-item key="2">存储节点管理</a-menu-item>
                     <a-menu-item key="3">GPU节点管理</a-menu-item>
+                    <a-menu-item v-if="isFounder" key="4">组网管理</a-menu-item>
                 </a-menu>
             </a-layout-sider>
-            <a-layout-content class="ml-6 bg-white padding-20">
+            <a-layout-content class="ml-6 bg-white" :class="{'padding-20': selectMenu[0]!='4', 'kilo-content': selectMenu[0]=='4'}">
                 <a-table v-if="selectMenu[0]=='1'" :data="list" class="nodestable" :scroll="{ x: 1600 }" :pagination="false" :bordered="false">
                     <template #columns>
                         <a-table-column title="节点名称" fixed="left" :width="300">
@@ -53,38 +54,13 @@
                                             </span>
                                         </a-tooltip>
                                     </div>
-                                    <div v-if="editPublicIp.show && editPublicIp.name==record.name">
-                                        <a-input v-model="editPublicIp.ip" placeholder="请输入ip" style="width:200px;" size="small"></a-input>
-                                        <a-button type="primary" class="ml-4" size="small" @click="toEditPublicIp">确定</a-button>
-                                    </div>
-                                    <div v-else-if="record.publicIp">
-                                        <div class="df ai-c">
-                                            <span class="va-middle">{{record.publicIp}}（公网）</span>
-                                            <!-- <span class="opt-icon" @click="onekeyCopy(record.publicIp)"><icon-copy /></span> -->
-                                            
-                                            <a-tooltip content="复制">
-                                                <span class="opt-icon" style="margin-left:0;" @click="onekeyCopy(record.publicIp)">
-                                                    <icon-copy />
-                                                </span>
-                                            </a-tooltip>
-                                            <a-tooltip content="修改IP">
-                                                <span class="opt-icon" style="margin-left:0;" @click="editPublicIp={show:true,name:record.name,ip:record.publicIp}">
-                                                    <icon-pen />
-                                                </span>
-                                            </a-tooltip>
-                                        </div>
-                                    </div>
-                                    <div v-else >
-                                        <span>-</span>
-                                        <a-tooltip content="修改IP">
-                                            <span class="opt-icon ml-4" @click="editPublicIp={show:true,name:record.name,ip:''}">
-                                                <icon-pen />
-                                            </span>
+                                    <div class="df ai-c">
+                                        <span class="va-middle">{{record.publicIp || '-'}}（公网）</span>
+                                        <a-tooltip v-if="record.publicIp" content="复制">
+                                            <span class="opt-icon" style="margin-left:0;" @click="onekeyCopy(record.publicIp)"><icon-copy /></span>
                                         </a-tooltip>
-                                        <a-tooltip content="自动获取IP">
-                                            <span class="opt-icon" style="margin-left:0;" @click="refreshPublicIp(record)">
-                                                <icon-sync />
-                                            </span>
+                                        <a-tooltip v-if="!isSubCluster" content="修改公网 IP">
+                                            <span class="opt-icon" style="margin-left:0;" @click="openPublicIp(record)"><icon-pen /></span>
                                         </a-tooltip>
                                     </div>
                                 </div>
@@ -187,6 +163,13 @@
                 <div v-if="selectMenu[0]=='3'">
                     <set-gpu :show="selectMenu[0]=='3'" @close="clscf.dialog=false;" />
                 </div>
+                <div v-if="isFounder && selectMenu[0]=='4'" class="kilo-page">
+                    <div v-if="kiloStatus=='loading'" class="kilo-status">正在检查组网组件…</div>
+                    <a-empty v-else-if="kiloStatus=='missing'" class="mt-40">组网组件未安装，<span class="c-blue cursor" @click="installKilo.show=true">点击安装</span></a-empty>
+                    <a-empty v-else-if="kiloStatus=='installing'" class="mt-40">组网组件尚未安装完成，<span class="c-blue cursor" @click="testKilo">刷新状态</span></a-empty>
+                    <a-empty v-else-if="kiloStatus=='error'" class="mt-40">组网组件加载失败，<span class="c-blue cursor" @click="testKilo">重试</span></a-empty>
+                    <gateway-plugin-microapp v-else-if="kiloMicroApp" :microapp="kiloMicroApp" route="#/" instance-name="w7panel-kilo" @error="kiloStatus='error'" />
+                </div>
             </a-layout-content>
         </a-layout>
         
@@ -276,7 +259,14 @@
                 <a-form-item label="主服务器地址"  field="k3s_url" :rules="[{required:true,message:'请输入主服务器地址'}]">
                     <div style="flex:1;">
                         <a-input v-model="form.k3s_url" placeholder="请输入"></a-input>
-                        <a-checkbox v-model="form.ww" @change="form.k3s_url = form.ww?publicIp:form.defaultURL" class="mt-8" :disabled="!publicIp">外网</a-checkbox>
+                        <div class="df ai-c mt-8">
+                            <a-checkbox v-model="form.ww" @change="form.k3s_url = form.ww?publicIp:form.defaultURL" :disabled="edgeStatus!='available'">边缘节点</a-checkbox>
+                            <a-spin v-if="edgeStatus=='checking'" :loading="true" class="ml-8" />
+                            <icon-check-circle v-else-if="edgeStatus=='available'" class="c-green fs-16 ml-8" aria-label="主 server 公网 IP 可达" />
+                            <a-tooltip v-else content="请在server节点配置公网IP后再操作！">
+                                <icon-close-circle class="c-red fs-16 ml-8" aria-label="主 server 公网 IP 不可达" />
+                            </a-tooltip>
+                        </div>
                     </div>
                     <template #extra>主服务器(节点)apiserver地址: https://服务器内网ip:6443</template>
                 </a-form-item>
@@ -316,11 +306,26 @@
             <a-textarea v-model="commandModal.command" placeholder="请输入命令" allow-clear style="height:100px;" :spellcheck="false" />
         </a-modal> -->
 
+        <a-modal :visible="editPublicIp.show" title="配置公网 IP" :mask-closable="false" :closable="!editPublicIp.loading && !editPublicIp.detecting" :popup-container="$popupContainer" @cancel="(editPublicIp.loading || editPublicIp.detecting) || (editPublicIp.show=false)">
+            <a-alert v-if="editPublicIp.server" type="warning" class="mb-20">修改公网 IP 会造成集群 apiserver 短暂重启，请勿频繁操作。</a-alert>
+            <a-form :model="editPublicIp" auto-label-width>
+                <a-form-item label="节点">{{editPublicIp.name}}</a-form-item>
+                <a-form-item label="公网 IP">
+                    <a-input v-model="editPublicIp.ip" placeholder="请输入 IPv4 地址，留空可移除" :disabled="editPublicIp.loading" />
+                    <a-button type="text" :loading="editPublicIp.detecting" :disabled="editPublicIp.loading" @click="detectPublicIp"><template #icon><icon-sync /></template>自动获取</a-button>
+                </a-form-item>
+            </a-form>
+            <template #footer>
+                <a-button :disabled="editPublicIp.loading || editPublicIp.detecting" @click="editPublicIp.show=false">取消</a-button>
+                <a-button type="primary" :loading="editPublicIp.loading" :disabled="editPublicIp.detecting" @click="toEditPublicIp">提交</a-button>
+            </template>
+        </a-modal>
+
         <a-drawer :visible="clusterInfo.show" width="800px" @cancel="clusterInfo.show=false;" :popup-container="$popupContainer">
             <template #title>集群认证信息</template>
             <a-tabs v-model:active-key="clusterInfo.activeTab">
                 <a-tab-pane key="kubeconfig" title="kubeconfig">
-                    <a-select v-if="!clusterInfo.isSubCluster" v-model="clusterInfo.selectedAddress" placeholder="请选择地址" @change="getKubeconfig">
+                    <a-select v-if="kubeconfigAddresses.length" v-model="clusterInfo.selectedAddress" placeholder="请选择地址" @change="getKubeconfig">
                         <a-option v-for="address in kubeconfigAddresses" :key="address" :value="address">{{address}}</a-option>
                     </a-select>
                     <div class="mt-20" style="height:calc(100vh - 240px);">
@@ -328,16 +333,24 @@
                         <a-spin v-else-if="clusterInfo.kubeconfigLoading" />
                     </div>
                 </a-tab-pane>
-                <a-tab-pane v-if="!clusterInfo.isSubCluster" key="tls-san" title="tls-san">
+                <a-tab-pane key="tls-san" title="tls-san">
                     <a-form-item label="地址">
                         <div class="padding-10" style="background:var(--color-neutral-1);">
+                            <div v-if="clusterInfo.isSubCluster && !clusterInfo.ips.length" class="padding-10 c-99">暂无 tls-san 配置</div>
                             <div v-for="(item,index) in clusterInfo.ips" class="df ai-c padding-10" :key="index">
+                                <template v-if="clusterInfo.isSubCluster">
+                                    <a-tag>{{item.type === 'ip' ? 'IP' : '域名'}}</a-tag>
+                                    <span class="ml-8">{{item.address}}</span>
+                                </template>
+                                <template v-else>
                                 <a-tag>{{item.type === 'ip' ? 'IP' : '域名'}}</a-tag>
                                 <a-input v-model="item.address" :disabled="item.default" placeholder="请输入 IP 或域名" class="f1 ml-8" />
+                                <a-tag v-if="item.default" class="ml-8">内置</a-tag>
                                 <a-switch v-model="item.enable" :disabled="item.default" class="ml-10" />
                                 <a-button v-if="!item.default" type="text" status="danger" class="ml-6" @click="clusterInfo.ips.splice(index,1)">删除</a-button>
+                                </template>
                             </div>
-                            <div class="df ai-c mt-10">
+                            <div v-if="!clusterInfo.isSubCluster" class="df ai-c mt-10">
                                 <a-select v-model="clusterInfo.newType" style="width:110px">
                                     <a-option value="ip">IP</a-option>
                                     <a-option value="domain">域名</a-option>
@@ -351,11 +364,12 @@
             </a-tabs>
             <template #footer>
                 <a-button v-if="clusterInfo.activeTab === 'kubeconfig'" :disabled="!clusterInfo.yaml" type="primary" @click="downloadClusterInfo">下载 kubeconfig</a-button>
-                <a-button v-else type="primary" :loading="clusterInfo.applying" @click="submitClusterInfo">生效应用</a-button>
+                <a-button v-else-if="!clusterInfo.isSubCluster" type="primary" :loading="clusterInfo.applying" @click="submitClusterInfo">生效应用</a-button>
             </template>
         </a-drawer>
 
         <store-install-drawer :show="installLonghornPlugin.show" :path="installLonghornPlugin.path" @close="installLonghornPlugin.show=false;" @installedStatusSuccess="installLonghornPlugin.show=false;testLonghornSystem();"></store-install-drawer>
+        <store-install-drawer :show="installKilo.show" path="https://zpk.w7.cc/zpk/respo/info/w7panel-kilo" @close="installKilo.show=false" @installedStatusSuccess="installKilo.show=false;testKilo()" />
         <!-- <node-bind :show="nodebindshow" :list="list" @close="v=>{nodebindshow=false;v?getList():null;}"></node-bind> -->
     </div>
 </template>
@@ -369,7 +383,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import {FitAddon} from '@xterm/addon-fit';
 import { useNamespaceStore,useLoadingStore } from '@/store'
-import { getToken } from '@/utils/auth';
+import { getToken, getK8sinfo } from '@/utils/auth';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import setGpu from "./set-gpu.vue";
 import { getUserInfo } from '@/utils/auth';
@@ -382,6 +396,7 @@ import yamlEditor from "@/components/yaml-editor.vue";
 import { getPermission,getWebshell,getFileEditor } from '@/utils/auth';
 import jsyaml from "js-yaml";
 import storeInstallDrawer from '@/components/store-install-drawer.vue';
+import gatewayPluginMicroapp from '@/components/gateway-plugin-microapp.vue';
 
 const templateYaml = `apiVersion: helm.cattle.io/v1
 kind: HelmChart
@@ -430,6 +445,8 @@ export default {
                 'node-role.kubernetes.io/control-plane',
                 'node-role.kubernetes.io/master',
                 'node.kubernetes.io/instance-type',
+                'w7.public-ip',
+                'w7.cc/load-public-ip',
             ],
             
             setlabel: {
@@ -469,6 +486,8 @@ export default {
             },
             term: null,
             publicIp: '',
+            edgeStatus: 'idle',
+            edgeCheckId: 0,
             yamlData: {},
             // commandModal: {
             //     pod_name: '',
@@ -496,7 +515,12 @@ export default {
                 show: false,
                 name: '',
                 ip: '',
+                initialIP: '',
+                server: false,
+                detecting: false,
+                loading: false,
             },
+            isSubCluster: true,
             clusterInfo: {
                 show: false,
                 loading: false,
@@ -516,6 +540,11 @@ export default {
 
             selectMenu: ['1'],
             hasLonghornSystem: false,
+            isFounder: getK8sinfo()?.['w7.cc/role'] === 'founder',
+            kiloStatus: '',
+            kiloMicroApp: null,
+            kiloRequestId: 0,
+            installKilo: { show: false },
 
             installLonghornPlugin: {
                 show: false,
@@ -534,13 +563,26 @@ export default {
         this.getList();
         this.appInfoPromise = panelApi.get('/app-info', { noAlert: true }).then(res=>{
             const isSubCluster = res.data?.isSubCluster === true;
+            this.isSubCluster = isSubCluster;
             if (!isSubCluster) this.getConfig();
             return isSubCluster;
         }).catch(()=>null);
         this.testLonghornSystem();
     },
     watch: {
-        selectMenu: 'testLonghornSystem',
+        selectMenu(){
+            this.testLonghornSystem();
+            if(this.selectMenu[0]=='4') this.testKilo();
+            else this.kiloRequestId++;
+        },
+        'form.show'(show){
+            if(show) this.checkEdgePublicIP();
+            else this.edgeCheckId++;
+        },
+    },
+    beforeUnmount(){
+        this.kiloRequestId++;
+        this.edgeCheckId++;
     },
     components: {
         yamlDrawer,
@@ -551,6 +593,7 @@ export default {
         ddcNode,
         ndSet,
         storeInstallDrawer,
+        gatewayPluginMicroapp,
     },
     computed: {
         kubeconfigAddresses(){
@@ -558,6 +601,46 @@ export default {
         },
     },
     methods: {
+        async checkEdgePublicIP(){
+            const requestId = ++this.edgeCheckId;
+            this.edgeStatus = 'checking';
+            this.publicIp = '';
+            if(this.form.ww){
+                this.form.ww = false;
+                this.form.k3s_url = this.form.defaultURL;
+            }
+            try{
+                const res = await panelApi.get('/cluster/nodes/public-ip/check', {noAlert:true});
+                if(requestId !== this.edgeCheckId || !this.form.show) return;
+                this.publicIp = res?.data?.available && res?.data?.ip ? `https://${res.data.ip}:6443` : '';
+                this.edgeStatus = this.publicIp ? 'available' : 'unavailable';
+            }catch{
+                if(requestId !== this.edgeCheckId || !this.form.show) return;
+                this.edgeStatus = 'unavailable';
+            }
+        },
+        async testKilo(){
+            if(!this.isFounder || this.selectMenu[0]!='4') return;
+            const requestId = ++this.kiloRequestId;
+            this.kiloStatus = 'loading';
+            this.kiloMicroApp = null;
+            const groupRequest = k8sproxy.get(`/apis/w7panel.w7.com/v1alpha1/namespaces/${encodeURIComponent(this.namespaceActive)}/appgroups/w7panel-kilo`, {noAlert:true})
+                .catch(error => ({error}));
+            try{
+                const microApp = await panelApi.get('/microapp/w7panel-kilo/info', {noAlert:true});
+                if(requestId !== this.kiloRequestId) return;
+                if(!microApp?.data?.metadata?.name) throw new Error('组网组件前端未就绪');
+                this.kiloMicroApp = microApp.data;
+                this.kiloStatus = 'ready';
+            }catch(error){
+                if(requestId !== this.kiloRequestId) return;
+                const group = await groupRequest;
+                if(requestId !== this.kiloRequestId) return;
+                this.kiloStatus = group?.error
+                    ? group.error?.response?.status === 404 ? 'missing' : 'error'
+                    : group?.data?.status?.deployStatus === 'deployed' ? 'error' : 'installing';
+            }
+        },
         insLonghorn(){
             this.installLonghornPlugin = {
                 show: true,
@@ -599,16 +682,14 @@ export default {
             this.clusterInfo.kubeconfigLoading = true;
             try {
                 const res = await panelApi.get('/kubeconfig');
-                if (this.clusterInfo.isSubCluster) {
-                    this.clusterInfo.yaml = res.data;
-                    return;
-                }
                 const config = jsyaml.load(res.data);
                 const address = this.clusterInfo.selectedAddress;
-                const host = address.includes(':') && !address.startsWith('[') ? `[${address}]` : address;
-                (config.clusters || []).forEach(item => {
-                    item.cluster.server = `https://${host}:6443`;
-                });
+                if (address) {
+                    const host = address.includes(':') && !address.startsWith('[') ? `[${address}]` : address;
+                    (config.clusters || []).forEach(item => {
+                        item.cluster.server = `https://${host}:6443`;
+                    });
+                }
                 this.clusterInfo.yaml = jsyaml.dump(config);
             } catch (error) {
                 this.$message.error('读取 kubeconfig 失败');
@@ -673,15 +754,16 @@ export default {
                 this.clusterInfo.applying = false;
             }
         },
-        async waitForClusterReady(){
+        async waitForClusterReady(nodeName){
             const startedAt = Date.now();
-            const firstServer = this.getFirstServer();
-            if (!firstServer) throw new Error('未找到 server 节点');
+            const serverName = nodeName || this.getFirstServer()?.metadata.name;
+            if (!serverName) throw new Error('未找到 server 节点');
+            // shortcut: Ready after 20 seconds can precede a delayed restart; use an apply status when K3sConfig exposes one.
             while (Date.now() - startedAt < 5 * 60 * 1000) {
                 if (Date.now() - startedAt >= 20000) {
                     try {
                         const res = await k8sproxy.get('/api/v1/nodes');
-                        const node = (res.data?.items || []).find(item => item.metadata?.name === firstServer.metadata.name);
+                        const node = (res.data?.items || []).find(item => item.metadata?.name === serverName);
                         if (node?.status?.conditions?.some(condition => condition.type === 'Ready' && condition.status === 'True')) return;
                     } catch {}
                 }
@@ -694,6 +776,7 @@ export default {
             if (isSubCluster === null) {
                 try {
                     isSubCluster = (await panelApi.get('/app-info')).data?.isSubCluster === true;
+                    this.isSubCluster = isSubCluster;
                     if (!isSubCluster) this.getConfig();
                 } catch {
                     this.$message.error('读取集群信息失败');
@@ -711,8 +794,17 @@ export default {
                 isSubCluster,
             };
             if (isSubCluster) {
-                this.getKubeconfig();
-                this.clusterInfo.loading = false;
+                k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(async res=>{
+                    const data = res?.data?.spec?.data || {};
+                    let addresses = (data['k3s.tls-san'] || '').split(',').filter(Boolean);
+                    if (!Object.prototype.hasOwnProperty.call(data, 'k3s.tls-san')) {
+                        const config = jsyaml.load(data['k3s.config'] || '') || {};
+                        addresses = Array.isArray(config['tls-san']) ? config['tls-san'] : [];
+                    }
+                    this.clusterInfo.ips = [...new Set(addresses)].map(address => ({address, type: this.isValidTlsAddress(address, 'ip') ? 'ip' : 'domain', enable: true, default: true}));
+                    this.clusterInfo.selectedAddress = this.kubeconfigAddresses[0] || '';
+                    await this.getKubeconfig();
+                }).catch(()=>this.$message.error('读取 tls-san 配置失败')).finally(()=>{ this.clusterInfo.loading = false; });
                 return;
             }
             const server = this.getFirstServer();
@@ -720,7 +812,11 @@ export default {
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(configRes=>{
                 const data = configRes?.data?.spec?.data || {};
                 const split = key => (data[key] || '').split(',').filter(Boolean);
-                const defaults = [...new Set([serverIp, ...split('k3s.default-tls-san')].filter(Boolean))];
+                const serverPublicIPs = this.data.filter(node => {
+                    const labels = node.metadata?.labels || {};
+                    return 'node-role.kubernetes.io/control-plane' in labels || 'node-role.kubernetes.io/master' in labels;
+                }).map(node => node.metadata.labels?.['w7.public-ip']).filter(Boolean);
+                const defaults = [...new Set([serverIp, ...split('k3s.default-tls-san'), ...split('k3s.public-tls-san'), ...serverPublicIPs].filter(Boolean))];
                 const configured = new Map();
                 split('k3s.tls-san').forEach(address => configured.set(address, true));
                 split('k3s.tls-san.disabled').forEach(address => configured.set(address, false));
@@ -746,32 +842,46 @@ export default {
                 return 'node-role.kubernetes.io/control-plane' in labels || 'node-role.kubernetes.io/master' in labels;
             });
         },
-        toEditPublicIp(){
-            k8sproxy.patch('/api/v1/nodes/'+this.editPublicIp.name,[{
-                op: 'add',
-                path: '/metadata/labels/w7.public-ip',
-                value: this.editPublicIp.ip
-            }],{
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(res=>{
-                this.$message.success('操作成功');
-                this.getList();
-                this.editPublicIp.show = false;
-            });
+        openPublicIp(record){
+            this.editPublicIp = {
+                show: true, name: record.name, ip: record.publicIp || '', initialIP: record.publicIp || '',
+                server: record.controlPlane || record.isServer, detecting: false, loading: false,
+            };
         },
-        refreshPublicIp(row){
-            k8sproxy.patch('/api/v1/nodes/'+row.name,[{
-                op: 'replace',
-                path: '/metadata/labels/w7.cc~1load-public-ip',
-                value: 'true'
-            }],{
-                headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(res=>{
-                this.$message.success('操作成功');
-                setTimeout(()=>{
-                    this.getList();
-                },3600);
-            });
+        async detectPublicIp(){
+            this.editPublicIp.detecting = true;
+            try {
+                const res = await panelApi.get(`/cluster/nodes/${encodeURIComponent(this.editPublicIp.name)}/public-ip/detect`);
+                this.editPublicIp.ip = res.data.ip;
+            } catch (error) {
+                this.$message.error(error?.message || '自动获取公网 IP 失败');
+            } finally {
+                this.editPublicIp.detecting = false;
+            }
+        },
+        async toEditPublicIp(){
+            const ip = this.editPublicIp.ip.trim();
+            if (ip && (ip.includes(':') || !this.isValidTlsAddress(ip, 'ip'))) {
+                this.$message.warning('请输入有效的 IPv4 地址');
+                return;
+            }
+            if (ip === this.editPublicIp.initialIP && !this.editPublicIp.server) {
+                this.editPublicIp.show = false;
+                return;
+            }
+            this.editPublicIp.loading = true;
+            try {
+                const res = await panelApi.put(`/cluster/nodes/${encodeURIComponent(this.editPublicIp.name)}/public-ip`, {ip});
+                this.editPublicIp.initialIP = ip;
+                this.getList();
+                if (res.data.restartTriggered) await this.waitForClusterReady(this.editPublicIp.name);
+                this.$message.success('公网 IP 已更新');
+                this.editPublicIp.show = false;
+            } catch (error) {
+                this.$message.error(error?.message || '保存或等待集群恢复失败，请确认集群状态');
+            } finally {
+                this.editPublicIp.loading = false;
+            }
         },
         getConfig(){
             // config
@@ -1055,6 +1165,10 @@ export default {
         },
         // 提交编辑标签
         submitSetlabel(){
+            if (this.setlabel.custom.some(item => this.labelReserve.includes(item.key))) {
+                this.$message.warning('不能修改保留标签');
+                return;
+            }
             this.setlabel.custom = this.setlabel.custom.filter(i=> (i.key && i.value) );
             let arr = this.setlabel.reserve.concat(this.setlabel.custom);
             let obj = {};
@@ -1106,9 +1220,6 @@ export default {
                 let data = res.data?.items || [];
                 this.data = data;
                 let list = data.map(item=>{
-                    if(item?.metadata?.labels?.['node-role.kubernetes.io/master'] && item.metadata.labels?.['w7.public-ip']){
-                        this.publicIp = 'https://' + item.metadata.labels?.['w7.public-ip'] + ':6443';
-                    }
                     let ready = item?.status?.conditions?.find(i=>i.type=='Ready')?.status == 'True';
                     
                     return {
@@ -1123,7 +1234,7 @@ export default {
                         unschedulable: !!item.spec.unschedulable,
                         labels: item.metadata.labels,
                         taints: item.spec.taints,
-                        master: item?.metadata?.labels?.['node-role.kubernetes.io/master'],
+                        master: item?.metadata?.labels?.['node-role.kubernetes.io/master'] !== undefined || item?.metadata?.labels?.['node-role.kubernetes.io/control-plane'] !== undefined,
                         controlPlane: item?.metadata?.labels?.['node-role.kubernetes.io/control-plane'] !== undefined,
                         customTag: item?.metadata?.labels?.['node-role.kubernetes.io/custom'],
                         storage: item?.metadata?.labels?.['node.kubernetes.io/storage'],
@@ -1131,7 +1242,7 @@ export default {
                         containerName: '',
                         version: item?.status?.nodeInfo.kubeletVersion,
                         swap: item?.metadata?.annotations?.['w7.cc.swap'],
-                        isServer: item?.metadata?.labels?.['node-role.kubernetes.io/master'] === 'true',
+                        isServer: item?.metadata?.labels?.['node-role.kubernetes.io/master'] !== undefined,
                         
                         cpu: item.status.allocatable.cpu,
                         memory: (Number(item.status.allocatable.memory.replace(/[a-zA-z]/g,'')) / 1024 / 1024 ).toFixed(2),
@@ -1151,9 +1262,12 @@ export default {
 
                 this.list = list;
                 
-                let ip = this.list?.find(i=>i.master)?.internalIP;
-                if(ip){
-                    this.form.defaultURL = 'https://' + ip + ':6443';
+                let previousDefaultURL = this.form.defaultURL;
+                let master = this.list.find(i=>i.master);
+                this.form.defaultURL = master?.internalIP ? 'https://' + master.internalIP + ':6443' : '';
+                if(this.form.show){
+                    if(this.form.k3s_url === previousDefaultURL) this.form.k3s_url = this.form.defaultURL;
+                    this.checkEdgePublicIP();
                 }
             }).then(()=>{
                 return k8sproxy.get('/apis/metrics.k8s.io/v1beta1/nodes')
@@ -1204,6 +1318,12 @@ body[arco-theme='dark'] .filetable .opt-icon{color:#3c7eff;}
 .nodestable .opt-icon + .opt-icon{margin-left:10px;}
 </style>
 <style scoped>
+.kilo-layout{height:100%;min-height:0;}
+.kilo-layout > .arco-layout,.kilo-content{min-height:0;}
+.kilo-content{padding:0;}
+.kilo-page{width:100%;height:100%;min-height:480px;}
+.kilo-status{padding:20px;color:var(--color-text-3);}
+.kilo-page :deep(wujie-app){display:block;height:100%;overflow:auto;}
 .mb-10{margin-bottom:10px;}
 .pods{max-height:500px; overflow:auto;}
 .pods .item{min-height:36px; padding:4px 10px 4px 0; border-bottom:1px solid #eee;}

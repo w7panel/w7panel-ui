@@ -51,6 +51,7 @@
                                             <a-option label="自定义" value="custom"></a-option>
                                             <a-option label="Field" value="field"></a-option>
                                             <a-option label="ResourceField" value="resource_field"></a-option>
+                                            <a-option v-if="item.type==='reference'" label="引用" value="reference"></a-option>
                                         </a-select>
                                     </td>
                                     <td>
@@ -59,6 +60,7 @@
                                     <td>
                                         <span v-if="item.type=='preserved'">{{ item.originalValueFrom.secretKeyRef ? 'Secret 引用' : 'ConfigMap / 其他引用' }}（保留原配置，切换类型会替换引用）</span>
                                         <a-input v-if="item.type=='custom'" :disabled="item.disabled" v-model="item.value" size="large" style="width:170px;" placeholder="变量值" />
+                                        <span v-if="item.type==='reference'">{{ item.valueFrom?.secretKeyRef ? 'Secret ' + item.valueFrom.secretKeyRef.name + '/' + item.valueFrom.secretKeyRef.key : item.valueFrom?.configMapKeyRef ? 'ConfigMap ' + item.valueFrom.configMapKeyRef.name + '/' + item.valueFrom.configMapKeyRef.key : '引用值' }}</span>
                                         
                                         <!-- <a-select v-if="item.type=='field'" :disabled="item.disabled" v-model="item.value" size="large" placeholder="请选择" style="width:170px;">
                                             <a-option value="metadata.name" label="metadata.name"></a-option>
@@ -323,6 +325,7 @@
                                             <a-option label="自定义" value="custom"></a-option>
                                             <a-option label="Field" value="field"></a-option>
                                             <a-option label="ResourceField" value="resource_field"></a-option>
+                                            <a-option v-if="item.type==='reference'" label="引用" value="reference"></a-option>
                                         </a-select>
                                     </td>
                                     <td>
@@ -331,6 +334,7 @@
                                     <td>
                                         <span v-if="item.type=='preserved'">{{ item.originalValueFrom.secretKeyRef ? 'Secret 引用' : 'ConfigMap / 其他引用' }}（保留原配置，切换类型会替换引用）</span>
                                         <a-input v-if="item.type=='custom'" :disabled="item.disabled" v-model="item.value" size="large" style="width:170px;" placeholder="变量值" />
+                                        <span v-if="item.type==='reference'">{{ item.valueFrom?.secretKeyRef ? 'Secret ' + item.valueFrom.secretKeyRef.name + '/' + item.valueFrom.secretKeyRef.key : item.valueFrom?.configMapKeyRef ? 'ConfigMap ' + item.valueFrom.configMapKeyRef.name + '/' + item.valueFrom.configMapKeyRef.key : '引用值' }}</span>
                                         
                                         <!-- <a-select v-if="item.type=='field'" :disabled="item.disabled" v-model="item.value" size="large" placeholder="请选择" style="width:170px;">
                                             <a-option value="metadata.name" label="metadata.name"></a-option>
@@ -1113,6 +1117,8 @@ export default{
                     type = 'field';
                 }else if(v.valueFrom?.resourceFieldRef?.resource){
                     type = 'resource_field';
+                }else if(v.valueFrom){
+                    type = 'reference';
                 }
                 let divisor = v.valueFrom?.resourceFieldRef?.divisor;
                 let divisorAppend = '';
@@ -1127,6 +1133,7 @@ export default{
                     originalValueFrom: v.valueFrom ? JSON.parse(JSON.stringify(v.valueFrom)) : undefined,
                     value: v.value ?? v?.valueFrom?.fieldRef?.fieldPath ?? v?.valueFrom?.resourceFieldRef?.resource,
                     type: type,
+                    ...(type === 'reference' ? { valueFrom: v.valueFrom } : {}),
                     ...(divisor?{
                         divisor:divisor,
                         divisorAppend:divisorAppend,
@@ -1290,6 +1297,8 @@ export default{
                                 divisor: (v.divisor || 1) + (v.divisorAppend || ''),
                             }
                         }
+                    }else if(v.type==='reference'){
+                        o.valueFrom = v.valueFrom;
                     }
                     if(v.originalEnv){
                         if(!v.envBaseline) v.envBaseline = JSON.parse(JSON.stringify(o));

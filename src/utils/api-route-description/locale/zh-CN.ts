@@ -110,6 +110,7 @@ export default {
   'GET /panel-api/v1/static/proxy/:identifie/:version/frontend/*path': '代理访问静态前端资源',
   'DELETE /panel-api/v1/cluster/nodes/:name': '删除集群节点',
   'GET /panel-api/v1/cluster/nodes/:name/longhorn-replicas': '获取节点 Longhorn 副本',
+  'GET /panel-api/v1/cluster/nodes/public-ip/check': '检测 server 节点公网 IP 可达性',
   'POST /panel-api/v1/cluster/nodes/:name/longhorn-replicas/delete': '删除节点 Longhorn 副本',
 
   'POST /panel-api/v1/gpu/enabled-gpu': '开启或关闭 GPU',

@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-10-30（kubeconfig 地址选择）
+
+- kubeconfig 页签提供 tls-san 地址选择，切换后同步更新 kubeconfig 中的 API server 地址，主集群和子集群均可使用；影响模块：节点页集群认证信息。验证：`git diff --check` 通过，未运行前端构建。
+
+## 2026-10-30（子集群 tls-san 只读展示）
+
+- 子集群集群认证信息增加 tls-san 只读页签，从 K3s 配置读取并展示地址，隐藏编辑和应用操作；影响模块：节点页集群认证信息。验证：`git diff --check` 通过，未运行前端构建。
+
 ## 2026-10-15
 
 - 在访问密钥下增加不显示菜单的 MCP Server 配置路由，展示可编辑服务地址及包含当前浏览器登录 token 的客户端连接示例；影响模块：系统管理路由、MCP 配置页。验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
@@ -509,6 +517,10 @@
 - 镜像打包状态组件 `src/views/cluster/nodes/build-image-status.vue` 移除 WebSocket URL 中的 `api-token`，复用 `createPanelWebSocket`，通过服务端支持的 `Sec-WebSocket-Protocol` 传递面板 token，并沿用 CKM 会话刷新和子协议协商。
 - 影响模块：容器镜像打包执行命令的 WebSocket 连接。验证：组件 SFC 解析、脚本语法、模板编译及 `git diff --check` 通过；`LOCAL_MOCK=true npm run build` 因 Copilot 页面依赖 `@openuidev/vue-lang` 无法解析而未通过。
 
+## 2026-10-19（微应用 API Skill 纳入仓库）
+
+- 将 `w7panel-microapp-api` Skill 放入仓库 `skills/`，补充当前分支镜像打包 WebSocket 已复用统一连接方法的说明；用户级 Skill 改为指向仓库版本的软链接。影响模块：微应用 API 开发指引。验证：Skill 基础格式、软链接目标和 `git diff --check` 检查通过。
+
 - 2026-10-20：修复计划任务和制品安装日志在启动异常恢复后仍显示错误提示；每 3 秒更新 Pod 状态，状态变化时重连日志，关闭或切换时清理刷新任务。组件编译及异常恢复、正常流保持、任务结束、关闭清理、延迟创建 Pod 检查通过。
 - 构建验证：`LOCAL_MOCK=true npm run build` 因现有 `@openuidev/vue-lang` 依赖无法解析而失败，未部署。
 
@@ -587,6 +599,10 @@
 
 - 验证：面板 87 项回归（新增 8 项插件兼容测试，其中 7 项执行同级 w7panel-zpk 的实际 openAppset/回调代码）、container-plugin 脚本/模板编译和 diff 空白检查通过；ZPK 现有 8 项 UI 单测通过。缺少同级 ZPK 源码时仅跳过跨仓库集成测试。未改动 ZPK 代码或事件协议，未部署；完整构建仍有之前记录的 Copilot 缺依赖限制。
 
+## 2026-10-27（编辑应用保留环境变量引用）
+
+- 应用编辑表单保留 Secret、ConfigMap 等 `env.valueFrom` 引用，保存时原样写回，并在环境变量表格显示引用来源。影响模块：应用编辑抽屉及独立编辑页。验证：生产构建通过；在 218 集群以临时 Deployment 通过本地 UI 编辑保存后，`secretKeyRef` 仍完整保留；测试资源已删除。
+
 ## 2026-10-29（微应用加载占位）
 
 - 微应用初始化统一使用局部 loading，合并前端下载与启动提示；加载期间隐藏已挂载的子应用内容并保留不透明背景，避免宿主与子应用 loading 同时显示，普通页面保留全局 loading。
@@ -596,3 +612,21 @@
 
 - 移除加载期间对子应用容器的 `visibility:hidden` 处理，避免 Wujie Shadow DOM 子应用挂载时的自动聚焦失效；保留不透明背景遮罩和单一局部 loading。
 - 影响模块：应用详情及共用 MicroApp 宿主。验证：12 项入口回归测试、Vue 模板与样式编译、`git diff --check` 通过；使用实际模板和样式及 Wujie 1.0.29 验证 Shadow DOM、iframe 两种模式，挂载、启动返回和加载结束后焦点均保留，加载态白底遮罩覆盖子应用且仅显示一个宿主 spinner，结束后移除遮罩。
+
+## 2026-10-29（组网页边距与加载提示）
+
+- 节点管理中的组网页移除宿主内边距，由 Kilo 子应用控制页面边距；去掉宿主转圈，状态检查阶段显示文字提示，MicroApp 加载保留自身转圈。影响模块：节点管理组网入口。
+- 验证补充：`LOCAL_MOCK=true npm run build -- --outDir /tmp/w7panel-ui-kilo-build-20261029` 通过；保留既有样式弃用及图片压缩提示。
+
+## 2026-10-30（域名解析未配置提示）
+
+- 域名解析记录无有效目标值时，显示红色感叹号及联系管理员提示；有值时保留原解析说明。影响模块：域名管理解析提示。
+
+## 2026-10-30（权限套餐菜单目录统一）
+
+- 权限菜单树和权限 key/路由映射改为从面板路由元数据生成，移除独立静态菜单目录；路由可通过 `meta.exclusiveGroups` 限制套餐用户组选择菜单，API 权限编辑入口共用现有服务端 API 路由目录加载器。
+- 影响模块：菜单权限、权限套餐、用户权限编辑。验证：`git diff --check` 通过；`npm run type:check` 被现有 TypeScript 4.8 与 zod 4 声明语法不兼容阻断，本次修改文件未见类型诊断。
+
+## 2026-10-30（永久文件权限与用户搜索）
+
+- 永久文件提交时传递原有 mode 位，支持更新 ConfigMap 挂载文件权限；用户搜索在列表尚未加载时重试并聚焦输入框。影响模块：应用文件管理。验证：`git diff --check` 通过；类型检查受隔离 worktree 缺少依赖阻断。
