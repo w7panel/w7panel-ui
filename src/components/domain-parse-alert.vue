@@ -29,7 +29,9 @@ export default{
         init(){
             panelApi.get('/domain-parse',{noAlert:true,loading:true}).then(res=>{
                 let spec = res.data?.spec || {};
-                let ips = spec.ips || [];
+                let ips = (Array.isArray(spec.ips) ? spec.ips : [])
+                    .filter(ip => typeof ip === 'string' && ip.trim())
+                    .map(ip => ip.trim());
                 let type = spec.type || 'A';
                 this.domainParse = {
                     exist: true,

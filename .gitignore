@@ -28,5 +28,6 @@ scripts/*
 !src/utils/permission-api-catalog.ts
 !scripts/repo-html-notice.test.cjs
 !scripts/auth-bookmark-guard.test.cjs
+!scripts/domain-parse-alert.test.cjs
 !scripts/app-form-volumes.test.cjs
 !scripts/app-form-preservation.test.cjs
