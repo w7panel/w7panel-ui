@@ -377,6 +377,7 @@
 <script>
 import { panelApi } from '@/utils/api';
 import { k8sproxy } from '@/utils/api';
+import { nodeTlsSans } from '@/utils/k3s-tls-san.mjs';
 
 import axios from 'axios';
 import { Terminal } from '@xterm/xterm';
@@ -802,12 +803,13 @@ export default {
                         const config = jsyaml.load(data['k3s.config'] || '') || {};
                         legacyAddresses = Array.isArray(config['tls-san']) ? config['tls-san'] : [];
                     }
-                    const addresses = [...new Set([
+                    const configured = [
                         ...split('k3s.default-tls-san'),
                         ...split('k3s.tls-san'),
                         ...split('k3s.public-tls-san'),
                         ...legacyAddresses,
-                    ])];
+                    ];
+                    const addresses = [...new Set(configured.length ? configured : nodeTlsSans(this.getFirstServer()))];
                     this.clusterInfo.ips = addresses.map(address => ({address, type: this.isValidTlsAddress(address, 'ip') ? 'ip' : 'domain', enable: true, default: true}));
                     this.clusterInfo.selectedAddress = this.kubeconfigAddresses[0] || '';
                     await this.getKubeconfig();
