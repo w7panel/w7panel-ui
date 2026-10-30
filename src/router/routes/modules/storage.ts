@@ -40,6 +40,11 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'storage-node',
+                    permissionItems: [
+                        { title: '新建', key: 'storage-node-add', route: 'storage/disk/add' },
+                        { title: '编辑', key: 'storage-node-edit', route: 'storage/disk/edit' },
+                        { title: '删除', key: 'storage-node-delete', route: 'storage/disk/delete' },
+                    ],
                 },
             },
             {

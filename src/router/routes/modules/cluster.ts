@@ -60,6 +60,10 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 requiresAuth: true,
                 key: 'cluster-nodes',
                 roles: ['*'],
+                permissionItems: [
+                    { title: '注册节点', key: 'cluster-nodes-add', route: 'cluster/nodes/add' },
+                    { title: '修改镜像源', key: 'cluster-nodes-registries', route: 'cluster/nodes/registries' },
+                ],
             },
         },
         {

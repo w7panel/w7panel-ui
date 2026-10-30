@@ -25,6 +25,11 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'app-apps',
+                    permissionItems: [
+                        { title: '新建', key: 'app-apps-add', route: 'app/apps/add' },
+                        { title: '编辑', key: 'app-apps-edit', route: 'app/apps/edit' },
+                        { title: '删除', key: 'app-apps-delete', route: 'app/apps/delete' },
+                    ],
                 },
             },
             {
@@ -445,6 +450,11 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'app-cronjob',
+                    permissionItems: [
+                        { title: '新建', key: 'app-cronjob-add', route: 'app/cronjob/add' },
+                        { title: '编辑', key: 'app-cronjob-edit', route: 'app/cronjob/edit' },
+                        { title: '删除', key: 'app-cronjob-delete', route: 'app/cronjob/delete' },
+                    ],
                 },
             },
         ],

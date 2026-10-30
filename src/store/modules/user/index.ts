@@ -2,31 +2,11 @@ import { defineStore } from 'pinia';
 import { login as userLogin } from '@/api/user';
 import { setToken, setPermission, clearToken, setUserInfo, setRefreshToken } from '@/utils/auth';
 import axios from 'axios';
-import treeData from '@/config/treedata.json';
-
-function getAllKeys(tree) {
-    const keys = [];
-    function traverse(node) {
-        keys.push(node.key);
-        if (node.children && node.children.length > 0) {
-            node.children.forEach(child => traverse(child));
-        }
-    }
-    tree.forEach(root => traverse(root));
-    return keys;
-}
 
 const useUserStore = defineStore('user', {
     state: () => ({
-        treeData: treeData,
         loginData: {},
     }),
-
-    getters: {
-        getTreeData(state) {
-            return state.treeData;
-        }
-    },
 
     actions: {
         // Login

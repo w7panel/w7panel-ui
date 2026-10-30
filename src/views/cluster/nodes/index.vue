@@ -325,7 +325,7 @@
             <template #title>集群认证信息</template>
             <a-tabs v-model:active-key="clusterInfo.activeTab">
                 <a-tab-pane key="kubeconfig" title="kubeconfig">
-                    <a-select v-if="!clusterInfo.isSubCluster" v-model="clusterInfo.selectedAddress" placeholder="请选择地址" @change="getKubeconfig">
+                    <a-select v-if="kubeconfigAddresses.length" v-model="clusterInfo.selectedAddress" placeholder="请选择地址" @change="getKubeconfig">
                         <a-option v-for="address in kubeconfigAddresses" :key="address" :value="address">{{address}}</a-option>
                     </a-select>
                     <div class="mt-20" style="height:calc(100vh - 240px);">
@@ -333,17 +333,24 @@
                         <a-spin v-else-if="clusterInfo.kubeconfigLoading" />
                     </div>
                 </a-tab-pane>
-                <a-tab-pane v-if="!clusterInfo.isSubCluster" key="tls-san" title="tls-san">
+                <a-tab-pane key="tls-san" title="tls-san">
                     <a-form-item label="地址">
                         <div class="padding-10" style="background:var(--color-neutral-1);">
+                            <div v-if="clusterInfo.isSubCluster && !clusterInfo.ips.length" class="padding-10 c-99">暂无 tls-san 配置</div>
                             <div v-for="(item,index) in clusterInfo.ips" class="df ai-c padding-10" :key="index">
+                                <template v-if="clusterInfo.isSubCluster">
+                                    <a-tag>{{item.type === 'ip' ? 'IP' : '域名'}}</a-tag>
+                                    <span class="ml-8">{{item.address}}</span>
+                                </template>
+                                <template v-else>
                                 <a-tag>{{item.type === 'ip' ? 'IP' : '域名'}}</a-tag>
                                 <a-input v-model="item.address" :disabled="item.default" placeholder="请输入 IP 或域名" class="f1 ml-8" />
                                 <a-tag v-if="item.default" class="ml-8">内置</a-tag>
                                 <a-switch v-model="item.enable" :disabled="item.default" class="ml-10" />
                                 <a-button v-if="!item.default" type="text" status="danger" class="ml-6" @click="clusterInfo.ips.splice(index,1)">删除</a-button>
+                                </template>
                             </div>
-                            <div class="df ai-c mt-10">
+                            <div v-if="!clusterInfo.isSubCluster" class="df ai-c mt-10">
                                 <a-select v-model="clusterInfo.newType" style="width:110px">
                                     <a-option value="ip">IP</a-option>
                                     <a-option value="domain">域名</a-option>
@@ -357,7 +364,7 @@
             </a-tabs>
             <template #footer>
                 <a-button v-if="clusterInfo.activeTab === 'kubeconfig'" :disabled="!clusterInfo.yaml" type="primary" @click="downloadClusterInfo">下载 kubeconfig</a-button>
-                <a-button v-else type="primary" :loading="clusterInfo.applying" @click="submitClusterInfo">生效应用</a-button>
+                <a-button v-else-if="!clusterInfo.isSubCluster" type="primary" :loading="clusterInfo.applying" @click="submitClusterInfo">生效应用</a-button>
             </template>
         </a-drawer>
 
@@ -675,16 +682,14 @@ export default {
             this.clusterInfo.kubeconfigLoading = true;
             try {
                 const res = await panelApi.get('/kubeconfig');
-                if (this.clusterInfo.isSubCluster) {
-                    this.clusterInfo.yaml = res.data;
-                    return;
-                }
                 const config = jsyaml.load(res.data);
                 const address = this.clusterInfo.selectedAddress;
-                const host = address.includes(':') && !address.startsWith('[') ? `[${address}]` : address;
-                (config.clusters || []).forEach(item => {
-                    item.cluster.server = `https://${host}:6443`;
-                });
+                if (address) {
+                    const host = address.includes(':') && !address.startsWith('[') ? `[${address}]` : address;
+                    (config.clusters || []).forEach(item => {
+                        item.cluster.server = `https://${host}:6443`;
+                    });
+                }
                 this.clusterInfo.yaml = jsyaml.dump(config);
             } catch (error) {
                 this.$message.error('读取 kubeconfig 失败');
@@ -789,8 +794,17 @@ export default {
                 isSubCluster,
             };
             if (isSubCluster) {
-                this.getKubeconfig();
-                this.clusterInfo.loading = false;
+                k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(async res=>{
+                    const data = res?.data?.spec?.data || {};
+                    let addresses = (data['k3s.tls-san'] || '').split(',').filter(Boolean);
+                    if (!Object.prototype.hasOwnProperty.call(data, 'k3s.tls-san')) {
+                        const config = jsyaml.load(data['k3s.config'] || '') || {};
+                        addresses = Array.isArray(config['tls-san']) ? config['tls-san'] : [];
+                    }
+                    this.clusterInfo.ips = [...new Set(addresses)].map(address => ({address, type: this.isValidTlsAddress(address, 'ip') ? 'ip' : 'domain', enable: true, default: true}));
+                    this.clusterInfo.selectedAddress = this.kubeconfigAddresses[0] || '';
+                    await this.getKubeconfig();
+                }).catch(()=>this.$message.error('读取 tls-san 配置失败')).finally(()=>{ this.clusterInfo.loading = false; });
                 return;
             }
             const server = this.getFirstServer();

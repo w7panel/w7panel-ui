@@ -25,6 +25,11 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'gateway-rvproxy',
+                    permissionItems: [
+                        { title: '新建', key: 'gateway-rvproxy-add', route: 'gateway/rvproxy/add' },
+                        { title: '编辑', key: 'gateway-rvproxy-edit', route: 'gateway/rvproxy/edit' },
+                        { title: '删除', key: 'gateway-rvproxy-delete', route: 'gateway/rvproxy/delete' },
+                    ],
                 },
             },
             {
@@ -48,6 +53,11 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'gateway-aiproxy',
+                    permissionItems: [
+                        { title: '新建', key: 'gateway-aiproxy-add', route: 'gateway/aiproxy/add' },
+                        { title: '编辑', key: 'gateway-aiproxy-edit', route: 'gateway/aiproxy/edit' },
+                        { title: '删除', key: 'gateway-aiproxy-delete', route: 'gateway/aiproxy/delete' },
+                    ],
                 },
             },
             {
@@ -96,6 +106,11 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'gateway-plugins',
+                    permissionItems: [
+                        { title: '新建', key: 'gateway-plugins-add', route: 'gateway/plugins/add' },
+                        { title: '编辑', key: 'gateway-plugins-edit', route: 'gateway/plugins/edit' },
+                        { title: '删除', key: 'gateway-plugins-delete', route: 'gateway/plugins/delete' },
+                    ],
                 },
             },
         ],
