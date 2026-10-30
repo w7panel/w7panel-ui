@@ -5,18 +5,19 @@ import usePermission from '@/hooks/permission';
 import { useAppStore } from '@/store';
 import appClientMenus from '@/router/app-menus';
 import { cloneDeep } from 'lodash';
+import { allowsExclusiveMenu, loadExclusivePolicy, type ExclusivePolicy } from '@/utils/permission-exclusives';
 
 export default function useMenuTree() {
   const permission = usePermission();
 
   const appStore = useAppStore();
   const isSubCluster = ref<boolean | null>(null);
+  const exclusivePolicy = ref<ExclusivePolicy | null>(null);
   onMounted(() => {
     panelApi.get('/microapp/global-frontprops', { noAlert: true }).then((res) => {
       isSubCluster.value = res.data?.is_sub_cluster === true;
-    }).catch(() => {
-      // 无法确认集群类型时，保持隐藏轻量虚拟机菜单。
-    });
+    }).catch(() => {});
+    loadExclusivePolicy().then(policy => { exclusivePolicy.value = policy; }).catch(() => { exclusivePolicy.value = null; });
   });
   const appRoute = computed(() => {
     if (appStore.menuFromServer) {
@@ -39,10 +40,9 @@ export default function useMenuTree() {
       if (!_routes) return null;
 
       const collector: any = _routes.map((element) => {
-        if ((element.name === 'app-lightweight-vms' || element.path === '/usermanage' || String(element.path).startsWith('/usermanage/')) && isSubCluster.value !== false) {
-          return null;
-        }
+        if (element.name === 'app-lightweight-vms' && isSubCluster.value !== false) return null;
         const currentPath = joinRoutePath(parentPath, element.path);
+        if (!exclusivePolicy.value || !allowsExclusiveMenu(exclusivePolicy.value.rules, exclusivePolicy.value.clusterType, currentPath, String(element.meta?.key || ''))) return null;
         // no access
         if (!permission.accessRouter(element, currentPath)) {
           return null;

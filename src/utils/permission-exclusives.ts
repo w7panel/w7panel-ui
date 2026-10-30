@@ -4,23 +4,27 @@ import { keyToPermissionPath, normalizePermissionPath } from './permission-match
 export interface ExclusiveRule {
   menuRule: string;
   menuKeys?: string[];
-  exclusiveGroups: string[];
+  clusterTypes: Array<'main' | 'child'>;
   apiRules?: Array<{ path: string; method: string[] }>;
 }
 
-export async function loadExclusivePolicy(): Promise<{ rules: ExclusiveRule[]; group: string }> {
+export interface ExclusivePolicy {
+  rules: ExclusiveRule[];
+  clusterType: 'main' | 'child';
+  domainWhiteList?: Array<{ prefix?: string; domain: string; prefixRandom?: boolean; disabled?: boolean }>;
+}
+
+export async function loadExclusivePolicy(): Promise<ExclusivePolicy> {
   const response = await axios.get('/panel-api/v1/auth/permission-exclusives', { timeout: 10000 });
   const body = response.data;
   const policy = body?.code === 200 ? body.data : body;
-  if ((body?.code && body.code !== 200) || !Array.isArray(policy?.rules)) throw new Error('专属菜单策略加载失败');
-  return { rules: policy.rules, group: String(policy.group || '') };
+  if ((body?.code && body.code !== 200) || !Array.isArray(policy?.rules)
+    || !['main', 'child'].includes(policy?.clusterType)
+    || (policy.clusterType === 'child' && !Array.isArray(policy.domainWhiteList))) throw new Error('专属菜单策略加载失败');
+  return policy;
 }
 
-export async function loadExclusiveRules(): Promise<ExclusiveRule[]> {
-  return (await loadExclusivePolicy()).rules;
-}
-
-export function allowsExclusiveMenu(rules: ExclusiveRule[], group: string, menu: string, key = '') {
+export function allowsExclusiveMenu(rules: ExclusiveRule[], clusterType: string, menu: string, key = '') {
   const path = normalizePermissionPath(keyToPermissionPath(menu));
   const legacy = normalizePermissionPath(key);
   return rules.every(rule => {
@@ -28,7 +32,7 @@ export function allowsExclusiveMenu(rules: ExclusiveRule[], group: string, menu:
       || (rule.menuKeys || []).includes(legacy)
       || path === '*'
       || (path.endsWith('/*') && normalizePermissionPath(rule.menuRule).startsWith(`${path.slice(0, -2)}/`));
-    return !restricted || rule.exclusiveGroups.includes(group);
+    return !restricted || rule.clusterTypes.includes(clusterType as 'main' | 'child');
   });
 }
 
@@ -49,9 +53,9 @@ function apiPatternsOverlap(a: string, b: string) {
   return visit(0, 0);
 }
 
-export function allowsExclusiveGrant(rules: ExclusiveRule[], group: string, menus: string[], api: Record<string, string[]>) {
-  if (menus.some(menu => !allowsExclusiveMenu(rules, group, menu, menu))) return false;
-  return rules.every(rule => rule.exclusiveGroups.includes(group) || !(rule.apiRules || []).some(target =>
+export function allowsExclusiveGrant(rules: ExclusiveRule[], clusterType: string, menus: string[], api: Record<string, string[]>) {
+  if (menus.some(menu => !allowsExclusiveMenu(rules, clusterType, menu, menu))) return false;
+  return rules.every(rule => rule.clusterTypes.includes(clusterType as 'main' | 'child') || !(rule.apiRules || []).some(target =>
     target.method.some(method => Object.entries(api).some(([path, verbs]) =>
       apiPatternsOverlap(path, target.path) && (verbs.includes('*') || (method === 'get' || method === 'list'
         ? verbs.includes('get') || verbs.includes('list') : verbs.includes(method)))))));

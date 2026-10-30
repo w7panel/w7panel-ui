@@ -106,7 +106,8 @@
                         </a-form-item>
                     </a-tab-pane>
                     <a-tab-pane key="3" title="域名白名单">
-                        <whitelist-component ref="whitelist" :data="form.whitelist"></whitelist-component>
+                        <div v-if="exclusiveRules?.clusterType === 'child'" class="mb-10 c-99">由主集群普通用户权限套餐统一配置，子集群只读。</div>
+                        <whitelist-component ref="whitelist" :data="whitelistDisplay" :disabled="!exclusiveRules || exclusiveRules.clusterType === 'child'"></whitelist-component>
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
@@ -182,7 +183,7 @@ import {
     resolveApiRouteDescription,
 } from '@/utils/api-route-description';
 import { loadPermissionApiCatalog } from '@/utils/permission-api-catalog';
-import { allowsExclusiveGrant, loadExclusiveRules } from '@/utils/permission-exclusives';
+import { allowsExclusiveGrant, loadExclusivePolicy } from '@/utils/permission-exclusives';
 
 const dataTemplate = {
     "kind": "Permission",
@@ -253,7 +254,7 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.getApiRoutes();
         this.getList();
-        loadExclusiveRules().then(rules => { this.exclusiveRules = rules; }).catch(() => { this.exclusiveRules = null; });
+        loadExclusivePolicy().then(policy => { this.exclusiveRules = policy; }).catch(() => { this.exclusiveRules = null; });
     },
     computed: {
         apiRouteGroups(){
@@ -323,7 +324,10 @@ export default {
             return Array.isArray(this.apiConstraintMap['*']) && this.apiConstraintMap['*'].includes('*');
         },
 		canGrantAllExclusiveApi(){
-			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules, this.permissionUserGroup, [], {'*': ['*']});
+			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {'*': ['*']});
+		},
+		whitelistDisplay(){
+			return this.exclusiveRules?.clusterType === 'child' ? this.exclusiveRules.domainWhiteList : this.form.whitelist;
 		},
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;
@@ -458,14 +462,16 @@ export default {
                     return;
                 }
 
-                let whitelist = this.$refs.whitelist.getList() || [];
+                let whitelist = this.exclusiveRules?.clusterType === 'child'
+                    ? (this.form.isAdd || !this.form.name ? [] : this.form.originData?.spec?.domainWhiteList || [])
+                    : this.$refs.whitelist.getList() || [];
                 let api = this.formToApi();
                 this.applyFormConstraints();
                 api = this.formToApi();
 				let exclusiveRules;
-				try { exclusiveRules = await loadExclusiveRules(); } catch { this.$message.error('专属权限策略加载失败'); return; }
-				if (!allowsExclusiveGrant(exclusiveRules, this.permissionUserGroup, toPermissionPaths(this.form.permission), api)) {
-					this.$message.warning('所选菜单或 API 不允许授予该用户组'); return;
+				try { exclusiveRules = await loadExclusivePolicy(); } catch { this.$message.error('专属权限策略加载失败'); return; }
+				if (!allowsExclusiveGrant(exclusiveRules.rules, exclusiveRules.clusterType, toPermissionPaths(this.form.permission), api)) {
+					this.$message.warning('所选菜单或 API 不允许授予当前集群'); return;
 				}
 
                 if(!this.form.name || this.form.isAdd){
@@ -541,9 +547,8 @@ export default {
                     data: res?.data,
                     title: res?.data?.spec?.title || res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
                     submit: async (data)=>{
-						const rules = await loadExclusiveRules();
-						const group = data.spec?.role || 'normal';
-						if (!allowsExclusiveGrant(rules, group, data.spec?.menuRules || [], this.apiRulesToApi(data.spec?.apiRules || []))) throw new Error('所选菜单或 API 不允许授予该用户组');
+						const rules = await loadExclusivePolicy();
+						if (!allowsExclusiveGrant(rules.rules, rules.clusterType, data.spec?.menuRules || [], this.apiRulesToApi(data.spec?.apiRules || []))) throw new Error('所选菜单或 API 不允许授予当前集群');
                         delete data.metadata.namespace;
                         return k8sproxy.put("/apis/w7panel.w7.com/v1alpha1/permissions/" + data?.metadata?.name, data).then(res=>{
                             this.$message.success("修改成功");
@@ -693,7 +698,7 @@ export default {
             return verbs.includes('*') || verbs.includes(route.verb);
         },
 		exclusiveApiRouteAllowed(route){
-			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules, this.permissionUserGroup, [], {[route.path]: [route.verb]});
+			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {[route.path]: [route.verb]});
 		},
         matchApiRuleMethods(rules, path){
             let bestPattern = '';

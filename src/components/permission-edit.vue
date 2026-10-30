@@ -110,7 +110,7 @@ import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu';
-import { allowsExclusiveGrant, allowsExclusiveMenu, loadExclusiveRules } from '@/utils/permission-exclusives';
+import { allowsExclusiveGrant, allowsExclusiveMenu, loadExclusivePolicy } from '@/utils/permission-exclusives';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
 import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
@@ -208,7 +208,7 @@ export default {
         this.getApiRoutes();
         this.initTreeData();
         loadPermissionMicroAppMenus(this.namespaceActive).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
-        loadExclusiveRules().then(rules => { this.exclusiveRules = rules; this.initTreeData(); }).catch(() => { this.exclusiveRules = null; this.initTreeData(); });
+        loadExclusivePolicy().then(policy => { this.exclusiveRules = policy; this.initTreeData(); }).catch(() => { this.exclusiveRules = null; this.initTreeData(); });
     },
     computed: {
         sourceTreeData(){
@@ -255,7 +255,7 @@ export default {
             return this.disabledMenu || !this.pmsForm.customPermission || !this.exclusiveRules;
         },
         canGrantAllApi(){
-			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules, this.targetUserGroup, [], {'*': ['*']});
+			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {'*': ['*']});
 		},
 		targetUserGroup(){
 			const selected = this.permissionPackageList.find(item => item.name === this.pmsForm.permissionPackage);
@@ -311,11 +311,10 @@ export default {
                 : null;
             let role = find?.role || parent?.role || '';
 			let rules;
-			try { rules = await loadExclusiveRules(); } catch { this.$message.error('专属权限策略加载失败'); return; }
-			const group = this.targetUserGroup;
+			try { rules = await loadExclusivePolicy(); } catch { this.$message.error('专属权限策略加载失败'); return; }
 			const menus = toPermissionPaths(this.pmsForm.list);
 			const api = this.formToApi();
-			if (!allowsExclusiveGrant(rules, group, menus, api)) { this.$message.warning('所选菜单或 API 不允许授予该用户组'); return; }
+			if (!allowsExclusiveGrant(rules.rules, rules.clusterType, menus, api)) { this.$message.warning('所选菜单或 API 不允许授予当前集群'); return; }
             this.$emit('submit',{
                 list: menus,
                 api,
@@ -578,7 +577,7 @@ export default {
             this.pmsForm.apiSelectedKeys = this.apiRoutes.filter(route => this.apiRouteAllowed(route)).map(route => this.apiRouteKey(route));
         },
 		apiRouteAllowed(route){
-			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules, this.targetUserGroup, [], {[route.path]: [route.verb]});
+			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {[route.path]: [route.verb]});
 		},
         clearApiRoutes(){
             if(this.editDisabledMenu){return}
@@ -593,22 +592,21 @@ export default {
         filterTree(keys){
             const menuDataCopy = JSON.parse(JSON.stringify(this.sourceTreeData));
     
-            const userGroup = this.targetUserGroup;
-            const exclusiveRules = this.exclusiveRules;
-            function traverseAndDisable(nodes, keyPath = [], disabled) {
-                nodes.forEach(node => {
-                    const currentKeyPath = [...keyPath, node.key];
-                    const groupRestricted = !exclusiveRules || !allowsExclusiveMenu(exclusiveRules, userGroup, node.route || '', node.key);
-                    if (keys.includes(node.key) || disabled || groupRestricted) {
+            const exclusivePolicy = this.exclusiveRules;
+            function traverseAndDisable(nodes, disabled) {
+                return nodes.filter(node => {
+                    const restricted = !exclusivePolicy || !allowsExclusiveMenu(exclusivePolicy.rules, exclusivePolicy.clusterType, node.route || '', node.key);
+                    if (restricted) return false;
+                    if (keys.includes(node.key) || disabled) {
                         node.disabled = true;
                     }
                     if (node.children && node.children.length > 0) {
-                        traverseAndDisable(node.children, currentKeyPath, disabled || groupRestricted);
+                        node.children = traverseAndDisable(node.children, disabled);
                     }
+                    return true;
                 });
             }
-            traverseAndDisable(menuDataCopy, [], this.editDisabledMenu);
-            return menuDataCopy;
+            return traverseAndDisable(menuDataCopy, this.editDisabledMenu);
         },
     },
 

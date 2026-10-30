@@ -185,7 +185,7 @@ const permissions = ref(getPermission());
 const isSubCluster = ref(true);
 
 const hasClusterConsole = computed(() => hasPermission(permissions.value || [], 'cluster', 'cluster'));
-const hasUsermanage = computed(() => !isSubCluster.value && hasPermission(permissions.value || [], 'usermanage', 'system-manage'));
+const hasUsermanage = computed(() => hasPermission(permissions.value || [], 'usermanage', 'system-manage'));
 const hasSystem = computed(() => hasPermission(permissions.value || [], 'system', 'system'));
 const topApps = computed(() => appStore.topApps);
 

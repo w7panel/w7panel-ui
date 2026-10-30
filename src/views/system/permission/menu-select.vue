@@ -17,7 +17,7 @@
 import {useNamespaceStore} from '@/store'
 import appClientMenus from '@/router/app-menus'
 import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu'
-import { allowsExclusiveMenu, loadExclusiveRules } from '@/utils/permission-exclusives'
+import { allowsExclusiveMenu, loadExclusivePolicy } from '@/utils/permission-exclusives'
 
 export default {
     props: ['permission','disabled','allowedKeys','userGroup'],
@@ -33,7 +33,7 @@ export default {
     },
     created(){
         this.init();
-        loadExclusiveRules().then(rules => { this.exclusiveRules = rules; this.init(); }).catch(() => { this.exclusiveRules = null; this.initTreeData(); });
+        loadExclusivePolicy().then(policy => { this.exclusiveRules = policy; this.init(); }).catch(() => { this.exclusiveRules = null; this.initTreeData(); });
         loadPermissionMicroAppMenus(useNamespaceStore().namespace).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
     },
     computed: {
@@ -80,14 +80,14 @@ export default {
             const menuDataCopy = JSON.parse(JSON.stringify(this.sourceTreeData));
             const allowed = this.allowedKeys ? new Set(this.allowedKeys) : null;
     
-            const userGroup = this.userGroup;
-            const exclusiveRules = this.exclusiveRules;
+            const exclusivePolicy = this.exclusiveRules;
             function traverseAndDisable(nodes, keyPath = [], disabled) {
                 const result = [];
                 nodes.forEach(node => {
                     const currentKeyPath = [...keyPath, node.key];
                     const nodeAllowed = !allowed || allowed.has(node.key) || allowed.has(node.route);
-                    const groupRestricted = !exclusiveRules || !allowsExclusiveMenu(exclusiveRules, userGroup, node.route || '', node.key);
+                    const groupRestricted = !exclusivePolicy || !allowsExclusiveMenu(exclusivePolicy.rules, exclusivePolicy.clusterType, node.route || '', node.key);
+                    if (groupRestricted) return;
                     if (node.children && node.children.length > 0) {
                         node.children = traverseAndDisable(node.children, currentKeyPath, disabled || groupRestricted);
                     }
@@ -101,7 +101,7 @@ export default {
             return traverseAndDisable(menuDataCopy, [], this.disabled);
         },
         filterAllowedKeys(keys){
-			const permitted = (keys || []).filter(key => !this.exclusiveRules || allowsExclusiveMenu(this.exclusiveRules, this.userGroup, key, key));
+			const permitted = (keys || []).filter(key => this.exclusiveRules && allowsExclusiveMenu(this.exclusiveRules.rules, this.exclusiveRules.clusterType, key, key));
 			if(!this.allowedKeys){return permitted}
             const allowed = new Set(this.allowedKeys);
             return permitted.filter(key => allowed.has(key));

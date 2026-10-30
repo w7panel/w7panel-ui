@@ -149,7 +149,7 @@ import bcrypt from "bcryptjs";
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
 import permissionEdit from '@/components/permission-edit.vue';
-import { allowsExclusiveGrant, loadExclusiveRules } from '@/utils/permission-exclusives';
+import { allowsExclusiveGrant, loadExclusivePolicy } from '@/utils/permission-exclusives';
 
 const dataTemplate = {
     apiVersion: 'w7panel.w7.com/v1alpha1',
@@ -376,8 +376,8 @@ export default {
                 return;
             }
 			let rules;
-			try { rules = await loadExclusiveRules(); } catch { this.$message.error('专属权限策略加载失败'); return; }
-			if (!allowsExclusiveGrant(rules, data.role || this.pmsForm.userMode || 'normal', data.list || [], data.api || {})) {
+			try { rules = await loadExclusivePolicy(); } catch { this.$message.error('专属权限策略加载失败'); return; }
+			if (!allowsExclusiveGrant(rules.rules, rules.clusterType, data.list || [], data.api || {})) {
 				this.$message.error('所选菜单或 API 不允许授予该用户组'); return;
 			}
             k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/users/'+data.name,{
@@ -431,10 +431,9 @@ export default {
                     disabled: isFounder,
                     nofooter: isFounder,
                     submit: isFounder?()=>{}:async (data)=>{
-						const rules = await loadExclusiveRules();
-						const group = data.spec?.role || data.spec?.userMode || 'normal';
+						const rules = await loadExclusivePolicy();
 						const api = Object.fromEntries((data.spec?.apiRules || []).map(rule => [rule.path, rule.method || []]));
-						if (!allowsExclusiveGrant(rules, group, data.spec?.menuRules || [], api)) throw new Error('所选菜单或 API 不允许授予该用户组');
+						if (!allowsExclusiveGrant(rules.rules, rules.clusterType, data.spec?.menuRules || [], api)) throw new Error('所选菜单或 API 不允许授予当前集群');
                         return k8sproxy.put('/apis/w7panel.w7.com/v1alpha1/users/' + data?.metadata?.name, data).then(res=>{
                             this.$message.success("修改成功");
                             this.yamlData = {...this.yamlData, show:false,};

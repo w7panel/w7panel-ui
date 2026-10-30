@@ -142,10 +142,10 @@ router.beforeEach(async (to, from, next) => {
     }
 
     const permissions = getPermission() || [];
-	const group = exclusivePolicy.group;
+	const clusterType = exclusivePolicy.clusterType;
     const forbidden = to.matched.some((record) => record.meta?.key
       && (!hasPermission(permissions, record.path, String(record.meta.key))
-        || !allowsExclusiveMenu(exclusivePolicy.rules, group, record.path, String(record.meta.key))));
+		|| !allowsExclusiveMenu(exclusivePolicy.rules, clusterType, record.path, String(record.meta.key))));
     if (forbidden) {
       next(getK8sinfo()?.['w7.cc/role'] === 'normal'
         ? { path: NORMAL_HOME, replace: true }

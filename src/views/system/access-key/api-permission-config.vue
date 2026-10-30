@@ -58,7 +58,7 @@
 import { k8sproxy } from '@/utils/api';
 import { resolveApiRouteDescription, getLoadedApiRouteDescriptions } from '@/utils/api-route-description';
 import { loadPermissionApiCatalog } from '@/utils/permission-api-catalog';
-import { allowsExclusiveGrant, loadExclusiveRules } from '@/utils/permission-exclusives';
+import { allowsExclusiveGrant, loadExclusivePolicy } from '@/utils/permission-exclusives';
 
 const permissionUrl = '/apis/w7panel.w7.com/v1alpha1/permissions/api';
 const routeKey = route => `${route.method} ${route.path}`;
@@ -80,7 +80,7 @@ export default {
         };
     },
     computed: {
-		canGrantAllApi() { return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules, 'api', [], {'*': ['*']}); },
+		canGrantAllApi() { return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {'*': ['*']}); },
         groups() {
             const groups = new Map();
             this.routes.forEach(route => {
@@ -115,7 +115,7 @@ export default {
                 const [permission, catalog, exclusiveRules] = await Promise.all([
                     k8sproxy.get(permissionUrl),
                     loadPermissionApiCatalog(),
-					loadExclusiveRules(),
+					loadExclusivePolicy(),
                 ]);
 				this.exclusiveRules = exclusiveRules;
                 this.permission = permission.data;
@@ -173,7 +173,7 @@ export default {
             this.removedPaths.add(path);
         },
 		apiRouteAllowed(route) {
-			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules, 'api', [], {[route.path]: [route.verb]});
+			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {[route.path]: [route.verb]});
 		},
         async save() {
             if (!this.permission || this.saving) return;
@@ -194,8 +194,8 @@ export default {
                     });
                 }
                 data.spec.apiRules = Array.from(rules, ([path, method]) => ({ path, method }));
-				const exclusiveRules = await loadExclusiveRules();
-				if (!allowsExclusiveGrant(exclusiveRules, 'api', data.spec.menuRules || [], Object.fromEntries(rules))) throw new Error('所选 API 不允许授予 API 用户组');
+				const exclusiveRules = await loadExclusivePolicy();
+				if (!allowsExclusiveGrant(exclusiveRules.rules, exclusiveRules.clusterType, data.spec.menuRules || [], Object.fromEntries(rules))) throw new Error('所选 API 不允许授予当前集群');
                 await k8sproxy.put(permissionUrl, data);
                 this.$message.success('保存成功');
                 await this.load();
