@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-10-30（kubeconfig 地址选择）
+
+- kubeconfig 页签提供 tls-san 地址选择，切换后同步更新 kubeconfig 中的 API server 地址，主集群和子集群均可使用；影响模块：节点页集群认证信息。验证：`git diff --check` 通过，未运行前端构建。
+
+## 2026-10-30（子集群 tls-san 只读展示）
+
+- 子集群集群认证信息增加 tls-san 只读页签，从 K3s 配置读取并展示地址，隐藏编辑和应用操作；影响模块：节点页集群认证信息。验证：`git diff --check` 通过，未运行前端构建。
+
 ## 2026-10-15
 
 - 在访问密钥下增加不显示菜单的 MCP Server 配置路由，展示可编辑服务地址及包含当前浏览器登录 token 的客户端连接示例；影响模块：系统管理路由、MCP 配置页。验证：`LOCAL_MOCK=true npm run build` 与 `git diff --check` 通过。
