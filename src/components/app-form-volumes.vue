@@ -93,10 +93,9 @@
                         </a-select>
                     </a-form-item>
                 </template>
-                <template v-if="edit.type=='pvc'">
+                <template v-if="edit.type=='pvc' && !isTemplate">
                     <a-form-item label="PVC">
-                        <a-input v-if="isTemplate" v-model="edit.pvcName" placeholder="请输入安装环境中已有的 PVC 名称"></a-input>
-                        <a-select v-else v-model="edit.pvcName" placeholder="请选择">
+                        <a-select v-model="edit.pvcName" placeholder="请选择">
                             <a-option v-for="(item,index) in pvcs.filter(i=>filterPvc?i.isCustom:i)" :key="index" :label="item.name" :value="item.name"></a-option>
                         </a-select>
                         <a-checkbox v-if="!isTemplate" v-model="filterPvc" class="ml-20"><span style="text-wrap:nowrap;">存储分区</span></a-checkbox>
