@@ -1,6 +1,6 @@
 import axios from "axios";
 import { setFileEditor,setWebshell, setK8sinfo } from '@/utils/auth';
-import { getPermission, setPermission, setUserInfo } from '@/utils/auth';
+import { getPermission, setPermission, setUserInfo, isCkmSession } from '@/utils/auth';
 import { cacheManager, CachePresets } from '@/utils/cache';
 
 const PERMISSION_CACHE_KEY = `${CachePresets.PERMISSION}:timestamp`;
@@ -34,6 +34,14 @@ export default async function useK3kinfo(){
             let uData = data;
             if(uData && uData.code === 200 && uData.data) {
                 uData = uData.data;
+            }
+            if(isCkmSession()) {
+                const hostInfo = await axios.get('/panel-api/v1/auth/userinfo', { timeout: 10000 });
+                if(hostInfo.data?.code && hostInfo.data.code !== 200) {
+                    throw new Error('host user info request failed');
+                }
+                const hostData = hostInfo.data?.code === 200 ? hostInfo.data.data : hostInfo.data;
+                uData = { ...uData, 'w7.cc/domain-white-list': hostData?.['w7.cc/domain-white-list'] || '[]' };
             }
             setUserInfo(uData);
             arr = JSON.parse(uData?.['w7.cc/menu'] || '[]')

@@ -171,6 +171,7 @@ const setK8sinfo = (v) => {
 };
 
 export { isLogin, getToken, setToken, clearToken,
+    isCkmSession,
     // getExpire,
     // setExpire,
     setPermission, getPermission, setUserInfo, getUserInfo,
