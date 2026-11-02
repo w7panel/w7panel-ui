@@ -17,6 +17,7 @@
 import {useNamespaceStore} from '@/store'
 import appClientMenus from '@/router/app-menus'
 import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu'
+import { loadClusterContext } from '@/utils/cluster-access'
 
 export default {
     props: ['permission','disabled','allowedKeys','userGroup'],
@@ -27,15 +28,17 @@ export default {
             treeData: [],
             halfCheckedKeys: [],
             microAppTreeData: [],
+            isSubCluster: null,
         }
     },
     created(){
         this.init();
+        loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
         loadPermissionMicroAppMenus(useNamespaceStore().namespace).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
     },
     computed: {
         sourceTreeData(){
-            return [...buildPermissionMenuTree(appClientMenus), ...this.microAppTreeData];
+            return [...buildPermissionMenuTree(appClientMenus, this.isSubCluster), ...this.microAppTreeData];
         },
     },
     watch: {

@@ -25,6 +25,7 @@ scripts/*
 !src/utils/repo-notice.ts
 !src/utils/html-notice.ts
 !src/utils/permission-menu.ts
+!src/utils/cluster-access.ts
 !src/utils/permission-exclusives.ts
 !src/utils/permission-api-catalog.ts
 !scripts/repo-html-notice.test.cjs
@@ -32,5 +33,6 @@ scripts/*
 !scripts/domain-parse-alert.test.cjs
 !scripts/child-main-settings.test.cjs
 !scripts/permission-menu.test.cjs
+!scripts/cluster-menu.test.cjs
 !scripts/app-form-volumes.test.cjs
 !scripts/app-form-preservation.test.cjs

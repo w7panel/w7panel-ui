@@ -1,5 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router';
 import { k8sproxy } from '@/utils/api';
+import { allowsClusterRoute } from '@/utils/cluster-access';
 
 type PermissionMenuNode = {
   title: string;
@@ -52,13 +53,15 @@ function joinRoutePath(parentPath: string, path: string) {
 
 export function buildPermissionMenuTree(
   routes: RouteRecordRaw[] = [],
+  isSubCluster: boolean | null = null,
   parentPath = '',
   seenKeys = new Set<string>(),
 ): PermissionMenuNode[] {
   return routes.flatMap((route) => {
+    if (!allowsClusterRoute(route.meta, isSubCluster)) return [];
     const path = joinRoutePath(parentPath, route.path);
     const key = route.meta?.key;
-    if (!key || seenKeys.has(key)) return buildPermissionMenuTree(route.children || [], path, seenKeys);
+    if (!key || seenKeys.has(key)) return buildPermissionMenuTree(route.children || [], isSubCluster, path, seenKeys);
     seenKeys.add(key);
 
     const children = [
@@ -67,7 +70,7 @@ export function buildPermissionMenuTree(
         seenKeys.add(item.key);
         return true;
       }),
-      ...buildPermissionMenuTree(route.children || [], path, seenKeys),
+      ...buildPermissionMenuTree(route.children || [], isSubCluster, path, seenKeys),
     ];
 
     const locale = route.meta?.locale;

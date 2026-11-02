@@ -109,6 +109,7 @@ import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu';
+import { loadClusterContext } from '@/utils/cluster-access';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
 import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
@@ -170,6 +171,7 @@ export default {
             virtualTreeData: [],
             globalTreeData: [],
             microAppTreeData: [],
+            isSubCluster: null,
             apiRoutes: [],
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
@@ -204,11 +206,12 @@ export default {
         this.taocan();
         this.getApiRoutes();
         this.initTreeData();
+        loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
         loadPermissionMicroAppMenus(this.namespaceActive).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
     },
     computed: {
         sourceTreeData(){
-            return [...buildPermissionMenuTree(appClientMenus), ...this.microAppTreeData];
+            return [...buildPermissionMenuTree(appClientMenus, this.isSubCluster), ...this.microAppTreeData];
         },
         apiRouteGroups(){
             let groupMap = {};

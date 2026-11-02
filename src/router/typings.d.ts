@@ -16,6 +16,7 @@ declare module 'vue-router' {
     ignoreCache?: boolean; // if set true, the page will not be cached
     key?: string; // Permission key used by the project menu/button filtering
     permissionItems?: Array<{ title: string; key: string; route: string }>;
+    clusterTypes?: Array<'main' | 'child'>; // Clusters allowed to show and open this route
     linkIcon?: boolean; // Whether to show the launch-style icon in the menu
     routekey?: string; // Internal tab/menu key used by some detail pages
     menuGroup?: MenuGroup; // Top-level menu grouping used by navbar and side menu filtering

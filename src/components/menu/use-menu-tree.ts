@@ -1,5 +1,5 @@
 import { computed, onMounted, ref } from 'vue';
-import { panelApi } from '@/utils/api';
+import { allowsClusterRoute, loadClusterContext } from '@/utils/cluster-access';
 import { RouteRecordRaw, RouteRecordNormalized } from 'vue-router';
 import usePermission from '@/hooks/permission';
 import { useAppStore } from '@/store';
@@ -12,8 +12,8 @@ export default function useMenuTree() {
   const appStore = useAppStore();
   const isSubCluster = ref<boolean | null>(null);
   onMounted(() => {
-    panelApi.get('/microapp/global-frontprops', { noAlert: true }).then((res) => {
-      isSubCluster.value = res.data?.is_sub_cluster === true;
+    loadClusterContext().then((context) => {
+      isSubCluster.value = context.isSubCluster;
     }).catch(() => {});
   });
   const appRoute = computed(() => {
@@ -37,6 +37,7 @@ export default function useMenuTree() {
       if (!_routes) return null;
 
       const collector: any = _routes.map((element) => {
+        if (!allowsClusterRoute(element.meta, isSubCluster.value)) return null;
         if (element.name === 'app-lightweight-vms' && isSubCluster.value !== false) return null;
         const currentPath = joinRoutePath(parentPath, element.path);
         // no access
