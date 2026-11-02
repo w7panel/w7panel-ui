@@ -8,13 +8,14 @@
                 <div class="df ai-c">
                     <span class="df-s0">选择节点：</span>
                     <a-select v-model="node" @change="getPid" placeholder="请选择节点" style="width:300px;">
-                        <a-option v-for="item in nodeList" :key="item.name" :value="item.name">{{item.name}}</a-option>
+                        <a-option v-for="item in nodeList" :key="item.name" :value="item.name" :disabled="!item.ready">{{item.name}}</a-option>
                     </a-select>
                 </div>
 
-                <a-button type="primary" class="ml-20" @click="openImport">导入镜像</a-button>
+                <a-button type="primary" class="ml-20" :disabled="!node" @click="openImport">导入镜像</a-button>
 
                 <build-image
+                    v-if="node"
                     class="ml-20"
                     :hideList="true"
                     :showCreateBtn="true"
@@ -375,21 +376,25 @@ export default {
                 if(!res?.data){return}
                 let data = res.data?.items || [];
                 let list = data.map(item=>{
+                    let labels = item.metadata?.labels || {};
                     return {
                         name: item.metadata.name,
-                        internalIP: item.status?.addresses?.[0]?.address,
+                        internalIP: item.status?.addresses?.find(address=>address.type==='InternalIP')?.address || '',
+                        ready: item.status?.conditions?.find(condition=>condition.type==='Ready')?.status === 'True',
+                        server: 'node-role.kubernetes.io/control-plane' in labels || 'node-role.kubernetes.io/master' in labels,
                     }
                 })
                 this.nodeList = list;
-                if(this.nodeList.length){
-                    this.node = this.nodeList[0].name;
+                this.node = (list.find(item=>item.ready && item.server) || list.find(item=>item.ready))?.name || '';
+                this.list = [];
+                if(this.node){
                     this.getPid();
                 }
             })
         },
         getPid(){
             let node = this.nodeList.find(i=>i.name==this.node);
-            if(!node){return}
+            if(!node?.ready){return}
             let ip = node.internalIP;
             
             panelApi.get('/registry/server-info',{
