@@ -136,6 +136,7 @@ import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore,useLoadingStore } from '@/store';
 import { getPermission } from '@/utils/auth';
 import { getUserInfo } from '@/utils/auth';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 
 let dataTemplate = {
     "apiVersion": "networking.higress.io/v1",
@@ -202,38 +203,11 @@ export default {
         this.permission = getPermission() || [];
         this.namespaceActive = useNamespaceStore().namespace;
         this.getData();
-        this.getWhiteList();
     },
     components: {yamlDrawer},
     methods: {
         async getWhiteList(){
-            let userInfo = getUserInfo();
-            let wl = userInfo?.['w7.cc/domain-white-list'] || '[]';
-            wl = JSON.parse(wl);
-            if(wl && wl.length){
-                this.whiteList = wl?.filter(i=>!i.disabled);
-            }
-            return;
-            return new Promise((resolve,reject)=>{
-                let userInfo = getUserInfo();
-                let wl = userInfo?.['w7.cc/domain-white-list'] || '[]';
-                wl = JSON.parse(wl);
-                if(wl.length){
-                    this.whiteList = wl?.filter(i=>!i.disabled);
-                    resolve();
-                    return;
-                }
-                k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-white-list',{noAlert:true}).then(res=>{
-                    if(!res?.data){return}
-                    let list = [];
-                    try{
-                        list = JSON.parse(res?.data?.data?.whiteList)?.filter(i=>!i.disabled)
-                    }catch{}
-                    this.whiteList = list;
-                }).finally(()=>{
-                    resolve();
-                })
-            })
+            this.whiteList = await loadDomainWhiteList();
         },
         
         matchWhiteDomain(domain){
@@ -347,7 +321,8 @@ export default {
                 // console.log(this.list);
             });
         },
-        openForm(row){
+        async openForm(row){
+            try { await this.getWhiteList(); } catch { this.$message.error('域名白名单加载失败'); return; }
             if(!row){
                 let name = this.createName(6);
                 this.form = {

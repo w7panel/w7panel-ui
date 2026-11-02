@@ -176,6 +176,7 @@ import menuSelect from '@/views/system/permission/menu-select.vue';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import whitelistComponent from '../whitelist/whitelist-component.vue';
 import { expandPermissionValues, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
@@ -246,6 +247,7 @@ export default {
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
             isSubCluster: null,
+            mainWhiteList: [],
         }
     },
     created(){
@@ -255,6 +257,7 @@ export default {
         this.getList();
         axios.get('/panel-api/v1/microapp/global-frontprops', { noAlert: true }).then(({ data }) => {
             this.isSubCluster = (data?.data || data)?.is_sub_cluster === true;
+            if (this.isSubCluster) loadDomainWhiteList(true).then(list => { this.mainWhiteList = list; }).catch(() => { this.$message.error('域名白名单加载失败'); });
         }).catch(() => {});
     },
     computed: {
@@ -326,7 +329,7 @@ export default {
         },
 		whitelistDisplay(){
 			if (!this.isSubCluster) return this.form.whitelist;
-			try { return JSON.parse(getUserInfo()?.['w7.cc/domain-white-list'] || '[]'); } catch { return []; }
+			return this.mainWhiteList;
 		},
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;

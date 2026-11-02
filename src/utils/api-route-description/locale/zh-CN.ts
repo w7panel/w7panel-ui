@@ -22,6 +22,7 @@ export default {
   'GET /panel-api/v1/auth/console/info': '获取控制台配置',
   '* /panel-api/v1/auth/console/proxy/*path': '代理控制台请求',
   'GET /panel-api/v1/auth/userinfo': '获取登录用户信息',
+  'GET /panel-api/v1/auth/domain-white-list': '获取域名白名单',
   'GET /panel-api/v1/auth/permissions/routes': '获取 API 权限路由列表',
   'POST /panel-api/v1/auth/console/register-zpk-site': '注册 ZPK 站点',
   'POST /panel-api/v1/code': '获取授权码',

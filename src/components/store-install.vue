@@ -290,6 +290,7 @@ import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
 import jobLog from '@/components/job-log.vue';
 import customCheckbox from './custom-checkbox.vue';
 import { getK8sinfo, getUserInfo } from '@/utils/auth';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import shortuuid from 'short-uuid';
 
 // 安装进度摘要：启动阶段来自 Pod 状态，终态优先使用 Job 条件。
@@ -615,35 +616,8 @@ export default {
             }).catch(()=>{});
         },
         async getWhiteList(){
-            let userInfo = getUserInfo();
-            let wl = userInfo?.['w7.cc/domain-white-list'] || '[]';
-            wl = JSON.parse(wl);
-            if(wl && wl.length){
-                this.whiteList = wl?.filter(i=>!i.disabled);
-            }
-            return;
-            return new Promise((resolve,reject)=>{
-                let userInfo = getUserInfo();
-                let wl = userInfo['w7.cc/domain-white-list'] || '[]';
-                wl = JSON.parse(wl);
-                if(wl.length){
-                    this.whiteList = wl?.filter(i=>!i.disabled);
-                    resolve();
-                    return;
-                }
-                
-                k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-white-list',{noAlert:true}).then(res=>{
-                    if(!res?.data){return}
-                    let list = [];
-                    try{
-                        list = JSON.parse(res?.data?.data?.whiteList)?.filter(i=>!i.disabled)
-// list.map(i=>i.prefixRandom = true)
-                    }catch{}
-                    this.whiteList = list;
-                }).finally(()=>{
-                    resolve();
-                })
-            })
+            try { this.whiteList = await loadDomainWhiteList(); }
+            catch (error) { this.$message.error('域名白名单加载失败'); throw error; }
         },
         async rebuild(){
             clearInterval(this.interval);

@@ -122,6 +122,7 @@ import { k8sproxy } from '@/utils/api';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import { getPermission, getUserInfo } from '@/utils/auth';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import {
     cleanupIngressPluginRules,
     ensureGatewayPluginRule,
@@ -192,7 +193,6 @@ export default {
         this.debug = getUserInfo()?.['w7.cc/debug']=='true';
         this.permission = getPermission() || [];
         this.namespaceActive = useNamespaceStore().namespace;
-        this.getWhiteList();
         this.getData();
     },
     methods: {
@@ -200,9 +200,7 @@ export default {
             return cleanupIngressPluginRules(k8sproxy, this.namespaceActive, ingressNames);
         },
         async getWhiteList(){
-            let wl = getUserInfo()?.['w7.cc/domain-white-list'] || '[]';
-            try { wl = JSON.parse(wl); } catch { wl = []; }
-            this.whiteList = (wl || []).filter(i=>!i.disabled);
+            this.whiteList = await loadDomainWhiteList();
         },
         async getData(){
             useLoadingStore().loading = true;
@@ -251,11 +249,12 @@ export default {
                 useLoadingStore().loading = false;
             }
         },
-        openForm(){
+        async openForm(){
             if(!this.aiProxyPluginInstalled || !this.plugin){
                 this.$message.warning('请先安装 AI 代理插件');
                 return;
             }
+            try { await this.getWhiteList(); } catch { this.$message.error('域名白名单加载失败'); return; }
             this.form = {
                 show: true,
                 domain: '',

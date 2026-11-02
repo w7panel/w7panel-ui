@@ -364,6 +364,7 @@
 
 <script>
 import { panelApi } from '@/utils/api';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import { k8sproxy } from '@/utils/api';
 import axios from "axios";
 import {useNamespaceStore,useLoadingStore} from "@/store";
@@ -951,7 +952,9 @@ export default {
                 );
             });
         },
-        bindDomain(){
+        async bindDomain(){
+            try { this.whiteList = await loadDomainWhiteList(); }
+            catch { this.$message.error('域名白名单加载失败'); return; }
             // this.appPorts = {};
             // k8sproxy.get('/apis/networking.k8s.io/v1/ingressclasses', {loading:true}).then(res=>{
             //     this.ingressclassList = res?.data?.items?.map(i=>i.metadata.name) || [];
@@ -1042,21 +1045,6 @@ export default {
                 this.domain.name = list?.[0]?.name;
                 this.domain.ingressclass = list?.[0]?.ingressclass;
                 this.domain.auto_ssl = list?.[0]?.auto_ssl;
-            }).then(()=>{
-                let wl = this.userInfo['w7.cc/domain-white-list'] || '[]';
-                wl = JSON.parse(wl);
-                if(wl.length){
-                    this.whiteList = wl?.filter(i=>!i.disabled);
-                    return;
-                }
-                
-                // k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-white-list',{noAlert:true}).then(res=>{
-                //     let list = [];
-                //     try{
-                //         list = JSON.parse(res?.data?.data?.whiteList)?.filter(i=>!i.disabled)
-                //     }catch{}
-                //     this.whiteList = list;
-                // })
             });
         },
         // getToken(){

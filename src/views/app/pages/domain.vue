@@ -4,7 +4,7 @@
             <div v-if="domainCard && domainCard.length" class="df df-ww" style="margin-bottom:20px;">
                 <a-card v-for="(item,index) in domainCard" :title="item.name" :key="index" class="topcard">
                     <template #extra>
-                        <a-button type="text" size="small" :disabled="!whiteListReady" @click="openFormCard({config_name:item.name})">
+                        <a-button type="text" size="small" @click="openFormCard({config_name:item.name})">
                             <template #icon><icon-plus /></template>
                             <span>添加域名</span>
                         </a-button>
@@ -19,7 +19,7 @@
                 </a-card>
             </div>
             <div class="df jc-b">
-                <a-button type="primary" :disabled="!whiteListReady" @click="domainFormShow({})"><template #icon><icon-plus /></template>添加域名</a-button>
+                <a-button type="primary" @click="domainFormShow({})"><template #icon><icon-plus /></template>添加域名</a-button>
                 
                 <div v-if="checkList.length">
                     <!-- 策略 -->
@@ -571,7 +571,7 @@
 </template>
 
 <script>
-import { k8sproxy, panelApi } from '@/utils/api';
+import { k8sproxy } from '@/utils/api';
 
 import axios from 'axios'
 import domainStrategy from '@/components/domain-strategy.vue'
@@ -579,6 +579,7 @@ import { useNamespaceStore, useLoadingStore } from '@/store'
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import domainGrayRelease from '@/components/domain-gray-release.vue';
 import { getUserInfo } from '@/utils/auth';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import CryptoJS  from 'crypto-js';
 import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
@@ -694,7 +695,6 @@ export default {
         this.inRvproxy = this.$route.name == 'gateway-rvproxy-domain';
         this.namespaceActive = useNamespaceStore().namespace;
         this.loadDirectApps();
-        await this.getWhiteList();
         this.refreshGroup();
         this.getList();
         this.getIngressclassList();
@@ -879,17 +879,15 @@ export default {
             callback(this.allAppPorts[app.name]);
         },
         async getWhiteList(){
+            this.whiteListReady = false;
             try {
-                const { data } = await panelApi.get('/auth/userinfo');
-                if(data?.code && data.code !== 200){ throw new Error('domain white list request failed'); }
-                const userInfo = data?.code === 200 ? data.data : data;
-                const whiteList = JSON.parse(userInfo?.['w7.cc/domain-white-list'] || '[]');
-                if(!Array.isArray(whiteList)){ throw new Error('invalid domain white list'); }
-                this.whiteList = whiteList.filter(i=>!i.disabled);
+                this.whiteList = await loadDomainWhiteList();
                 this.whiteListReady = true;
+                return true;
             } catch {
                 this.whiteList = [];
-                this.$message.error('域名白名单加载失败，请刷新页面重试');
+                this.$message.error('域名白名单加载失败，请重试');
+                return false;
             }
         },
         // 灰度发布
@@ -922,17 +920,19 @@ export default {
             this.grayRelease.parentPath = part.path;
             this.grayRelease.show = true;
         },
-        openFormCard(obj){
+        async openFormCard(obj){
+            if(!await this.getWhiteList()){ return; }
+            const matched = obj.ing_name && (obj.whiteDomain == null || obj.whiteDomain === -1) ? this.matchWhiteDomain(obj.host) : null;
             this.formcard = {
                 show: true,
                 // originType: obj.originType || (this.inRvproxy? 1 : 2),
                 title: obj.ing_name? "修改域名" : "添加域名",
                 name: obj.config_name,
                 ins_name: obj.ing_name || '',
-                domain: obj.host || '',
+                domain: matched?.domain ?? obj.host ?? '',
                 auto_ssl: obj.auto_ssl || false,
                 ingressclass: this.ingressclassList?.[0] || '',
-                whiteDomain: obj.ing_name? obj.whiteDomain : 0,
+                whiteDomain: obj.ing_name? (matched?.whiteDomain ?? obj.whiteDomain) : 0,
             }
             if(this.whiteList?.length && this.whiteList[this.formcard?.whiteDomain]?.prefixRandom && !this.formcard.domain){
                 this.formcard.domain = this.createShortUuid();
@@ -1608,7 +1608,9 @@ export default {
             })
         },
         // 修改添加域名
-        domainFormShow(item){
+        async domainFormShow(item){
+            if(!await this.getWhiteList()){ return; }
+            const matched = item.name && item.whiteDomain === -1 ? this.matchWhiteDomain(item.domain) : null;
             this.domainForm.appgroup = '';
             let originType = item.originType || (this.inRvproxy? 1 : 2);
             if(originType == 2 && !this.hasAppOptions){
@@ -1624,12 +1626,12 @@ export default {
                 originType: originType,
                 appPorts: this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id] || []),
                 ingressclass: item.ingressclass || this.ingressclassList?.[0] || '',
-                domain: item.domain || '',
+                domain: matched?.domain ?? item.domain ?? '',
                 port: String(item.port || (this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id]?.[0]||''))),
                 auto_ssl: item.is_auto_ssl || false,
                 name: item.name || '',
                 path: '',
-                whiteDomain: item.name? item.whiteDomain : 0,
+                whiteDomain: item.name? (matched?.whiteDomain ?? item.whiteDomain) : 0,
                 destination: item.destination,
 
                 zdApp: this.inRvproxy? (item.zdApp || '') : this.currentDirectApp.name,
