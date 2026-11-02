@@ -1,5 +1,5 @@
 <template>
-    <div class="df df-c padding-20" style="height:100%;">
+    <div class="df df-c padding-20" style="min-height:100%;">
         <route-breadcrumb />
 
         <a-tabs default-active-key="keys">

@@ -6,6 +6,11 @@
 - 浏览器从其他主机访问时使用 `http://172.16.1.18:8011`，不要使用 `localhost`。
 - 开发代理由 `config/vite.config.dev.ts` 统一配置，当前指向本机 `http://172.16.1.18:18000` 的 w7panel-server；启动 UI 前先执行 server 项目的 `make dev`。
 
+## UI 与 Server 发布顺序
+
+- 发布涉及 UI 的变更时，先在 `w7panel-ui` 主目录执行 `./build.sh`，将构建产物写入 `w7panel-server/kodata/`。
+- 确认 UI 构建成功且 Server 已包含新产物后，再执行 `w7panel-server` 的镜像构建、推送和发布。
+
 ## CHANGELOG 更新规则
 
 - 每次修改代码、配置、测试或文档时，必须在同一次变更中追加更新项目根目录的 `CHANGELOG.md`。
