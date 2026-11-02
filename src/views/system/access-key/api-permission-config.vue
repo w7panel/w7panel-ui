@@ -40,6 +40,13 @@
                             </tbody>
                         </table>
                     </div>
+                    <div v-if="wildcardRules.length" class="mt-20">
+                        <div class="mb-10">现有通配规则（覆盖对应的具体接口）</div>
+                        <a-space v-for="rule in wildcardRules" :key="rule.path" class="other-rule">
+                            <span>{{ rule.path }}：{{ rule.method.join(', ') }}</span>
+                            <a-button size="mini" status="danger" :disabled="saving" @click="removeOtherRule(rule.path)">移除</a-button>
+                        </a-space>
+                    </div>
                     <div v-if="otherRules.length" class="mt-20">
                         <div class="mb-10">路由目录外的现有规则</div>
                         <a-space v-for="rule in otherRules" :key="rule.path" class="other-rule">
@@ -57,7 +64,7 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import { resolveApiRouteDescription, getLoadedApiRouteDescriptions } from '@/utils/api-route-description';
-import { loadPermissionApiCatalog } from '@/utils/permission-api-catalog';
+import { loadPermissionApiCatalog, wildcardRouteCovers } from '@/utils/permission-api-catalog';
 
 const permissionUrl = '/apis/w7panel.w7.com/v1alpha1/permissions/api';
 const routeKey = route => `${route.method} ${route.path}`;
@@ -80,7 +87,9 @@ export default {
     computed: {
         groups() {
             const groups = new Map();
+            const exactRules = new Set((this.permission?.spec?.apiRules || []).filter(rule => !rule.path?.includes('*')).map(rule => rule.path));
             this.routes.forEach(route => {
+                if (!exactRules.has(route.path) && this.wildcardRules.some(rule => wildcardRouteCovers(rule.path, route.path))) return;
                 if (!groups.has(route.path)) groups.set(route.path, { path: route.path, routes: [], title: '' });
                 const group = groups.get(route.path);
                 group.routes.push(route);
@@ -99,7 +108,11 @@ export default {
         otherRules() {
             const catalogPaths = new Set(this.groups.map(group => group.path));
             return (this.permission?.spec?.apiRules || []).filter(rule =>
-                rule.path && rule.path !== '*' && !catalogPaths.has(rule.path) && !this.removedPaths.has(rule.path) && !this.cleared);
+                rule.path && !rule.path.includes('*') && !catalogPaths.has(rule.path) && !this.removedPaths.has(rule.path) && !this.cleared);
+        },
+        wildcardRules() {
+            return (this.permission?.spec?.apiRules || []).filter(rule =>
+                rule.path && rule.path !== '*' && rule.path.includes('*') && !this.removedPaths.has(rule.path) && !this.cleared);
         },
     },
     created() {
