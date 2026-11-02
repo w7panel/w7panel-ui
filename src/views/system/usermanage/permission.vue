@@ -106,12 +106,12 @@
                         </a-form-item>
                     </a-tab-pane>
                     <a-tab-pane key="3" title="域名白名单">
-                        <div v-if="exclusiveRules?.clusterType === 'child'" class="mb-10 c-99">由主集群普通用户权限套餐统一配置，子集群只读。</div>
-                        <whitelist-component ref="whitelist" :data="whitelistDisplay" :disabled="!exclusiveRules || exclusiveRules.clusterType === 'child'"></whitelist-component>
+                        <div v-if="isSubCluster" class="mb-10 c-99">由主集群普通用户权限套餐统一配置，子集群只读。</div>
+                        <whitelist-component ref="whitelist" :data="whitelistDisplay" :disabled="isSubCluster !== false"></whitelist-component>
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
-                            <a-switch v-model="form.apiAll" :disabled="form.name==founderName || (!form.apiAll && (!canGrantAllApi || !canGrantAllExclusiveApi))"></a-switch>
+                            <a-switch v-model="form.apiAll" :disabled="form.name==founderName || (!form.apiAll && !canGrantAllApi)"></a-switch>
                         </a-form-item>
                         <a-form-item label="API列表" v-if="!form.apiAll">
                             <div class="api-permission-panel">
@@ -183,7 +183,6 @@ import {
     resolveApiRouteDescription,
 } from '@/utils/api-route-description';
 import { loadPermissionApiCatalog } from '@/utils/permission-api-catalog';
-import { allowsExclusiveGrant, loadExclusivePolicy } from '@/utils/permission-exclusives';
 
 const dataTemplate = {
     "kind": "Permission",
@@ -246,7 +245,7 @@ export default {
             apiRoutes: [],
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
-            exclusiveRules: null,
+            isSubCluster: null,
         }
     },
     created(){
@@ -254,7 +253,9 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.getApiRoutes();
         this.getList();
-        loadExclusivePolicy().then(policy => { this.exclusiveRules = policy; }).catch(() => { this.exclusiveRules = null; });
+        axios.get('/panel-api/v1/microapp/global-frontprops', { noAlert: true }).then(({ data }) => {
+            this.isSubCluster = (data?.data || data)?.is_sub_cluster === true;
+        }).catch(() => {});
     },
     computed: {
         apiRouteGroups(){
@@ -323,11 +324,9 @@ export default {
             if(!this.apiConstraintMap){return true}
             return Array.isArray(this.apiConstraintMap['*']) && this.apiConstraintMap['*'].includes('*');
         },
-		canGrantAllExclusiveApi(){
-			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {'*': ['*']});
-		},
 		whitelistDisplay(){
-			return this.exclusiveRules?.clusterType === 'child' ? this.exclusiveRules.domainWhiteList : this.form.whitelist;
+			if (!this.isSubCluster) return this.form.whitelist;
+			try { return JSON.parse(getUserInfo()?.['w7.cc/domain-white-list'] || '[]'); } catch { return []; }
 		},
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;
@@ -456,23 +455,22 @@ export default {
             });
         },
         submit(){
+            if (this.isSubCluster === null) {
+                this.$message.error('集群信息加载失败，请刷新后重试');
+                return;
+            }
             this.$refs.form.validate(async (err) => {
                 if (err) {
                     this.$refs.form.scrollToField(Object.keys(err)[0]);
                     return;
                 }
 
-                let whitelist = this.exclusiveRules?.clusterType === 'child'
+                let whitelist = this.isSubCluster
                     ? (this.form.isAdd || !this.form.name ? [] : this.form.originData?.spec?.domainWhiteList || [])
                     : this.$refs.whitelist.getList() || [];
                 let api = this.formToApi();
                 this.applyFormConstraints();
                 api = this.formToApi();
-				let exclusiveRules;
-				try { exclusiveRules = await loadExclusivePolicy(); } catch { this.$message.error('专属权限策略加载失败'); return; }
-				if (!allowsExclusiveGrant(exclusiveRules.rules, exclusiveRules.clusterType, toPermissionPaths(this.form.permission), api)) {
-					this.$message.warning('所选菜单或 API 不允许授予当前集群'); return;
-				}
 
                 if(!this.form.name || this.form.isAdd){
                     let data = null;
@@ -547,8 +545,6 @@ export default {
                     data: res?.data,
                     title: res?.data?.spec?.title || res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
                     submit: async (data)=>{
-						const rules = await loadExclusivePolicy();
-						if (!allowsExclusiveGrant(rules.rules, rules.clusterType, data.spec?.menuRules || [], this.apiRulesToApi(data.spec?.apiRules || []))) throw new Error('所选菜单或 API 不允许授予当前集群');
                         delete data.metadata.namespace;
                         return k8sproxy.put("/apis/w7panel.w7.com/v1alpha1/permissions/" + data?.metadata?.name, data).then(res=>{
                             this.$message.success("修改成功");
@@ -686,7 +682,7 @@ export default {
             return api;
         },
         apiGroupAllowedRoutes(group){
-            return (group?.routes || []).filter(route => this.apiRouteAllowed(route) && this.exclusiveApiRouteAllowed(route));
+            return (group?.routes || []).filter(route => this.apiRouteAllowed(route));
         },
         apiGroupAllowedMethods(group){
             return this.apiGroupAllowedRoutes(group).map(route => route.method);
@@ -697,9 +693,6 @@ export default {
             const verbs = this.matchApiRuleMethods(this.apiConstraintMap, route.path);
             return verbs.includes('*') || verbs.includes(route.verb);
         },
-		exclusiveApiRouteAllowed(route){
-			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {[route.path]: [route.verb]});
-		},
         matchApiRuleMethods(rules, path){
             let bestPattern = '';
             let bestMethods = [];
@@ -776,7 +769,7 @@ export default {
             this.form.apiSelectedKeys = Array.from(selected);
         },
         selectAllApiRoutes(){
-            this.form.apiSelectedKeys = this.apiRoutes.filter(route => this.apiRouteAllowed(route) && this.exclusiveApiRouteAllowed(route)).map(route => this.apiRouteKey(route));
+            this.form.apiSelectedKeys = this.apiRoutes.filter(route => this.apiRouteAllowed(route)).map(route => this.apiRouteKey(route));
         },
         clearApiRoutes(){
             this.form.apiSelectedKeys = [];

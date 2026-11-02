@@ -3,7 +3,7 @@
         <a-alert type="info" class="mb-20">此处配置的 API 权限对所有 API 密钥生效。</a-alert>
         <a-form :model="form" auto-label-width>
             <a-form-item label="全部API">
-                <a-switch v-model="form.apiAll" :disabled="loading || saving || (!form.apiAll && !canGrantAllApi)" @change="setApiAll" />
+                <a-switch v-model="form.apiAll" :disabled="loading || saving" @change="setApiAll" />
             </a-form-item>
             <a-form-item v-if="!form.apiAll" label="API列表">
                 <div class="api-permission-panel">
@@ -33,7 +33,7 @@
                                             style="width:220px;"
                                             @change="methods => setMethods(group, methods)"
                                         >
-                                            <a-option v-for="route in group.routes" :key="route.method" :label="route.method" :value="route.method" :disabled="!apiRouteAllowed(route)" />
+                                            <a-option v-for="route in group.routes" :key="route.method" :label="route.method" :value="route.method" />
                                         </a-select>
                                     </td>
                                 </tr>
@@ -58,7 +58,6 @@
 import { k8sproxy } from '@/utils/api';
 import { resolveApiRouteDescription, getLoadedApiRouteDescriptions } from '@/utils/api-route-description';
 import { loadPermissionApiCatalog } from '@/utils/permission-api-catalog';
-import { allowsExclusiveGrant, loadExclusivePolicy } from '@/utils/permission-exclusives';
 
 const permissionUrl = '/apis/w7panel.w7.com/v1alpha1/permissions/api';
 const routeKey = route => `${route.method} ${route.path}`;
@@ -70,7 +69,6 @@ export default {
             permission: null,
             routes: [],
             descriptions: getLoadedApiRouteDescriptions(),
-            exclusiveRules: null,
             loading: true,
             saving: false,
             changedPaths: new Set(),
@@ -80,7 +78,6 @@ export default {
         };
     },
     computed: {
-		canGrantAllApi() { return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {'*': ['*']}); },
         groups() {
             const groups = new Map();
             this.routes.forEach(route => {
@@ -112,12 +109,10 @@ export default {
         async load() {
             this.loading = true;
             try {
-                const [permission, catalog, exclusiveRules] = await Promise.all([
+                const [permission, catalog] = await Promise.all([
                     k8sproxy.get(permissionUrl),
                     loadPermissionApiCatalog(),
-					loadExclusivePolicy(),
                 ]);
-				this.exclusiveRules = exclusiveRules;
                 this.permission = permission.data;
                 this.descriptions = catalog.descriptions;
                 this.routes = catalog.routes.map(route => {
@@ -156,12 +151,12 @@ export default {
         setMethods(group, methods) {
             const selected = new Set(this.form.selectedKeys);
             const chosen = new Set(methods || []);
-            group.routes.forEach(route => chosen.has(route.method) && this.apiRouteAllowed(route) ? selected.add(routeKey(route)) : selected.delete(routeKey(route)));
+            group.routes.forEach(route => chosen.has(route.method) ? selected.add(routeKey(route)) : selected.delete(routeKey(route)));
             this.form.selectedKeys = Array.from(selected);
             this.changedPaths.add(group.path);
         },
         selectAll() {
-            this.form.selectedKeys = this.routes.filter(this.apiRouteAllowed).map(routeKey);
+            this.form.selectedKeys = this.routes.map(routeKey);
             this.groups.forEach(group => this.changedPaths.add(group.path));
         },
         clearAll() {
@@ -172,9 +167,6 @@ export default {
         removeOtherRule(path) {
             this.removedPaths.add(path);
         },
-		apiRouteAllowed(route) {
-			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {[route.path]: [route.verb]});
-		},
         async save() {
             if (!this.permission || this.saving) return;
             this.saving = true;
@@ -194,8 +186,6 @@ export default {
                     });
                 }
                 data.spec.apiRules = Array.from(rules, ([path, method]) => ({ path, method }));
-				const exclusiveRules = await loadExclusivePolicy();
-				if (!allowsExclusiveGrant(exclusiveRules.rules, exclusiveRules.clusterType, data.spec.menuRules || [], Object.fromEntries(rules))) throw new Error('所选 API 不允许授予当前集群');
                 await k8sproxy.put(permissionUrl, data);
                 this.$message.success('保存成功');
                 await this.load();

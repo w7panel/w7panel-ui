@@ -50,7 +50,7 @@
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
-                            <a-switch :disabled="editDisabledMenu || (!pmsForm.apiAll && !canGrantAllApi)" v-model="pmsForm.apiAll" @change="markCustomPermission"></a-switch>
+                            <a-switch :disabled="editDisabledMenu" v-model="pmsForm.apiAll" @change="markCustomPermission"></a-switch>
                         </a-form-item>
                         <a-form-item label="API列表" v-if="!pmsForm.apiAll">
                             <div class="api-permission-panel">
@@ -88,7 +88,6 @@
                                                             :key="apiRouteKey(route)"
                                                             :label="route.method"
                                                             :value="route.method"
-									:disabled="!apiRouteAllowed(route)"
                                                         ></a-option>
                                                     </a-select>
                                                 </td>
@@ -110,7 +109,6 @@ import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu';
-import { allowsExclusiveGrant, allowsExclusiveMenu, loadExclusivePolicy } from '@/utils/permission-exclusives';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
 import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
@@ -172,7 +170,6 @@ export default {
             virtualTreeData: [],
             globalTreeData: [],
             microAppTreeData: [],
-            exclusiveRules: null,
             apiRoutes: [],
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
@@ -208,7 +205,6 @@ export default {
         this.getApiRoutes();
         this.initTreeData();
         loadPermissionMicroAppMenus(this.namespaceActive).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
-        loadExclusivePolicy().then(policy => { this.exclusiveRules = policy; this.initTreeData(); }).catch(() => { this.exclusiveRules = null; this.initTreeData(); });
     },
     computed: {
         sourceTreeData(){
@@ -252,10 +248,7 @@ export default {
             return this.disabledBase || !this.pmsForm.customPermission;
         },
         editDisabledMenu(){
-            return this.disabledMenu || !this.pmsForm.customPermission || !this.exclusiveRules;
-        },
-        canGrantAllApi(){
-			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {'*': ['*']});
+            return this.disabledMenu || !this.pmsForm.customPermission;
 		},
 		targetUserGroup(){
 			const selected = this.permissionPackageList.find(item => item.name === this.pmsForm.permissionPackage);
@@ -310,11 +303,8 @@ export default {
                 ? this.permissionPackageList.find(i=>i.name==find.parentPermission)
                 : null;
             let role = find?.role || parent?.role || '';
-			let rules;
-			try { rules = await loadExclusivePolicy(); } catch { this.$message.error('专属权限策略加载失败'); return; }
 			const menus = toPermissionPaths(this.pmsForm.list);
 			const api = this.formToApi();
-			if (!allowsExclusiveGrant(rules.rules, rules.clusterType, menus, api)) { this.$message.warning('所选菜单或 API 不允许授予当前集群'); return; }
             this.$emit('submit',{
                 list: menus,
                 api,
@@ -500,7 +490,7 @@ export default {
 			this.pmsForm.apiSelectedKeys = this.nextApiSelectedKeysForGroup(group, methods, this.pmsForm.apiSelectedKeys)
 				.filter(key => {
 					const route = this.apiRoutes.find(item => this.apiRouteKey(item) === key);
-					return route && this.apiRouteAllowed(route);
+					return route;
 				});
         },
         normalizeApiSelectedKeys(keys){
@@ -560,7 +550,6 @@ export default {
         },
         toggleApiRoute(route, checked){
             if(this.editDisabledMenu){return}
-			if(checked && !this.apiRouteAllowed(route)){return}
             this.markCustomPermission();
             let key = this.apiRouteKey(route);
             let selected = new Set(this.pmsForm.apiSelectedKeys || []);
@@ -574,11 +563,8 @@ export default {
         selectAllApiRoutes(){
             if(this.editDisabledMenu){return}
             this.markCustomPermission();
-            this.pmsForm.apiSelectedKeys = this.apiRoutes.filter(route => this.apiRouteAllowed(route)).map(route => this.apiRouteKey(route));
+            this.pmsForm.apiSelectedKeys = this.apiRoutes.map(route => this.apiRouteKey(route));
         },
-		apiRouteAllowed(route){
-			return this.exclusiveRules && allowsExclusiveGrant(this.exclusiveRules.rules, this.exclusiveRules.clusterType, [], {[route.path]: [route.verb]});
-		},
         clearApiRoutes(){
             if(this.editDisabledMenu){return}
             this.markCustomPermission();
@@ -592,11 +578,8 @@ export default {
         filterTree(keys){
             const menuDataCopy = JSON.parse(JSON.stringify(this.sourceTreeData));
     
-            const exclusivePolicy = this.exclusiveRules;
             function traverseAndDisable(nodes, disabled) {
                 return nodes.filter(node => {
-                    const restricted = !exclusivePolicy || !allowsExclusiveMenu(exclusivePolicy.rules, exclusivePolicy.clusterType, node.route || '', node.key);
-                    if (restricted) return false;
                     if (keys.includes(node.key) || disabled) {
                         node.disabled = true;
                     }

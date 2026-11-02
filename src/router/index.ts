@@ -7,7 +7,6 @@ import { appRoutes } from './routes';
 import { REDIRECT_MAIN, NOT_FOUND_ROUTE } from './routes/base';
 import { isLogin, getPermission, getToken, getK8sinfo } from '@/utils/auth';
 import { hasPermission } from '@/utils/permission-match';
-import { allowsExclusiveMenu, loadExclusivePolicy } from '@/utils/permission-exclusives';
 
 import useK3kinfo from '@/hooks/k3k-info';
 
@@ -117,7 +116,6 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.requiresAuth !== false && isLogin()) {
-	let exclusivePolicy;
     try {
       const token = getToken() || '';
       if (token !== verifiedToken) {
@@ -127,7 +125,6 @@ router.beforeEach(async (to, from, next) => {
         }
         verifiedToken = getToken() || '';
       }
-	  exclusivePolicy = await loadExclusivePolicy();
     } catch {
       if (!isLogin()) {
         next({ name: 'login', query: { redirect: to.fullPath }, replace: true });
@@ -142,10 +139,8 @@ router.beforeEach(async (to, from, next) => {
     }
 
     const permissions = getPermission() || [];
-	const clusterType = exclusivePolicy.clusterType;
     const forbidden = to.matched.some((record) => record.meta?.key
-      && (!hasPermission(permissions, record.path, String(record.meta.key))
-		|| !allowsExclusiveMenu(exclusivePolicy.rules, clusterType, record.path, String(record.meta.key))));
+      && !hasPermission(permissions, record.path, String(record.meta.key)));
     if (forbidden) {
       next(getK8sinfo()?.['w7.cc/role'] === 'normal'
         ? { path: NORMAL_HOME, replace: true }
