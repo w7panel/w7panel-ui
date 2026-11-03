@@ -736,3 +736,7 @@
 ## 2026-11-03 HTTPS 配置保存修复
 
 - 证书抽屉使用可创建缺失字段的 JSON Patch 写入 Ingress TLS 和注解，并在授权或保存失败时显示错误。影响模块：域名 HTTPS 配置。验证：`npm run build`、`git diff --check` 通过。
+
+## 2026-11-03 泛域名关联 Ingress HTTPS 修复
+
+- 证书抽屉同步关联 Ingress 时按各自的泛域名签发 DNS-01 授权，普通域名继续使用默认签发器。影响模块：域名 HTTPS 配置。验证：泛域名与普通域名操作自检、`npm run build`、`git diff --check` 通过。

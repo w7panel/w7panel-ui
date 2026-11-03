@@ -432,16 +432,21 @@ export default {
         },
         getAutoSslOperation(data, grant = {}){
             let operation = [];
+            const wildcard = isWildcardHost(data?.spec?.rules?.[0]?.host);
+            const issuer = data?.metadata?.annotations?.['cert-manager.io/cluster-issuer'];
+            const desiredIssuer = wildcard ? grant['cert-manager.io/cluster-issuer'] : AUTO_SSL_ISSUER;
+            if(this.tlsForm.auto_ssl && wildcard && !desiredIssuer){
+                throw new Error('泛域名缺少 DNS-01 签发授权');
+            }
             if(!data?.metadata?.annotations){
                 operation.push({op: 'add', path: '/metadata/annotations', value: {}});
             }
-            if(this.tlsForm.auto_ssl != isAutoSslIssuer(data?.metadata?.annotations?.['cert-manager.io/cluster-issuer']) ||
-                (this.tlsForm.auto_ssl && isWildcardHost(this.tlsForm.domain))){
+            if((this.tlsForm.auto_ssl && issuer !== desiredIssuer) || (!this.tlsForm.auto_ssl && isAutoSslIssuer(issuer))){
                 if(this.tlsForm.auto_ssl){
                     operation.push({
                         op: 'add',
                         path: '/metadata/annotations/cert-manager.io~1cluster-issuer',
-                        value: grant['cert-manager.io/cluster-issuer'] || AUTO_SSL_ISSUER
+                        value: desiredIssuer
                     })
                     operation.push({
                         op: 'add',
@@ -460,8 +465,8 @@ export default {
                 }
             }
             for(const key of ['w7.cc/dns-profile', 'w7.cc/dns-grant']){
-                if(grant[key]) operation.push({op:'add', path:'/metadata/annotations/'+key.replace('/', '~1'), value:grant[key]});
-                else if(!this.tlsForm.auto_ssl && data?.metadata?.annotations?.[key]) operation.push({op:'remove', path:'/metadata/annotations/'+key.replace('/', '~1')});
+                if(this.tlsForm.auto_ssl && wildcard && grant[key]) operation.push({op:'add', path:'/metadata/annotations/'+key.replace('/', '~1'), value:grant[key]});
+                else if(data?.metadata?.annotations?.[key]) operation.push({op:'remove', path:'/metadata/annotations/'+key.replace('/', '~1')});
             }
             return operation;
         },
@@ -586,11 +591,17 @@ export default {
             useLoadingStore().loading = true;
             let list = this.getIngressList().filter(i=>i?.metadata?.labels?.parents==this.tlsForm.domainName)
 
-            return Promise.all(list.map(i=>{
+            return Promise.all(list.map(async i=>{
                 let data = JSON.parse(JSON.stringify(i))
                 let operation = [];
 
-                operation = operation.concat(this.getAutoSslOperation(data));
+                let grant = {};
+                if(this.tlsForm.auto_ssl && isWildcardHost(data?.spec?.rules?.[0]?.host)){
+                    const draft = {metadata:{namespace:this.namespaceActive,name:data.metadata.name,annotations:{'cert-manager.io/cluster-issuer':AUTO_SSL_ISSUER}},spec:{rules:[{host:data.spec.rules[0].host}]}};
+                    await applyWildcardSsl(draft, data?.metadata?.annotations?.['w7.cc/dns-profile'] || this.tlsForm.dnsProfileId);
+                    grant = draft.metadata.annotations;
+                }
+                operation = operation.concat(this.getAutoSslOperation(data, grant));
                 operation.push({
                     op: 'add',
                     path: '/spec/tls',
