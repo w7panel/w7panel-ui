@@ -76,7 +76,7 @@ async function toggle(value) {
     busy.value = true;
     try {
         const response = await panelApi.get('/dns-profiles');
-        profiles.value = response?.data?.data || [];
+        profiles.value = response?.data || [];
         if (!matchingProfiles.value.some(profile => profile.id === selected.value)) selected.value = '';
         visible.value = true;
     } finally {
@@ -91,7 +91,7 @@ async function confirm() {
         if (!id) {
             if (!wildcardInZone(props.host, form.zone)) throw new Error('DNS 区域与泛域名不匹配');
             const response = await panelApi.post('/dns-profiles', { namespace: props.namespace, provider: form.provider, zone: form.zone, credentials: form.credentials });
-            id = response?.data?.data?.id;
+            id = response?.data?.id;
         }
         if (!id) throw new Error('DNS 配置未保存');
         emit('update:profileId', id);

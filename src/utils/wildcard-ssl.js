@@ -23,7 +23,7 @@ export async function applyWildcardSsl(ingress, profileId) {
         name: ingress.metadata.name,
         host,
     });
-    Object.assign(annotations, response?.data?.data || {});
+    Object.assign(annotations, response?.data || {});
     if (!annotations['w7.cc/dns-grant']) throw new Error('DNS 签发授权失败');
     return ingress;
 }
