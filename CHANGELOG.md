@@ -732,3 +732,7 @@
 ## 2026-11-03 权限菜单测试夹具修复
 
 - 补齐权限菜单测试中的集群路由判断模拟，删除对已移除专属策略模块的断言。影响模块：权限菜单测试。验证：`node scripts/permission-menu.test.cjs` 与 `git diff --check` 通过。
+
+## 2026-11-03 HTTPS 配置保存修复
+
+- 证书抽屉使用可创建缺失字段的 JSON Patch 写入 Ingress TLS 和注解，并在授权或保存失败时显示错误。影响模块：域名 HTTPS 配置。验证：`npm run build`、`git diff --check` 通过。

@@ -432,6 +432,9 @@ export default {
         },
         getAutoSslOperation(data, grant = {}){
             let operation = [];
+            if(!data?.metadata?.annotations){
+                operation.push({op: 'add', path: '/metadata/annotations', value: {}});
+            }
             if(this.tlsForm.auto_ssl != isAutoSslIssuer(data?.metadata?.annotations?.['cert-manager.io/cluster-issuer']) ||
                 (this.tlsForm.auto_ssl && isWildcardHost(this.tlsForm.domain))){
                 if(this.tlsForm.auto_ssl){
@@ -475,10 +478,11 @@ export default {
                 data = await this.fetchIngress(parentName || this.tlsForm.domainName).catch(()=>null);
             }
             if(!data){
-                console.log('no domain', this.tlsForm.domainName)
+                this.$message.error('未找到域名对应的 Ingress');
                 return;
             }
 
+            try{
             let operation = [];
             this.tlsForm.tlsName = this.tlsForm.tlsName || (this.domainToname(this.tlsForm.domain) + "-tls-secret");
 
@@ -491,7 +495,7 @@ export default {
                 }
                 operation = operation.concat(this.getAutoSslOperation(data, grant));
                 operation.push({
-                    op: 'replace',
+                    op: 'add',
                     path: '/spec/tls',
                     value: [{
                         hosts: [data?.spec?.rules?.[0]?.host,],
@@ -501,7 +505,7 @@ export default {
                 // 强制跳转
                 // data.metadata.annotations['w7.cc/ssl-redirect'] = this.tlsForm.redirect? 'true' : 'false';
                 operation.push({
-                    op: 'replace',
+                    op: 'add',
                     path: '/metadata/annotations/w7.cc~1ssl-redirect',
                     value: this.tlsForm.redirect? 'true' : 'false'
                 })
@@ -536,14 +540,14 @@ export default {
                         child.dnsGrant = draft.metadata.annotations['w7.cc/dns-grant'];
                     }else if(child){ delete child.dnsGrant; }
                     await k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+parentName,[{
-                        op: 'replace',
+                        op: 'add',
                         path: '/metadata/annotations/w7.cc~1child-hosts',
                         value: JSON.stringify(children)
                     }],{
                         headers: {'Content-Type': 'application/json-patch+json'},
                     }).then(()=>{
                         this.updateLocalChildren(parentName, children);
-                    }).catch(()=>{})
+                    })
                 }
             }
 
@@ -559,21 +563,22 @@ export default {
             }
 
             if(!parentName){
-                k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.tlsForm.domainName, operation,{
+                await k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.tlsForm.domainName, operation,{
                     headers: {'Content-Type': 'application/json-patch+json'},
-                }).then(()=>{
-                    return this.setSubdomainTls();
-                }).then(()=>{
-                    this.$message.success("操作成功");
-                    this.tlsForm.show = false;
-                    this.$emit('success');
-                    this.externalOnSuccess?.();
-                })
+                });
+                await this.setSubdomainTls();
+                this.$message.success("操作成功");
+                this.tlsForm.show = false;
+                this.$emit('success');
+                this.externalOnSuccess?.();
             }else{
                 this.$message.success("操作成功")
                 this.tlsForm.show = false;
                 this.$emit('success');
                 this.externalOnSuccess?.();
+            }
+            }catch(error){
+                this.$message.error(error?.response?.data?.message || error?.message || 'HTTPS 配置保存失败');
             }
         },
         // 设置子域名证书
@@ -587,7 +592,7 @@ export default {
 
                 operation = operation.concat(this.getAutoSslOperation(data));
                 operation.push({
-                    op: 'replace',
+                    op: 'add',
                     path: '/spec/tls',
                     value: [{
                         hosts: [data?.spec?.rules?.[0]?.host,],
@@ -595,7 +600,7 @@ export default {
                     }]
                 })
                 operation.push({
-                    op: 'replace',
+                    op: 'add',
                     path: '/metadata/annotations/w7.cc~1ssl-redirect',
                     value: this.tlsForm.redirect? 'true' : 'false'
                 })
