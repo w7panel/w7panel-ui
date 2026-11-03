@@ -494,7 +494,7 @@ export default {
             if(!parentName){
                 let grant = {};
                 if(this.tlsForm.auto_ssl && isWildcardHost(this.tlsForm.domain)){
-                    const draft = {metadata:{namespace:this.namespaceActive,name:data.metadata.name,annotations:{}},spec:{rules:[{host:this.tlsForm.domain}]}};
+                    const draft = {metadata:{namespace:this.namespaceActive,name:data.metadata.name,annotations:{'cert-manager.io/cluster-issuer':AUTO_SSL_ISSUER}},spec:{rules:[{host:this.tlsForm.domain}]}};
                     await applyWildcardSsl(draft, this.tlsForm.dnsProfileId);
                     grant = draft.metadata.annotations;
                 }
