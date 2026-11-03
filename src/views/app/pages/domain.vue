@@ -286,7 +286,7 @@
                                 <span class="c-red">当前域名不符合管理员设置的域名白名单规则，是否需要更改？ </span>
                                 <span class="c-blue cursor ml-10" @click="domainForm.domain='';domainForm.whiteDomain=0;whiteList[domainForm.whiteDomain].prefixRandom?domainForm.domain=createShortUuid():null;">更改</span>
                             </span>
-                            <a-checkbox v-model="domainForm.auto_ssl" class="mt-16">自动SSL证书</a-checkbox>
+                            <wildcard-auto-ssl v-model="domainForm.auto_ssl" v-model:profile-id="domainForm.dnsProfileId" :host="domainFormFullHost" :namespace="namespaceActive" class="mt-16" />
                         </div>
                     </a-form-item>
 
@@ -522,7 +522,7 @@
                             <span class="c-red">当前域名不符合管理员设置的域名白名单规则，是否需要更改？ </span>
                             <span class="c-blue cursor ml-10" @click="formcard.domain='';formcard.whiteDomain=0;whiteList[formcard.whiteDomain].prefixRandom?formcard.domain=createShortUuid():null;">更改</span>
                         </span>
-                        <a-checkbox v-model="formcard.auto_ssl" class="mt-10">自动SSL证书</a-checkbox>
+                        <wildcard-auto-ssl v-model="formcard.auto_ssl" v-model:profile-id="formcard.dnsProfileId" :host="formCardFullHost" :namespace="namespaceActive" class="mt-10" />
                     </div>
                 </a-form-item>
                 <a-form-item v-show="!formcard.ingressclass || ingressclassList.length>1" label="ingressClass" field="ingressclass">
@@ -556,9 +556,9 @@
             <div class="padding-20 df df-c">
                 <div v-for="(item,index) in bindDomain.list" :key="index" class="df ai-c mb-10">
                     <a-input v-model="item.host" placeholder="请输入域名" class="fc">
-                        <template #prepend>{{item.auto_ssl?'https://':'http://'}}</template>
+                        <template #prepend>{{item.autoSsl?'https://':'http://'}}</template>
                     </a-input>
-                    <a-checkbox v-model="item.autoSsl" class="ml-10">自动SSL证书</a-checkbox>
+                    <wildcard-auto-ssl v-model="item.autoSsl" v-model:profile-id="item.dnsProfileId" :host="item.host" :namespace="namespaceActive" class="ml-10" />
                     <icon-close class="ml-20 cursor fs-16" @click="bindDomain.list.splice(index,1);" />
                 </div>
                 <a-button @click="bindDomain.list.push({name:createName(),host:'',autoSsl:bindDomain.autoSsl,sslRedirect:bindDomain.sslRedirect})" type="outline">
@@ -584,6 +584,8 @@ import CryptoJS  from 'crypto-js';
 import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
 import domainCert from '@/components/domain-cert.vue';
+import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
+import { applyWildcardSsl, isAutoSslIssuer } from '@/utils/wildcard-ssl';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 import { cleanupIngressPluginRules } from '@/utils/gateway-plugin';
 
@@ -689,6 +691,7 @@ export default {
         domainGrayRelease,
         domainParseAlert,
         domainCert,
+        wildcardAutoSsl,
     },
     async created(){
         this.debug = getUserInfo()?.['w7.cc/debug']=='true';
@@ -708,6 +711,18 @@ export default {
         },
     },
     computed:{
+        formCardFullHost(){
+            const domain = String(this.formcard.domain || '').replace(/\.$/, '');
+            const suffix = this.whiteList?.length && this.formcard.whiteDomain !== -1
+                ? this.whiteList[this.formcard.whiteDomain]?.domain : '';
+            return suffix ? `${domain}.${suffix}` : domain;
+        },
+        domainFormFullHost(){
+            const domain = String(this.domainForm.domain || '').replace(/\.$/, '');
+            const suffix = this.whiteList?.length && this.domainForm.whiteDomain !== -1
+                ? this.whiteList[this.domainForm.whiteDomain]?.domain : '';
+            return suffix ? `${domain}.${suffix}` : domain;
+        },
         appDefaultDomain(){
             return this.groupData?.metadata?.annotations?.['w7.cc/default-domain'];
         },
@@ -802,10 +817,22 @@ export default {
                 list: JSON.parse(JSON.stringify(row.children)) || [],
             }
         },
-        bindSubmit(){
+        async bindSubmit(){
             
             let children = this.bindDomain.list;
             children = children.filter(i=>i.host);
+            try {
+                for(const child of children){
+                    if(child.autoSsl && child.host.startsWith('*.')){
+                        const draft = {metadata:{namespace:this.namespaceActive,name:this.bindDomain.parent+'-'+child.name,annotations:{'cert-manager.io/cluster-issuer':'w7-letsencrypt-prod'}},spec:{rules:[{host:child.host}]}};
+                        await applyWildcardSsl(draft, child.dnsProfileId);
+                        child.dnsGrant = draft.metadata.annotations['w7.cc/dns-grant'];
+                    }else{
+                        delete child.dnsProfileId;
+                        delete child.dnsGrant;
+                    }
+                }
+            }catch(error){ this.$message.error(error.message || 'DNS 授权失败'); return; }
             
             k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.bindDomain.parent,[{
                 op: 'replace',
@@ -817,7 +844,7 @@ export default {
                 this.$message.success('操作成功');
                 this.bindDomain.show = false;
                 this.getList();
-            }).catch(()=>{})
+            }).catch(error=>this.$message.error(error.message || '保存子域名失败'))
         },
         async multipleDelete(){
             let arr = [];
@@ -931,6 +958,7 @@ export default {
                 ins_name: obj.ing_name || '',
                 domain: matched?.domain ?? obj.host ?? '',
                 auto_ssl: obj.auto_ssl || false,
+                dnsProfileId: this.dataList.find(i=>i?.metadata?.name === obj.ing_name)?.metadata?.annotations?.['w7.cc/dns-profile'] || '',
                 ingressclass: this.ingressclassList?.[0] || '',
                 whiteDomain: obj.ing_name? (matched?.whiteDomain ?? obj.whiteDomain) : 0,
             }
@@ -963,6 +991,7 @@ export default {
                 domain: fullDomain || '',
                 port: String(primary?.backend?.port || ''),
                 auto_ssl: this.formcard.auto_ssl || false,
+                dnsProfileId: this.formcard.dnsProfileId || '',
                 name: this.formcard.ins_name || '', // 修改||新增
                 path: primary.path || '',
             }
@@ -1304,7 +1333,7 @@ export default {
                 return false;
             })?.map(i=>{
                 
-                let is_auto_ssl = i?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
+                let is_auto_ssl = isAutoSslIssuer(i?.metadata?.annotations?.['cert-manager.io/cluster-issuer']);
                 let redirect = i?.metadata?.annotations?.['w7.cc/ssl-redirect'] == 'true';
                 
                 let {domain, whiteDomain} = this.matchWhiteDomain(i?.spec?.rules?.[0]?.host);
@@ -1421,7 +1450,7 @@ export default {
                 let find = data.find(p=>p.metadata.name==i.metadata.labels.parents);
                 if(!find){return}
                 
-                let is_auto_ssl = i?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
+                let is_auto_ssl = isAutoSslIssuer(i?.metadata?.annotations?.['cert-manager.io/cluster-issuer']);
 
                 let partItem = i;
                 let part = [];
@@ -1548,7 +1577,7 @@ export default {
                 return lbs.parents == iname && parentsPath == this.computedSubMd5(ipath); //ipath.replace(/^\//,'');
             }).map(i=>{
                 let ann = i?.metadata?.annotations;
-                let is_auto_ssl = ann?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
+                let is_auto_ssl = isAutoSslIssuer(ann?.['cert-manager.io/cluster-issuer']);
                 let pathtype = i?.spec?.rules?.[0]?.http?.paths?.[0]?.pathType;
                 return {
                     name: i.metadata.name,
@@ -1629,6 +1658,7 @@ export default {
                 domain: matched?.domain ?? item.domain ?? '',
                 port: String(item.port || (this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id]?.[0]||''))),
                 auto_ssl: item.is_auto_ssl || false,
+                dnsProfileId: this.dataList.find(i=>i?.metadata?.name === item.name)?.metadata?.annotations?.['w7.cc/dns-profile'] || '',
                 name: item.name || '',
                 path: '',
                 whiteDomain: item.name? (matched?.whiteDomain ?? item.whiteDomain) : 0,
@@ -1757,12 +1787,13 @@ export default {
                             await this.patchFirstAppStartParamsDomainUrl(domain);
                         }catch{}
                     }
+                    await applyWildcardSsl(data, this.domainForm.dnsProfileId);
                     return k8sproxy.put("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.domainForm.name, data, {loading:true}).then(async res=>{
                         // 修改子目录 域名 ssl
                         let list = this.dataList.filter(i=>i?.metadata?.labels?.parents==res.data.metadata.name)
                         if(list.length){
                             useLoadingStore().loading = true;
-                            await Promise.all(list.map(i=>{
+                            await Promise.all(list.map(async i=>{
                                 let data = JSON.parse(JSON.stringify(i))
                                 if(!data || !data.spec || !data.spec.rules){return}
                                 
@@ -1782,6 +1813,7 @@ export default {
                                     delete data.spec.tls;
                                 }
     
+                                await applyWildcardSsl(data, this.domainForm.dnsProfileId);
                                 return k8sproxy.put("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+data.metadata.name, data);
                             })).finally(()=>{
                                 useLoadingStore().loading = false;
@@ -1907,6 +1939,7 @@ export default {
                         }
                     }
                     
+                    await applyWildcardSsl(data, this.domainForm.dnsProfileId);
                     return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data).then(res=>{
                         this.domainForm.show = false;
                         if(!eve.noMessage){

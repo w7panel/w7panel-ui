@@ -81,7 +81,7 @@
                                         </a-select>
                                     </template>
                                 </a-input>
-                                <a-checkbox v-model="item.crtSsl" class="ml-16 df-s0">https证书</a-checkbox>
+                                <wildcard-auto-ssl v-model="item.crtSsl" v-model:profile-id="item.dnsProfileId" :host="formFullDomain(item)" :namespace="namespaceActive" class="ml-16 df-s0" />
                             </div>
                         </a-form-item>
                         
@@ -131,6 +131,8 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
+import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
+import { applyWildcardSsl, isAutoSslIssuer } from '@/utils/wildcard-ssl';
 import axios from 'axios'
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore,useLoadingStore } from '@/store';
@@ -204,8 +206,13 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.getData();
     },
-    components: {yamlDrawer},
+    components: {yamlDrawer, wildcardAutoSsl},
     methods: {
+        formFullDomain(item){
+            const domain = String(item.crtDomain || '').replace(/\.$/, '');
+            const suffix = this.whiteList?.length && item.whiteDomain !== -1 ? this.whiteList[item.whiteDomain]?.domain : '';
+            return suffix ? `${domain}.${suffix}` : domain;
+        },
         async getWhiteList(){
             this.whiteList = await loadDomainWhiteList();
         },
@@ -261,6 +268,7 @@ export default {
                 crtDomain: '',
                 whiteDomain: this.whiteList?.length? 0 : -1,
                 crtSsl: false,
+                dnsProfileId: '',
                 type: 'dns',
                 domains: [{value:''}],
                 protocol: 'HTTP',
@@ -313,7 +321,7 @@ export default {
                         let host = i?.spec?.rules?.[0]?.host;
                         let path = i?.spec?.rules?.[0]?.http?.paths?.[0]?.path;
                         path = path=='/'? '' : path;
-                        let ssl = i?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
+                        let ssl = isAutoSslIssuer(i?.metadata?.annotations?.['cert-manager.io/cluster-issuer']);
                         return (ssl?'https://':'http://') + host + path;
                     });
                     // i.md = Array.from(new Set(i.md)) || [];
@@ -441,6 +449,7 @@ export default {
             }else{
                 k8sproxy.post('/apis/networking.higress.io/v1/namespaces/'+this.namespaceActive+'/mcpbridges', data, {loading:true}).then(async res => {    
                     useLoadingStore().loading = true;
+                    let domainError = null;
                     for(let i in this.form.form){
                         let item = this.form.form[i];
                         let fullDomain = item.crtDomain;
@@ -454,18 +463,19 @@ export default {
                                 type: item.type,
                                 domain: fullDomain,
                                 auto_ssl: item.crtSsl,
+                                dnsProfileId: item.dnsProfileId,
                             })
-                        }catch{}
+                        }catch(error){ domainError ||= error; }
                     }
-                    useLoadingStore().loading = false;
+                    if(domainError) throw domainError;
                 }).then(res=>{
                     this.$message.success('操作成功');
                     this.getData();
                     this.form.show = false;
-                });
+                }).catch(error=>this.$message.error(error.message || '创建域名失败')).finally(()=>{ useLoadingStore().loading = false; });
             }
         },
-        createDomain(o){
+        async createDomain(o){
             let backend = {
                 "resource": {
                     "apiGroup": "networking.higress.io",
@@ -519,6 +529,7 @@ export default {
             data.metadata.labels['higress.io/destination'] = o.name + '.' + o.type;
             data.metadata.labels['destination'] = o.name;
             
+            await applyWildcardSsl(data, o.dnsProfileId);
             return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data)
         },
         // 修改类型同时修改域名的类型
