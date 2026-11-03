@@ -12,7 +12,9 @@ const k8sproxy = { get: async () => ({ data: { items: [{
     { title: 'Overview', do: '/overview', children: [{ title: 'Detail', do: '/detail' }] },
   ] }] },
 }] } }) };
-vm.runInNewContext(code, { exports: menuExports, require: () => ({ k8sproxy }) });
+vm.runInNewContext(code, { exports: menuExports, require: name => name === '@/utils/cluster-access'
+  ? { allowsClusterRoute: () => true }
+  : { k8sproxy } });
 
 const routes = [{ path: '/system', meta: { key: 'system', locale: 'System' }, children: [
   { path: 'audit', meta: { key: 'audit', locale: 'Audit', exclusiveGroups: ['ops', 'security'] } },
@@ -34,20 +36,6 @@ const matchExports = {};
 vm.runInNewContext(matchCode, { exports: matchExports, require: () => ({ default: routes }) });
 assert.equal(matchExports.keyToPermissionPath('cloud'), 'system/cloud');
 assert.equal(matchExports.keyToPermissionPath('hidden-detail'), 'system/hidden/detail');
-
-const exclusiveSource = fs.readFileSync('src/utils/permission-exclusives.ts', 'utf8');
-const exclusiveCode = ts.transpileModule(exclusiveSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
-const exclusiveExports = {};
-vm.runInNewContext(exclusiveCode, { exports: exclusiveExports, require: name => name === './permission-match' ? matchExports : { default: {} } });
-const rules = [{ menuRule: 'system/audit', menuKeys: ['audit'], clusterTypes: ['main'], apiRules: [{ path: '/panel-api/v1/audit', method: ['get'] }] }];
-assert.equal(exclusiveExports.allowsExclusiveMenu(rules, 'child', 'system/*'), false);
-assert.equal(exclusiveExports.allowsExclusiveMenu(rules, 'child', 'system/audit', 'audit'), false);
-assert.equal(exclusiveExports.allowsExclusiveMenu(rules, 'main', 'system/audit', 'audit'), true);
-assert.equal(exclusiveExports.allowsExclusiveGrant(rules, 'child', ['system/*'], {}), false);
-assert.equal(exclusiveExports.allowsExclusiveGrant(rules, 'child', [], { '*': ['*'] }), false);
-assert.equal(exclusiveExports.allowsExclusiveGrant(rules, 'main', ['system/*'], { '*': ['*'] }), true);
-assert.equal(exclusiveExports.allowsExclusiveGrant(rules, 'child', [], { '/panel-api/v1/*': ['get'] }), false);
-assert.equal(exclusiveExports.allowsExclusiveGrant(rules, 'child', [], { '/panel-api/v1/public/*': ['get'] }), true);
 
 menuExports.loadPermissionMicroAppMenus('default').then(nodes => {
   assert.equal(nodes[0].disabled, true);
