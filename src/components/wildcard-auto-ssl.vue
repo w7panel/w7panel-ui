@@ -6,14 +6,16 @@
             <a-form :model="form" auto-label-width>
                 <a-form-item label="泛域名">{{ host }}</a-form-item>
                 <a-form-item label="已有配置">
-                    <a-select v-model="selected" allow-clear placeholder="选择同一区域的已验证配置，或在下方新增">
-                        <a-option v-for="profile in matchingProfiles" :key="profile.id" :value="profile.id" :label="`${providerNames[profile.provider]} · ${profile.zone}`" />
+                    <a-select v-model="selected" placeholder="选择同一区域的已验证配置">
+                        <a-option v-for="profile in matchingProfiles" :key="profile.id" :value="profile.id" :label="`${profile.name || '未命名配置'} · ${providerNames[profile.provider]} · ${profile.zone}`" />
                     </a-select>
+                    <a-button type="text" class="ml-8" @click="selected = ''">新建配置</a-button>
                     <a-popconfirm v-if="selected" content="删除该 DNS 配置？正在使用的配置无法删除。" @ok="removeSelected">
                         <a-button type="text" status="danger" class="ml-8">删除</a-button>
                     </a-popconfirm>
                 </a-form-item>
                 <template v-if="!selected">
+                    <a-form-item label="配置名称"><a-input v-model="form.name" :max-length="80" placeholder="例如生产环境阿里云" /></a-form-item>
                     <a-form-item label="DNS 平台"><a-select v-model="form.provider" :options="providerOptions" /></a-form-item>
                     <a-form-item label="DNS 区域"><a-input v-model="form.zone" placeholder="例如 example.com" /></a-form-item>
                     <a-form-item v-for="field in providerFields[form.provider]" :key="field.key" :label="field.label">
@@ -36,7 +38,7 @@ const visible = ref(false);
 const busy = ref(false);
 const selected = ref('');
 const profiles = ref([]);
-const form = reactive({ provider: 'alidns', zone: '', credentials: {} });
+const form = reactive({ name: '', provider: 'alidns', zone: '', credentials: {} });
 const providerNames = { alidns: '阿里云 DNS', dnspod: 'DNSPod', cloudflare: 'Cloudflare', route53: 'Route53' };
 const providerOptions = Object.entries(providerNames).map(([value, label]) => ({ value, label }));
 const providerFields = {
@@ -53,8 +55,8 @@ function wildcardInZone(host, zone) {
     return host.startsWith('*.') && (suffix === base || suffix.endsWith('.' + base));
 }
 
-watch(() => [props.host, props.modelValue, props.profileId], ([host, enabled, profile], previous) => {
-    if (host.startsWith('*.') && enabled && (!profile || (previous && host !== previous[0]))) {
+watch(() => [props.host, props.modelValue, props.profileId], ([host, enabled, profile]) => {
+    if (host.startsWith('*.') && enabled && !profile) {
         emit('update:modelValue', false);
         emit('update:profileId', '');
     }
@@ -71,13 +73,14 @@ async function toggle(value) {
         return;
     }
     form.zone = props.host.slice(2).replace(/\.$/, '');
+    form.name = '';
     form.credentials = {};
     selected.value = props.profileId;
     busy.value = true;
     try {
         const response = await panelApi.get('/dns-profiles');
         profiles.value = response?.data || [];
-        if (!matchingProfiles.value.some(profile => profile.id === selected.value)) selected.value = '';
+        if (!matchingProfiles.value.some(profile => profile.id === selected.value)) selected.value = matchingProfiles.value[0]?.id || '';
         visible.value = true;
     } finally {
         busy.value = false;
@@ -89,8 +92,9 @@ async function confirm() {
     try {
         let id = selected.value;
         if (!id) {
+            if (!form.name.trim()) throw new Error('请输入配置名称');
             if (!wildcardInZone(props.host, form.zone)) throw new Error('DNS 区域与泛域名不匹配');
-            const response = await panelApi.post('/dns-profiles', { namespace: props.namespace, provider: form.provider, zone: form.zone, credentials: form.credentials });
+            const response = await panelApi.post('/dns-profiles', { namespace: props.namespace, name: form.name.trim(), provider: form.provider, zone: form.zone, credentials: form.credentials });
             id = response?.data?.id;
         }
         if (!id) throw new Error('DNS 配置未保存');
@@ -111,7 +115,7 @@ async function removeSelected() {
     try {
         await panelApi.delete(`/dns-profiles/${selected.value}`);
         profiles.value = profiles.value.filter(profile => profile.id !== selected.value);
-        selected.value = '';
+        selected.value = matchingProfiles.value[0]?.id || '';
     } finally {
         busy.value = false;
     }

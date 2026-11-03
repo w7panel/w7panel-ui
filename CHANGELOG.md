@@ -744,3 +744,8 @@
 ## 2026-11-03 泛域名父 Ingress 授权修复
 
 - 证书抽屉提交泛域名时先在授权草稿上标记自动签发器，确保向服务端申请 DNS-01 授权。影响模块：域名 HTTPS 配置。验证：授权请求定向自检、`npm run build`、`git diff --check` 通过。
+
+## 2026-11-03 DNS-01 配置选择与名称
+
+- 泛域名自动 HTTPS 默认选中已有匹配配置，提供独立新建入口和配置名称，便于区分同区域配置。影响模块：域名 HTTPS 配置。验证：`npm run build`、`git diff --check` 通过。
+- 切换已配置 HTTPS 的泛域名时保留对应 DNS 配置选择，避免域名变化清空自动 SSL 状态。影响模块：域名 HTTPS 配置。验证：`npm run build`、`git diff --check` 通过。
