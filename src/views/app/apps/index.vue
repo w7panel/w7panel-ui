@@ -16,7 +16,7 @@
             <a-popover v-if="clusterInfo.exist && !clusterInfo.valid">
                 <a-button disabled type="outline" class="mr-20">云端应用商店</a-button>
                 <template #content>
-                    <span>控制台授权已过期, 请<span class="cursor c-blue" @click="$router.push('/system/cloud?forcebind=true')">重新绑定</span></span>
+                    <span>控制台授权已过期, 请<span class="cursor c-blue" @click="$router.push('/person/account')">重新绑定</span></span>
                 </template>
             </a-popover>
             <a-button type="outline" class="mr-20" @click="dcForm.show=true;">DockerCompose创建</a-button>

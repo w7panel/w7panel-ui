@@ -244,7 +244,7 @@ const handleMenuGroupChange = (value: string | number | boolean) => {
     appStore.changeMenuFilter(menuGroup);
     const target = {
         usermanage: '/usermanage/users',
-        system: '/system/cloud',
+        system: '/system/access-key/api-key',
     }[menuGroup];
 
     if (target && route.path !== target) {

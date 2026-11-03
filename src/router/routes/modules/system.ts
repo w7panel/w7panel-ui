@@ -6,7 +6,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
     path: '/system',
     name: 'system',
     component: DEFAULT_LAYOUT,
-    redirect: '/system/cloud',
+    redirect: '/system/access-key/api-key',
     meta: {
         locale: '系统管理',
         requiresAuth: true,
@@ -16,29 +16,6 @@ const DASHBOARD: AppRouteRecordRaw[] = [
         key: 'system',
     },
     children: [
-        {
-            path: 'cloud',
-            name: 'cloud-cloud',
-            component: () => import('@/views/system/cloud/cloud.vue'),
-            meta: {
-                locale: '云端账号',
-                requiresAuth: true,
-                roles: ['*'],
-                key: 'system-cloud',
-            },
-        },
-        {
-            path: 'cloud-register',
-            name: 'cloud-register',
-            component: () => import('@/views/system/cloud/register.vue'),
-            meta: {
-                locale: '云端账号',
-                hideInMenu: true,
-                requiresAuth: true,
-                roles: ['*'],
-                key: 'system-cloud',
-            },
-        },
         {
             path: 'permission',
             name: 'system-permission',

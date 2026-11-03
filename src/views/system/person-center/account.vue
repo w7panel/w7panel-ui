@@ -38,8 +38,27 @@
                 <template v-if="isBound">
                     <descriptions-item label="昵称">{{ cloudUserInfo.nickname || '-' }}</descriptions-item>
                     <descriptions-item label="云端UID">{{ cloudUserInfo.user_id || '-' }}</descriptions-item>
+                    <descriptions-item v-if="userMode !== 'cluster'" label="云端应用商店">
+                        <a href="javascript:;" class="c-blue cursor" @click="$router.push('/app/cloudstore')">进入云端应用商店<icon-launch class="ml-4" /></a>
+                    </descriptions-item>
                 </template>
             </a-descriptions>
+
+            <template v-if="isBound">
+                <a-descriptions class="account-description mt-30" layout="horizontal" column="1" bordered>
+                    <descriptions-item label="系统版本">微擎面板<span class="ml-10 c-99">{{ version }}</span></descriptions-item>
+                    <descriptions-item label="系统类型">免费版</descriptions-item>
+                </a-descriptions>
+                <a-descriptions class="account-description mt-30" layout="horizontal" column="1" bordered>
+                    <descriptions-item label="版权所有">Copyright © 2018-2025 宿州市微擎云计算有限公司 All Rights Reserved</descriptions-item>
+                    <descriptions-item label="项目地址">
+                        <a href="https://github.com/w7corp/w7panel" target="_blank" rel="noopener noreferrer" class="c-blue cursor">https://github.com/w7corp/w7panel<icon-launch class="ml-4" /></a>
+                    </descriptions-item>
+                    <descriptions-item label="交流反馈">
+                        <img src="@/assets/images/qrcode.png" alt="交流反馈二维码" style="width:100px;height:100px;" />
+                    </descriptions-item>
+                </a-descriptions>
+            </template>
         </div>
 
         <a-drawer :visible="changePwd.show" title="修改密码" width="600px" @ok="submitPwd" @cancel="changePwd.show=false;">
@@ -81,6 +100,8 @@ export default {
             baseInfo: emptyBaseInfo(),
             cloudUserInfo: {},
             isBound: false,
+            version: '',
+            userMode: getUserInfo()?.['w7.cc/user-mode'],
             hasPwd: getK8sinfo()['w7.cc/has-password'],
             changePwd: {
                 show: false,
@@ -153,6 +174,11 @@ export default {
                 }
                 this.isBound = data?.require_oauth === false && !!data?.userinfo;
                 this.cloudUserInfo = data?.userinfo || {};
+                if (this.isBound) {
+                    panelApi.get('/app-info').then((info) => {
+                        this.version = info?.data?.helmVersion || '';
+                    });
+                }
             });
         },
         openChangePwd() {
