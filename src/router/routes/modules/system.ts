@@ -29,17 +29,6 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             },
         },
         {
-            path: 'audit',
-            name: 'system-audit',
-            component: () => import('@/views/system/audit/index.vue'),
-            meta: {
-                locale: '审计日志',
-                requiresAuth: true,
-                roles: ['*'],
-                key: 'system-audit',
-            },
-        },
-        {
             path: 'backup',
             name: 'system-backup',
             component: () => import('@/views/system/backup/index.vue'),
