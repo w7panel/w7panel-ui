@@ -1,9 +1,6 @@
 <template>
     <div>
-        <div v-if="domainParse.exist && !domainParse.configured" class="mt-20" style="color: var(--color-danger-6)">
-            <icon-exclamation-circle-fill />
-            <span>系统尚未配置域名解析记录，请联系管理员获取。</span>
-        </div>
+        <a-alert v-if="domainParse.exist && !domainParse.configured" type="warning" class="mt-20">系统尚未配置域名解析记录，请联系管理员获取。</a-alert>
         <a-alert v-else-if="domainParse.exist" title="添加域名后，请在您持有域名的DNS解析后台添加对应的域名解析记录：" class="mt-20">
             <span>记录类型：</span>
             <span>{{ domainParse.type }}，</span>
@@ -41,7 +38,9 @@ export default{
                     ipsText: ips.join(','),
                     configured: type === 'A' ? ips.length > 0 : !!spec.cname,
                 }
-            }).catch(()=>{})
+            }).catch(error=>{
+                if(error?.response?.status === 404) this.domainParse = { exist: true, configured: false }
+            })
         }
     }
 }

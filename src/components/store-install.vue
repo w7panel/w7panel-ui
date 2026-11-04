@@ -118,7 +118,8 @@
                                             </div>
                                         </div>
                                     </a-form-item>
-                                    
+                                    <domain-parse-alert v-if="form.requireDomain" />
+
                                     <!-- <a-form-item v-if="ingressclassList.length > 1" label="ingressClass" field="ingressclass" :rules="[{required:true,validator:(value,cb)=>{!form.ingressclass?cb('请选择ingressclass'):cb()}}]">
                                         <template #label>
                                             <span class="ingressClass">镜像仓库</span>
@@ -293,6 +294,7 @@ import { getK8sinfo, getUserInfo } from '@/utils/auth';
 import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import shortuuid from 'short-uuid';
 import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
+import domainParseAlert from '@/components/domain-parse-alert.vue';
 
 // 安装进度摘要：启动阶段来自 Pod 状态，终态优先使用 Job 条件。
 function installJobStatus(job, pod, events = []) {
@@ -413,6 +415,7 @@ export default {
     },
     components: {
         wildcardAutoSsl,
+        domainParseAlert,
         jobLog,
         zoneDrawer,
         imageformDrawer,
