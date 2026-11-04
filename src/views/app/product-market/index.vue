@@ -14,6 +14,7 @@ import { panelApi } from '@/utils/api';
 import { getK8sinfo } from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
+import { getCloudAccountBound, ensureCloudAccountBound, openCloudAccountBinding } from '@/utils/cloud-account';
 
 const PRODUCT_MARKET_URL = 'https://zm.w7.com/#/panel-store-list';
 const PRODUCT_MARKET_APP_NAME = 'product-market';
@@ -76,9 +77,14 @@ export default {
             const props = {
                 cluster_level: clusterLevel,
                 frontend_props: {
-                    ...(data?.data || {})
+                    ...(data?.data || {}),
+                    cloud_account_bound: getCloudAccountBound(data?.data),
                 },
                 is_sub_cluster: data?.data?.is_sub_cluster === true,
+                handles: {
+                    openCloudAccountBinding,
+                    ensureCloudAccountBound,
+                },
             }
             appendWujieModalHandles(props, () => this.$refs.wujieModals)
             startApp({
