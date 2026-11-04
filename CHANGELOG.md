@@ -753,3 +753,7 @@
 
 - 泛域名自动 HTTPS 默认选中已有匹配配置，提供独立新建入口和配置名称，便于区分同区域配置。影响模块：域名 HTTPS 配置。验证：`npm run build`、`git diff --check` 通过。
 - 切换已配置 HTTPS 的泛域名时保留对应 DNS 配置选择，避免域名变化清空自动 SSL 状态。影响模块：域名 HTTPS 配置。验证：`npm run build`、`git diff --check` 通过。
+
+## 2026-11-04 系统管理备份入口
+
+- 系统管理新增备份管理菜单；未安装时引导安装 w7panel-backup，安装后加载备份 MicroApp。影响模块：系统管理菜单与备份页面。验证：`npm run build`、`node scripts/permission-menu.test.cjs`、`git diff --check` 通过。

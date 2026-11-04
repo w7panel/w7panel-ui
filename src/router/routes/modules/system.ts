@@ -40,6 +40,16 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             },
         },
         {
+            path: 'backup',
+            name: 'system-backup',
+            component: () => import('@/views/system/backup/index.vue'),
+            meta: {
+                locale: '备份管理',
+                requiresAuth: true,
+                roles: ['*'],
+            },
+        },
+        {
             path: 'access-key',
             name: 'access-key',
             component: () => import('@/views/system/access-key/index.vue'),
