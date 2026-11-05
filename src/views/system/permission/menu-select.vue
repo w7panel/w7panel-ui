@@ -14,9 +14,8 @@
 </template>
 
 <script>
-import {useNamespaceStore} from '@/store'
 import appClientMenus from '@/router/app-menus'
-import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu'
+import { buildPermissionMenuTree } from '@/utils/permission-menu'
 import { loadClusterContext } from '@/utils/cluster-access'
 import { exclusiveMenus, loadExclusiveMenus, allowsExclusiveMenu } from '@/utils/exclusive-menus'
 import { keyToPermissionPath } from '@/utils/permission-match'
@@ -29,7 +28,6 @@ export default {
             checkedKeys: [],
             treeData: [],
             halfCheckedKeys: [],
-            microAppTreeData: [],
             isSubCluster: null,
         }
     },
@@ -37,13 +35,12 @@ export default {
         this.init();
         loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
         loadExclusiveMenus().catch(() => {});
-        loadPermissionMicroAppMenus(useNamespaceStore().namespace).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
     },
     computed: {
         sourceTreeData(){
             exclusiveMenus.value;
             this.isSubCluster;
-            return [...buildPermissionMenuTree(appClientMenus, undefined), ...this.microAppTreeData];
+            return buildPermissionMenuTree(appClientMenus, undefined);
         },
     },
     watch: {
