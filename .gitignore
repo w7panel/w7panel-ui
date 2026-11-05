@@ -36,3 +36,8 @@ scripts/*
 !scripts/cluster-menu.test.cjs
 !scripts/app-form-volumes.test.cjs
 !scripts/app-form-preservation.test.cjs
+
+!src/utils/login-continuation.js
+!scripts/login-continuation.test.cjs
+
+!scripts/panel-auth-boundary.test.cjs

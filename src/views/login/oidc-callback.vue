@@ -1,14 +1,16 @@
 <template>
-  <div class="oidc-callback">正在完成 OIDC 登录…</div>
+  <div class="oidc-callback">{{ loginError || '正在完成 OIDC 登录…' }}</div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { panelApi } from '@/utils/api';
+import { continueAuthorization } from '@/utils/login-continuation';
 import { setRefreshToken, setToken } from '@/utils/auth';
 import useK3kinfo from '@/hooks/k3k-info';
 
+const loginError = ref('');
 const route = useRoute();
 const router = useRouter();
 
@@ -16,7 +18,7 @@ onMounted(async () => {
   const error = String(route.query.error || '');
   const errorDescription = String(route.query.error_description || error);
   if (error) {
-    router.replace({ name: 'login', query: { oidc_error: errorDescription } });
+    loginError.value = errorDescription;
     return;
   }
 
@@ -29,6 +31,7 @@ onMounted(async () => {
     if (!data.token) throw new Error('OIDC 登录未返回 Panel Token');
     setToken(data.token);
     if (data.refreshToken) setRefreshToken(data.refreshToken);
+    if(await continueAuthorization(data.authRequestID, panelApi, url => { window.location.href = url; })) return;
     const { data: k3kInfo = {} } = await useK3kinfo().catch(() => ({ data: {} }));
     router.replace({
       path: k3kInfo?.['w7.cc/role'] === 'normal'
@@ -36,7 +39,7 @@ onMounted(async () => {
         : '/cluster/panel',
     });
   } catch (err: any) {
-    router.replace({ name: 'login', query: { oidc_error: err?.response?.data?.error || err?.message || 'OIDC 登录失败' } });
+    loginError.value = err?.response?.data?.error || err?.message || '登录或授权失败，请从原应用重新登录';
   }
 });
 </script>

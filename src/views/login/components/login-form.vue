@@ -6,7 +6,12 @@
         <span style="padding:0 10px;color:#ccc;">/</span>
         <span class="colorfont">您的专属服务器管家</span>
     </div>
-    <div class="formbox">
+    <div v-if="authorizationPending" class="authorization-status" role="status" aria-live="polite" aria-busy="true">
+        <icon-loading class="authorization-spinner" />
+        <div>{{ authorizationMessage }}</div>
+        <div class="c-99 fs-12">请稍候，完成后将自动跳转</div>
+    </div>
+    <div v-else class="formbox">
         <a-form v-if="!canInitUser.init" ref="loginForm" :model="userInfo" class="login-form" layout="vertical" @submit="submit">
             <div class="login-form-error-msg">{{ errorMessage }}</div>
             <a-form-item field="username" :rules="[{ required: true, message: '请输入用户名' }]" :validate-trigger="['change', 'blur']" hide-label>
@@ -61,6 +66,7 @@
 
 <script lang="ts" setup>
 import { panelApi } from '@/utils/api';
+import { continueAuthorization } from '@/utils/login-continuation';
 import { k8sproxy } from '@/utils/api';
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
@@ -84,6 +90,10 @@ const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + 
 const microLogin = (window as any)?.w7_microapp?.site?.login || {};
 const isMicroAppDirect = Boolean((window as any)?.w7_microapp?.name);
 const panelLogin = router?.currentRoute?.value?.query?.oidclogin === '1';
+const isAuthorizationLogin = typeof router.currentRoute.value.query.authRequestID === 'string'
+    && Boolean(router.currentRoute.value.query.authRequestID);
+const authorizationPending = ref(isAuthorizationLogin && Boolean(getToken()));
+const authorizationMessage = ref('正在验证登录状态…');
 let invalidToken = false;
 
 
@@ -101,15 +111,17 @@ const redirectPanelLogin = () => {
     if(panelLogin && canInitUser.oidcEnabled && (!getToken() || invalidToken)) oidcLogin();
 };
 if(getToken()){
-    panelApi.get('/k3k/info',{noAlert:true}).then(res=>{
+    panelApi.get('/k3k/info',{noAlert:true, timeout: LOGIN_REQUEST_TIMEOUT}).then(res=>{
         if(res) {
             // already login
             handleSubmit({passLogin:true})
         } else {
+            authorizationPending.value = false;
             invalidToken = true;
             redirectPanelLogin();
         }
     }).catch(()=>{
+        authorizationPending.value = false;
         invalidToken = true;
         redirectPanelLogin();
     })
@@ -170,9 +182,19 @@ panelApi.get('/noauth/site/login-config', {noTokenRequired: true, noAlert: true,
 const consoleLogin = ()=>{
     let policyName = router?.currentRoute?.value?.query?.policyName || '';
     let couponCode = router?.currentRoute?.value?.query?.couponCode || '';
-    window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+encodeURIComponent(window.location.origin + '/console-login?policyName=' + policyName + '&couponCode=' + couponCode);
+    const callback = new URL('/console-login', window.location.origin);
+    callback.searchParams.set('policyName', String(policyName));
+    callback.searchParams.set('couponCode', String(couponCode));
+    const authRequestID = router.currentRoute.value.query.authRequestID;
+    if(typeof authRequestID === 'string') callback.searchParams.set('authRequestID', authRequestID);
+    window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+encodeURIComponent(callback.href);
 }
-const oidcLogin = ()=>{ window.location.href = '/panel-api/v1/auth/oidc/start'; }
+const oidcLogin = ()=>{
+    const start = new URL('/panel-api/v1/auth/oidc/start', window.location.origin);
+    const authRequestID = router.currentRoute.value.query.authRequestID;
+    if(typeof authRequestID === 'string') start.searchParams.set('authRequestID', authRequestID);
+    window.location.href = start.href;
+}
 if(router?.currentRoute?.value?.query?.consolelogin=='1'){
     consoleLogin();
 }
@@ -274,6 +296,11 @@ const submit = async ({ errors, values, })=>{
 
 const handleSubmit = async (am?:any) => {
     setLoading(true);
+    let authorizationNavigating = false;
+    if (isAuthorizationLogin) {
+        authorizationPending.value = true;
+        authorizationMessage.value = am?.passLogin ? '正在完成应用授权…' : '正在登录并完成应用授权…';
+    }
     errorMessage.value = null;
     try {
         let loginData:any = {};
@@ -287,18 +314,11 @@ const handleSubmit = async (am?:any) => {
         }else{
             loginData = userStore.loginData;
         }
-        const authRequestID = router?.currentRoute?.value?.query?.authRequestID
-        if(authRequestID){
-            
-            const res = await panelApi.post('/callback-url',{
-                authRequestID: authRequestID,
-            }, {
-                timeout: LOGIN_REQUEST_TIMEOUT,
-            });
-            window.location.href = res.data.callbackUrl;
-
-            return;
-        }
+        if(await continueAuthorization(router.currentRoute.value.query.authRequestID, panelApi, url => {
+            window.location.href = url;
+            authorizationNavigating = true;
+            authorizationMessage.value = '授权成功，正在返回应用…';
+        })) return;
 
         let k3kInfo:any = {};
         try{
@@ -324,9 +344,10 @@ const handleSubmit = async (am?:any) => {
         const requestError = err as any;
         errorMessage.value = requestError?.code === 'ECONNABORTED'
             ? '登录请求超时，请检查网络后重试'
-            : requestError?.response?.data?.error || requestError?.response?.data?.message || '登录失败，请稍后重试';
+            : requestError?.response?.data?.error || requestError?.response?.data?.message || requestError?.message || '登录失败，请稍后重试';
         // errorMessage.value = (err as Error).message;
     } finally {
+        if (!authorizationNavigating) authorizationPending.value = false;
         setLoading(false);
     }
 };
@@ -340,6 +361,8 @@ const setRememberPassword = (value: boolean) => {
 .slidecapt-modal .arco-modal-body{padding:0; overflow:visible;}
 </style>
 <style lang="less" scoped>
+.authorization-status{min-height:260px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;}
+.authorization-spinner{font-size:32px; color:rgb(var(--primary-6));}
 .formbox{width:360px; margin-top:30px; padding:20px 20px 40px; background-color: var(--color-bg-2);; border-radius:10px;}
 .colorfont{
     font-weight: 400;

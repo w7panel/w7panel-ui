@@ -1,8 +1,8 @@
 <template>
     <div class="df df-c ai-c">
         <div class="df ai-c" style="margin-top:80px;">
-            <icon-loading class="c-99" style="font-size:30px;" />
-            <span class="c-99 ml-20" style="font-size:20px;">登录中...</span>
+            <icon-loading v-if="!loginError" class="c-99" style="font-size:30px;" />
+            <span class="c-99 ml-20" style="font-size:20px;">{{ loginError || '登录中...' }}</span>
         </div>
         <contact-us></contact-us>
     </div>
@@ -11,6 +11,7 @@
 <script>
 import { k8sproxy, panelApi } from '@/utils/api';
 import axios from 'axios';
+import { continueAuthorization } from '@/utils/login-continuation';
 import { setToken,setPermission, setUserInfo,getK8sinfo, setRefreshToken } from '@/utils/auth';
 import useK3kinfo from '@/hooks/k3k-info';
 import { useNamespaceStore } from '@/store';
@@ -21,6 +22,7 @@ export default {
     data(){
         return {
             namespaceActive: 'default',
+            loginError: '',
         }
     },
     created(){
@@ -39,6 +41,7 @@ export default {
                 setRefreshToken(res.data.refreshToken)
                 setToken(res.data.token);
                 
+                if(await continueAuthorization(this.$route.query.authRequestID, panelApi, url => { window.location.href = url; })) return;
                 let data = res.data;
 
                 
@@ -49,6 +52,8 @@ export default {
                     return;
                 }
                 this.beforeTest();
+            }).catch(err => {
+                this.loginError = err?.response?.data?.error || err?.message || '登录失败，请从原应用重新登录';
             })
         },
         
