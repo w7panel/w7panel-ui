@@ -184,12 +184,12 @@
 
 <script>
 import { k8sproxy, panelApi } from '@/utils/api';
-import axios from 'axios';
 import menuSelect from '@/views/system/permission/menu-select.vue';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo, getK8sinfo } from '@/utils/auth';
 import { loadDomainWhiteList } from '@/utils/domain-white-list';
+import { loadClusterContext } from '@/utils/cluster-access';
 import whitelistComponent from '../whitelist/whitelist-component.vue';
 import { expandPermissionValues, keyToPermissionPath, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import appClientMenus from '@/router/app-menus';
@@ -272,8 +272,8 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.getApiRoutes();
         this.getList();
-        axios.get('/panel-api/v1/microapp/global-frontprops', { noAlert: true }).then(({ data }) => {
-            this.isSubCluster = (data?.data || data)?.is_sub_cluster === true;
+        loadClusterContext().then(context => {
+            this.isSubCluster = context.isSubCluster;
             if (this.isSubCluster) loadDomainWhiteList(true).then(list => { this.mainWhiteList = list; }).catch(() => { this.$message.error('域名白名单加载失败'); });
         }).catch(() => {});
     },
