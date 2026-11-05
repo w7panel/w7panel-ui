@@ -70,7 +70,7 @@
 
 
             <div class="form-title mt-20">容器（Containers）</div>
-            <a-tabs auto-switch style="margin-bottom:20px;">
+            <a-tabs :key="data?.metadata?.uid || data?.metadata?.name" auto-switch style="margin-bottom:20px;">
                 <a-tab-pane v-for="(form, index) in ctnForms" :key="index" :title="form.name" style="padding:10px 16px 10px;">
                     <!-- --------pane start-------- -->
 
