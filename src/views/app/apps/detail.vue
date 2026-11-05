@@ -124,8 +124,11 @@
                 </a-layout-content>
                 <a-layout-content v-else-if="isMicroPage" class="app-detail-content app-detail-content--micro df df-c">
                     <div class="app-detail-micro-container bg-white routerviewbox fc">
-                        <div v-show="downOk" ref="microContainer" :id="microRuntimeName" class="app-detail-micro-panel"></div>
-                        <a-spin v-if="microLoading || !downOk" class="app-detail-micro-loading" :loading="true" :size="32" :tip="downOk ? undefined : '前端下载中...'">
+                        <a-result v-if="microError" status="error" title="应用页面暂时无法打开" :subtitle="microError">
+                            <template #extra><a-button @click="retryMicroMenu">重试</a-button></template>
+                        </a-result>
+                        <div v-show="downOk && !microError" ref="microContainer" :id="microRuntimeName" class="app-detail-micro-panel"></div>
+                        <a-spin v-if="!microError && (microLoading || !downOk)" class="app-detail-micro-loading" :loading="true" :size="32" :tip="downOk ? undefined : '前端下载中...'">
                             <div class="app-detail-micro-panel"></div>
                         </a-spin>
                     </div>
@@ -211,7 +214,7 @@ import {
     getAppGroupListRouteName,
     uninstallAppGroup,
 } from '@/utils/appgroup';
-import { splitMicroAppMenuRoles } from '@/utils/microapp-menu';
+import { splitMicroAppMenuRoles, isAppMenuDo, parseAppMenuDo, getAppMenuMatchScore, resolveAppMenuBinding, getMicroAppRouteFromQuery } from '@/utils/microapp-menu';
 import {
     loadMicroAppReverseDependentApps,
     loadVisibleAppGroupContext,
@@ -224,6 +227,7 @@ import { podShell } from '@/utils/pod-shell';
 import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
 import {
     findTopAppByRouteGroup,
+    getTopAppGroupName,
     RESOURCE_GROUP_LABEL,
     loadResourcesByGroupNames,
 } from '@/utils/w7panel-resource';
@@ -314,6 +318,17 @@ export default {
             appGroupName: '',
             appManifestType: '',
             activeMicroAppName: '',
+            borrowedBindingName: '',
+            borrowedMicroAppScope: '',
+            borrowedMicroAppCache: {},
+            borrowedMicroAppRequests: {},
+            microNavigationId: 0,
+            microRuntimeGeneration: 0,
+            microRuntimeNavigationId: 0,
+            microRuntimeLoadMode: '',
+            microRuntimeScope: '',
+            microError: '',
+            microRetryDo: '',
             reverseDependentAppCache: {},
             reverseDependentAppRequests: {},
             wujieInitPromise: null,
@@ -381,14 +396,14 @@ export default {
         do(value){
             this.syncRequestedMicroRoute(value || this.getRequestedMicroRoute(), true);
         },
-        '$route.query.do'(value){
-            this.syncRequestedMicroRoute(value || this.getRequestedMicroRoute(), true);
+        '$route.query.do'(){
+            this.syncRequestedMicroRoute(this.getRequestedMicroRoute(), true);
         },
         '$route.query.appmicro'(value){
             this.syncRequestedMicroRoute(value, false);
         },
-        '$route.query.app-detail-micro'(value){
-            this.syncRequestedMicroRoute(value || this.getRequestedMicroRoute(), true);
+        '$route.query.app-detail-micro'(){
+            this.syncRequestedMicroRoute(this.getRequestedMicroRoute(), true);
         },
         '$route.query.microapp'(){
             this.syncRequestedMicroRoute(this.getRequestedMicroRoute(), true);
@@ -627,7 +642,7 @@ export default {
             return this.info.frontendUrl || '';
         },
         buildMicroAppUrl(route){
-            const targetRoute = route || '';
+            const targetRoute = parseAppMenuDo(route || '')?.route || route || '';
             if(/^https?:\/\//i.test(targetRoute)){
                 return targetRoute;
             }
@@ -656,19 +671,25 @@ export default {
             const href = typeof payload === 'object'
                 ? (payload?.href || payload?.url || payload?.route)
                 : payload;
-            return normalizeWujieNavigationRoute(href, this.getMicroAppBaseUrl()) || href || '';
+            return normalizeWujieNavigationRoute(href, this.getMicroAppBaseUrl(), !isAppMenuDo(this.menuActive)) || href || '';
         },
         navigateMicro(payload){
-            const route = this.getNavigateMicroRoute(payload);
+            const requested = typeof payload === 'object' ? (payload?.href || payload?.url || payload?.route) : payload;
+            if(isAppMenuDo(requested)){
+                this.activateBorrowedMenu(requested, {push:true});
+                return true;
+            }
+            const route = this.getChildMenuDo(this.getNavigateMicroRoute(payload));
             if(!route){
                 return false;
             }
 
+            const navigationId = ++this.microNavigationId;
             this.menuActive = route;
-            const menu = this.findMenu(route, this.activeMicroAppName);
+            const menu = isAppMenuDo(route) ? this.findBorrowedMenu(route) : this.findMenu(route, this.activeMicroAppName);
             this.selectMenu = [menu?.key || route];
-            this.replaceMicroRouteQuery(menu?.do || route, this.activeMicroAppName).then(()=>{
-                this.wujieInit();
+            this.replaceMicroRouteQuery(isAppMenuDo(route) ? route : (menu?.do || route), this.activeMicroAppName).then(()=>{
+                if(navigationId === this.microNavigationId){ this.wujieInit(); }
             });
             return true;
         },
@@ -678,7 +699,9 @@ export default {
                 this.wujieInit();
                 return;
             }
-            bus.$emit("routeChange", (v || '').replace(/^#/,''), {
+            this.microRuntimeNavigationId = this.microNavigationId;
+            const route = parseAppMenuDo(v || '')?.route || v || '';
+            bus.$emit("routeChange", route.replace(/^#/,''), {
                 fromSubPanel: window.__POWERED_BY_WUJIE__
             });
         },
@@ -699,9 +722,138 @@ export default {
                 const menu = findMenu(role.menus);
                 if(menu){ return menu; }
             }
-            return null;
+            if(!isAppMenuDo(value)){ return null; }
+            let best = null;
+            let bestScore = -1;
+            for(const menu of this.getFlatMicroMenus()){
+                if(microAppName && menu.microAppName !== microAppName){ continue; }
+                const score = getAppMenuMatchScore(menu.do, value);
+                if(score > bestScore){ best = menu; bestScore = score; }
+            }
+            return best;
+        },
+        getFlatMicroMenus(){
+            const flatten = menus => (menus || []).flatMap(menu=>[menu, ...flatten(menu.children)]);
+            return this.roles.flatMap(role=>flatten(role.menus));
+        },
+        findBorrowedMenu(value){
+            const exact = this.findMenu(value);
+            if(exact){ return exact; }
+            // Child navigation can leave the original menu's subtree (for
+            // example via a breadcrumb). `do` still identifies its provider.
+            const target = parseAppMenuDo(value);
+            return this.getFlatMicroMenus().find(menu=>{
+                try { return parseAppMenuDo(menu.do)?.appRef === target?.appRef; }
+                catch { return false; }
+            });
+        },
+        getChildMenuDo(route){
+            if(!route || !isAppMenuDo(this.menuActive)){ return route; }
+            const target = parseAppMenuDo(this.menuActive);
+            if(/^https?:\/\//i.test(route)){ return ''; }
+            const childRoute = route.startsWith('#/') ? route : `#/${route.replace(/^[#/]+/, '')}`;
+            return `app:${target.appRef}${childRoute}`;
+        },
+        getMicroAppScope(){
+            return [this.namespaceActive, this.entryGroup, getK8sinfo()?.['w7.cc/role'], getToken()].join('\n');
+        },
+        loadBorrowedMicroApp(appRef){
+            const scope = this.getMicroAppScope();
+            if(scope !== this.borrowedMicroAppScope){
+                this.borrowedMicroAppScope = scope;
+                this.borrowedMicroAppCache = {};
+                this.borrowedMicroAppRequests = {};
+            }
+            const cache = this.borrowedMicroAppCache;
+            const requests = this.borrowedMicroAppRequests;
+            if(Object.prototype.hasOwnProperty.call(cache, appRef)){ return Promise.resolve(cache[appRef]); }
+            if(Object.prototype.hasOwnProperty.call(requests, appRef)){ return requests[appRef]; }
+            requests[appRef] = panelApi.get(`/microapp/${encodeURIComponent(appRef)}/info`, {noAlert:true}).then(res=>{
+                const item = res?.data;
+                if(!item?.metadata?.name || item.metadata.deletionTimestamp || !item?.spec?.frontendUrl){
+                    throw new Error('目标应用不可用或未配置前端入口');
+                }
+                cache[appRef] = item;
+                return item;
+            }).finally(()=>{ delete requests[appRef]; });
+            return requests[appRef];
+        },
+        async activateBorrowedMenu(value, {initial = false, push = false, navigate = true, fromRoute = false} = {}){
+            const navigationId = navigate ? ++this.microNavigationId : this.microNavigationId;
+            const previousMenu = this.menuActive;
+            const previousMicroAppName = this.activeMicroAppName;
+            const previousBinding = this.getMenuBindingName(this.selectMenu?.[0] || previousMenu);
+            const previousBaseUrl = this.getMicroAppBaseUrl();
+            const previousLoadMode = this.info.load_mode;
+            const previousSelection = this.isMicroPage
+                ? (this.findMenu(previousMenu)?.key || this.selectMenu?.[0])
+                : (this.$route.meta.routekey || this.$route.name);
+            let showErrorPage = initial || fromRoute || Boolean(this.microError) || !this.wujieDestroy;
+            this.microLoading = true;
+            try{
+                const target = parseAppMenuDo(value);
+                if(!target){ throw new Error('借用菜单地址格式错误，请使用 app:应用标识#/路由'); }
+                const menu = this.findBorrowedMenu(value);
+                const menuKey = menu?.key || value;
+                const sourceBinding = menu
+                    ? this.roles.find(role=>role.menus?.some(item=>this.findMenuInTree(item, menu.key)))?.name || ''
+                    : '';
+                const item = await this.loadBorrowedMicroApp(target.appRef);
+                if(this.microDisposed || navigationId !== this.microNavigationId){ return; }
+                const binding = resolveAppMenuBinding(item, getK8sinfo()?.['w7.cc/role'] || '', target.route, sourceBinding);
+                // Once the provider configuration is applied, retaining the old
+                // runtime on failure would display it at the new provider URL.
+                showErrorPage = true;
+                this.microError = '';
+                this.microRetryDo = value;
+                this.applyMicroApp(item, binding);
+                this.menuActive = value;
+                this.selectMenu = [menuKey];
+                this.applyMenuRuntimeConfig(menuKey);
+                if(!this.isMicroPage){
+                    await this.$router.push({
+                        name: this.isMicroEntry ? 'topapp-micro' : 'group-micro',
+                        params: {...this.$route.params, group:this.getNavigationGroup()},
+                        query: this.getMicroRouteQuery(value),
+                    });
+                    return;
+                }
+                await this.replaceMicroRouteQuery(value, this.activeMicroAppName, push);
+                if(this.microDisposed || navigationId !== this.microNavigationId || !navigate){ return; }
+                const shouldReinitialize = initial || !this.microRuntimeStarted || this.wujieInitPromise
+                    || previousMicroAppName !== this.activeMicroAppName || previousBinding !== binding
+                    || this.microRuntimeScope !== this.getMicroAppScope()
+                    || previousBaseUrl !== this.getMicroAppBaseUrl() || previousLoadMode !== this.info.load_mode
+                    || this.isExternalMenuRoute(previousMenu);
+                if(shouldReinitialize){
+                    await this.wujieInit();
+                }else{
+                    this.routeChange(value);
+                }
+            }catch(error){
+                if(this.microDisposed || navigationId !== this.microNavigationId){ return; }
+                const message = error?.response?.data?.message || error?.message || '目标应用加载失败，请稍后重试';
+                if(this.isMicroPage && (showErrorPage || !this.wujieDestroy)){
+                    this.menuActive = value;
+                    this.selectMenu = [this.findMenu(value)?.key || value];
+                    this.microError = message;
+                    this.microRetryDo = value;
+                    await this.destroyWujieApp();
+                }else{
+                    this.microRuntimeNavigationId = navigationId;
+                    this.selectMenu = previousSelection ? [previousSelection] : [];
+                    this.$message?.error(message);
+                }
+            }finally{
+                if(navigationId === this.microNavigationId && !this.wujieInitPromise){ this.microLoading = false; }
+            }
+        },
+        retryMicroMenu(){
+            this.borrowedMicroAppCache = {};
+            return this.activateBorrowedMenu(this.microRetryDo, {initial:true});
         },
         getMenuBindingName(value){
+            if(this.borrowedBindingName){ return this.borrowedBindingName; }
             const menu = this.findMenu(value, this.activeMicroAppName) || this.findMenu(value);
             if(!menu){ return ''; }
             return this.roles.find(role=>role.menus?.some(item=>this.findMenuInTree(item, menu.key)))?.name || '';
@@ -711,6 +863,7 @@ export default {
             return (menu?.children || []).some(child=>this.findMenuInTree(child, key));
         },
         normalizeMicroMenuRoute(value){
+            if(isAppMenuDo(value)){ return value; }
             const bases = [
                 this.getMicroAppBaseUrl(),
                 this.microAppBaseInfo?.frontendUrl,
@@ -725,9 +878,7 @@ export default {
             return normalizeWujieSyncRoute(value, this.getMicroNormalizePrefix());
         },
         getRequestedMicroRoute(){
-            const value = this.do || this.$route.query?.[APP_DETAIL_MICRO_QUERY]
-                || this.$route.query?.do
-                || this.$route.query?.appmicro;
+            const value = this.do || getMicroAppRouteFromQuery(this.$route.query);
             return Array.isArray(value) ? value[0] : value;
         },
         getMicroRouteQuery(route, microAppName = this.activeMicroAppName){
@@ -736,6 +887,12 @@ export default {
                 [APP_DETAIL_MICRO_RESOURCE_QUERY]: microAppName,
             };
             delete query.appmicro;
+            if(isAppMenuDo(route)){
+                delete query[APP_DETAIL_MICRO_QUERY];
+                delete query[APP_DETAIL_MICRO_RESOURCE_QUERY];
+                query.do = route;
+                return query;
+            }
             if(this.isMicroEntry){
                 delete query[APP_DETAIL_MICRO_QUERY];
                 query.do = route;
@@ -745,8 +902,8 @@ export default {
             }
             return query;
         },
-        replaceMicroRouteQuery(route, microAppName = this.activeMicroAppName){
-            return this.$router.replace({
+        replaceMicroRouteQuery(route, microAppName = this.activeMicroAppName, push = false){
+            return this.$router[push ? 'push' : 'replace']({
                 query: this.getMicroRouteQuery(route, microAppName),
             }).catch(()=>{});
         },
@@ -786,18 +943,19 @@ export default {
             if(!this.isMicroPage || microAppName !== this.activeMicroAppName){
                 return;
             }
-            const normalizedRoute = this.getNavigateMicroRoute(route);
+            const normalizedRoute = this.getChildMenuDo(this.getNavigateMicroRoute(route));
             if(!normalizedRoute){
                 return;
             }
-            const menu = this.findMenu(normalizedRoute, microAppName);
-            const targetRoute = menu?.do || normalizedRoute;
+            const borrowed = isAppMenuDo(normalizedRoute);
+            const menu = borrowed ? this.findBorrowedMenu(normalizedRoute) : this.findMenu(normalizedRoute, microAppName);
+            const targetRoute = borrowed ? normalizedRoute : (menu?.do || normalizedRoute);
             const requestedMicroApp = this.$route.query?.[APP_DETAIL_MICRO_RESOURCE_QUERY];
             const requestedMicroAppName = Array.isArray(requestedMicroApp)
                 ? requestedMicroApp[0]
                 : requestedMicroApp;
             const requestedRoute = this.normalizeMicroMenuRoute(this.getRequestedMicroRoute());
-            if(requestedMicroAppName === microAppName && this.isSameMicroRoute(requestedRoute, targetRoute)){
+            if((borrowed || requestedMicroAppName === microAppName) && this.isSameMicroRoute(requestedRoute, targetRoute)){
                 return;
             }
 
@@ -806,20 +964,34 @@ export default {
             this.replaceMicroRouteQuery(targetRoute, microAppName);
         },
         syncRequestedMicroRoute(requestedRoute, shouldNavigate){
-            if(!this.isMicroPage || !this.roles.length){ return; }
+            if(!this.isMicroPage){ return; }
             requestedRoute = Array.isArray(requestedRoute) ? requestedRoute[0] : requestedRoute;
             if(!requestedRoute){ return; }
             const requestedMicroApp = this.$route.query?.[APP_DETAIL_MICRO_RESOURCE_QUERY];
             const requestedMicroAppName = Array.isArray(requestedMicroApp)
                 ? requestedMicroApp[0]
                 : requestedMicroApp;
+            const normalizedRoute = this.normalizeMicroMenuRoute(requestedRoute);
+            if(isAppMenuDo(normalizedRoute)){
+                if(this.menuActive === normalizedRoute && this.borrowedBindingName && !this.microError){ return; }
+                return this.activateBorrowedMenu(normalizedRoute, {
+                    initial: !this.microRuntimeStarted, navigate: shouldNavigate, fromRoute: true,
+                });
+            }
+            if(!this.roles.length){ return; }
             if(this.redirectLegacyAppDirect(requestedRoute, requestedMicroAppName, true)){
                 return;
             }
-            const normalizedRoute = this.normalizeMicroMenuRoute(requestedRoute);
+            if(!this.borrowedBindingName && !this.microError && this.menuActive === normalizedRoute
+                && (!requestedMicroAppName || requestedMicroAppName === this.activeMicroAppName)){ return; }
+            if(shouldNavigate){ this.microNavigationId++; }
+            this.microError = '';
             const menu = this.findMenu(normalizedRoute, requestedMicroAppName)
                 || this.findMenu(normalizedRoute);
             if(!menu){
+                if(this.borrowedBindingName){
+                    this.applyMicroApp(this.microApps.find(item=>item?.metadata?.name === requestedMicroAppName) || this.microApps[0]);
+                }
                 this.selectMenu = [normalizedRoute];
                 if(!shouldNavigate || this.menuActive === normalizedRoute){ return; }
                 this.menuActive = normalizedRoute;
@@ -831,7 +1003,7 @@ export default {
             const previousMenu = this.menuActive;
             const previousMicroAppName = this.activeMicroAppName;
             const previousBinding = this.getMenuBindingName(this.selectMenu?.[0] || previousMenu);
-            if(menu.microAppName !== this.activeMicroAppName){
+            if(menu.microAppName !== this.activeMicroAppName || this.borrowedBindingName){
                 this.applyMicroApp(this.microApps.find(item=>item?.metadata?.name===menu.microAppName));
             }
             this.menuActive = menu.do;
@@ -844,7 +1016,7 @@ export default {
             )){
                 return;
             }
-            if(previousMicroAppName !== this.activeMicroAppName || previousBinding !== currentBinding || this.isExternalMenuRoute(previousMenu) || this.isExternalMenuRoute(this.menuActive)){
+            if(previousMicroAppName !== this.activeMicroAppName || previousBinding !== currentBinding || this.wujieInitPromise || !this.microRuntimeStarted || this.isExternalMenuRoute(previousMenu) || this.isExternalMenuRoute(this.menuActive)){
                 this.wujieInit();
             }else{
                 this.routeChange(this.menuActive);
@@ -880,10 +1052,12 @@ export default {
         applyMenuRuntimeConfig(route){
             const userRole = getK8sinfo()['w7.cc/role'];
             const bindingName = this.getMenuBindingName(route);
-            const roleProps = this.microAppRoleConfig?.[bindingName]
-                || this.microAppRoleConfig?.[userRole]
-                || this.microAppRoleConfig?.founder
-                || {};
+            const roleProps = this.borrowedBindingName
+                ? (this.microAppRoleConfig?.[bindingName] || {})
+                : (this.microAppRoleConfig?.[bindingName]
+                    || this.microAppRoleConfig?.[userRole]
+                    || this.microAppRoleConfig?.founder
+                    || {});
             this.info = {
                 ...this.microAppBaseInfo,
                 ...roleProps,
@@ -894,11 +1068,12 @@ export default {
             };
             return bindingName;
         },
-        applyMicroApp(item){
+        applyMicroApp(item, borrowedBindingName = ''){
             if(!item){ return; }
+            this.borrowedBindingName = borrowedBindingName;
             const microAppName = item?.metadata?.name || '';
             const groupName = item?.metadata?.labels?.[RESOURCE_GROUP_LABEL]
-                || this.microAppGroup
+                || (borrowedBindingName ? getTopAppGroupName(item) : this.microAppGroup)
                 || this.$route.params.group;
             this.microApp = item;
             this.appGroupName = groupName;
@@ -922,8 +1097,10 @@ export default {
             this.applyMenuRuntimeConfig('');
         },
         wujieInit(){
-            if(this.microDisposed){ return Promise.resolve(); }
+            if(this.microDisposed || this.microError){ return Promise.resolve(); }
+            const navigationId = this.microNavigationId;
             const signature = [
+                navigationId,
                 this.activeMicroAppName,
                 this.getMenuBindingName(this.selectMenu?.[0] || this.menuActive),
                 this.menuActive || '',
@@ -946,10 +1123,9 @@ export default {
                     && this.wujiePendingSignature !== this.wujieInitSignature;
                 this.wujiePendingSignature = '';
                 if(shouldReload){
-                    this.wujieInit();
-                    return;
+                    return this.wujieInit();
                 }
-                this.microLoading = false;
+                if(navigationId === this.microNavigationId){ this.microLoading = false; }
             });
             return this.wujieInitPromise;
         },
@@ -959,7 +1135,9 @@ export default {
             }
             this.wujieDestroy = null;
             this.microRuntimeStarted = false;
-            if(this.info.load_mode === 'iframe'){
+            this.microRuntimeScope = '';
+            this.microRuntimeGeneration++;
+            if(this.microRuntimeLoadMode === 'iframe'){
                 const iframe = container?.querySelector('iframe');
                 if(iframe){
                     let isCrossOrigin = false;
@@ -990,16 +1168,21 @@ export default {
         },
         async _wujieInit(){
             if(this.microDisposed){ return; }
+            const navigationId = this.microNavigationId;
+            const isCurrent = () => !this.microDisposed && navigationId === this.microNavigationId;
             
             const {data} = await panelApi.get("/static/"+ this.extra.identifie +"/status",{params:{
                 version: this.extra.version,
                 releaseName: this.extra.releaseName,
             }}).then(res=>{
-                this.downOk = res.data?.status !== 'no_download';
+                if(isCurrent()){ this.downOk = res.data?.status !== 'no_download'; }
                 return res;
             })
 
+            if(!isCurrent()){ return; }
+
             await this.destroyWujieApp();
+            if(!isCurrent()){ return; }
 
             let is_register = false;
             let thirdparty_cd_token = '';
@@ -1017,20 +1200,24 @@ export default {
                 is_register = data?.is_register;
                 thirdparty_cd_token = data?.thirdparty_cd_token;
             });
+            if(!isCurrent()){ return; }
             let frontProps = {};
             await panelApi.get(`/microapp/${this.activeMicroAppName}/frontprops`, { noAlert: true }).then(res=>{
                 frontProps = res?.data || {};
             }).catch(()=>{});
+            if(!isCurrent()){ return; }
             const microappName = this.activeMicroAppName;
             const appGroupName = this.appGroupName;
             const reverseDependentApps = await this.loadReverseDependentApps(appGroupName).catch(()=>[]);
+            if(!isCurrent()){ return; }
             const getAppDynamicValues = createAppDynamicValuesGetter({
                 currentAppgroup: appGroupName,
             });
             const validateApp = createAppValidator(getAppDynamicValues);
             const bindings = this.microApp?.spec?.bindings || [];
+            const runtimeRoute = parseAppMenuDo(this.menuActive)?.route || this.menuActive;
             const isArtifactMenu = bindings.some(binding=>binding.name === 'other'
-                && (binding.menu || []).some(menu=>menu.do === this.menuActive));
+                && (binding.menu || []).some(menu=>menu.do === runtimeRoute));
             if(!isArtifactMenu){
                 void checkAppAvailability(validateApp);
             }
@@ -1053,6 +1240,7 @@ export default {
                 }).then(res=>res.data);
             };
             const proxyBackendUrl = getWujieProxyBackendUrl(this.info.backendUrl);
+            const runtimeScope = this.getMicroAppScope();
             let props = {
                 url: proxyBackendUrl,
                 Authorization: 'Basic '+ btoa(this.info.username+':'+this.info.password),
@@ -1091,14 +1279,22 @@ export default {
                     role: getK8sinfo()['w7.cc/role'],
                 })
                 : baseAppUrl;
+            const runtimeGeneration = ++this.microRuntimeGeneration;
             const plugins = [
-                createWujieHostRoutePlugin(route=>this.syncMicroRouteFromChild(route, microappName)),
+                createWujieHostRoutePlugin(route=>{
+                    if(!this.microDisposed && runtimeGeneration === this.microRuntimeGeneration
+                        && this.microRuntimeNavigationId === this.microNavigationId){
+                        this.syncMicroRouteFromChild(route, microappName);
+                    }
+                }),
             ];
             if(this.info.load_mode === 'iframe'){
                 plugins.unshift(createWujieRequestCredentialsPlugin(), createWujieRequirePlugin());
             }
-            if(this.microDisposed || !this.$refs.microContainer){ return; }
+            if(!isCurrent() || !this.$refs.microContainer){ return; }
             const container = this.$refs.microContainer;
+            this.microRuntimeNavigationId = navigationId;
+            this.microRuntimeLoadMode = this.info.load_mode || '';
             this.microRuntimeStarted = true;
             try{
                 const destroy = await startApp({
@@ -1117,17 +1313,26 @@ export default {
                 plugins,
                 fetch: this.info.load_mode === 'iframe' ? wujieFetch : null,
                 loadError: (url, error)=>{
+                    if(isCurrent() && isAppMenuDo(this.menuActive)){
+                        this.microError = '目标应用页面加载失败，请稍后重试';
+                        this.microRetryDo = this.menuActive;
+                    }
                     console.log(`appdetail loadError`, url, error);
                 },
                 });
-                if(this.microDisposed){
+                if(!isCurrent()){
                     await this.destroyWujieApp(destroy, container);
                     return;
                 }
                 this.wujieDestroy = destroy;
+                if(!this.microError){ this.microRuntimeScope = runtimeScope; }
                 console.log(`appdetail start success`, appUrl);
             }catch(error){
                 await this.destroyWujieApp();
+                if(isCurrent() && isAppMenuDo(this.menuActive)){
+                    this.microError = '目标应用页面启动失败，请稍后重试';
+                    this.microRetryDo = this.menuActive;
+                }
                 console.log(`appdetail start error`, appUrl, error);
             }
             // startApp({name: APP_DETAIL_MICRO_NAME});
@@ -1150,6 +1355,12 @@ export default {
 // },3000)
         },
         async handelMicroMenu(v){
+            const selectedMenu = this.findMenu(v);
+            if(isAppMenuDo(selectedMenu?.do)){
+                return this.activateBorrowedMenu(selectedMenu.do, {push:true});
+            }
+            const navigationId = ++this.microNavigationId;
+            this.microError = '';
             const previousMenu = this.menuActive;
             const previousMicroAppName = this.activeMicroAppName;
             const previousBinding = this.getMenuBindingName(this.selectMenu?.[0] || previousMenu);
@@ -1158,7 +1369,7 @@ export default {
             if(this.redirectLegacyAppDirect(menu.do, menu.microAppName, false)){
                 return;
             }
-            if(menu.microAppName !== this.activeMicroAppName){
+            if(menu.microAppName !== this.activeMicroAppName || this.borrowedBindingName){
                 this.applyMicroApp(this.microApps.find(item=>item?.metadata?.name===menu.microAppName));
             }
             this.menuActive = menu.do;
@@ -1167,9 +1378,11 @@ export default {
             if(this.isMicroPage){
                 const shouldReinitialize = previousMicroAppName !== this.activeMicroAppName
                     || previousBinding !== currentBinding
+                    || this.wujieInitPromise || !this.microRuntimeStarted
                     || this.isExternalMenuRoute(previousMenu)
                     || this.isExternalMenuRoute(this.menuActive);
-                await this.replaceMicroRouteQuery(this.menuActive, this.activeMicroAppName);
+                await this.replaceMicroRouteQuery(this.menuActive, this.activeMicroAppName, true);
+                if(this.microDisposed || navigationId !== this.microNavigationId){ return; }
                 if(shouldReinitialize){
                     this.wujieInit();
                 }else{
@@ -1218,10 +1431,14 @@ export default {
                     const selectedMenu = this.findMenu(appDetailMicro, this.activeMicroAppName)
                         || (!requestedMicroAppName && this.findMenu(appDetailMicro))
                         || (!appDetailMicro && (
-                            this.roles.flatMap(role=>role.menus || []).find(menu=>menu.microAppName===this.activeMicroAppName && menu.is_default==1)
+                            this.getFlatMicroMenus().find(menu=>menu.microAppName===this.activeMicroAppName && menu.is_default==1)
                             || this.roles.flatMap(role=>role.menus || []).find(menu=>menu.microAppName===this.activeMicroAppName)
                             || this.roles?.[0]?.menus?.[0]
                         ));
+                    const selectedRoute = appDetailMicro || selectedMenu?.do || '';
+                    if(isAppMenuDo(selectedRoute)){
+                        return this.activateBorrowedMenu(selectedRoute, {initial:true});
+                    }
                     if(this.redirectLegacyAppDirect(selectedMenu?.do || appDetailMicro, selectedMenu?.microAppName, true)){
                         return;
                     }
@@ -1712,6 +1929,11 @@ export default {
             await this.getFront(items);
         },
         async getData(){
+            this.microNavigationId++;
+            this.borrowedBindingName = '';
+            this.borrowedMicroAppCache = {};
+            this.borrowedMicroAppRequests = {};
+            this.microError = '';
             const pageLoading = !this.isMicroPage;
             if(pageLoading){
                 useLoadingStore().loading = true;

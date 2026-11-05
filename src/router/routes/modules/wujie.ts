@@ -1,11 +1,10 @@
+import { getMicroAppRouteFromQuery } from '@/utils/microapp-menu';
+
 export const HEADER_LAYOUT = () => import('@/layout/header-layout.vue');
 
 const LEGACY_APP_DIRECT_DO = '__topapp_app_direct__';
 
-const getQueryValue = (value) => Array.isArray(value) ? value[0] : value;
-const getMicroRoute = (route) => getQueryValue(
-  route.query?.['app-detail-micro'] || route.query?.do || route.query?.appmicro,
-);
+const getMicroRoute = (route) => getMicroAppRouteFromQuery(route.query);
 const redirectToTopAppPage = (route) => {
   const legacyAppDirect = getMicroRoute(route) === LEGACY_APP_DIRECT_DO;
   const query = {...route.query};
