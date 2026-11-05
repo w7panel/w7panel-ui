@@ -106,11 +106,12 @@
                         </a-form-item>
                     </a-tab-pane>
                     <a-tab-pane key="3" title="域名白名单">
-                        <whitelist-component ref="whitelist" :data="form.whitelist"></whitelist-component>
+                        <div v-if="isSubCluster" class="mb-10 c-99">由主集群普通用户权限套餐统一配置，子集群只读。</div>
+                        <whitelist-component ref="whitelist" :data="whitelistDisplay" :disabled="isSubCluster !== false"></whitelist-component>
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
-                            <a-switch v-model="form.apiAll" :disabled="form.name==founderName || !canGrantAllApi"></a-switch>
+                            <a-switch v-model="form.apiAll" :disabled="form.name==founderName || (!form.apiAll && !canGrantAllApi)"></a-switch>
                         </a-form-item>
                         <a-form-item label="API列表" v-if="!form.apiAll">
                             <div class="api-permission-panel">
@@ -175,6 +176,7 @@ import menuSelect from '@/views/system/permission/menu-select.vue';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo } from '@/utils/auth';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import whitelistComponent from '../whitelist/whitelist-component.vue';
 import { expandPermissionValues, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
@@ -244,6 +246,8 @@ export default {
             apiRoutes: [],
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
+            isSubCluster: null,
+            mainWhiteList: [],
         }
     },
     created(){
@@ -251,6 +255,10 @@ export default {
         this.namespaceActive = useNamespaceStore().namespace;
         this.getApiRoutes();
         this.getList();
+        axios.get('/panel-api/v1/microapp/global-frontprops', { noAlert: true }).then(({ data }) => {
+            this.isSubCluster = (data?.data || data)?.is_sub_cluster === true;
+            if (this.isSubCluster) loadDomainWhiteList(true).then(list => { this.mainWhiteList = list; }).catch(() => { this.$message.error('域名白名单加载失败'); });
+        }).catch(() => {});
     },
     computed: {
         apiRouteGroups(){
@@ -319,6 +327,10 @@ export default {
             if(!this.apiConstraintMap){return true}
             return Array.isArray(this.apiConstraintMap['*']) && this.apiConstraintMap['*'].includes('*');
         },
+		whitelistDisplay(){
+			if (!this.isSubCluster) return this.form.whitelist;
+			return this.mainWhiteList;
+		},
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;
         },
@@ -352,7 +364,7 @@ export default {
         getList(){
             k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
-                list = list.map(i=>{
+                list = list.filter(i=>i?.metadata?.name !== 'api').map(i=>{
                     let permission = toTreeKeys(i?.spec?.menuRules || []);
                     let whitelist = i?.spec?.domainWhiteList || [];
                     return {
@@ -446,13 +458,19 @@ export default {
             });
         },
         submit(){
-            this.$refs.form.validate((err) => {
+            if (this.isSubCluster === null) {
+                this.$message.error('集群信息加载失败，请刷新后重试');
+                return;
+            }
+            this.$refs.form.validate(async (err) => {
                 if (err) {
                     this.$refs.form.scrollToField(Object.keys(err)[0]);
                     return;
                 }
 
-                let whitelist = this.$refs.whitelist.getList() || [];
+                let whitelist = this.isSubCluster
+                    ? (this.form.isAdd || !this.form.name ? [] : this.form.originData?.spec?.domainWhiteList || [])
+                    : this.$refs.whitelist.getList() || [];
                 let api = this.formToApi();
                 this.applyFormConstraints();
                 api = this.formToApi();
@@ -529,7 +547,7 @@ export default {
                     show: true,
                     data: res?.data,
                     title: res?.data?.spec?.title || res?.data?.metadata?.annotations?.title || res?.data?.metadata?.name,
-                    submit: (data)=>{
+                    submit: async (data)=>{
                         delete data.metadata.namespace;
                         return k8sproxy.put("/apis/w7panel.w7.com/v1alpha1/permissions/" + data?.metadata?.name, data).then(res=>{
                             this.$message.success("修改成功");

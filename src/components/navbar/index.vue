@@ -170,6 +170,7 @@ import { getK8sinfo, getWebshell, getUserInfo, getPermission } from '@/utils/aut
 import { useRoute, useRouter } from 'vue-router';
 import { hasPermission } from '@/utils/permission-match';
 import { findTopAppByRouteGroup, mapTopAppResourceToMenuItem } from '@/utils/w7panel-resource';
+import { loadClusterContext } from '@/utils/cluster-access';
 
 const appStore = useAppStore();
 const route = useRoute();
@@ -182,9 +183,10 @@ const isBound = ref(false);
 const logoimg = ref((window as any)?.w7_microapp?.site?.logo || window.origin + '/assets/logo.png');
 const isMicroAppDirect = Boolean((window as any)?.w7_microapp?.name);
 const permissions = ref(getPermission());
+const isSubCluster = ref<boolean | null>(null);
 
 const hasClusterConsole = computed(() => hasPermission(permissions.value || [], 'cluster', 'cluster'));
-const hasUsermanage = computed(() => hasPermission(permissions.value || [], 'usermanage', 'system-manage'));
+const hasUsermanage = computed(() => isSubCluster.value === false && hasPermission(permissions.value || [], 'usermanage', 'system-manage'));
 const hasSystem = computed(() => hasPermission(permissions.value || [], 'system', 'system'));
 const topApps = computed(() => appStore.topApps);
 
@@ -242,7 +244,7 @@ const handleMenuGroupChange = (value: string | number | boolean) => {
     appStore.changeMenuFilter(menuGroup);
     const target = {
         usermanage: '/usermanage/users',
-        system: '/system/cloud',
+        system: '/system/access-key/api-key',
     }[menuGroup];
 
     if (target && route.path !== target) {
@@ -322,8 +324,9 @@ const getConsoleInfo = () => {
 };
 
 const getMainPanelApps = () => {
-    panelApi.get('/app-info').then((res) => {
-        const mainPanelUrl = res.data?.isSubCluster && res.data?.mainPanelUrl;
+    loadClusterContext().then((context) => {
+        isSubCluster.value = context.isSubCluster;
+        const mainPanelUrl = context.isSubCluster && context.mainPanelUrl;
         if (!mainPanelUrl) return;
         const url = new URL('/panel-api/v1/noauth/microapp/normal', mainPanelUrl);
         const callback = `w7panelNormalApps${Date.now()}`;

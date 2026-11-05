@@ -155,13 +155,13 @@ export default {
             if(this.lvc){
                 let arr = this.lvc.data?.customs?.split(',') || [];
                 arr.push(newName);
-                k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/longhorn-volumes-config',{
+                return k8sproxy.patch('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/longhorn-volumes-config',{
                     data:{customs:arr.join(',')}
                 },{
                     headers: {'Content-Type': 'application/strategic-merge-patch+json'}
                 });
             }else{
-                k8sproxy.post('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps',{
+                return k8sproxy.post('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps',{
                     kind: 'ConfigMap',
                     apiVersion: 'v1',
                     metadata: {
@@ -261,8 +261,7 @@ export default {
                     }else{
                         return Promise.resolve();
                     }
-                }).then(res=>{
-                    this.pushConfigmap(data.name);
+                }).then(()=>this.pushConfigmap(data.name)).then(()=>{
                     this.$message.success('创建成功');
                     this.pvpvc.show = false;
                     this.closeDrawer(true);

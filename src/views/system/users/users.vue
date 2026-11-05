@@ -365,7 +365,7 @@ export default {
                 userMode: row.userMode,
             }
         },
-        submitPermission(data){
+        async submitPermission(data){
             if(this.isFounderUser(this.pmsForm)){
                 this.$message.error('创始人权限不允许编辑');
                 return;
@@ -424,7 +424,7 @@ export default {
                     title: title + (isFounder?'（只读）':''),
                     disabled: isFounder,
                     nofooter: isFounder,
-                    submit: isFounder?()=>{}:(data)=>{
+                    submit: isFounder?()=>{}:async (data)=>{
                         return k8sproxy.put('/apis/w7panel.w7.com/v1alpha1/users/' + data?.metadata?.name, data).then(res=>{
                             this.$message.success("修改成功");
                             this.yamlData = {...this.yamlData, show:false,};

@@ -113,12 +113,13 @@
                                                         </a-select>
                                                     </template>
                                                 </a-input>
-                                                <a-checkbox class="df-s0 ml-10" :disabled="form.ingressDisabled || requireDomainHttps || configConsole.isConsole" v-model="form.auto_ssl" @change="v=>form.ingressHostPre=v?'https://':'http://'">自动SSL证书</a-checkbox>
+                                                <wildcard-auto-ssl class="df-s0 ml-10" :disabled="(form.ingressDisabled && !installIngressHost.startsWith('*.')) || configConsole.isConsole" v-model="form.auto_ssl" v-model:profile-id="form.dnsProfileId" :host="installIngressHost" :namespace="namespaceActive" @update:model-value="v=>form.ingressHostPre=v?'https://':'http://'" />
                                                 <a-button v-if="configConsole.isConsole && configConsole.domains.length && configConsole.canInput" class="ml-10" type="primary" @click="configConsole.isSelect=true;">锁定</a-button>
                                             </div>
                                         </div>
                                     </a-form-item>
-                                    
+                                    <domain-parse-alert v-if="form.requireDomain" />
+
                                     <!-- <a-form-item v-if="ingressclassList.length > 1" label="ingressClass" field="ingressclass" :rules="[{required:true,validator:(value,cb)=>{!form.ingressclass?cb('请选择ingressclass'):cb()}}]">
                                         <template #label>
                                             <span class="ingressClass">镜像仓库</span>
@@ -290,7 +291,10 @@ import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
 import jobLog from '@/components/job-log.vue';
 import customCheckbox from './custom-checkbox.vue';
 import { getK8sinfo, getUserInfo } from '@/utils/auth';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import shortuuid from 'short-uuid';
+import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
+import domainParseAlert from '@/components/domain-parse-alert.vue';
 
 // 安装进度摘要：启动阶段来自 Pod 状态，终态优先使用 Job 条件。
 function installJobStatus(job, pod, events = []) {
@@ -410,6 +414,8 @@ export default {
         this.init();
     },
     components: {
+        wildcardAutoSsl,
+        domainParseAlert,
         jobLog,
         zoneDrawer,
         imageformDrawer,
@@ -419,6 +425,14 @@ export default {
         clearInterval(this.interval);
     },
     computed: {
+        installIngressHost(){
+            let host = this.form.ingressHost || '';
+            if(this.whiteList.length && host && !this.configConsole.isSelect){
+                const zone = this.whiteList[this.form.whiteDomain]?.domain;
+                if(zone) host = host.replace(/\.$/, '') + '.' + zone;
+            }
+            return host;
+        },
         installInputParams(){
             return this.is_component ? (this.install_params || {}) : (this.$route.query || {});
         },
@@ -578,6 +592,7 @@ export default {
             await this.getIngressclassList();
             // 第一步域名
             const configuredDomain = this.installInputParams.domain || this.installInputParams.ingressHost;
+            this.form.dnsProfileId = this.installInputParams.dnsProfileId || '';
             if(configuredDomain){
                 let domain = this.decodeInstallParam(configuredDomain);
                 let match = domain.match(/^(http(s)?:\/\/)(.*)$/)
@@ -615,35 +630,8 @@ export default {
             }).catch(()=>{});
         },
         async getWhiteList(){
-            let userInfo = getUserInfo();
-            let wl = userInfo?.['w7.cc/domain-white-list'] || '[]';
-            wl = JSON.parse(wl);
-            if(wl && wl.length){
-                this.whiteList = wl?.filter(i=>!i.disabled);
-            }
-            return;
-            return new Promise((resolve,reject)=>{
-                let userInfo = getUserInfo();
-                let wl = userInfo['w7.cc/domain-white-list'] || '[]';
-                wl = JSON.parse(wl);
-                if(wl.length){
-                    this.whiteList = wl?.filter(i=>!i.disabled);
-                    resolve();
-                    return;
-                }
-                
-                k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-white-list',{noAlert:true}).then(res=>{
-                    if(!res?.data){return}
-                    let list = [];
-                    try{
-                        list = JSON.parse(res?.data?.data?.whiteList)?.filter(i=>!i.disabled)
-// list.map(i=>i.prefixRandom = true)
-                    }catch{}
-                    this.whiteList = list;
-                }).finally(()=>{
-                    resolve();
-                })
-            })
+            try { this.whiteList = await loadDomainWhiteList(); }
+            catch (error) { this.$message.error('域名白名单加载失败'); throw error; }
         },
         async rebuild(){
             clearInterval(this.interval);
@@ -1528,6 +1516,7 @@ export default {
                 releaseName: releaseName || this.releaseName || (this.identifie.replaceAll('_','-') + '-' +this.createName()),
                 ingressHost: ingressHost,
                 ingressForceHttps: this.form.auto_ssl,
+                dnsProfileId: this.form.dnsProfileId || '',
                 ingressClass: this.form.ingressclass,
                 ingressSeletorName: this.form.ingressSeletorName,
                 installOptions: installOptions,
@@ -1546,7 +1535,7 @@ export default {
 			}
 
             if(this.isCaptureMode){
-                const allowedKeys = ['repoUrl','namespace','releaseName','ingressHost','ingressForceHttps','ingressClass','ingressSeletorName','isTrandition','zipUrl','dependencies'];
+                const allowedKeys = ['repoUrl','namespace','releaseName','ingressHost','ingressForceHttps','dnsProfileId','ingressClass','ingressSeletorName','isTrandition','zipUrl','dependencies'];
                 const spec = Object.fromEntries(allowedKeys.filter(key=>params[key]!==undefined).map(key=>[key,params[key]]));
                 spec.installOptions = params.installOptions.map(option=>{
                     const captured = {...option};

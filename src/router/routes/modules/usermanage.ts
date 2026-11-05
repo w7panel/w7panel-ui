@@ -11,6 +11,7 @@ const DASHBOARD: any = [{
         icon: 'icon-cloud',
         order: 5,
         menuGroup: 'usermanage',
+        clusterTypes: ['main'],
         key: 'system-manage',
     },
     children: [{

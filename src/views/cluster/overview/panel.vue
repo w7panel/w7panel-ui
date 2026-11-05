@@ -316,7 +316,7 @@
                                 </a-select>
                             </template>
                         </a-input>
-                        <a-checkbox v-model="domainForm.auto_ssl" class="mt-16">自动SSL证书</a-checkbox>
+                        <wildcard-auto-ssl v-model="domainForm.auto_ssl" v-model:profile-id="domainForm.dnsProfileId" :host="domainFormFullHost" :namespace="namespaceActive" class="mt-16" />
                     </div>
                 </a-form-item>
             </a-form>
@@ -364,6 +364,9 @@
 
 <script>
 import { panelApi } from '@/utils/api';
+import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
+import { applyWildcardSsl, isAutoSslIssuer } from '@/utils/wildcard-ssl';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import { k8sproxy } from '@/utils/api';
 import axios from "axios";
 import {useNamespaceStore,useLoadingStore} from "@/store";
@@ -570,8 +573,15 @@ export default {
     components: {
         olCharts,
         StatisticsAnalysisCharts,
+        wildcardAutoSsl,
     },
     computed:{
+        domainFormFullHost(){
+            const domain = String(this.domainForm.domain || '').replace(/\.$/, '');
+            const suffix = this.whiteList?.length && this.domainForm.whiteDomain !== -1
+                ? this.whiteList[this.domainForm.whiteDomain]?.domain : '';
+            return suffix ? `${domain}.${suffix}` : domain;
+        },
         isSubCluster(){
             return Boolean(this.appInfo?.isSubCluster);
         },
@@ -830,12 +840,13 @@ export default {
                             });
                         }catch(e){}
                     }
+                    await applyWildcardSsl(data, this.domainForm.dnsProfileId);
                     return k8sproxy.put("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.domainForm.name, data, {loading:true}).then(async res=>{
                         // 修改子目录 域名 ssl
                         let list = this.dataList.filter(i=>i?.metadata?.labels?.parents==res.data.metadata.name)
                         if(list.length){
                             useLoadingStore().loading = true;
-                            await Promise.all(list.map(i=>{
+                            await Promise.all(list.map(async i=>{
                                 let data = JSON.parse(JSON.stringify(i))
                                 
                                 data.spec.rules[0].host = fullDomain;
@@ -854,6 +865,7 @@ export default {
                                     // delete data.spec.tls;
                                 }
     
+                                await applyWildcardSsl(data, this.domainForm.dnsProfileId);
                                 return k8sproxy.put("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+data.metadata.name, data);
                             }))
                             useLoadingStore().loading = false;
@@ -924,6 +936,7 @@ export default {
                         }]
                     }
                     
+                    await applyWildcardSsl(data, this.domainForm.dnsProfileId);
                     return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data).then(async res=>{
                         await this.updateGroupDomain();
                         this.domainForm.show = false;
@@ -938,7 +951,7 @@ export default {
             return k8sproxy.get('/apis/networking.k8s.io/v1/namespaces/'+ this.namespaceActive +'/ingresses?labelSelector='+search, {loading:true}).then(res=>{
                 let data = res?.data?.items || [];
                 let arr = data.map(i=>{
-                    let is_auto_ssl = i?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
+                    let is_auto_ssl = isAutoSslIssuer(i?.metadata?.annotations?.['cert-manager.io/cluster-issuer']);
                     let d = i.spec.rules[0];
                     let host = d.host;
                     let path = d.http.paths[0].path;
@@ -951,7 +964,9 @@ export default {
                 );
             });
         },
-        bindDomain(){
+        async bindDomain(){
+            try { this.whiteList = await loadDomainWhiteList(); }
+            catch { this.$message.error('域名白名单加载失败'); return; }
             // this.appPorts = {};
             // k8sproxy.get('/apis/networking.k8s.io/v1/ingressclasses', {loading:true}).then(res=>{
             //     this.ingressclassList = res?.data?.items?.map(i=>i.metadata.name) || [];
@@ -1007,6 +1022,7 @@ export default {
                     domain: domain || '',
                     whiteDomain: whiteDomain,
                     auto_ssl: this.domain.auto_ssl || false,
+                    dnsProfileId: this.dataList.find(i=>i?.metadata?.name === this.domain.name)?.metadata?.annotations?.['w7.cc/dns-profile'] || '',
                     ingressclass: this.domain.ingressclass || this.ingressclassList[0],
                 };
             // })
@@ -1029,7 +1045,7 @@ export default {
                     if(!find){return true;}
                     return false;
                 })?.map(i=>{
-                    let is_auto_ssl = i?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
+                    let is_auto_ssl = isAutoSslIssuer(i?.metadata?.annotations?.['cert-manager.io/cluster-issuer']);
                     return {
                         ingressclass: i.metadata.annotations?.['kubernetes.io/ingress.class'],
                         domain: i?.spec?.rules?.[0]?.host,
@@ -1042,21 +1058,6 @@ export default {
                 this.domain.name = list?.[0]?.name;
                 this.domain.ingressclass = list?.[0]?.ingressclass;
                 this.domain.auto_ssl = list?.[0]?.auto_ssl;
-            }).then(()=>{
-                let wl = this.userInfo['w7.cc/domain-white-list'] || '[]';
-                wl = JSON.parse(wl);
-                if(wl.length){
-                    this.whiteList = wl?.filter(i=>!i.disabled);
-                    return;
-                }
-                
-                // k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/domain-white-list',{noAlert:true}).then(res=>{
-                //     let list = [];
-                //     try{
-                //         list = JSON.parse(res?.data?.data?.whiteList)?.filter(i=>!i.disabled)
-                //     }catch{}
-                //     this.whiteList = list;
-                // })
             });
         },
         // getToken(){

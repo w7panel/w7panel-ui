@@ -106,9 +106,10 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import { useAppStore, useNamespaceStore } from '@/store';
+import { useNamespaceStore } from '@/store';
 import appClientMenus from '@/router/app-menus';
-import { buildPermissionMenuTree } from '@/utils/permission-menu';
+import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu';
+import { loadClusterContext } from '@/utils/cluster-access';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
 import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
@@ -169,6 +170,8 @@ export default {
             sharedTreeData: [],
             virtualTreeData: [],
             globalTreeData: [],
+            microAppTreeData: [],
+            isSubCluster: null,
             apiRoutes: [],
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
@@ -190,6 +193,12 @@ export default {
         sourceTreeData(){
             this.initTreeData();
         },
+        'pmsForm.userMode'(){
+			this.initTreeData();
+		},
+		'pmsForm.permissionPackage'(){
+			this.initTreeData();
+		},
     },
     created(){
         this.namespaceActive = useNamespaceStore().namespace;
@@ -197,11 +206,12 @@ export default {
         this.taocan();
         this.getApiRoutes();
         this.initTreeData();
+        loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
+        loadPermissionMicroAppMenus(this.namespaceActive).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
     },
     computed: {
         sourceTreeData(){
-            const appStore = useAppStore();
-            return buildPermissionMenuTree(appStore.menuFromServer ? appStore.appAsyncMenus : appClientMenus);
+            return [...buildPermissionMenuTree(appClientMenus, this.isSubCluster), ...this.microAppTreeData];
         },
         apiRouteGroups(){
             let groupMap = {};
@@ -242,7 +252,13 @@ export default {
         },
         editDisabledMenu(){
             return this.disabledMenu || !this.pmsForm.customPermission;
-        },
+		},
+		targetUserGroup(){
+			const selected = this.permissionPackageList.find(item => item.name === this.pmsForm.permissionPackage);
+			const parent = selected?.parentPermission
+				? this.permissionPackageList.find(item => item.name === selected.parentPermission) : null;
+			return selected?.role || parent?.role || this.pmsForm.userMode || 'normal';
+		},
     },
     components: {
         whitelistComponent,
@@ -272,12 +288,13 @@ export default {
             });
             
             this.pmsls = this.getVisiblePermissionPackages();
+			this.initTreeData();
 
             // this.pmsls = this.permissionPackageList;
             // if(this.type=='shared'){ this.pmsls = this.permissionPackageListShared; }
             // if(this.type=='virtual'){ this.pmsls = this.permissionPackageListVirtual; }
         },
-        submit(){
+        async submit(){
             let whitelist = this.$refs.whitelist.getList() || [];
             if(!this.pmsForm.customPermission && !this.pmsForm.permissionPackage){
                 this.$message.warning('请选择权限套餐');
@@ -289,9 +306,11 @@ export default {
                 ? this.permissionPackageList.find(i=>i.name==find.parentPermission)
                 : null;
             let role = find?.role || parent?.role || '';
+			const menus = toPermissionPaths(this.pmsForm.list);
+			const api = this.formToApi();
             this.$emit('submit',{
-                list: toPermissionPaths(this.pmsForm.list),
-                api: this.formToApi(),
+                list: menus,
+                api,
                 permissionPackage: this.pmsForm.permissionPackage,
                 role: role,
                 debug: this.pmsForm.debug,
@@ -324,7 +343,7 @@ export default {
         taocan(){
             k8sproxy.get("/apis/w7panel.w7.com/v1alpha1/permissions",{noAlert:true}).then(res=>{
                 let list = res?.data?.items;
-                list = list.map(i=>{
+                list = list.filter(i=>i?.metadata?.name !== 'api').map(i=>{
                     let permission = toTreeKeys(i?.spec?.menuRules || []);
                     let whitelist = i?.spec?.domainWhiteList || [];
 
@@ -471,7 +490,11 @@ export default {
         setPmsApiGroupMethods(group, methods){
             if(this.editDisabledMenu){return}
             this.markCustomPermission();
-            this.pmsForm.apiSelectedKeys = this.nextApiSelectedKeysForGroup(group, methods, this.pmsForm.apiSelectedKeys);
+			this.pmsForm.apiSelectedKeys = this.nextApiSelectedKeysForGroup(group, methods, this.pmsForm.apiSelectedKeys)
+				.filter(key => {
+					const route = this.apiRoutes.find(item => this.apiRouteKey(item) === key);
+					return route;
+				});
         },
         normalizeApiSelectedKeys(keys){
             let valid = new Set(this.apiRoutes.map(route => this.apiRouteKey(route)));
@@ -558,22 +581,18 @@ export default {
         filterTree(keys){
             const menuDataCopy = JSON.parse(JSON.stringify(this.sourceTreeData));
     
-            const userGroup = this.pmsForm.userMode || 'normal';
-            function traverseAndDisable(nodes, keyPath = [], disabled) {
-                nodes.forEach(node => {
-                    const currentKeyPath = [...keyPath, node.key];
-                    const exclusiveGroups = node.exclusiveGroups || [];
-                    const groupRestricted = exclusiveGroups.length && !exclusiveGroups.includes(userGroup);
-                    if (keys.includes(node.key) || disabled || groupRestricted) {
+            function traverseAndDisable(nodes, disabled) {
+                return nodes.filter(node => {
+                    if (keys.includes(node.key) || disabled) {
                         node.disabled = true;
                     }
                     if (node.children && node.children.length > 0) {
-                        traverseAndDisable(node.children, currentKeyPath, disabled);
+                        node.children = traverseAndDisable(node.children, disabled);
                     }
+                    return true;
                 });
             }
-            traverseAndDisable(menuDataCopy, [], this.editDisabledMenu);
-            return menuDataCopy;
+            return traverseAndDisable(menuDataCopy, this.editDisabledMenu);
         },
     },
 

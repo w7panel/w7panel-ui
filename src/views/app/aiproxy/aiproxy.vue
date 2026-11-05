@@ -57,7 +57,7 @@
                                 </a-select>
                             </template>
                         </a-input>
-                        <a-checkbox v-model="form.autoSsl" class="ml-16 df-s0">https证书</a-checkbox>
+                        <wildcard-auto-ssl v-model="form.autoSsl" v-model:profile-id="form.dnsProfileId" :host="fullDomain()" :namespace="namespaceActive" class="ml-16 df-s0" />
                     </div>
                 </a-form-item>
             </a-form>
@@ -119,9 +119,12 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
+import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
+import { applyWildcardSsl, isAutoSslIssuer } from '@/utils/wildcard-ssl';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import { getPermission, getUserInfo } from '@/utils/auth';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import {
     cleanupIngressPluginRules,
     ensureGatewayPluginRule,
@@ -154,7 +157,7 @@ const MODEL_VALIDATION_PLUGIN_NAME = 'request-validation.internal';
 const MCPBRIDGE_NAME = 'default';
 
 export default {
-    components: { yamlDrawer },
+    components: { yamlDrawer, wildcardAutoSsl },
     data(){
         return {
             namespaceActive: '',
@@ -192,7 +195,6 @@ export default {
         this.debug = getUserInfo()?.['w7.cc/debug']=='true';
         this.permission = getPermission() || [];
         this.namespaceActive = useNamespaceStore().namespace;
-        this.getWhiteList();
         this.getData();
     },
     methods: {
@@ -200,9 +202,7 @@ export default {
             return cleanupIngressPluginRules(k8sproxy, this.namespaceActive, ingressNames);
         },
         async getWhiteList(){
-            let wl = getUserInfo()?.['w7.cc/domain-white-list'] || '[]';
-            try { wl = JSON.parse(wl); } catch { wl = []; }
-            this.whiteList = (wl || []).filter(i=>!i.disabled);
+            this.whiteList = await loadDomainWhiteList();
         },
         async getData(){
             useLoadingStore().loading = true;
@@ -221,7 +221,7 @@ export default {
                 this.list = (ingRes?.data?.items || []).map(ing=>{
                     const host = ing?.spec?.rules?.[0]?.host || '';
                     const annotations = ing?.metadata?.annotations || {};
-                    const ssl = ing?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == 'w7-letsencrypt-prod';
+                    const ssl = isAutoSslIssuer(ing?.metadata?.annotations?.['cert-manager.io/cluster-issuer']);
                     const providers = readRouteProviders(annotations[AI_PROVIDERS_ANNOTATION]);
                     const ruleContext = getGatewayPluginRuleContext(ing, this.namespaceActive);
                     const ruleMatch = getGatewayPluginRuleMatch(this.plugin, ruleContext);
@@ -251,16 +251,18 @@ export default {
                 useLoadingStore().loading = false;
             }
         },
-        openForm(){
+        async openForm(){
             if(!this.aiProxyPluginInstalled || !this.plugin){
                 this.$message.warning('请先安装 AI 代理插件');
                 return;
             }
+            try { await this.getWhiteList(); } catch { this.$message.error('域名白名单加载失败'); return; }
             this.form = {
                 show: true,
                 domain: '',
                 whiteDomain: this.whiteList.length ? 0 : -1,
                 autoSsl: false,
+                dnsProfileId: '',
             };
         },
         fullDomain(){
@@ -289,7 +291,7 @@ export default {
                 }
             })
         },
-        createIngress(domain, autoSsl){
+        async createIngress(domain, autoSsl){
             const data = {
                 apiVersion: 'networking.k8s.io/v1',
                 kind: 'Ingress',
@@ -333,6 +335,7 @@ export default {
                 data.metadata.annotations['higress.io/ssl-redirect'] = 'false';
                 data.spec.tls = [{ hosts: [domain], secretName: scopedName(domain, 'tls-secret') }];
             }
+            await applyWildcardSsl(data, this.form.dnsProfileId);
             return k8sproxy.post('/apis/networking.k8s.io/v1/namespaces/'+this.namespaceActive+'/ingresses', data).then(res=>res.data);
         },
         installAIProxyPlugin(){

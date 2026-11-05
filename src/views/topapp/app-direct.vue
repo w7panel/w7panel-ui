@@ -1,5 +1,7 @@
 <template>
     <div class="app-direct-page bg-white">
+        <a-alert v-if="mainClusterReadOnly && mainSettingsError" type="error">读取主集群配置失败</a-alert>
+        <template v-else>
         <a-tabs v-model:active-key="activeTab" hide-content class="app-direct-tabs">
             <a-tab-pane key="login" title="登录设置"></a-tab-pane>
             <a-tab-pane key="common" title="通用设置"></a-tab-pane>
@@ -10,10 +12,10 @@
         <div v-if="activeTab === 'login'" class="app-direct-section">
             <a-form :model="loginForm" auto-label-width>
                 <a-form-item label="注册开关">
-                    <a-switch v-model="loginForm.registrationEnabled" />
+                    <a-switch v-model="loginForm.registrationEnabled" :disabled="mainClusterReadOnly" />
                 </a-form-item>
                 <a-form-item v-if="showHomepage" label="首页配置">
-                    <a-radio-group v-model="loginForm.indexPage">
+                    <a-radio-group v-model="loginForm.indexPage" :disabled="mainClusterReadOnly">
                         <a-radio value="login">登录页</a-radio>
                         <a-radio value="resource">云资源聚合页</a-radio>
                     </a-radio-group>
@@ -22,11 +24,11 @@
                     <div class="df df-c" >
                         <div class="df ai-c ">
                             <span>用户注册协议</span>
-                            <a-button class="ml-20" type="text" size="small" @click.stop="openUserAgreement">配置</a-button>
+                            <a-button class="ml-20" type="text" size="small" @click.stop="openUserAgreement">{{ mainClusterReadOnly ? '查看' : '配置' }}</a-button>
                         </div>
                         <div class="df ai-c mt-6">
                             <span>隐私协议配置</span>
-                            <a-button class="ml-20" type="text" size="small" @click.stop="openPrivacyPolicy">配置</a-button>
+                            <a-button class="ml-20" type="text" size="small" @click.stop="openPrivacyPolicy">{{ mainClusterReadOnly ? '查看' : '配置' }}</a-button>
                         </div>
                     </div>
                 </a-form-item>
@@ -36,18 +38,19 @@
         <div v-else-if="activeTab === 'common'" class="app-direct-section">
             <a-form :model="commonForm" auto-label-width>
                 <a-form-item label="站点名称">
-                    <a-input v-model="commonForm.siteName" :spellcheck="false" placeholder="请输入站点名称" style="width:420px;" />
+                    <a-input v-model="commonForm.siteName" :disabled="mainClusterReadOnly" :spellcheck="false" placeholder="请输入站点名称" style="width:420px;" />
                 </a-form-item>
                 <a-form-item label="站点LOGO">
                     <div class="logo-preview">
                         <img v-if="commonForm.logo" :src="commonForm.logo" alt="logo" />
                         <div v-else class="logo-placeholder">上传LOGO</div>
-                        <input type="file" accept="image/*" @change="handleLogoChange" />
+                        <input v-if="!mainClusterReadOnly" type="file" accept="image/*" @change="handleLogoChange" />
                     </div>
                 </a-form-item>
                 <a-form-item label="站点描述">
                     <a-input
                         v-model="commonForm.siteDescription"
+                        :disabled="mainClusterReadOnly"
                         :spellcheck="false"
                         placeholder="请输入登录页标语"
                         style="width:520px;"
@@ -59,25 +62,37 @@
         <div v-else-if="activeTab === 'filing'" class="app-direct-section">
             <a-form :model="icpDrawer.form" auto-label-width>
                 <a-form-item label="ICP备案号">
-                    <a-input v-model="icpDrawer.form.icp" :spellcheck="false" placeholder="请输入ICP备案号" />
+                    <a-input v-model="icpDrawer.form.icp" :disabled="mainClusterReadOnly" :spellcheck="false" placeholder="请输入ICP备案号" />
                 </a-form-item>
                 <a-form-item label="公安联网备案号">
-                    <a-input v-model="icpDrawer.form.publicSecurityNetworkFiling" :spellcheck="false" placeholder="请输入公安联网备案号" />
+                    <a-input v-model="icpDrawer.form.publicSecurityNetworkFiling" :disabled="mainClusterReadOnly" :spellcheck="false" placeholder="请输入公安联网备案号" />
                 </a-form-item>
                 <a-form-item label="电子营业执照信息">
-                    <a-input v-model="icpDrawer.form.electronicBusinessLicense" :spellcheck="false" placeholder="请输入电子营业执照信息" />
+                    <a-input v-model="icpDrawer.form.electronicBusinessLicense" :disabled="mainClusterReadOnly" :spellcheck="false" placeholder="请输入电子营业执照信息" />
                 </a-form-item>
                 <a-form-item label="增值电信业务经营许可证">
-                    <a-input v-model="icpDrawer.form.valueAddedTelecomBusinessLicense" :spellcheck="false" placeholder="请输入增值电信业务经营许可证" />
+                    <a-input v-model="icpDrawer.form.valueAddedTelecomBusinessLicense" :disabled="mainClusterReadOnly" :spellcheck="false" placeholder="请输入增值电信业务经营许可证" />
                 </a-form-item>
             </a-form>
         </div>
 
         <div v-else-if="activeTab === 'contact' && showContact" class="app-direct-contact-section">
-            <contact-us v-model="contactList" embedded @change="submitSetting" />
+            <a-table v-if="mainClusterReadOnly" :data="contactList" :pagination="false">
+                <template #columns>
+                    <a-table-column title="名称" data-index="name" />
+                    <a-table-column title="类型" data-index="type" />
+                    <a-table-column title="内容">
+                        <template #cell="{ record }">
+                            <img v-if="record.type === 'qrcode'" :src="record.qrcode" alt="二维码" style="width:100px" />
+                            <span v-else>{{ record.link || record.text }}</span>
+                        </template>
+                    </a-table-column>
+                </template>
+            </a-table>
+            <contact-us v-else v-model="contactList" embedded @change="submitSetting" />
         </div>
 
-        <div class="app-direct-actions">
+        <div v-if="!mainClusterReadOnly" class="app-direct-actions">
             <a-button
                 type="primary"
                 :loading="saveInProgress"
@@ -89,7 +104,8 @@
         <a-drawer
             :width="920"
             :visible="protocolDrawer.show"
-            @ok="submitProtocol"
+            :footer="!mainClusterReadOnly"
+            @ok="mainClusterReadOnly ? protocolDrawer.show=false : submitProtocol()"
             @cancel="protocolDrawer.show=false"
             class="protocol-drawer"
             unmount-on-close
@@ -99,16 +115,18 @@
             <rich-editor
                 v-if="protocolDrawer.show"
                 v-model="protocolDrawer.form.content"
+                :readonly="mainClusterReadOnly"
                 placeholder="请输入协议内容"
                 class="protocol-rich-editor"
             />
         </a-drawer>
+        </template>
 
     </div>
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import { isCurrentAppGroupRequest } from '@/utils/w7panel-resource';
 import richEditor from './rich-editor.vue';
@@ -135,6 +153,7 @@ export default {
             type: Boolean,
             default: false,
         },
+        mainClusterReadOnly: Boolean,
     },
     emits: ['open'],
     components: {
@@ -156,6 +175,7 @@ export default {
             saveRequestId: 0,
             loadedAppgroup: '',
             settingsLoading: false,
+            mainSettingsError: false,
             saveInProgress: false,
             activeTab: 'login',
             loginForm: {
@@ -219,6 +239,7 @@ export default {
             const appgroup = this.getAppgroup();
             return Boolean(
                 appgroup
+                && !this.mainClusterReadOnly
                 && !this.settingsLoading
                 && !this.saveInProgress
                 && this.loadedAppgroup === appgroup
@@ -242,12 +263,26 @@ export default {
             }
             this.loadedAppgroup = '';
             this.settingsLoading = Boolean(appgroup);
+            this.mainSettingsError = false;
             this.configMapCache = {};
             this.settingData = null;
             this.globalSettingData = null;
             this.applySetting(null, null);
             if(!appgroup){ return; }
             try{
+                if(this.mainClusterReadOnly){
+                    const res = await panelApi.get('/auth/main-settings');
+                    if(!this.isCurrentInitRequest(requestId, appgroup)){ return; }
+                    if(!res.data?.data || !Object.prototype.hasOwnProperty.call(res.data.data, 'siteSetting')){
+                        throw new Error('主集群配置响应无效');
+                    }
+                    this.settingData = res.data?.data?.siteSetting || null;
+                    this.applySetting(this.settingData, null);
+                    this.configMapCache = Object.fromEntries(Object.entries(res.data?.data?.configMaps || {}).map(([name, cm]) => [name, Promise.resolve(cm)]));
+                    await this.loadReferencedConfigMaps(requestId, appgroup);
+                    this.loadedAppgroup = appgroup;
+                    return;
+                }
                 const requests = [
                     k8sproxy.get(
                         `/apis/w7panel.w7.com/v1alpha1/namespaces/${this.namespaceActive}/microappsettings/${appgroup}`,
@@ -270,6 +305,7 @@ export default {
                 this.loadedAppgroup = appgroup;
             }catch(e){
                 if(!this.isCurrentInitRequest(requestId, appgroup)){ return; }
+                if(this.mainClusterReadOnly){ this.mainSettingsError = true; }
                 this.settingData = null;
                 this.globalSettingData = null;
                 this.applySetting(null, null);
@@ -345,6 +381,9 @@ export default {
         },
         async getConfigMap(ref){
             if(!ref?.name){ return null; }
+            if(this.mainClusterReadOnly){
+                return this.configMapCache[ref.name] || null;
+            }
             const namespace = ref.namespace || this.settingData?.metadata?.namespace || this.namespaceActive;
             const cacheKey = `${namespace}/${ref.name}`;
             if(!this.configMapCache[cacheKey]){
@@ -386,7 +425,8 @@ export default {
                 const content = configMap?.data?.[ref.key];
                 const binaryContent = configMap?.binaryData?.[ref.key];
                 if(binaryContent){
-                    this.commonForm.logo = (configMap?.metadata?.annotations?.['w7.cc/logo-imagetype'] || `data:${this.getMimeType(ref.key)};base64,`) + binaryContent;
+                    const imageType = this.mainClusterReadOnly ? configMap?.logoImageType : configMap?.metadata?.annotations?.['w7.cc/logo-imagetype'];
+                    this.commonForm.logo = (imageType || `data:${this.getMimeType(ref.key)};base64,`) + binaryContent;
                 }else if(content){
                     this.commonForm.logo = this.normalizeLogoContent(content, ref.key);
                 }
@@ -603,6 +643,7 @@ export default {
             }
         },
         async submitSetting(){
+            if(this.mainClusterReadOnly){ return; }
             const appgroup = this.getAppgroup();
             if(!this.canSubmitSetting || this.loadedAppgroup !== appgroup){ return; }
             const requestId = this.initRequestId;

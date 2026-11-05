@@ -24,6 +24,7 @@ import { k8sproxy } from '@/utils/api';
 import microApp from '@micro-zoe/micro-app'
 import axios from 'axios'
 import { useNamespaceStore } from '@/store';
+import { applyWildcardSsl } from '@/utils/wildcard-ssl';
 
 export default {
     props: ['data','allYaml'],
@@ -80,7 +81,7 @@ export default {
                 sessionStorage.removeItem('microTestUrl');
             }
         },
-        createDomain(v){
+        async createDomain(v){
             // console.log(v);
             if(!v.domain||!v.ingressClass||!v.app||!v.port){
                 return Promise.reject();
@@ -135,6 +136,7 @@ export default {
                 delete data.spec.tls;
             }
             
+            await applyWildcardSsl(data, v.dnsProfileId);
             return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data)
         },
         createName(len){

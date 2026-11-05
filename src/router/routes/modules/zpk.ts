@@ -6,7 +6,6 @@ const DASHBOARD: AppRouteRecordRaw[] = [
     path: '/zpk',
     name: 'zpk',
     component: () => import('@/views/app/pages/to-zpk.vue'),
-    // redirect: '/system/cloud',
 
     meta: {
         locale: '制品开发',

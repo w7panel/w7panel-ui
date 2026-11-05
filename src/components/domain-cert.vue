@@ -10,7 +10,7 @@
                     </a-select>
                     <!-- <a-input v-model="tlsForm.domain" disabled></a-input> -->
                     <div class="df ai-c mt-16">
-                        <a-checkbox v-if="!manualOnly" v-model="tlsForm.auto_ssl">自动https</a-checkbox>
+                        <wildcard-auto-ssl v-if="!manualOnly" v-model="tlsForm.auto_ssl" v-model:profile-id="tlsForm.dnsProfileId" :host="tlsForm.domain" :namespace="namespaceActive" />
                         <span v-if="tlsForm.testStatus && tlsForm.auto_ssl" class="ml-10">
                             <icon-check-circle v-if="tlsForm.testStatus.status=='success'" class="c-green fs-16"/>
                             <span v-else-if="tlsForm.testStatus.status=='warning'" class="df ai-c">
@@ -54,6 +54,8 @@
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import dayjs from 'dayjs';
+import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
+import { applyWildcardSsl, isAutoSslIssuer, isWildcardHost } from '@/utils/wildcard-ssl';
 
 const AUTO_SSL_ISSUER = 'w7-letsencrypt-prod';
 const AUTO_SSL_RENEW_BEFORE = '30m';
@@ -77,6 +79,7 @@ const getDefaultTlsForm = () => ({
     show: false,
     list: [],
     auto_ssl: false,
+    dnsProfileId: '',
     domainName: "",
     domain: "",
     tlsName: "",
@@ -89,6 +92,7 @@ const getDefaultTlsForm = () => ({
 
 export default {
     name: 'DomainCert',
+    components: { wildcardAutoSsl },
     props: {
         data: {
             type: Object,
@@ -145,6 +149,7 @@ export default {
                 domain: i.host,
                 parent: item.name,
                 autoSsl: i.autoSsl,
+                dnsProfileId: i.dnsProfileId,
                 sslRedirect: i.sslRedirect,
             })) || [];
 
@@ -195,7 +200,7 @@ export default {
             this.localDataList = ingressList;
 
             let host = domain?.spec?.rules?.[0]?.host;
-            let autoSsl = domain?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == AUTO_SSL_ISSUER;
+            let autoSsl = isAutoSslIssuer(domain?.metadata?.annotations?.['cert-manager.io/cluster-issuer']);
             let sslRedirect = domain?.metadata?.annotations?.['w7.cc/ssl-redirect'] == 'true';
             let secretName = domain?.spec?.tls?.[0]?.secretName || '';
             let children = this.parseChildren(domain);
@@ -359,12 +364,14 @@ export default {
                 this.tlsForm.auto_ssl = this.manualOnly ? false : inChild.autoSsl;
                 this.tlsForm.redirect = inChild.sslRedirect;
                 this.tlsForm.domain = inChild.domain;
+                this.tlsForm.dnsProfileId = inChild.dnsProfileId || '';
                 secretName = this.domainToname(this.tlsForm.domain) + "-tls-secret";
             }else{
-                let is_auto_ssl = data?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == AUTO_SSL_ISSUER;
+                let is_auto_ssl = isAutoSslIssuer(data?.metadata?.annotations?.['cert-manager.io/cluster-issuer']);
                 let redirect = data?.metadata?.annotations?.['w7.cc/ssl-redirect'] == 'true';
 
                 this.tlsForm.auto_ssl = this.manualOnly ? false : is_auto_ssl;
+                this.tlsForm.dnsProfileId = data?.metadata?.annotations?.['w7.cc/dns-profile'] || '';
                 this.tlsForm.redirect = redirect;
 
                 this.tlsForm.domain = data?.spec?.rules?.[0]?.host || inChild.domain;
@@ -423,17 +430,26 @@ export default {
                 parentIngress.metadata.annotations['w7.cc/child-hosts'] = JSON.stringify(children);
             }
         },
-        getAutoSslOperation(data){
+        getAutoSslOperation(data, grant = {}){
             let operation = [];
-            if(this.tlsForm.auto_ssl != (data?.metadata?.annotations?.['cert-manager.io/cluster-issuer'] == AUTO_SSL_ISSUER)){
+            const wildcard = isWildcardHost(data?.spec?.rules?.[0]?.host);
+            const issuer = data?.metadata?.annotations?.['cert-manager.io/cluster-issuer'];
+            const desiredIssuer = wildcard ? grant['cert-manager.io/cluster-issuer'] : AUTO_SSL_ISSUER;
+            if(this.tlsForm.auto_ssl && wildcard && !desiredIssuer){
+                throw new Error('泛域名缺少 DNS-01 签发授权');
+            }
+            if(!data?.metadata?.annotations){
+                operation.push({op: 'add', path: '/metadata/annotations', value: {}});
+            }
+            if((this.tlsForm.auto_ssl && issuer !== desiredIssuer) || (!this.tlsForm.auto_ssl && isAutoSslIssuer(issuer))){
                 if(this.tlsForm.auto_ssl){
                     operation.push({
-                        op: 'replace',
+                        op: 'add',
                         path: '/metadata/annotations/cert-manager.io~1cluster-issuer',
-                        value: AUTO_SSL_ISSUER
+                        value: desiredIssuer
                     })
                     operation.push({
-                        op: 'replace',
+                        op: 'add',
                         path: '/metadata/annotations/cert-manager.io~1renew-before',
                         value: AUTO_SSL_RENEW_BEFORE
                     })
@@ -447,6 +463,10 @@ export default {
                         path: '/metadata/annotations/cert-manager.io~1renew-before',
                     })
                 }
+            }
+            for(const key of ['w7.cc/dns-profile', 'w7.cc/dns-grant']){
+                if(this.tlsForm.auto_ssl && wildcard && grant[key]) operation.push({op:'add', path:'/metadata/annotations/'+key.replace('/', '~1'), value:grant[key]});
+                else if(data?.metadata?.annotations?.[key]) operation.push({op:'remove', path:'/metadata/annotations/'+key.replace('/', '~1')});
             }
             return operation;
         },
@@ -463,17 +483,24 @@ export default {
                 data = await this.fetchIngress(parentName || this.tlsForm.domainName).catch(()=>null);
             }
             if(!data){
-                console.log('no domain', this.tlsForm.domainName)
+                this.$message.error('未找到域名对应的 Ingress');
                 return;
             }
 
+            try{
             let operation = [];
             this.tlsForm.tlsName = this.tlsForm.tlsName || (this.domainToname(this.tlsForm.domain) + "-tls-secret");
 
             if(!parentName){
-                operation = operation.concat(this.getAutoSslOperation(data));
+                let grant = {};
+                if(this.tlsForm.auto_ssl && isWildcardHost(this.tlsForm.domain)){
+                    const draft = {metadata:{namespace:this.namespaceActive,name:data.metadata.name,annotations:{'cert-manager.io/cluster-issuer':AUTO_SSL_ISSUER}},spec:{rules:[{host:this.tlsForm.domain}]}};
+                    await applyWildcardSsl(draft, this.tlsForm.dnsProfileId);
+                    grant = draft.metadata.annotations;
+                }
+                operation = operation.concat(this.getAutoSslOperation(data, grant));
                 operation.push({
-                    op: 'replace',
+                    op: 'add',
                     path: '/spec/tls',
                     value: [{
                         hosts: [data?.spec?.rules?.[0]?.host,],
@@ -483,7 +510,7 @@ export default {
                 // 强制跳转
                 // data.metadata.annotations['w7.cc/ssl-redirect'] = this.tlsForm.redirect? 'true' : 'false';
                 operation.push({
-                    op: 'replace',
+                    op: 'add',
                     path: '/metadata/annotations/w7.cc~1ssl-redirect',
                     value: this.tlsForm.redirect? 'true' : 'false'
                 })
@@ -509,16 +536,23 @@ export default {
                         if(parentName+'-'+i.name!==this.tlsForm.domainName){return}
                         i.autoSsl = this.tlsForm.auto_ssl;
                         i.sslRedirect = this.tlsForm.redirect;
+                        i.dnsProfileId = this.tlsForm.auto_ssl ? this.tlsForm.dnsProfileId : '';
                     })
+                    const child = children.find(i=>parentName+'-'+i.name===this.tlsForm.domainName);
+                    if(child?.autoSsl && isWildcardHost(child.host)){
+                        const draft = {metadata:{namespace:this.namespaceActive,name:this.tlsForm.domainName,annotations:{'cert-manager.io/cluster-issuer':AUTO_SSL_ISSUER}},spec:{rules:[{host:child.host}]}};
+                        await applyWildcardSsl(draft, child.dnsProfileId);
+                        child.dnsGrant = draft.metadata.annotations['w7.cc/dns-grant'];
+                    }else if(child){ delete child.dnsGrant; }
                     await k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+parentName,[{
-                        op: 'replace',
+                        op: 'add',
                         path: '/metadata/annotations/w7.cc~1child-hosts',
                         value: JSON.stringify(children)
                     }],{
                         headers: {'Content-Type': 'application/json-patch+json'},
                     }).then(()=>{
                         this.updateLocalChildren(parentName, children);
-                    }).catch(()=>{})
+                    })
                 }
             }
 
@@ -534,21 +568,22 @@ export default {
             }
 
             if(!parentName){
-                k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.tlsForm.domainName, operation,{
+                await k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.tlsForm.domainName, operation,{
                     headers: {'Content-Type': 'application/json-patch+json'},
-                }).then(()=>{
-                    return this.setSubdomainTls();
-                }).then(()=>{
-                    this.$message.success("操作成功");
-                    this.tlsForm.show = false;
-                    this.$emit('success');
-                    this.externalOnSuccess?.();
-                })
+                });
+                await this.setSubdomainTls();
+                this.$message.success("操作成功");
+                this.tlsForm.show = false;
+                this.$emit('success');
+                this.externalOnSuccess?.();
             }else{
                 this.$message.success("操作成功")
                 this.tlsForm.show = false;
                 this.$emit('success');
                 this.externalOnSuccess?.();
+            }
+            }catch(error){
+                this.$message.error(error?.response?.data?.message || error?.message || 'HTTPS 配置保存失败');
             }
         },
         // 设置子域名证书
@@ -556,13 +591,19 @@ export default {
             useLoadingStore().loading = true;
             let list = this.getIngressList().filter(i=>i?.metadata?.labels?.parents==this.tlsForm.domainName)
 
-            return Promise.all(list.map(i=>{
+            return Promise.all(list.map(async i=>{
                 let data = JSON.parse(JSON.stringify(i))
                 let operation = [];
 
-                operation = operation.concat(this.getAutoSslOperation(data));
+                let grant = {};
+                if(this.tlsForm.auto_ssl && isWildcardHost(data?.spec?.rules?.[0]?.host)){
+                    const draft = {metadata:{namespace:this.namespaceActive,name:data.metadata.name,annotations:{'cert-manager.io/cluster-issuer':AUTO_SSL_ISSUER}},spec:{rules:[{host:data.spec.rules[0].host}]}};
+                    await applyWildcardSsl(draft, data?.metadata?.annotations?.['w7.cc/dns-profile'] || this.tlsForm.dnsProfileId);
+                    grant = draft.metadata.annotations;
+                }
+                operation = operation.concat(this.getAutoSslOperation(data, grant));
                 operation.push({
-                    op: 'replace',
+                    op: 'add',
                     path: '/spec/tls',
                     value: [{
                         hosts: [data?.spec?.rules?.[0]?.host,],
@@ -570,7 +611,7 @@ export default {
                     }]
                 })
                 operation.push({
-                    op: 'replace',
+                    op: 'add',
                     path: '/metadata/annotations/w7.cc~1ssl-redirect',
                     value: this.tlsForm.redirect? 'true' : 'false'
                 })
