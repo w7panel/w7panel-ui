@@ -11,9 +11,7 @@ const FILEEDITOR_KEY = 'w7panel-fileeditor';
 const WEBSHELL_KEY = 'w7panel-webshell';
 const K8SINFO_KEY = 'w7panel-k8sinfo';
 const isSubapp = (window as any).__POWERED_BY_WUJIE__;
-const ckmSession = () => (window as any).$wujie?.props;
-const isCkmSession = () => typeof ckmSession()?.getCkmPanelToken === 'function';
-const authPrefix = () => isCkmSession() ? ckmSession().getCkmPanelStoragePrefix() : (isSubapp ? PRE : '');
+const authPrefix = () => isSubapp ? PRE : '';
 
 const getDialogPanelToken = () => {
     if (typeof window === 'undefined' || !window.location.pathname.includes('/dialog/appgroup/')) {
@@ -28,7 +26,6 @@ const getDialogPanelToken = () => {
 };
 
 const isLogin = () => {
-    if (isCkmSession()) return !!ckmSession().getCkmPanelToken();
     if (getDialogPanelToken()) {
         return true;
     }
@@ -42,17 +39,12 @@ const isLogin = () => {
 };
 
 const getToken = () => {
-    if (isCkmSession()) return ckmSession().getCkmPanelToken();
     const dialogPanelToken = getDialogPanelToken();
     if (dialogPanelToken) {
         return dialogPanelToken;
     }
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.paneltoken){
-        if((window as any)?.$wujie?.props?.closeSubaccountPanel && localStorage.getItem('iframe-w7panel-token')) {
-            return localStorage.getItem('iframe-w7panel-token') || ''
-        }else {
-            return (window as any)?.$wujie?.props?.paneltoken;
-        }
+        return (window as any)?.$wujie?.props?.paneltoken;
     }
     if((window as any).__MICRO_APP_ENVIRONMENT__ && (window as any)?.microApp?.getData()?.token){
         return (window as any)?.microApp?.getData()?.token;
@@ -60,7 +52,6 @@ const getToken = () => {
     return localStorage.getItem(authPrefix() + TOKEN_KEY);
 };
 const getRefreshToken = () => {
-    if (isCkmSession()) return '';
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.refreshToken){
         return (window as any)?.$wujie?.props?.refreshToken;
     }
@@ -92,7 +83,6 @@ const setToken = (token: string) => {
     localStorage.setItem(authPrefix() + TOKEN_KEY, token);
 };
 const setRefreshToken = (token: string) => {
-    if (isCkmSession()) return;
     localStorage.setItem(REFRESH_TOKEN, token);
 }
 const setIframeToken = (token: string) => {
@@ -119,12 +109,6 @@ const setUserInfo = (v: string[]) => {
 };
 
 const clearToken = () => {
-    if (isCkmSession()) {
-        const prefix = authPrefix();
-        Object.keys(localStorage).filter(key => key.startsWith(prefix)).forEach(key => localStorage.removeItem(key));
-        dispatchAuthChange();
-        return;
-    }
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN);
     localStorage.removeItem(USERINFO);

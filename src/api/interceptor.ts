@@ -163,21 +163,6 @@ axios.interceptors.response.use(
         }catch{}
         if (error?.response?.status == 401) {
 
-            const ckm = (window as any).$wujie?.props;
-            if (typeof ckm?.getCkmPanelToken === 'function') {
-                if (error.config?._ckmRetried || typeof ckm.refreshCkmPanelSession !== 'function') {
-                    ckm.closeSubaccountPanel?.();
-                    return Promise.reject(error);
-                }
-                try {
-                    await ckm.refreshCkmPanelSession();
-                    return axios({ ...error.config, _ckmRetried: true, signal: undefined });
-                } catch (refreshError) {
-                    ckm.closeSubaccountPanel?.();
-                    return Promise.reject(refreshError);
-                }
-            }
-
             try{
                 for (let [key, controller] of pendingRequests) {
                     controller.abort();
@@ -212,7 +197,8 @@ axios.interceptors.response.use(
             }
             clearToken();
             if(router?.currentRoute.value?.name == 'login'){
-                router?.push({ name: 'login'});
+                // Keep the original authorization request and login options in the URL.
+                // The login page is already mounted, so no navigation is needed.
                 return Promise.reject(error);
             }
             router?.push({ name: 'login', query: {redirect: getCleanLoginRedirect(router?.currentRoute.value.fullPath)}});

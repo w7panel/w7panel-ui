@@ -1067,7 +1067,7 @@ export default {
             //     const token = getToken();
             //     window.open('/panel-api/v1/download/'+row.name+'?api-token='+token).focus()
             // })
-            if(row.size < 50 * 1024 * 1024 || typeof window.$wujie?.props?.getCkmPanelToken === 'function'){
+            if(row.size < 50 * 1024 * 1024){
                 this.fetchWebdav(this.getTransportPath(row)).then(async response=>{
                     try{
                         if(!response.ok){

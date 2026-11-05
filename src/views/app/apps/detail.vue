@@ -219,7 +219,6 @@ import {
     sortVisibleAppGroupMicroApps,
 } from '@/utils/appgroup-microapps';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
-import { createOpenCkmPanel } from '@/utils/ckm-panel-session';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
@@ -1071,7 +1070,6 @@ export default {
                 runningFirstPod,
                 podShell,
                 microappProxy: createMicroappProxy(proxyBackendUrl),
-                openCkmPanel: createOpenCkmPanel(),
                 k8sproxy: createK8sProxy(),
                 panelProxy: createPanelProxy(),
                 navigateMicro: (payload) => this.navigateMicro(payload),
