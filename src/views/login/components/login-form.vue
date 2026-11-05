@@ -61,6 +61,7 @@
 
 <script lang="ts" setup>
 import { panelApi } from '@/utils/api';
+import { continueAuthorization } from '@/utils/login-continuation';
 import { k8sproxy } from '@/utils/api';
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
@@ -170,9 +171,19 @@ panelApi.get('/noauth/site/login-config', {noTokenRequired: true, noAlert: true,
 const consoleLogin = ()=>{
     let policyName = router?.currentRoute?.value?.query?.policyName || '';
     let couponCode = router?.currentRoute?.value?.query?.couponCode || '';
-    window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+encodeURIComponent(window.location.origin + '/console-login?policyName=' + policyName + '&couponCode=' + couponCode);
+    const callback = new URL('/console-login', window.location.origin);
+    callback.searchParams.set('policyName', String(policyName));
+    callback.searchParams.set('couponCode', String(couponCode));
+    const authRequestID = router.currentRoute.value.query.authRequestID;
+    if(typeof authRequestID === 'string') callback.searchParams.set('authRequestID', authRequestID);
+    window.location.href = '/panel-api/v1/auth/console/oauth?redirect_uri='+encodeURIComponent(callback.href);
 }
-const oidcLogin = ()=>{ window.location.href = '/panel-api/v1/auth/oidc/start'; }
+const oidcLogin = ()=>{
+    const start = new URL('/panel-api/v1/auth/oidc/start', window.location.origin);
+    const authRequestID = router.currentRoute.value.query.authRequestID;
+    if(typeof authRequestID === 'string') start.searchParams.set('authRequestID', authRequestID);
+    window.location.href = start.href;
+}
 if(router?.currentRoute?.value?.query?.consolelogin=='1'){
     consoleLogin();
 }
@@ -287,18 +298,7 @@ const handleSubmit = async (am?:any) => {
         }else{
             loginData = userStore.loginData;
         }
-        const authRequestID = router?.currentRoute?.value?.query?.authRequestID
-        if(authRequestID){
-            
-            const res = await panelApi.post('/callback-url',{
-                authRequestID: authRequestID,
-            }, {
-                timeout: LOGIN_REQUEST_TIMEOUT,
-            });
-            window.location.href = res.data.callbackUrl;
-
-            return;
-        }
+        if(await continueAuthorization(router.currentRoute.value.query.authRequestID, panelApi, url => { window.location.href = url; })) return;
 
         let k3kInfo:any = {};
         try{
