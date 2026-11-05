@@ -1,6 +1,7 @@
 <template>
     <div class="df df-c padding-20" style="height:100%;">
         <route-breadcrumb />
+        <a-button v-if="isSubCluster === false && isFounder" class="mb-10" @click="openExclusiveMenus">专属菜单设置</a-button>
         <!-- <div>
             <a-button type="primary" @click="add"><template #icon><icon-plus /></template>添加权限</a-button>
         </div> -->
@@ -164,21 +165,36 @@
             </a-form>
         </a-drawer>
 
+        <a-drawer :visible="exclusiveEditor.show" :width="700" title="专属菜单设置" @ok="saveExclusiveMenus" @cancel="exclusiveEditor.show=false">
+            <div class="mb-10 c-99">父菜单的限制会作用于所有子菜单。</div>
+            <div v-for="row in exclusiveMenuRows" :key="row.route" class="df df-ac mb-10" :style="{ paddingLeft: `${row.depth * 16}px` }">
+                <span style="flex:1">{{ row.title }}</span>
+                <a-select v-model="exclusiveEditor.selections[row.route]" style="width:150px">
+                    <a-option value="both">主子集群</a-option>
+                    <a-option value="main">仅主集群</a-option>
+                    <a-option value="child">仅子集群</a-option>
+                </a-select>
+            </div>
+        </a-drawer>
+
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
 
     </div>
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 import axios from 'axios';
 import menuSelect from '@/views/system/permission/menu-select.vue';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
-import { getUserInfo } from '@/utils/auth';
+import { getUserInfo, getK8sinfo } from '@/utils/auth';
 import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import whitelistComponent from '../whitelist/whitelist-component.vue';
-import { expandPermissionValues, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
+import { expandPermissionValues, keyToPermissionPath, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
+import appClientMenus from '@/router/app-menus';
+import { buildPermissionMenuTree } from '@/utils/permission-menu';
+import { allowsExclusiveMenu, loadExclusiveMenus } from '@/utils/exclusive-menus';
 import {
     getLoadedApiRouteDescriptions,
     resolveApiRouteDescription,
@@ -248,6 +264,7 @@ export default {
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
             isSubCluster: null,
             mainWhiteList: [],
+            exclusiveEditor: { show: false, selections: {}, resourceVersion: '' },
         }
     },
     created(){
@@ -261,6 +278,19 @@ export default {
         }).catch(() => {});
     },
     computed: {
+        isFounder(){
+            return getK8sinfo()?.['w7.cc/role'] === 'founder';
+        },
+        exclusiveMenuRows(){
+            const rows = [];
+            const visit = (nodes, depth = 0) => nodes.forEach(node => {
+                if (node.clusterTypes?.length === 1) return;
+                if (node.route) rows.push({ title: node.title, route: node.route, depth });
+                visit(node.children || [], depth + 1);
+            });
+            visit(buildPermissionMenuTree(appClientMenus, undefined));
+            return rows;
+        },
         apiRouteGroups(){
             let groupMap = {};
             this.apiRoutes.forEach(route => {
@@ -344,6 +374,41 @@ export default {
         whitelistComponent,
     },
     methods: {
+        async openExclusiveMenus(){
+            try {
+                const policy = await loadExclusiveMenus();
+                const selections = {};
+                this.exclusiveMenuRows.forEach(row => { selections[row.route] = 'both'; });
+                policy.rules.forEach(rule => { selections[rule.menuRule] = rule.clusterTypes.length === 2 ? 'both' : rule.clusterTypes[0]; });
+                this.exclusiveEditor = { show: true, selections, resourceVersion: policy.resourceVersion || '' };
+            } catch {
+                this.$message.error('专属菜单加载失败');
+            }
+        },
+        async saveExclusiveMenus(){
+            const rows = this.exclusiveMenuRows;
+            const selections = this.exclusiveEditor.selections;
+            for (const row of rows) {
+                const value = selections[row.route] || 'both';
+                const parent = rows.find(other => row.route.startsWith(`${other.route}/`) && other.route !== row.route && (selections[other.route] || 'both') !== 'both');
+                if (parent && value !== 'both' && value !== (selections[parent.route] || 'both')) {
+                    this.$message.error(`${row.title} 超出父菜单的集群范围`);
+                    return;
+                }
+            }
+            const rules = rows.filter(row => (selections[row.route] || 'both') !== 'both').map(row => ({
+                menuRule: row.route,
+                clusterTypes: [selections[row.route]],
+            }));
+            try {
+                await panelApi.put('/auth/exclusive-menus', { rules, resourceVersion: this.exclusiveEditor.resourceVersion });
+                await loadExclusiveMenus();
+                this.exclusiveEditor.show = false;
+                this.$message.success('保存成功');
+            } catch {
+                this.$message.error('保存失败，请刷新规则后重试');
+            }
+        },
         filterTree(keys){
             const menuDataCopy = JSON.parse(JSON.stringify(this.treeData));
     
@@ -457,11 +522,21 @@ export default {
                 this.getList();
             });
         },
-        submit(){
+        async submit(){
             if (this.isSubCluster === null) {
                 this.$message.error('集群信息加载失败，请刷新后重试');
                 return;
             }
+            let exclusivePolicy;
+            try {
+                exclusivePolicy = await loadExclusiveMenus();
+            } catch {
+                this.$message.error('专属菜单加载失败，请重试');
+                return;
+            }
+            const clusterType = this.isSubCluster ? 'child' : 'main';
+            const menuRules = toPermissionPaths((this.form.permission || []).filter(key =>
+                allowsExclusiveMenu(exclusivePolicy, clusterType, keyToPermissionPath(key))));
             this.$refs.form.validate(async (err) => {
                 if (err) {
                     this.$refs.form.scrollToField(Object.keys(err)[0]);
@@ -493,7 +568,7 @@ export default {
                     data.spec.parentPermission = data.spec.type === 'custom'
                         ? (this.form.parentPermission || data.spec.parentPermission || '')
                         : '';
-                    data.spec.menuRules = toPermissionPaths(this.form.permission);
+                    data.spec.menuRules = menuRules;
                     data.spec.apiRules = this.apiToRules(api);
                     data.spec.features = {
                         debug: this.form.debug,
@@ -514,7 +589,7 @@ export default {
                     data.spec.parentPermission = data.spec.type === 'custom'
                         ? (this.form.parentPermission || data.spec.parentPermission || '')
                         : '';
-                    data.spec.menuRules = toPermissionPaths(this.form.permission);
+                    data.spec.menuRules = menuRules;
                     data.spec.apiRules = this.apiToRules(api);
                     data.spec.features = {
                         debug: this.form.debug,

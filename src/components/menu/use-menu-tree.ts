@@ -5,6 +5,7 @@ import usePermission from '@/hooks/permission';
 import { useAppStore } from '@/store';
 import appClientMenus from '@/router/app-menus';
 import { cloneDeep } from 'lodash';
+import { exclusiveMenus, loadExclusiveMenus, allowsExclusiveMenu } from '@/utils/exclusive-menus';
 
 export default function useMenuTree() {
   const permission = usePermission();
@@ -12,6 +13,7 @@ export default function useMenuTree() {
   const appStore = useAppStore();
   const isSubCluster = ref<boolean | null>(null);
   onMounted(() => {
+    loadExclusiveMenus().catch(() => {});
     loadClusterContext().then((context) => {
       isSubCluster.value = context.isSubCluster;
     }).catch(() => {});
@@ -40,6 +42,8 @@ export default function useMenuTree() {
         if (!allowsClusterRoute(element.meta, isSubCluster.value)) return null;
         if (element.name === 'app-lightweight-vms' && isSubCluster.value !== false) return null;
         const currentPath = joinRoutePath(parentPath, element.path);
+        if (element.meta?.key && (!exclusiveMenus.value || isSubCluster.value === null
+          || !allowsExclusiveMenu(exclusiveMenus.value, isSubCluster.value ? 'child' : 'main', currentPath))) return null;
         // no access
         if (!permission.accessRouter(element, currentPath)) {
           return null;

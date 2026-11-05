@@ -7,6 +7,7 @@ type PermissionMenuNode = {
   key: string;
   route: string;
   disabled?: boolean;
+  clusterTypes?: string[];
   children?: PermissionMenuNode[];
 };
 type PermissionItem = Omit<PermissionMenuNode, 'children'>;
@@ -53,12 +54,12 @@ function joinRoutePath(parentPath: string, path: string) {
 
 export function buildPermissionMenuTree(
   routes: RouteRecordRaw[] = [],
-  isSubCluster: boolean | null = null,
+  isSubCluster: boolean | null | undefined = undefined,
   parentPath = '',
   seenKeys = new Set<string>(),
 ): PermissionMenuNode[] {
   return routes.flatMap((route) => {
-    if (!allowsClusterRoute(route.meta, isSubCluster)) return [];
+    if (isSubCluster !== undefined && !allowsClusterRoute(route.meta, isSubCluster)) return [];
     const path = joinRoutePath(parentPath, route.path);
     const key = route.meta?.key;
     if (!key || seenKeys.has(key)) return buildPermissionMenuTree(route.children || [], isSubCluster, path, seenKeys);
@@ -81,6 +82,7 @@ export function buildPermissionMenuTree(
       title,
       key,
       route: path,
+      ...(route.meta?.clusterTypes ? { clusterTypes: route.meta.clusterTypes } : {}),
       ...(children.length ? { children } : {}),
     }];
   });
