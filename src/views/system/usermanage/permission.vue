@@ -1,10 +1,6 @@
 <template>
     <div class="df df-c padding-20" style="height:100%;">
         <route-breadcrumb />
-        <a-button v-if="isSubCluster === false && isFounder" class="mb-10" @click="openExclusiveMenus">专属菜单设置</a-button>
-        <!-- <div>
-            <a-button type="primary" @click="add"><template #icon><icon-plus /></template>添加权限</a-button>
-        </div> -->
         
         <div class=" bg-white padding-20">
             <table class="com-table"><tbody>
@@ -25,6 +21,7 @@
                         <a-tooltip content="修改">
                             <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
                         </a-tooltip>
+                        <a-button v-if="record.name === founderName && isSubCluster === false && isFounder" type="outline" class="ml-4" size="mini" @click="openExclusiveMenus">专属菜单设置</a-button>
                         <a-button v-if="record.name!='founder'" type="outline" class="ml-4" icon="plus" size="mini" @click="addCustom(record)">
                             <template #icon><icon-plus /></template>
                             <span>创建权限</span>

@@ -106,9 +106,8 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import { useNamespaceStore } from '@/store';
 import appClientMenus from '@/router/app-menus';
-import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu';
+import { buildPermissionMenuTree } from '@/utils/permission-menu';
 import { loadClusterContext } from '@/utils/cluster-access';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
 import { keyToPermissionPath, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
@@ -148,7 +147,6 @@ export default {
     props: ['show','list','api','name', 'debug','fileeditor','whitelist','webshell','permissionPackage','userMode','disabledBase','disabledMenu','noCustom'],
     data(){
         return {
-            namespaceActive: '',
             pmsls: [],
             permissionPackageList: [],
             permissionPackageListShared: [],
@@ -171,7 +169,6 @@ export default {
             sharedTreeData: [],
             virtualTreeData: [],
             globalTreeData: [],
-            microAppTreeData: [],
             isSubCluster: null,
             apiRoutes: [],
             apiRoutesPromise: null,
@@ -202,20 +199,18 @@ export default {
 		},
     },
     created(){
-        this.namespaceActive = useNamespaceStore().namespace;
         this.init();
         this.taocan();
         this.getApiRoutes();
         this.initTreeData();
         loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
         loadExclusiveMenus().catch(() => {});
-        loadPermissionMicroAppMenus(this.namespaceActive).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
     },
     computed: {
         sourceTreeData(){
             exclusiveMenus.value;
             this.isSubCluster;
-            return [...buildPermissionMenuTree(appClientMenus, undefined), ...this.microAppTreeData];
+            return buildPermissionMenuTree(appClientMenus, undefined);
         },
         apiRouteGroups(){
             let groupMap = {};
