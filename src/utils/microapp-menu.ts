@@ -45,21 +45,20 @@ export function getAppMenuMatchScore(entry: string, value: string) {
   }
 }
 
-export function resolveAppMenuBinding(microApp: any, role: string, route: string, preferred = '') {
+export function resolveAppMenuBinding(microApp: any, role: string, preferred = '') {
   const normalizeRole = (value: string) => value === 'found' ? 'founder' : value;
   const userRole = normalizeRole(role);
-  const candidates = (microApp?.spec?.bindings || []).filter((binding: any) => (
-    binding.support === 'thirdparty_cd'
-    && (userRole === 'founder' || normalizeRole(binding.name) === userRole)
-    && (binding.menu || []).some((menu: any) => (
-      !isAppMenuDo(menu.do) && getMenuRouteMatchScore(menu.do, route) >= 0
-    ))
-  ));
-  const binding = candidates.find((item: any) => item.name === preferred)
-    || candidates.find((item: any) => normalizeRole(item.name) === userRole)
-    || (candidates.length === 1 ? candidates[0] : null);
-  if (!binding) throw new Error('目标应用未开放此菜单或当前用户无权访问');
-  return binding.name as string;
+  // Roles select runtime configuration only; borrowed routes need no menu declaration.
+  const candidates: string[] = [...new Set<string>([
+    ...(microApp?.spec?.bindings || [])
+      .filter((binding: any) => binding.support === 'thirdparty_cd')
+      .map((binding: any) => binding.name),
+    ...Object.keys(microApp?.spec?.['config-v2']?.props?.roleConfig || {}),
+  ])].filter(name => typeof name === 'string' && Boolean(name));
+  const findBinding = (name: string) => candidates.find(candidate => candidate === name)
+    || candidates.find(candidate => normalizeRole(candidate) === normalizeRole(name));
+  return findBinding(preferred) || findBinding(userRole) || findBinding('founder')
+    || candidates[0] || userRole || 'founder';
 }
 
 export const getMicroAppOrder = (microApp: any) => {

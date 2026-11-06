@@ -800,7 +800,7 @@ export default {
                     : '';
                 const item = await this.loadBorrowedMicroApp(target.appRef);
                 if(this.microDisposed || navigationId !== this.microNavigationId){ return; }
-                const binding = resolveAppMenuBinding(item, getK8sinfo()?.['w7.cc/role'] || '', target.route, sourceBinding);
+                const binding = resolveAppMenuBinding(item, getK8sinfo()?.['w7.cc/role'] || '', sourceBinding);
                 // Once the provider configuration is applied, retaining the old
                 // runtime on failure would display it at the new provider URL.
                 showErrorPage = true;

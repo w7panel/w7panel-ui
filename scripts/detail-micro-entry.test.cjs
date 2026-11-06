@@ -750,7 +750,11 @@ test('switching back to a local menu restores source configuration and browser h
 test('failed borrowed history restoration shows an error for the requested route and supports retry', async () => {
   const { nextTick } = require('vue');
   for (const denied of [false, true]) {
-    const targets = denied ? { 'w7panel-ckm': ckmMicroApp() } : {};
+    const targets = denied ? { 'w7panel-ckm': () => {
+      const error = new Error('Request failed with status code 403');
+      error.response = { status: 403, data: { message: '目标信息接口拒绝访问' } };
+      throw error;
+    } } : {};
     const { ctx, starts, destroys, messages, stopWatchers } = harness({
       resource: borrowedSource({ defaultMenu: false, role: denied ? 'normal' : 'founder' }),
       role: denied ? 'normal' : 'founder', targets, reactiveRoute: true,
@@ -761,7 +765,7 @@ test('failed borrowed history restoration shows an error for the requested route
       ctx.$route.query = { do: borrowedDo, paneltoken: 'keep' };
       await nextTick();
       await new Promise(resolve => setImmediate(resolve));
-      assert.match(ctx.microError, denied ? /无权访问/ : /目标应用不存在/);
+      assert.match(ctx.microError, denied ? /目标信息接口拒绝访问/ : /目标应用不存在/);
       assert.equal(ctx.menuActive, borrowedDo);
       assert.equal(ctx.selectMenu[0], `w7-php:${borrowedDo}`);
       assert.equal(ctx.microRetryDo, borrowedDo);
@@ -771,11 +775,7 @@ test('failed borrowed history restoration shows an error for the requested route
       assert.equal(messages.length, 0);
       await oldChild('#/versions/stale');
       assert.equal(ctx.$route.query.do, borrowedDo);
-      if (denied) {
-        targets['w7panel-ckm'].spec.bindings.push({ name: 'normal', support: 'thirdparty_cd', menu: [{ do: '#/upgrade-versions' }] });
-      } else {
-        targets['w7panel-ckm'] = ckmMicroApp();
-      }
+      targets['w7panel-ckm'] = ckmMicroApp();
       await ctx.retryMicroMenu();
       await nextTick();
       assert.equal(ctx.microError, '');
@@ -917,7 +917,7 @@ test('unconfigured borrowed references open directly, navigate and restore witho
   }
 });
 
-test('invalid references and unavailable provider menus show a retryable error without starting', async () => {
+test('invalid references and unavailable providers show a retryable error without starting', async () => {
   for (const options of [
     { resource: microApp(), query: { do: borrowedDo } },
     { resource: borrowedSource(), targets: {} },
@@ -933,24 +933,84 @@ test('invalid references and unavailable provider menus show a retryable error w
   }
 });
 
-test('normal users cannot borrow founder menus or fall back to founder runtime configuration', async () => {
+test('borrowed routes do not require a published target menu or a matching user role', async () => {
   const target = ckmMicroApp();
   const unconfiguredSource = microApp();
   unconfiguredSource.spec.bindings[0].name = 'normal';
   for (const resource of [borrowedSource({ role: 'normal' }), unconfiguredSource]) {
-    const denied = harness({ role: 'normal', resource, targets: { 'w7panel-ckm': target }, query: { do: borrowedDo } });
-    await denied.ctx.getData();
-    assert.equal(denied.starts.length, 0);
-    assert.match(denied.ctx.microError, /无权访问/);
+    for (const route of ['#/upgrade-versions', '#/unlisted-page/details?version=1']) {
+      const value = `app:w7panel-ckm${route}`;
+      const { ctx, starts } = harness({ role: 'normal', resource, targets: { 'w7panel-ckm': target }, query: { do: value } });
+      await ctx.getData();
+      assert.equal(ctx.microError, '');
+      assert.equal(starts.length, 1);
+      assert.equal(starts[0].url, `/assets/ckm/${route}`);
+      assert.equal(starts[0].props.providerOnly, 'ckm');
+      assert.equal(ctx.borrowedBindingName, 'founder');
+      assert.equal(ctx.$route.query.do, value);
+      assert.equal(ctx.entryGroup, 'w7-php');
+    }
   }
+});
 
-  target.spec.bindings.push({ name: 'normal', support: 'thirdparty_cd', menu: [{ title: '升级', do: '#/upgrade-versions' }] });
-  target.spec['config-v2'].props.roleConfig.founder.frontend_props.secret = 'founder-only';
-  const allowed = harness({ role: 'normal', resource: borrowedSource({ role: 'normal' }), targets: { 'w7panel-ckm': target } });
-  await allowed.ctx.getData();
-  assert.equal(allowed.starts.length, 1);
-  assert.equal(allowed.starts[0].props.secret, undefined);
-  assert.equal(allowed.ctx.borrowedBindingName, 'normal');
+test('borrowed runtime configuration still prefers the matching role when available', async () => {
+  for (const publishBinding of [false, true]) {
+    const target = ckmMicroApp();
+    if (publishBinding) target.spec.bindings.push({ name: 'normal', support: 'thirdparty_cd', menu: [] });
+    target.spec['config-v2'].props.roleConfig.normal = { frontend_props: { providerOnly: 'normal-config' } };
+    const { ctx, starts } = harness({
+      role: 'normal', resource: microApp(), targets: { 'w7panel-ckm': target }, query: { do: borrowedDo },
+    });
+    await ctx.getData();
+    assert.equal(ctx.roles.length, 0);
+    assert.equal(ctx.microError, '');
+    assert.equal(starts.length, 1);
+    assert.equal(starts[0].props.providerOnly, 'normal-config');
+    assert.equal(ctx.borrowedBindingName, 'normal');
+  }
+});
+
+test('borrowed source binding still selects its runtime configuration without target menu declarations', async () => {
+  const resource = borrowedSource({ role: 'admin' });
+  const target = ckmMicroApp();
+  target.spec.bindings.push({ name: 'admin', support: 'thirdparty_cd', menu: [] });
+  target.spec['config-v2'].props.roleConfig.admin = { frontend_props: { providerOnly: 'admin-config' } };
+  const { ctx, starts } = harness({ resource, targets: { 'w7panel-ckm': target } });
+  await ctx.getData();
+  assert.equal(ctx.microError, '');
+  assert.equal(starts.length, 1);
+  assert.equal(starts[0].props.providerOnly, 'admin-config');
+  assert.equal(ctx.borrowedBindingName, 'admin');
+});
+
+test('providers without menu bindings can load, return to the source and restore borrowed routes', async () => {
+  for (const configured of [false, true]) {
+    const target = ckmMicroApp();
+    delete target.spec.bindings;
+    if (!configured) delete target.spec['config-v2'];
+    const { ctx, starts, requests } = harness({
+      role: 'normal', resource: borrowedSource({ role: 'normal' }),
+      targets: { 'w7panel-ckm': target }, query: { do: borrowedDo },
+    });
+    await ctx.getData();
+    assert.equal(ctx.microError, '');
+    assert.equal(starts.length, 1);
+    assert.equal(starts[0].url, '/assets/ckm/#/upgrade-versions');
+    assert.equal(starts[0].props.providerOnly, configured ? 'ckm' : undefined);
+    assert.equal(starts[0].props.appgroup, 'w7panel-ckm');
+    assert(ctx.borrowedBindingName, 'borrowed runtime identity must remain available without bindings');
+    await ctx.handelMicroMenu('w7-php:#/versions');
+    await ctx.wujieInitPromise;
+    assert.equal(ctx.borrowedBindingName, '');
+    assert.equal(starts.at(-1).url, '/assets/php/#/versions');
+    ctx.$route.query = { do: `${borrowedDo}/v1/edit` };
+    await ctx.syncRequestedMicroRoute(ctx.$route.query.do, true);
+    assert.equal(ctx.microError, '');
+    assert.equal(starts.at(-1).url, '/assets/ckm/#/upgrade-versions/v1/edit');
+    assert.equal(starts.at(-1).props.appgroup, 'w7panel-ckm');
+    assert.equal(ctx.entryGroup, 'w7-php');
+    assert(requests.every(url => !url.includes('/appgroups')));
+  }
 });
 
 test('provider menu references are not recursively expanded', async () => {
@@ -958,9 +1018,12 @@ test('provider menu references are not recursively expanded', async () => {
   target.spec.bindings[0].menu = [{ title: '循环引用', do: 'app:w7-php#/versions' }];
   const { ctx, starts, requests } = harness({ resource: borrowedSource(), targets: { 'w7panel-ckm': target } });
   await ctx.getData();
-  assert.equal(starts.length, 0);
-  assert.match(ctx.microError, /未开放/);
-  assert.equal(requests.filter(url => url.endsWith('/info')).length, 2);
+  assert.equal(starts.length, 1);
+  assert.equal(starts[0].url, '/assets/ckm/#/upgrade-versions');
+  assert.equal(ctx.microError, '');
+  assert.deepEqual(requests.filter(url => /^\/microapp\/[^/]+\/info$/.test(url)), [
+    '/microapp/w7-php/info', '/microapp/w7panel-ckm/info',
+  ]);
 });
 
 test('failed menu clicks retain the running page and can be retried after the provider becomes available', async () => {
