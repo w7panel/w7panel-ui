@@ -19,16 +19,18 @@ export function getWujieRoutePrefix(frontendUrl: unknown) {
   return prefix;
 }
 
-export function normalizeWujieSyncRoute(value: unknown, prefix: Record<string, string> = {}) {
+export function normalizeWujieSyncRoute(value: unknown, prefix: Record<string, string> = {}, decode = true) {
   const rawValue = Array.isArray(value) ? value[0] : value;
   if (!rawValue) {
     return '';
   }
 
   let route = String(rawValue);
-  try {
-    route = decodeURIComponent(route);
-  } catch {}
+  if (decode) {
+    try {
+      route = decodeURIComponent(route);
+    } catch {}
+  }
 
   Object.entries(prefix)
     .filter(([, longPath]) => longPath)
@@ -56,8 +58,8 @@ export function normalizeWujieSyncRoute(value: unknown, prefix: Record<string, s
   return route;
 }
 
-export function normalizeWujieNavigationRoute(value: unknown, frontendUrl: unknown) {
-  const route = normalizeWujieSyncRoute(value, getWujieRoutePrefix(frontendUrl));
+export function normalizeWujieNavigationRoute(value: unknown, frontendUrl: unknown, decode = true) {
+  const route = normalizeWujieSyncRoute(value, getWujieRoutePrefix(frontendUrl), decode);
   if (!route || !/^https?:\/\//i.test(route)) {
     return route;
   }

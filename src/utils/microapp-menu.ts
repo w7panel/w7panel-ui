@@ -1,6 +1,67 @@
 export const BOTTOM_MENU_LOCATION = 'back';
 export const MICRO_APP_ORDER_LABEL = 'w7.cc/order';
 
+export const isAppMenuDo = (value: unknown): value is string => (
+  typeof value === 'string' && /^app:/i.test(value)
+);
+
+export function getMicroAppRouteFromQuery(query: Record<string, unknown> = {}) {
+  const queryDo = Array.isArray(query.do) ? query.do[0] : query.do;
+  // Only borrowed references override the legacy parameter priority.
+  const value = isAppMenuDo(queryDo)
+    ? queryDo
+    : query['app-detail-micro'] || query.do || query.appmicro;
+  return Array.isArray(value) ? value[0] : value;
+}
+
+// Keep the complete reference in `do`; only resolve it at the runtime boundary.
+export function parseAppMenuDo(value: string) {
+  if (!isAppMenuDo(value)) return null;
+  const match = /^app:([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)#(\/[^\r\n]*)$/i.exec(value);
+  if (!match) throw new Error('借用菜单地址格式错误，请使用 app:应用标识#/路由');
+  return { appRef: match[1], route: `#${match[2]}` };
+}
+
+// Query parameters do not change menu ownership. Require a path boundary so
+// /versions-old cannot be mistaken for a child of /versions.
+export function getMenuRouteMatchScore(entry: string, route: string) {
+  if (entry === route) return Number.MAX_SAFE_INTEGER;
+  const entryPath = String(entry || '').split('?')[0].replace(/\/$/, '');
+  const routePath = String(route || '').split('?')[0].replace(/\/$/, '');
+  if (!entryPath || !routePath) return -1;
+  return routePath === entryPath || routePath.startsWith(`${entryPath}/`)
+    ? entryPath.length
+    : -1;
+}
+
+export function getAppMenuMatchScore(entry: string, value: string) {
+  try {
+    const target = parseAppMenuDo(value);
+    const source = parseAppMenuDo(entry);
+    if (!target || !source || source.appRef !== target.appRef) return -1;
+    return getMenuRouteMatchScore(source.route, target.route);
+  } catch {
+    return -1;
+  }
+}
+
+export function resolveAppMenuBinding(microApp: any, role: string, route: string, preferred = '') {
+  const normalizeRole = (value: string) => value === 'found' ? 'founder' : value;
+  const userRole = normalizeRole(role);
+  const candidates = (microApp?.spec?.bindings || []).filter((binding: any) => (
+    binding.support === 'thirdparty_cd'
+    && (userRole === 'founder' || normalizeRole(binding.name) === userRole)
+    && (binding.menu || []).some((menu: any) => (
+      !isAppMenuDo(menu.do) && getMenuRouteMatchScore(menu.do, route) >= 0
+    ))
+  ));
+  const binding = candidates.find((item: any) => item.name === preferred)
+    || candidates.find((item: any) => normalizeRole(item.name) === userRole)
+    || (candidates.length === 1 ? candidates[0] : null);
+  if (!binding) throw new Error('目标应用未开放此菜单或当前用户无权访问');
+  return binding.name as string;
+}
+
 export const getMicroAppOrder = (microApp: any) => {
   const value = microApp?.metadata?.labels?.[MICRO_APP_ORDER_LABEL];
   if (value === undefined || value === null || String(value).trim() === '') {
