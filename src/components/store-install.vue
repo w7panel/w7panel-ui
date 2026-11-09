@@ -81,44 +81,46 @@
                                     </a-button>
                                 </div>
                             </a-alert>
+                            <domain-parse-alert v-if="item.identifie==form.forms[0].identifie && form.requireDomain" class="install-domain-hint" />
                             <a-form :ref="'form-'+item.identifie" :model="item" auto-label-width >
                                 <div v-if="item.identifie==form.forms[0].identifie">
                                     <a-form-item v-if="form.requireDomain" label="域名" field="ingressHost" :rules="domainRules">
                                         <template #label>
                                             <span class="form-label">域名</span>
                                         </template>
-                                        <div v-if="configConsole.isConsole && configConsole.domains.length && configConsole.isSelect" class="df" style="flex:1;">
-                                            <a-select v-model="form.fullDomain" placeholder="请选择" @change="selectDomain">
-                                                <a-option v-for="dm in configConsole.domains" :key="dm.deployItemId" :disabled="dm.enabled===false" :label="dm.siteUrl" :value="dm.deployItemId"></a-option>
-                                            </a-select>
-                                            <a-button v-if="configConsole.canInput" class="ml-10" type="primary" @click="configConsole.isSelect=false;form.ingressHost=form.fullDomain?'':form.ingressHost;">解锁</a-button>
-                                        </div>
-                                        <div v-else style="flex:1;">
-                                            <div>
-                                                <a-select v-if="configIngress.length" v-model="form.ingressSeletorName" :disabled="form.ingressDisabled" style="margin-bottom:10px;">
-                                                    <a-option v-for="item in configIngress" :key="item.name" :value="item.name">{{item.name}}</a-option>
+                                        <div class="install-domain-field">
+                                            <div v-if="configConsole.isConsole && configConsole.domains.length && configConsole.isSelect" class="df" style="flex:1;">
+                                                <a-select v-model="form.fullDomain" placeholder="请选择" @change="selectDomain">
+                                                    <a-option v-for="dm in configConsole.domains" :key="dm.deployItemId" :disabled="dm.enabled===false" :label="dm.siteUrl" :value="dm.deployItemId"></a-option>
                                                 </a-select>
+                                                <a-button v-if="configConsole.canInput" class="ml-10" type="primary" @click="configConsole.isSelect=false;form.ingressHost=form.fullDomain?'':form.ingressHost;">解锁</a-button>
                                             </div>
-                                            <div class="df ai-c">
-                                                <a-input v-model="form.ingressHost" :disabled="form.ingressDisabled || (whiteList.length && whiteList[form.whiteDomain].prefixRandom)" :spellcheck="false" :placeholder="'请输入域名'+(whiteList.length?'前缀':'')" style="width:420px;">
-                                                    <template #prepend>
-                                                        <a-select v-model="form.ingressHostPre" :disabled="true">
-                                                            <a-option label="http://" value="http://"></a-option>
-                                                            <a-option label="https://" value="https://"></a-option>
-                                                        </a-select>
-                                                    </template>
-                                                    <template v-if="whiteList.length" #append>
-                                                        <a-select v-model="form.whiteDomain" @change="whiteList[form.whiteDomain].prefixRandom?form.ingressHost=createShortUuid():null;">
-                                                            <a-option v-for="(wd,wdid) in whiteList" :key="wdid" :label="'.'+wd.domain" :value="wdid"></a-option>
-                                                        </a-select>
-                                                    </template>
-                                                </a-input>
-                                                <wildcard-auto-ssl class="df-s0 ml-10" :disabled="(form.ingressDisabled && !installIngressHost.startsWith('*.')) || configConsole.isConsole" v-model="form.auto_ssl" v-model:profile-id="form.dnsProfileId" :host="installIngressHost" :namespace="namespaceActive" @update:model-value="v=>form.ingressHostPre=v?'https://':'http://'" />
-                                                <a-button v-if="configConsole.isConsole && configConsole.domains.length && configConsole.canInput" class="ml-10" type="primary" @click="configConsole.isSelect=true;">锁定</a-button>
+                                            <div v-else style="flex:1;">
+                                                <div>
+                                                    <a-select v-if="configIngress.length" v-model="form.ingressSeletorName" :disabled="form.ingressDisabled" style="margin-bottom:10px;">
+                                                        <a-option v-for="item in configIngress" :key="item.name" :value="item.name">{{item.name}}</a-option>
+                                                    </a-select>
+                                                </div>
+                                                <div class="install-domain-controls df ai-c">
+                                                    <a-input v-model="form.ingressHost" :disabled="form.ingressDisabled || (whiteList.length && whiteList[form.whiteDomain].prefixRandom)" :spellcheck="false" :placeholder="'请输入域名'+(whiteList.length?'前缀':'')" class="install-domain-input">
+                                                        <template #prepend>
+                                                            <a-select v-model="form.ingressHostPre" :disabled="true">
+                                                                <a-option label="http://" value="http://"></a-option>
+                                                                <a-option label="https://" value="https://"></a-option>
+                                                            </a-select>
+                                                        </template>
+                                                        <template v-if="whiteList.length" #append>
+                                                            <a-select v-model="form.whiteDomain" @change="whiteList[form.whiteDomain].prefixRandom?form.ingressHost=createShortUuid():null;">
+                                                                <a-option v-for="(wd,wdid) in whiteList" :key="wdid" :label="'.'+wd.domain" :value="wdid"></a-option>
+                                                            </a-select>
+                                                        </template>
+                                                    </a-input>
+                                                    <wildcard-auto-ssl class="df-s0 ml-10" :disabled="(form.ingressDisabled && !installIngressHost.startsWith('*.')) || configConsole.isConsole" v-model="form.auto_ssl" v-model:profile-id="form.dnsProfileId" :host="installIngressHost" :namespace="namespaceActive" @update:model-value="v=>form.ingressHostPre=v?'https://':'http://'" />
+                                                    <a-button v-if="configConsole.isConsole && configConsole.domains.length && configConsole.canInput" class="ml-10" type="primary" @click="configConsole.isSelect=true;">锁定</a-button>
+                                                </div>
                                             </div>
                                         </div>
                                     </a-form-item>
-                                    <domain-parse-alert v-if="form.requireDomain" />
 
                                     <!-- <a-form-item v-if="ingressclassList.length > 1" label="ingressClass" field="ingressclass" :rules="[{required:true,validator:(value,cb)=>{!form.ingressclass?cb('请选择ingressclass'):cb()}}]">
                                         <template #label>
@@ -1362,9 +1364,10 @@ export default {
                         i.startParams?.forEach(sp=>{
                             const moduleName = this.normalizeDependencyIdentifie(sp.module_name);
                             if(!dependencyModuleNames.has(moduleName)){return}
-                            const name = this.normalizeDependencyParamName(sp.name);
-                            if(!Object.prototype.hasOwnProperty.call(envs,name) || envs[name]==null){return}
-                            sp.value = String(envs[name]);
+                            const template = String(sp.values_text || sp.value || '');
+                            sp.value = template.replace(/%([^%]+)%/g, (match, p1) => {
+                                return envs[p1] ?? match;
+                            });
                         })
                     })
                 }
@@ -1899,7 +1902,11 @@ export default {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
-.form-label{display:inline-block;white-space:pre-wrap; word-break:break-all;line-height:1.2;max-width:100px;vertical-align:middle;}
+.form-label{display:inline-block;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;line-height:1.5;max-width:160px;vertical-align:middle;}
+.install-domain-field{display:flex;flex-direction:column;width:100%;min-width:0;}
+.install-domain-controls{flex-wrap:wrap;row-gap:10px;}
+.install-domain-input{flex:1;min-width:240px;width:0;}
+.install-domain-hint :deep(.arco-alert){margin:0 0 20px;}
 </style>
 <style>
 .zpkinstalltabs .arco-tabs-tab-disabled{color:var(--color-text-2);}
