@@ -45,9 +45,6 @@
                         </a-form-item>
                     </a-tab-pane>
 
-                    <a-tab-pane key="3" title="域名白名单">
-                        <whitelist-component ref="whitelist" :data="pmsForm.whitelist" :disabled="editDisabledMenu"></whitelist-component>
-                    </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
                             <a-switch :disabled="editDisabledMenu" v-model="pmsForm.apiAll" @change="markCustomPermission"></a-switch>
@@ -109,7 +106,6 @@ import { k8sproxy } from '@/utils/api';
 import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree } from '@/utils/permission-menu';
 import { loadClusterContext } from '@/utils/cluster-access';
-import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
 import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
     getLoadedApiRouteDescriptions,
@@ -256,9 +252,6 @@ export default {
 			return selected?.role || parent?.role || this.pmsForm.userMode || 'normal';
 		},
     },
-    components: {
-        whitelistComponent,
-    },
     methods: {
         init(){
             this.pmsForm.debug = this.debug || false;
@@ -291,7 +284,7 @@ export default {
             // if(this.type=='virtual'){ this.pmsls = this.permissionPackageListVirtual; }
         },
         async submit(){
-            let whitelist = this.$refs.whitelist.getList() || [];
+            let whitelist = this.pmsForm.whitelist || [];
             if(!this.pmsForm.customPermission && !this.pmsForm.permissionPackage){
                 this.$message.warning('请选择权限套餐');
                 return;

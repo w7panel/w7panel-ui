@@ -102,10 +102,6 @@
                             </div>
                         </a-form-item>
                     </a-tab-pane>
-                    <a-tab-pane key="3" title="域名白名单">
-                        <div v-if="isSubCluster" class="mb-10 c-99">由主集群普通用户权限套餐统一配置，子集群只读。</div>
-                        <whitelist-component ref="whitelist" :data="whitelistDisplay" :disabled="isSubCluster !== false"></whitelist-component>
-                    </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
                             <a-switch v-model="form.apiAll" :disabled="form.name==founderName || (!form.apiAll && !canGrantAllApi)"></a-switch>
@@ -184,9 +180,7 @@ import menuSelect from '@/views/system/permission/menu-select.vue';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo, getK8sinfo } from '@/utils/auth';
-import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import { loadClusterContext } from '@/utils/cluster-access';
-import whitelistComponent from '../whitelist/whitelist-component.vue';
 import { expandPermissionValues, keyToPermissionPath, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree } from '@/utils/permission-menu';
@@ -259,7 +253,6 @@ export default {
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
             isSubCluster: null,
-            mainWhiteList: [],
             exclusiveEditor: { show: false, selections: {}, resourceVersion: '' },
         }
     },
@@ -270,7 +263,6 @@ export default {
         this.getList();
         loadClusterContext().then(context => {
             this.isSubCluster = context.isSubCluster;
-            if (this.isSubCluster) loadDomainWhiteList(true).then(list => { this.mainWhiteList = list; }).catch(() => { this.$message.error('域名白名单加载失败'); });
         }).catch(() => {});
     },
     computed: {
@@ -353,10 +345,6 @@ export default {
             if(!this.apiConstraintMap){return true}
             return Array.isArray(this.apiConstraintMap['*']) && this.apiConstraintMap['*'].includes('*');
         },
-		whitelistDisplay(){
-			if (!this.isSubCluster) return this.form.whitelist;
-			return this.mainWhiteList;
-		},
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;
         },
@@ -367,7 +355,6 @@ export default {
     components: {
         menuSelect,
         yamlDrawer,
-        whitelistComponent,
     },
     methods: {
         async openExclusiveMenus(){
@@ -530,9 +517,7 @@ export default {
                     return;
                 }
 
-                let whitelist = this.isSubCluster
-                    ? (this.form.isAdd || !this.form.name ? [] : this.form.originData?.spec?.domainWhiteList || [])
-                    : this.$refs.whitelist.getList() || [];
+                let whitelist = this.form.originData?.spec?.domainWhiteList || [];
                 let api = this.formToApi();
                 this.applyFormConstraints();
                 api = this.formToApi();
