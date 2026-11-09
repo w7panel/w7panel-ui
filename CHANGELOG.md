@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2026-11-09 构建产物补齐默认 Logo
+
+- 前端构建解压到 Server `kodata` 后，将默认 Logo 复制到 `assets/logo.png`，供 `/assets/logo.png` 使用。影响模块：前端构建脚本。验证：Shell 语法、资源复制及差异检查。
+
 ## 2026-11-05 worktree 合并后清理约定
 
 - 在 `AGENTS.md` 中要求任务改动进入主分支当前提交后使用 `$worktree-end` 清理任务 worktree，避免遗留工作目录；未合并差异保留。影响模块：开发流程文档。验证：规则覆盖检查与 `git diff --check`。
