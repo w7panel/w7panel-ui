@@ -21,7 +21,6 @@
                         <a-tooltip content="修改">
                             <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
                         </a-tooltip>
-                        <a-button v-if="record.name === founderName && isSubCluster === false && isFounder" type="outline" class="ml-4" size="mini" @click="openExclusiveMenus">专属菜单设置</a-button>
                         <a-button v-if="record.name!='founder'" type="outline" class="ml-4" icon="plus" size="mini" @click="addCustom(record)">
                             <template #icon><icon-plus /></template>
                             <span>创建权限</span>
@@ -524,16 +523,7 @@ export default {
                 this.$message.error('集群信息加载失败，请刷新后重试');
                 return;
             }
-            let exclusivePolicy;
-            try {
-                exclusivePolicy = await loadExclusiveMenus();
-            } catch {
-                this.$message.error('专属菜单加载失败，请重试');
-                return;
-            }
-            const clusterType = this.isSubCluster ? 'child' : 'main';
-            const menuRules = toPermissionPaths((this.form.permission || []).filter(key =>
-                allowsExclusiveMenu(exclusivePolicy, clusterType, keyToPermissionPath(key))));
+            const menuRules = toPermissionPaths(this.form.permission || []);
             this.$refs.form.validate(async (err) => {
                 if (err) {
                     this.$refs.form.scrollToField(Object.keys(err)[0]);

@@ -17,8 +17,6 @@
 import appClientMenus from '@/router/app-menus'
 import { buildPermissionMenuTree } from '@/utils/permission-menu'
 import { loadClusterContext } from '@/utils/cluster-access'
-import { exclusiveMenus, loadExclusiveMenus, allowsExclusiveMenu } from '@/utils/exclusive-menus'
-import { keyToPermissionPath } from '@/utils/permission-match'
 
 export default {
     props: ['permission','disabled','allowedKeys','userGroup'],
@@ -34,11 +32,9 @@ export default {
     created(){
         this.init();
         loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
-        loadExclusiveMenus().catch(() => {});
     },
     computed: {
         sourceTreeData(){
-            exclusiveMenus.value;
             this.isSubCluster;
             return buildPermissionMenuTree(appClientMenus, undefined);
         },
@@ -83,7 +79,7 @@ export default {
                 visit(node.children || []);
             });
             visit(this.treeData);
-            if (!this.disabled && this.isSubCluster !== null && exclusiveMenus.value) {
+            if (!this.disabled && this.isSubCluster !== null) {
                 this.checkedKeys = this.checkedKeys.filter(key => enabled.has(key));
                 this.halfCheckedKeys = this.halfCheckedKeys.filter(key => enabled.has(key));
             }
@@ -99,10 +95,8 @@ export default {
                     const currentKeyPath = [...keyPath, node.key];
                     const nodeAllowed = !allowed || allowed.has(node.key) || allowed.has(node.route);
                     const clusterType = context.isSubCluster ? 'child' : 'main';
-                    const exclusiveAllowed = context.isSubCluster !== null && !!exclusiveMenus.value
-                        && allowsExclusiveMenu(exclusiveMenus.value, clusterType, node.route || keyToPermissionPath(node.key));
                     const clusterAllowed = !node.clusterTypes || node.clusterTypes.includes(clusterType);
-                    const nodeDisabled = (allowed && !nodeAllowed) || keys.includes(node.key) || disabled || !exclusiveAllowed || !clusterAllowed;
+                    const nodeDisabled = (allowed && !nodeAllowed) || keys.includes(node.key) || disabled || context.isSubCluster === null || !clusterAllowed;
                     if (nodeDisabled) {
                         node.disabled = true;
                     }
@@ -116,13 +110,9 @@ export default {
             return traverseAndDisable(menuDataCopy, [], this.disabled);
         },
         filterAllowedKeys(keys){
-            if (this.isSubCluster === null || !exclusiveMenus.value) return keys || [];
-            const clusterType = this.isSubCluster ? 'child' : 'main';
-            const visible = (keys || []).filter(key => this.isSubCluster !== null && !!exclusiveMenus.value
-                && allowsExclusiveMenu(exclusiveMenus.value, clusterType, keyToPermissionPath(key)));
-            if(!this.allowedKeys){return visible}
+            if(!this.allowedKeys){return keys || []}
             const allowed = new Set(this.allowedKeys);
-            return visible.filter(key => allowed.has(key));
+            return (keys || []).filter(key => allowed.has(key));
         },
         disabledTree(arr,boo){
             function traverse(node) {

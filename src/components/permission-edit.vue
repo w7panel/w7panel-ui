@@ -110,8 +110,7 @@ import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree } from '@/utils/permission-menu';
 import { loadClusterContext } from '@/utils/cluster-access';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
-import { keyToPermissionPath, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
-import { exclusiveMenus, loadExclusiveMenus, allowsExclusiveMenu } from '@/utils/exclusive-menus';
+import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
     getLoadedApiRouteDescriptions,
     resolveApiRouteDescription,
@@ -204,11 +203,9 @@ export default {
         this.getApiRoutes();
         this.initTreeData();
         loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
-        loadExclusiveMenus().catch(() => {});
     },
     computed: {
         sourceTreeData(){
-            exclusiveMenus.value;
             this.isSubCluster;
             return buildPermissionMenuTree(appClientMenus, undefined);
         },
@@ -294,13 +291,6 @@ export default {
             // if(this.type=='virtual'){ this.pmsls = this.permissionPackageListVirtual; }
         },
         async submit(){
-            let policy;
-            try {
-                policy = await loadExclusiveMenus();
-            } catch {
-                this.$message.error('专属菜单加载失败，请重试');
-                return;
-            }
             let whitelist = this.$refs.whitelist.getList() || [];
             if(!this.pmsForm.customPermission && !this.pmsForm.permissionPackage){
                 this.$message.warning('请选择权限套餐');
@@ -312,8 +302,7 @@ export default {
                 ? this.permissionPackageList.find(i=>i.name==find.parentPermission)
                 : null;
             let role = find?.role || parent?.role || '';
-			const menus = toPermissionPaths((this.pmsForm.list || []).filter(key =>
-                this.isSubCluster !== null && allowsExclusiveMenu(policy, this.isSubCluster ? 'child' : 'main', keyToPermissionPath(key))));
+			const menus = toPermissionPaths(this.pmsForm.list || []);
 			const api = this.formToApi();
             this.$emit('submit',{
                 list: menus,
@@ -592,9 +581,7 @@ export default {
             function traverseAndDisable(nodes, disabled) {
                 return nodes.filter(node => {
                     const clusterType = context.isSubCluster ? 'child' : 'main';
-                    const allowed = context.isSubCluster !== null && !!exclusiveMenus.value
-                        && allowsExclusiveMenu(exclusiveMenus.value, clusterType, node.route || keyToPermissionPath(node.key));
-                    const nodeDisabled = keys.includes(node.key) || disabled || !allowed || (node.clusterTypes && !node.clusterTypes.includes(clusterType));
+                    const nodeDisabled = keys.includes(node.key) || disabled || context.isSubCluster === null || (node.clusterTypes && !node.clusterTypes.includes(clusterType));
                     if (nodeDisabled) {
                         node.disabled = true;
                     }
