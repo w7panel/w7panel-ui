@@ -64,7 +64,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 name: 'app-lightweight-vms',
                 component: () => import('@/views/app/apps/index.vue'),
                 meta: {
-                    locale: '轻量虚拟机',
+                    locale: '轻虚拟机',
                     requiresAuth: true,
                     roles: ['*'],
                     key: 'app-apps',
@@ -77,7 +77,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 name: 'app-lightweight-vm-market',
                 component: () => import('@/views/app/product-market/index.vue'),
                 meta: {
-                    locale: '新建轻量虚拟机',
+                    locale: '新建轻虚拟机',
                     hideInMenu: true,
                     requiresAuth: true,
                     roles: ['*'],
