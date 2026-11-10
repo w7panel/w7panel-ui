@@ -236,7 +236,7 @@
                     <template v-if="domainForm.originType==2 && !inRvproxy">
                         <a-form-item v-if="!domainForm.name" label="Service" field="app">
                             <a-select v-model="domainForm.app" @change="v=>{domainForm.port='';domainForm.appPorts=appPorts[v] || []; }" placeholder="请选择 Service">
-                                <a-option v-for="i in serviceList" :key="i.name" :label="i.name" :value="i.name"></a-option>
+                                <a-option v-for="i in serviceList" :key="i.name" :label="i.label" :value="i.name"></a-option>
                             </a-select>
                         </a-form-item>
                         <a-form-item v-if="!domainForm.name" label="选择端口" field="port">
@@ -251,7 +251,7 @@
                                 <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
                             </a-select>
                             <a-select v-model="domainForm.app" @change="domainForm.port='';checkAllAppPorts(domainForm.appgroup,domainForm.app,(v)=>{domainForm.appPorts=v});" placeholder="请选择 Service" class="ml-10">
-                                <a-option v-for="i in allAppList[domainForm.appgroup]" :key="i.name" :label="i.title" :value="i.name"></a-option>
+                                <a-option v-for="i in allAppList[domainForm.appgroup]" :key="i.name" :label="i.label" :value="i.name"></a-option>
                             </a-select>
                         </a-form-item>
                         <a-form-item v-if="!domainForm.name" label="选择端口" field="port">
@@ -326,7 +326,7 @@
                 <template v-if="domain.originType==2 && !inRvproxy" >
                     <a-form-item v-if="!inRvproxy" label="Service" field="app">
                         <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v] || []; }" placeholder="请选择 Service" style="width:500px;">
-                            <a-option v-for="i in serviceList" :key="i.name" :label="i.name" :value="i.name"></a-option>
+                            <a-option v-for="i in serviceList" :key="i.name" :label="i.label" :value="i.name"></a-option>
                         </a-select>
                     </a-form-item>
                     
@@ -343,7 +343,7 @@
                             <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
                         </a-select>
                         <a-select v-model="domain.app" @change="domain.port='';checkAllAppPorts(domain.appgroup,domain.app,(v)=>{domain.appPorts=v});" placeholder="请选择 Service" class="ml-10">
-                            <a-option v-for="i in allAppList[domain.appgroup]" :key="i.name" :label="i.title" :value="i.name"></a-option>
+                            <a-option v-for="i in allAppList[domain.appgroup]" :key="i.name" :label="i.label" :value="i.name"></a-option>
                         </a-select>
                     </a-form-item>
                     <a-form-item v-if="!domain.name" label="选择端口" field="port">
@@ -895,14 +895,24 @@ export default {
         async checkAllAppPorts(appGroup,appName,callback){
             callback(this.allAppPorts[appGroup]?.[appName] || []);
         },
-        async loadGroupServices(group){
+        async loadGroupServices(group, appGroup = this.groupData){
             if(!group){return []}
             const response = await panelApi.get(`/namespaces/${encodeURIComponent(this.namespaceActive)}/appgroups/${encodeURIComponent(group)}/services`);
-            return (response.data?.data || response.data || []).map(item=>({
-                name: item.metadata.name,
-                title: item.metadata.name,
-                ports: (item.spec?.ports || []).filter(port=>(port.protocol || 'TCP')==='TCP').map(port=>String(port.port)),
-            })).filter(item=>item.ports.length);
+            const workloads = filterAppGroupWorkloadItems(appGroup?.status?.items || []);
+            return (response.data?.data || response.data || []).map(item=>{
+                const name = item.metadata.name;
+                const workload = workloads.find(workload=>
+                    workload.name==name || item.metadata.ownerReferences?.some(owner=>owner.name==workload.name)
+                    || item.spec?.selector?.app==workload.name
+                );
+                const chineseName = item.metadata.annotations?.title || workload?.title || appGroup?.spec?.title || appGroup?.metadata?.annotations?.title || '';
+                return {
+                    name,
+                    title: chineseName && chineseName!=name ? `${chineseName}（${name}）` : name,
+                    label: chineseName && chineseName!=name ? `${name}（${chineseName}）` : name,
+                    ports: (item.spec?.ports || []).filter(port=>(port.protocol || 'TCP')==='TCP').map(port=>String(port.port)),
+                };
+            }).filter(item=>item.ports.length);
         },
         async getWhiteList(){
             this.whiteListReady = false;
@@ -1139,6 +1149,7 @@ export default {
             try{
                 this.serviceList = await this.loadGroupServices(this.$route.params.group);
                 this.appPorts = Object.fromEntries(this.serviceList.map(item=>[item.name,item.ports]));
+                this.getTitleByName();
             }catch{
                 this.serviceList = [];
                 this.appPorts = {};
@@ -1174,15 +1185,17 @@ export default {
         getTitleByName(){
             let findfun = (name)=>{
                 if(!name){return ""}
+                if(!this.inRvproxy){
+                    const service = this.serviceList.find(item=>item.name==name);
+                    if(service){return service.title;}
+                    const workload = this.appList.find(item=>item.name==name);
+                    if(workload){return workload.title;}
+                }
                 for(let i in this.allAppList){
                     let find = this.allAppList[i]?.find(item=>item?.name==name);
                     if(find){return find?.title || name;}
                 }
                 return name;
-                if(this.inRvproxy){
-                }else{
-                    return this.appList?.find(i=>i?.name==name)?.title || name
-                }
             }
             this.list.forEach(item=>{
                 // item.appTitle = findfun(item.app);
@@ -1241,7 +1254,7 @@ export default {
                 })
                 if(this.inRvproxy){
                     await Promise.all(allGroup.map(async group=>{
-                        const services = await this.loadGroupServices(group.name);
+                        const services = await this.loadGroupServices(group.name, list.find(item=>item.metadata.name==group.name));
                         allAppList[group.name] = services;
                         this.allAppPorts[group.name] = Object.fromEntries(services.map(service=>[service.name,service.ports]));
                     }));
