@@ -233,14 +233,16 @@
                             <a-radio :value="3">应用直达</a-radio>
                         </a-radio-group>
                     </a-form-item>
-                    <a-alert v-if="!domainForm.name && domainForm.originType==2 && !domainForm.loading && (!hasAppOptions || (inRvproxy && domainForm.appgroup && !allAppList[domainForm.appgroup]?.length))" type="warning" class="mb-10">
-                        当前应用下未找到可用端口配置，请先修改应用添加端口配置！
-                    </a-alert>
                     <template v-if="domainForm.originType==2 && !inRvproxy">
                         <a-form-item v-if="!domainForm.name" label="Service" field="app">
-                            <a-select v-model="domainForm.app" @change="v=>{domainForm.port='';domainForm.appPorts=appPorts[v] || []; }" placeholder="请选择 Service">
-                                <a-option v-for="i in serviceList" :key="i.name" :label="i.label" :value="i.name"></a-option>
-                            </a-select>
+                            <div style="width:100%;">
+                                <a-alert v-if="!domainForm.loading && !hasAppOptions" type="warning" class="mb-10">
+                                    当前应用下未找到可用端口配置，请先修改应用添加端口配置！
+                                </a-alert>
+                                <a-select v-model="domainForm.app" @change="v=>{domainForm.port='';domainForm.appPorts=appPorts[v] || []; }" placeholder="请选择 Service">
+                                    <a-option v-for="i in serviceList" :key="i.name" :label="i.label" :value="i.name"></a-option>
+                                </a-select>
+                            </div>
                         </a-form-item>
                         <a-form-item v-if="!domainForm.name" label="选择端口" field="port">
                             <a-select v-model="domainForm.port" placeholder="请选择端口">
@@ -250,12 +252,19 @@
                     </template>
                     <template v-if="domainForm.originType==2 && inRvproxy">
                         <a-form-item v-if="!domainForm.name" label="应用" field="app">
-                            <a-select v-model="domainForm.appgroup" @change="domainForm.app='';domainForm.port=''" placeholder="请选择">
-                                <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
-                            </a-select>
-                            <a-select v-model="domainForm.app" @change="domainForm.port='';checkAllAppPorts(domainForm.appgroup,domainForm.app,(v)=>{domainForm.appPorts=v});" placeholder="请选择 Service" class="ml-10">
-                                <a-option v-for="i in allAppList[domainForm.appgroup]" :key="i.name" :label="i.label" :value="i.name"></a-option>
-                            </a-select>
+                            <div style="width:100%;">
+                                <a-alert v-if="!domainForm.loading && (!hasAppOptions || (domainForm.appgroup && !allAppList[domainForm.appgroup]?.length))" type="warning" class="mb-10">
+                                    当前应用下未找到可用端口配置，请先修改应用添加端口配置！
+                                </a-alert>
+                                <div class="df">
+                                    <a-select v-model="domainForm.appgroup" @change="domainForm.app='';domainForm.port=''" placeholder="请选择">
+                                        <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
+                                    </a-select>
+                                    <a-select v-model="domainForm.app" @change="domainForm.port='';checkAllAppPorts(domainForm.appgroup,domainForm.app,(v)=>{domainForm.appPorts=v});" placeholder="请选择 Service" class="ml-10">
+                                        <a-option v-for="i in allAppList[domainForm.appgroup]" :key="i.name" :label="i.label" :value="i.name"></a-option>
+                                    </a-select>
+                                </div>
+                            </div>
                         </a-form-item>
                         <a-form-item v-if="!domainForm.name" label="选择端口" field="port">
                             <a-select v-model="domainForm.port" placeholder="请选择端口">
@@ -325,15 +334,16 @@
                         <a-radio :value="3">应用直达</a-radio>
                     </a-radio-group>
                 </a-form-item>
-                <a-alert v-if="domain.originType==2 && !domainForm.loading && (!hasAppOptions || (inRvproxy && domain.appgroup && !allAppList[domain.appgroup]?.length))" type="warning" class="mb-10">
-                    当前应用下未找到可用端口配置，请先修改应用添加端口配置！
-                </a-alert>
-
                 <template v-if="domain.originType==2 && !inRvproxy" >
                     <a-form-item v-if="!inRvproxy" label="Service" field="app">
-                        <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v] || []; }" placeholder="请选择 Service" style="width:500px;">
-                            <a-option v-for="i in serviceList" :key="i.name" :label="i.label" :value="i.name"></a-option>
-                        </a-select>
+                        <div style="width:500px;">
+                            <a-alert v-if="!domainForm.loading && !hasAppOptions" type="warning" class="mb-10">
+                                当前应用下未找到可用端口配置，请先修改应用添加端口配置！
+                            </a-alert>
+                            <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v] || []; }" placeholder="请选择 Service">
+                                <a-option v-for="i in serviceList" :key="i.name" :label="i.label" :value="i.name"></a-option>
+                            </a-select>
+                        </div>
                     </a-form-item>
                     
                     <a-form-item v-if="!inRvproxy" label="选择端口" field="port">
@@ -345,12 +355,19 @@
 
                 <template v-if="domain.originType==2 && inRvproxy" >
                     <a-form-item v-if="!domain.name" label="应用" field="app">
-                        <a-select v-model="domain.appgroup" @change="domain.app='';domain.port=''" placeholder="请选择">
-                            <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
-                        </a-select>
-                        <a-select v-model="domain.app" @change="domain.port='';checkAllAppPorts(domain.appgroup,domain.app,(v)=>{domain.appPorts=v});" placeholder="请选择 Service" class="ml-10">
-                            <a-option v-for="i in allAppList[domain.appgroup]" :key="i.name" :label="i.label" :value="i.name"></a-option>
-                        </a-select>
+                        <div style="width:100%;">
+                            <a-alert v-if="!domainForm.loading && (!hasAppOptions || (domain.appgroup && !allAppList[domain.appgroup]?.length))" type="warning" class="mb-10">
+                                当前应用下未找到可用端口配置，请先修改应用添加端口配置！
+                            </a-alert>
+                            <div class="df">
+                                <a-select v-model="domain.appgroup" @change="domain.app='';domain.port=''" placeholder="请选择">
+                                    <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
+                                </a-select>
+                                <a-select v-model="domain.app" @change="domain.port='';checkAllAppPorts(domain.appgroup,domain.app,(v)=>{domain.appPorts=v});" placeholder="请选择 Service" class="ml-10">
+                                    <a-option v-for="i in allAppList[domain.appgroup]" :key="i.name" :label="i.label" :value="i.name"></a-option>
+                                </a-select>
+                            </div>
+                        </div>
                     </a-form-item>
                     <a-form-item v-if="!domain.name" label="选择端口" field="port">
                         <a-select v-model="domain.port" placeholder="请选择端口">
