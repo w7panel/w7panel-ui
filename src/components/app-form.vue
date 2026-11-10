@@ -555,10 +555,23 @@ export default {
 
                 this.validateWorkloadReferences(data);
                 if(this.id){
+                    const servicePorts = workload => (workload?.spec?.template?.spec?.containers || [])
+                        .flatMap(container => container.ports || [])
+                        .map(port => `${port.protocol || 'TCP'}:${port.containerPort}`)
+                        .sort();
+                    const portsChanged = JSON.stringify(servicePorts(data)) !== JSON.stringify(servicePorts(this.data));
                     // 不修改volumeClaimTemplates
                     data.spec.volumeClaimTemplates = this.data?.spec?.volumeClaimTemplates;
                     return k8sproxy.put("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ this.kind +"/"+ this.id, data,{loading:false}).then(async res=>{
                         if(!res.data){return;}
+                        if(portsChanged){
+                            try {
+                                await panelApi.post(`/namespaces/${encodeURIComponent(this.namespaceActive)}/workloads/${this.kind}/${encodeURIComponent(this.id)}/panel-service`);
+                            } catch(error) {
+                                this.$message.error('端口已保存，但 Service 更新失败，请在当前页面重试保存');
+                                throw error;
+                            }
+                        }
                         if(!hideMessage){this.$message.success("修改成功");}
                         this.emitInfo({
                             isSubmit: true,
@@ -566,7 +579,6 @@ export default {
                         });
                     })
                 }else{
-                    data.metadata.annotations['w7.cc/create-svc'] = 'true';
                     data.spec.template.spec.enableServiceLinks = false;
                     // 创建子应用
                     if(this.parent){ data.metadata.labels.parent = this.parent; }

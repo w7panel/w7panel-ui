@@ -264,7 +264,7 @@
                             <a-switch v-model="errorPage.enable" />
                         </a-form-item>
                         <a-form-item label="容灾服务" >
-                            <a-select v-model="errorPage.group" placeholder="请选择应用" @change="changeGroup(errorPage.group)">
+                            <a-select v-model="errorPage.group" placeholder="请选择应用" @change="errorPage.service='';changeGroup(errorPage.group)">
                                 <a-option v-for="item in groupList" :key="item.name" :label="item.title" :value="item.name"></a-option>
                             </a-select>
                             <a-select v-model="errorPage.service" placeholder="请选择服务" class="ml-20">
@@ -301,7 +301,7 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
-import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
+import { panelApi } from '@/utils/api';
 import domainStrategyPlugin from './domain-strategy-plugin.vue';
 import axios from 'axios';
 
@@ -453,15 +453,8 @@ export default {
         },
 
         changeGroup(v){
-            return k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups/'+ v).then(res=>{
-                this.requests.service = '';
-                this.appList = filterAppGroupWorkloadItems(res.data?.status?.items || []).map(i=>{
-                    return {
-                        title: i.title || i.name,
-                        name: i.name,
-                        kind: i.kind?.toLowerCase()+'s',
-                    }
-                });
+            return panelApi.get(`/namespaces/${encodeURIComponent(this.namespaceActive)}/appgroups/${encodeURIComponent(v)}/services`).then(res=>{
+                this.appList = (res.data?.data || res.data || []).map(i=>({title: i.metadata.name, name: i.metadata.name}));
             });
         },
         getGroups(){

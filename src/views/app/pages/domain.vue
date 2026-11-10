@@ -234,9 +234,9 @@
                         </a-radio-group>
                     </a-form-item>
                     <template v-if="domainForm.originType==2 && !inRvproxy">
-                        <a-form-item v-if="!domainForm.name" label="应用" field="app">
-                            <a-select v-model="domainForm.app" @change="v=>{domainForm.port='';domainForm.appPorts=appPorts[v];}" placeholder="请选择应用">
-                                <a-option v-for="i in appList" :key="i.name" :label="i.title" :value="i.name"></a-option>
+                        <a-form-item v-if="!domainForm.name" label="Service" field="app">
+                            <a-select v-model="domainForm.app" @change="v=>{domainForm.port='';domainForm.appPorts=appPorts[v] || []; }" placeholder="请选择 Service">
+                                <a-option v-for="i in serviceList" :key="i.name" :label="i.name" :value="i.name"></a-option>
                             </a-select>
                         </a-form-item>
                         <a-form-item v-if="!domainForm.name" label="选择端口" field="port">
@@ -247,10 +247,10 @@
                     </template>
                     <template v-if="domainForm.originType==2 && inRvproxy">
                         <a-form-item v-if="!domainForm.name" label="应用" field="app">
-                            <a-select v-model="domainForm.appgroup" @change="domainForm.app=''" placeholder="请选择">
+                            <a-select v-model="domainForm.appgroup" @change="domainForm.app='';domainForm.port=''" placeholder="请选择">
                                 <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
                             </a-select>
-                            <a-select v-model="domainForm.app" @change="domainForm.port='';checkAllAppPorts(domainForm.appgroup,domainForm.app,(v)=>{domainForm.appPorts=v});" placeholder="请选择应用" class="ml-10">
+                            <a-select v-model="domainForm.app" @change="domainForm.port='';checkAllAppPorts(domainForm.appgroup,domainForm.app,(v)=>{domainForm.appPorts=v});" placeholder="请选择 Service" class="ml-10">
                                 <a-option v-for="i in allAppList[domainForm.appgroup]" :key="i.name" :label="i.title" :value="i.name"></a-option>
                             </a-select>
                         </a-form-item>
@@ -324,9 +324,9 @@
                 </a-form-item>
 
                 <template v-if="domain.originType==2 && !inRvproxy" >
-                    <a-form-item v-if="!inRvproxy" label="应用" field="app">
-                        <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v];}" placeholder="请选择应用" style="width:500px;">
-                            <a-option v-for="i in appList" :key="i.name" :label="i.title" :value="i.name"></a-option>
+                    <a-form-item v-if="!inRvproxy" label="Service" field="app">
+                        <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v] || []; }" placeholder="请选择 Service" style="width:500px;">
+                            <a-option v-for="i in serviceList" :key="i.name" :label="i.name" :value="i.name"></a-option>
                         </a-select>
                     </a-form-item>
                     
@@ -339,10 +339,10 @@
 
                 <template v-if="domain.originType==2 && inRvproxy" >
                     <a-form-item v-if="!domain.name" label="应用" field="app">
-                        <a-select v-model="domain.appgroup" @change="domain.app=''" placeholder="请选择">
+                        <a-select v-model="domain.appgroup" @change="domain.app='';domain.port=''" placeholder="请选择">
                             <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
                         </a-select>
-                        <a-select v-model="domain.app" @change="domain.port='';checkAllAppPorts(domain.appgroup,domain.app,(v)=>{domain.appPorts=v});" placeholder="请选择应用" class="ml-10">
+                        <a-select v-model="domain.app" @change="domain.port='';checkAllAppPorts(domain.appgroup,domain.app,(v)=>{domain.appPorts=v});" placeholder="请选择 Service" class="ml-10">
                             <a-option v-for="i in allAppList[domain.appgroup]" :key="i.name" :label="i.title" :value="i.name"></a-option>
                         </a-select>
                     </a-form-item>
@@ -543,7 +543,7 @@
         <domain-gray-release
             ref="grayrelease"
             :show="grayRelease.show"
-            :appList="appList"
+            :appList="serviceList"
             :appPorts="appPorts"
             :parentName="grayRelease.parentName"
             :parentPath="grayRelease.parentPath"
@@ -571,7 +571,7 @@
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 
 import axios from 'axios'
 import domainStrategy from '@/components/domain-strategy.vue'
@@ -604,8 +604,9 @@ export default {
             
             appPorts: [],
             appList: [],
+            serviceList: [],
 
-            allAppPorts: [],
+            allAppPorts: {},
             allGroup: [],
             allAppList: {},
 
@@ -637,7 +638,7 @@ export default {
 
             rules: {
                 destination: [{ required: true, message: '请选择代理', trigger: 'blur' },],
-                app: [{ required: true, message: '请选择应用', trigger: 'blur' },],
+                app: [{ required: true, message: '请选择 Service', trigger: 'blur' },],
                 ingressclass: [{ required: true, message: '请选择ingressClass', trigger: 'blur' },],
                 domain: [{ required: true, message: '请输入域名', trigger: 'blur' },],
                 port: [{ required: true, message: '请选择端口', trigger: 'blur' },],
@@ -730,7 +731,7 @@ export default {
             if(this.inRvproxy){
                 return Object.values(this.allAppList || {}).some(list=>list?.length);
             }
-            return !!this.appList?.length;
+            return !!this.serviceList?.length;
         },
         currentDirectApp(){
             const name = this.$route.params?.group || '';
@@ -892,18 +893,16 @@ export default {
         },
         // 选择应用获取端口
         async checkAllAppPorts(appGroup,appName,callback){
-            if(this.allAppPorts[appName]?.length){
-                callback(this.allAppPorts[appName]);
-                return;
-            }
-            let app = this.allAppList?.[appGroup]?.find(i=>i.name==appName)
-            if(!app){
-                callback([]);
-                return;
-            }
-            let { data } = await k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ app.kind +"/"+ app.name);
-            this.allAppPorts[app.name] = data?.spec?.template?.spec?.containers?.[0]?.ports?.map(i=>String(i.containerPort)) || [];
-            callback(this.allAppPorts[app.name]);
+            callback(this.allAppPorts[appGroup]?.[appName] || []);
+        },
+        async loadGroupServices(group){
+            if(!group){return []}
+            const response = await panelApi.get(`/namespaces/${encodeURIComponent(this.namespaceActive)}/appgroups/${encodeURIComponent(group)}/services`);
+            return (response.data?.data || response.data || []).map(item=>({
+                name: item.metadata.name,
+                title: item.metadata.name,
+                ports: (item.spec?.ports || []).filter(port=>(port.protocol || 'TCP')==='TCP').map(port=>String(port.port)),
+            })).filter(item=>item.ports.length);
         },
         async getWhiteList(){
             this.whiteListReady = false;
@@ -1136,18 +1135,14 @@ export default {
         // 获取父子应用端口
         async getAppPorts(){
             if(this.inRvproxy){return}
-            if(!this.appList?.length){return;}
-            let o = {};
             this.domainForm.loading = true;
             try{
-                for(let i in this.appList){
-                    let app = this.appList[i];
-                    let { data } = await k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ app.kind +"/"+ app.name);
-                    o[app.name] = data?.spec?.template?.spec?.containers?.[0]?.ports?.map(i=>String(i.containerPort)) || [];
-                }
-            }catch{}
-            this.domainForm.loading = false;
-            this.appPorts = o;
+                this.serviceList = await this.loadGroupServices(this.$route.params.group);
+                this.appPorts = Object.fromEntries(this.serviceList.map(item=>[item.name,item.ports]));
+            }catch{
+                this.serviceList = [];
+                this.appPorts = {};
+            }finally{ this.domainForm.loading = false; }
             if(!this.inRvproxy && this.domainForm.app){
                 this.domainForm.appPorts = this.appPorts?.[this.domainForm.app] || [];
             }
@@ -1233,7 +1228,7 @@ export default {
         },
         getList(callback){
 
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups',{loading:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups',{loading:true}).then(async res=>{
                 let allGroup = [];
                 let allAppList = {};
                 let list = res?.data?.items || [];
@@ -1242,14 +1237,15 @@ export default {
                         name: item.metadata.name,
                         title: item?.spec?.title || item.metadata.name,
                     })
-                    allAppList[item.metadata.name] = filterAppGroupWorkloadItems(item?.status?.items || []).map(i=>{
-                        return {
-                            title: i.title || i.name,
-                            name: i.name,
-                            kind: i.kind?.toLowerCase()+'s',
-                        }
-                    });
+                    allAppList[item.metadata.name] = [];
                 })
+                if(this.inRvproxy){
+                    await Promise.all(allGroup.map(async group=>{
+                        const services = await this.loadGroupServices(group.name);
+                        allAppList[group.name] = services;
+                        this.allAppPorts[group.name] = Object.fromEntries(services.map(service=>[service.name,service.ports]));
+                    }));
+                }
                 this.allGroup = allGroup;
                 this.allAppList = allAppList;
                 if(!this.inRvproxy){
@@ -1650,13 +1646,13 @@ export default {
                 is_default: !this.inRvproxy && this.appDefaultDomain==item.fullDomain,
                 title: item.name?'修改域名':'添加域名',
                 show: true,
-                app: this.inRvproxy? '' : this.$route.params.id,
+                app: item.name ? (item.app || '') : '',
 
                 originType: originType,
-                appPorts: this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id] || []),
+                appPorts: item.name && !this.inRvproxy ? (this.appPorts?.[item.app] || []) : [],
                 ingressclass: item.ingressclass || this.ingressclassList?.[0] || '',
                 domain: matched?.domain ?? item.domain ?? '',
-                port: String(item.port || (this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id]?.[0]||''))),
+                port: item.name ? String(item.port || '') : '',
                 auto_ssl: item.is_auto_ssl || false,
                 dnsProfileId: this.dataList.find(i=>i?.metadata?.name === item.name)?.metadata?.annotations?.['w7.cc/dns-profile'] || '',
                 name: item.name || '',
@@ -1970,17 +1966,17 @@ export default {
                 show: true,
                 title: item?.path?'修改子目录':'添加子目录',
                 is_create: !item.path,
-                port: String(item?.port || ''),
+                port: item?.path ? String(item?.port || '') : '',
                 index: item.index || 0,
 
                 filecache: item.filecache,
                 registrycache: item.registrycache,
 
-                app: item?.app || '',
+                app: item?.path ? (item?.app || '') : '',
                 originType: item.originType || (this.inRvproxy? 1 : 2),
                 zdApp: this.inRvproxy? (item?.zdApp || '') : this.currentDirectApp.name,
 
-                appPorts: this.inRvproxy? [] : (this.appPorts[item.app] || []),
+                appPorts: item?.path && !this.inRvproxy ? (this.appPorts[item.app] || []) : [],
                 isroot: item.is_root || false,
                 path: item?.path?.replace(/^\//,'') || '',
                 parent: item.name,
