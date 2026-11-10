@@ -229,10 +229,13 @@
                     <a-form-item v-if="!domainForm.name" label="">
                         <a-radio-group v-model="domainForm.originType" @change="chengeFormOriginType">
                             <a-radio v-if="!domainForm.name&&inRvproxy" :value="1">外部服务</a-radio>
-                            <a-radio :value="2" :disabled="!hasAppOptions">应用</a-radio>
+                            <a-radio :value="2">应用</a-radio>
                             <a-radio :value="3">应用直达</a-radio>
                         </a-radio-group>
                     </a-form-item>
+                    <a-alert v-if="!domainForm.name && domainForm.originType==2 && !domainForm.loading && (!hasAppOptions || (inRvproxy && domainForm.appgroup && !allAppList[domainForm.appgroup]?.length))" type="warning" class="mb-16">
+                        当前应用下未找到可用端口配置，请先修改应用添加端口配置！
+                    </a-alert>
                     <template v-if="domainForm.originType==2 && !inRvproxy">
                         <a-form-item v-if="!domainForm.name" label="Service" field="app">
                             <a-select v-model="domainForm.app" @change="v=>{domainForm.port='';domainForm.appPorts=appPorts[v] || []; }" placeholder="请选择 Service">
@@ -322,6 +325,9 @@
                         <a-radio :value="3">应用直达</a-radio>
                     </a-radio-group>
                 </a-form-item>
+                <a-alert v-if="domain.originType==2 && !domainForm.loading && (!hasAppOptions || (inRvproxy && domain.appgroup && !allAppList[domain.appgroup]?.length))" type="warning" class="mb-16">
+                    当前应用下未找到可用端口配置，请先修改应用添加端口配置！
+                </a-alert>
 
                 <template v-if="domain.originType==2 && !inRvproxy" >
                     <a-form-item v-if="!inRvproxy" label="Service" field="app">
@@ -905,7 +911,7 @@ export default {
                     workload.name==name || item.metadata.ownerReferences?.some(owner=>owner.name==workload.name)
                     || item.spec?.selector?.app==workload.name
                 );
-                const chineseName = item.metadata.annotations?.title || workload?.title || appGroup?.spec?.title || appGroup?.metadata?.annotations?.title || '';
+                const chineseName = item.metadata.annotations?.title || workload?.title || '';
                 return {
                     name,
                     title: chineseName && chineseName!=name ? `${chineseName}（${name}）` : name,
@@ -1651,9 +1657,6 @@ export default {
             const matched = item.name && item.whiteDomain === -1 ? this.matchWhiteDomain(item.domain) : null;
             this.domainForm.appgroup = '';
             let originType = item.originType || (this.inRvproxy? 1 : 2);
-            if(originType == 2 && !this.hasAppOptions){
-                originType = this.inRvproxy? 1 : 3;
-            }
             this.domainForm = {
                 ...this.domainForm,
                 is_default: !this.inRvproxy && this.appDefaultDomain==item.fullDomain,
@@ -1716,8 +1719,8 @@ export default {
             if(!this.whiteListReady){ return Promise.reject(new Error('域名白名单尚未加载')); }
             this.normalizeDirectAppTarget(this.domainForm);
             return new Promise((resolve,reject)=>{
-                if(this.domainForm.originType == 2 && !this.hasAppOptions){
-                    this.$message.warning('暂无应用可选');
+                if(!this.domainForm.name && this.domainForm.originType==2 && (!this.domainForm.app || !this.domainForm.port)){
+                    this.$message.warning('请选择 Service 和端口');
                     reject();
                     return;
                 }
@@ -2018,6 +2021,11 @@ export default {
                 }, {})
             }
             return new Promise((resolve,reject)=>{
+                if(this.domain.originType==2 && (!this.domain.app || !this.domain.port)){
+                    this.$message.warning('请选择 Service 和端口');
+                    reject();
+                    return;
+                }
                 if(this.$refs.dialog){
                     this.$refs.dialog.validate((err) => {
                         if (err) { reject(); return; }
