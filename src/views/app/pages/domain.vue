@@ -233,7 +233,7 @@
                             <a-radio :value="3">应用直达</a-radio>
                         </a-radio-group>
                     </a-form-item>
-                    <a-alert v-if="!domainForm.name && domainForm.originType==2 && !domainForm.loading && (!hasAppOptions || (inRvproxy && domainForm.appgroup && !allAppList[domainForm.appgroup]?.length))" type="warning" class="mb-16">
+                    <a-alert v-if="!domainForm.name && domainForm.originType==2 && !domainForm.loading && (!hasAppOptions || (inRvproxy && domainForm.appgroup && !allAppList[domainForm.appgroup]?.length))" type="warning" class="mb-10">
                         当前应用下未找到可用端口配置，请先修改应用添加端口配置！
                     </a-alert>
                     <template v-if="domainForm.originType==2 && !inRvproxy">
@@ -325,7 +325,7 @@
                         <a-radio :value="3">应用直达</a-radio>
                     </a-radio-group>
                 </a-form-item>
-                <a-alert v-if="domain.originType==2 && !domainForm.loading && (!hasAppOptions || (inRvproxy && domain.appgroup && !allAppList[domain.appgroup]?.length))" type="warning" class="mb-16">
+                <a-alert v-if="domain.originType==2 && !domainForm.loading && (!hasAppOptions || (inRvproxy && domain.appgroup && !allAppList[domain.appgroup]?.length))" type="warning" class="mb-10">
                     当前应用下未找到可用端口配置，请先修改应用添加端口配置！
                 </a-alert>
 
