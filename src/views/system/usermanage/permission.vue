@@ -21,7 +21,6 @@
                         <a-tooltip content="修改">
                             <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
                         </a-tooltip>
-                        <a-button v-if="record.name === founderName && isSubCluster === false && isFounder" type="outline" class="ml-4" size="mini" @click="openExclusiveMenus">专属菜单设置</a-button>
                         <a-button v-if="record.name!='founder'" type="outline" class="ml-4" icon="plus" size="mini" @click="addCustom(record)">
                             <template #icon><icon-plus /></template>
                             <span>创建权限</span>
@@ -103,10 +102,6 @@
                             </div>
                         </a-form-item>
                     </a-tab-pane>
-                    <a-tab-pane key="3" title="域名白名单">
-                        <div v-if="isSubCluster" class="mb-10 c-99">由主集群普通用户权限套餐统一配置，子集群只读。</div>
-                        <whitelist-component ref="whitelist" :data="whitelistDisplay" :disabled="isSubCluster !== false"></whitelist-component>
-                    </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
                             <a-switch v-model="form.apiAll" :disabled="form.name==founderName || (!form.apiAll && !canGrantAllApi)"></a-switch>
@@ -185,9 +180,7 @@ import menuSelect from '@/views/system/permission/menu-select.vue';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo, getK8sinfo } from '@/utils/auth';
-import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import { loadClusterContext } from '@/utils/cluster-access';
-import whitelistComponent from '../whitelist/whitelist-component.vue';
 import { expandPermissionValues, keyToPermissionPath, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree } from '@/utils/permission-menu';
@@ -260,7 +253,6 @@ export default {
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
             isSubCluster: null,
-            mainWhiteList: [],
             exclusiveEditor: { show: false, selections: {}, resourceVersion: '' },
         }
     },
@@ -271,7 +263,6 @@ export default {
         this.getList();
         loadClusterContext().then(context => {
             this.isSubCluster = context.isSubCluster;
-            if (this.isSubCluster) loadDomainWhiteList(true).then(list => { this.mainWhiteList = list; }).catch(() => { this.$message.error('域名白名单加载失败'); });
         }).catch(() => {});
     },
     computed: {
@@ -354,10 +345,6 @@ export default {
             if(!this.apiConstraintMap){return true}
             return Array.isArray(this.apiConstraintMap['*']) && this.apiConstraintMap['*'].includes('*');
         },
-		whitelistDisplay(){
-			if (!this.isSubCluster) return this.form.whitelist;
-			return this.mainWhiteList;
-		},
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;
         },
@@ -368,7 +355,6 @@ export default {
     components: {
         menuSelect,
         yamlDrawer,
-        whitelistComponent,
     },
     methods: {
         async openExclusiveMenus(){
@@ -524,25 +510,14 @@ export default {
                 this.$message.error('集群信息加载失败，请刷新后重试');
                 return;
             }
-            let exclusivePolicy;
-            try {
-                exclusivePolicy = await loadExclusiveMenus();
-            } catch {
-                this.$message.error('专属菜单加载失败，请重试');
-                return;
-            }
-            const clusterType = this.isSubCluster ? 'child' : 'main';
-            const menuRules = toPermissionPaths((this.form.permission || []).filter(key =>
-                allowsExclusiveMenu(exclusivePolicy, clusterType, keyToPermissionPath(key))));
+            const menuRules = toPermissionPaths(this.form.permission || []);
             this.$refs.form.validate(async (err) => {
                 if (err) {
                     this.$refs.form.scrollToField(Object.keys(err)[0]);
                     return;
                 }
 
-                let whitelist = this.isSubCluster
-                    ? (this.form.isAdd || !this.form.name ? [] : this.form.originData?.spec?.domainWhiteList || [])
-                    : this.$refs.whitelist.getList() || [];
+                let whitelist = this.form.originData?.spec?.domainWhiteList || [];
                 let api = this.formToApi();
                 this.applyFormConstraints();
                 api = this.formToApi();

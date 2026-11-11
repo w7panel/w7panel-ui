@@ -37,3 +37,12 @@ test('nested edits and container reordering retain fields absent from the form',
     assert.deepEqual(result[1].env, [{ name: 'MODE', value: 'new', extra: 'keep' }])
     assert.deepEqual(result[1].startupProbe, original.spec.template.spec.containers[0].startupProbe)
 })
+
+test('editing a probe handler removes the original handler', () => {
+    const original = { readinessProbe: { tcpSocket: { port: 's3' }, periodSeconds: 10 } }
+    const baseline = { readinessProbe: { httpGet: { port: 80, path: '/' }, periodSeconds: 10 } }
+    const edited = { readinessProbe: { httpGet: { port: 9000, path: '/' }, periodSeconds: 10 } }
+    assert.deepEqual(applyTemplateAppEdit(original, baseline, edited), {
+        readinessProbe: { httpGet: { port: 9000, path: '/' }, periodSeconds: 10 },
+    })
+})

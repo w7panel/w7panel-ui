@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import NProgress from 'nprogress';
-import { Message } from '@arco-design/web-vue';
 import 'nprogress/nprogress.css';
 import { useNamespaceStore, useAppStore } from '@/store';
 
@@ -9,7 +8,6 @@ import { REDIRECT_MAIN, NOT_FOUND_ROUTE } from './routes/base';
 import { isLogin, getPermission, getToken, getK8sinfo } from '@/utils/auth';
 import { hasPermission } from '@/utils/permission-match';
 import { allowsClusterRoute, loadClusterContext } from '@/utils/cluster-access';
-import { allowsExclusiveMenu, loadExclusiveMenus } from '@/utils/exclusive-menus';
 
 import useK3kinfo from '@/hooks/k3k-info';
 
@@ -150,20 +148,9 @@ router.beforeEach(async (to, from, next) => {
         // An unknown cluster type must not expose a restricted route.
       }
     }
-    let exclusivePolicy = null;
-    if (to.matched.some((record) => record.meta?.key)) {
-      try {
-        exclusivePolicy = await loadExclusiveMenus();
-      } catch {
-        Message.error('专属菜单加载失败，请重试');
-        next(false);
-        return;
-      }
-    }
     const forbidden = to.matched.some((record) => !allowsClusterRoute(record.meta, isSubCluster) || (record.meta?.key
       && (!hasPermission(permissions, record.path, String(record.meta.key))
-        || isSubCluster === null
-        || !allowsExclusiveMenu(exclusivePolicy!, isSubCluster ? 'child' : 'main', record.path))));
+        || isSubCluster === null)));
     if (forbidden) {
       next(getK8sinfo()?.['w7.cc/role'] === 'normal'
         ? { path: NORMAL_HOME, replace: true }

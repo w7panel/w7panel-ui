@@ -1144,9 +1144,9 @@ export default {
             this.imgShow = false;
             v && this.getMirror();
         },
-        closeSD(v){
+        closeSD(v, name){
             this.sdShow = false;
-            v && this.getStorage();
+            v && this.getStorage(name);
         },
         // 获取ingressclass列表
         async getIngressclassList(){
@@ -1773,7 +1773,7 @@ export default {
             }
         },
         // 存储
-        getStorage(){
+        getStorage(selectedName){
             let customs = [];
             let defaultStorage = '';
             return k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps/longhorn-volumes-config').then(res=>{
@@ -1802,12 +1802,13 @@ export default {
                     }
                 })
                 list.sort((a,b)=>(b.creationTimestamp - a.creationTimestamp));
+                if(selectedName && !list.some(i=>i.name==selectedName)) list.unshift({name:selectedName});
                 this.storages = list;
 
                 if(this.form.forms?.length){
                     this.form.forms.forEach(i=>{
                         if(i.requirePvc){
-                            i.pvcname = this.storages?.find(i=>i.isDefault)?.name || this.storages?.[0]?.name;
+                            i.pvcname = selectedName || this.storages?.find(i=>i.isDefault)?.name || this.storages?.[0]?.name;
                         }
                     })
                     this.syncModuleStartParams(false);
