@@ -11,7 +11,7 @@
                     <!-- <a-input v-model="tlsForm.domain" disabled></a-input> -->
                     <div>
                         <a-checkbox v-model="tlsForm.auto_ssl" class="mt-16">自动https</a-checkbox>
-                        <span class="c-99">（如果您想使用自有证书，请先关闭https功能）</span>
+                        <span class="c-99">（如果您想使用自有证书，请先关闭自动SSL功能）</span>
                     </div>
                 </div>
             </a-form-item>
