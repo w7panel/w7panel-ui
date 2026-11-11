@@ -40,10 +40,9 @@ export default function useMenuTree() {
 
       const collector: any = _routes.map((element) => {
         if (!allowsClusterRoute(element.meta, isSubCluster.value)) return null;
-        if (element.name === 'app-lightweight-vms' && isSubCluster.value !== false) return null;
         const currentPath = joinRoutePath(parentPath, element.path);
         if (element.meta?.key && isSubCluster.value === null) return null;
-        if (element.meta?.key && exclusiveMenus.value
+        if (exclusiveMenus.value && isSubCluster.value !== null
           && !allowsExclusiveMenu(exclusiveMenus.value, isSubCluster.value ? 'child' : 'main', currentPath)) return null;
         // no access
         if (!permission.accessRouter(element, currentPath)) {

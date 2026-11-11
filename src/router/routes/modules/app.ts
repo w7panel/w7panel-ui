@@ -66,6 +66,7 @@ const DASHBOARD: AppRouteRecordRaw[] = [
                 meta: {
                     locale: '轻虚拟机',
                     requiresAuth: true,
+                    clusterTypes: ['main'],
                     roles: ['*'],
                     key: 'app-apps',
                     appManifestType: 'system-image',
