@@ -112,7 +112,7 @@
             </component>
 
             <a-layout class="app-detail-main df df-c" :class="{'app-detail-main--site-files': isSiteFilesPage}" :style="appDetailMainStyle">
-                <Breadcrumb v-if="!isMicroEntry" class="app-detail-breadcrumb df-s0" :routes="detailBreadcrumbRoutes" />
+                <Breadcrumb v-if="!isMicroEntry" class="df-s0" :routes="detailBreadcrumbRoutes" />
                 <a-layout-content v-if="isAppDirectPage" class="app-detail-content app-detail-content--native df df-c">
                     <app-direct
                         v-if="appGroupName"
@@ -485,7 +485,7 @@ export default {
         },
         appDetailMainStyle(){
             return {
-                padding: this.isSiteFilesPage || (this.isMicroEntry && this.hideAppMenu) ? '0' : '20px',
+                padding: this.isMicroEntry && this.hideAppMenu ? '0' : '20px',
             };
         },
         appMenuCollapsed: {
@@ -2338,7 +2338,6 @@ export default {
 .app-detail-layout{height:100%;min-width:0;min-height:0;overflow:hidden;}
 .app-detail-main{box-sizing:border-box;height:100%;min-width:0;min-height:0;overflow:hidden;}
 .app-detail-main--site-files{background:var(--color-bg-2);}
-.app-detail-main--site-files > .app-detail-breadcrumb{padding:20px 20px 0;}
 .app-detail-main--site-files .routerviewbox{border:0;}
 .app-detail-content{min-height:0;overflow:hidden;}
 .app-detail-content--native > .routerviewbox{min-height:0;overflow:auto;}
