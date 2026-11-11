@@ -142,3 +142,7 @@ bash compress-ui-test.sh all
 制品安装进度页在任务日志前显示安装 Job 的实际阶段与原因，支持无 Pod 时查看创建事件、调度资源不足、镜像拉取失败及任务完成状态。
 
 镜像源配置统一从「集群管理 → 镜像管理 → 修改镜像源」进入，支持原有 YAML 配置读取与保存，权限要求保持不变。
+
+### 集群工作负载诊断
+
+资源管理的 apps 分组下，Deployment、StatefulSet、DaemonSet 和 ReplicaSet 支持选择 Pod 查看日志或连接终端。复用应用详情的 pod-log 组件及 pod-webshell 页面，按资源命名空间和完整标签选择器查询 Pod。
