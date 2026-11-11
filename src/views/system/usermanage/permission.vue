@@ -21,6 +21,7 @@
                         <a-tooltip content="修改">
                             <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
                         </a-tooltip>
+                        <a-button v-if="record.name === founderName && isSubCluster === false && isFounder" type="outline" class="ml-4" size="mini" @click="openExclusiveMenus">专属菜单设置</a-button>
                         <a-button v-if="record.name!='founder'" type="outline" class="ml-4" icon="plus" size="mini" @click="addCustom(record)">
                             <template #icon><icon-plus /></template>
                             <span>创建权限</span>
@@ -102,6 +103,10 @@
                             </div>
                         </a-form-item>
                     </a-tab-pane>
+                    <a-tab-pane key="3" title="域名白名单">
+                        <div v-if="isSubCluster" class="mb-10 c-99">由主集群普通用户权限套餐统一配置，子集群只读。</div>
+                        <whitelist-component :data="whitelistDisplay" :disabled="isSubCluster !== false"></whitelist-component>
+                    </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
                             <a-switch v-model="form.apiAll" :disabled="form.name==founderName || (!form.apiAll && !canGrantAllApi)"></a-switch>
@@ -158,10 +163,10 @@
         </a-drawer>
 
         <a-drawer :visible="exclusiveEditor.show" :width="700" title="专属菜单设置" @ok="saveExclusiveMenus" @cancel="exclusiveEditor.show=false">
-            <div class="mb-10 c-99">父菜单的限制会作用于所有子菜单。</div>
+            <div class="mb-10 c-99">父菜单的限制会作用于所有子菜单；灰色选项由系统固定。</div>
             <div v-for="row in exclusiveMenuRows" :key="row.route" class="df df-ac mb-10" :style="{ paddingLeft: `${row.depth * 16}px` }">
                 <span style="flex:1">{{ row.title }}</span>
-                <a-select v-model="exclusiveEditor.selections[row.route]" style="width:150px">
+                <a-select v-model="exclusiveEditor.selections[row.route]" :disabled="!!row.fixedClusterType" style="width:150px">
                     <a-option value="both">主子集群</a-option>
                     <a-option value="main">仅主集群</a-option>
                     <a-option value="child">仅子集群</a-option>
@@ -180,11 +185,13 @@ import menuSelect from '@/views/system/permission/menu-select.vue';
 import { useNamespaceStore } from '@/store';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { getUserInfo, getK8sinfo } from '@/utils/auth';
+import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import { loadClusterContext } from '@/utils/cluster-access';
+import whitelistComponent from '../whitelist/whitelist-component.vue';
 import { expandPermissionValues, keyToPermissionPath, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree } from '@/utils/permission-menu';
-import { allowsExclusiveMenu, loadExclusiveMenus } from '@/utils/exclusive-menus';
+import { allowsExclusiveMenu, buildExclusiveMenuRows, exclusiveMenus, loadExclusiveMenus } from '@/utils/exclusive-menus';
 import {
     getLoadedApiRouteDescriptions,
     resolveApiRouteDescription,
@@ -253,7 +260,8 @@ export default {
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
             isSubCluster: null,
-            exclusiveEditor: { show: false, selections: {}, resourceVersion: '' },
+            mainWhiteList: [],
+            exclusiveEditor: { show: false, selections: {}, resourceVersion: '', otherRules: [] },
         }
     },
     created(){
@@ -263,6 +271,7 @@ export default {
         this.getList();
         loadClusterContext().then(context => {
             this.isSubCluster = context.isSubCluster;
+            if (this.isSubCluster) loadDomainWhiteList(true).then(list => { this.mainWhiteList = list; }).catch(() => { this.$message.error('域名白名单加载失败'); });
         }).catch(() => {});
     },
     computed: {
@@ -270,14 +279,7 @@ export default {
             return getK8sinfo()?.['w7.cc/role'] === 'founder';
         },
         exclusiveMenuRows(){
-            const rows = [];
-            const visit = (nodes, depth = 0) => nodes.forEach(node => {
-                if (node.clusterTypes?.length === 1) return;
-                if (node.route) rows.push({ title: node.title, route: node.route, depth });
-                visit(node.children || [], depth + 1);
-            });
-            visit(buildPermissionMenuTree(appClientMenus, undefined));
-            return rows;
+            return buildExclusiveMenuRows(appClientMenus);
         },
         apiRouteGroups(){
             let groupMap = {};
@@ -345,6 +347,9 @@ export default {
             if(!this.apiConstraintMap){return true}
             return Array.isArray(this.apiConstraintMap['*']) && this.apiConstraintMap['*'].includes('*');
         },
+        whitelistDisplay(){
+            return this.isSubCluster ? this.mainWhiteList : this.form.whitelist;
+        },
         featureConstraint(){
             return this.permissionConstraint?.spec?.features || null;
         },
@@ -355,15 +360,19 @@ export default {
     components: {
         menuSelect,
         yamlDrawer,
+        whitelistComponent,
     },
     methods: {
         async openExclusiveMenus(){
             try {
                 const policy = await loadExclusiveMenus();
                 const selections = {};
-                this.exclusiveMenuRows.forEach(row => { selections[row.route] = 'both'; });
-                policy.rules.forEach(rule => { selections[rule.menuRule] = rule.clusterTypes.length === 2 ? 'both' : rule.clusterTypes[0]; });
-                this.exclusiveEditor = { show: true, selections, resourceVersion: policy.resourceVersion || '' };
+                this.exclusiveMenuRows.forEach(row => { selections[row.route] = row.fixedClusterType || 'both'; });
+                const editableRoutes = new Set(this.exclusiveMenuRows.filter(row => !row.fixedClusterType).map(row => row.route));
+                policy.rules.forEach(rule => {
+                    if (editableRoutes.has(rule.menuRule)) selections[rule.menuRule] = rule.clusterTypes.length === 2 ? 'both' : rule.clusterTypes[0];
+                });
+                this.exclusiveEditor = { show: true, selections, resourceVersion: policy.resourceVersion || '', otherRules: policy.rules.filter(rule => !editableRoutes.has(rule.menuRule)) };
             } catch {
                 this.$message.error('专属菜单加载失败');
             }
@@ -374,15 +383,16 @@ export default {
             for (const row of rows) {
                 const value = selections[row.route] || 'both';
                 const parent = rows.find(other => row.route.startsWith(`${other.route}/`) && other.route !== row.route && (selections[other.route] || 'both') !== 'both');
-                if (parent && value !== 'both' && value !== (selections[parent.route] || 'both')) {
+                if (parent && value !== (selections[parent.route] || 'both')) {
                     this.$message.error(`${row.title} 超出父菜单的集群范围`);
                     return;
                 }
             }
-            const rules = rows.filter(row => (selections[row.route] || 'both') !== 'both').map(row => ({
+            const rules = rows.filter(row => !row.fixedClusterType && (selections[row.route] || 'both') !== 'both').map(row => ({
                 menuRule: row.route,
                 clusterTypes: [selections[row.route]],
             }));
+            rules.push(...this.exclusiveEditor.otherRules);
             try {
                 await panelApi.put('/auth/exclusive-menus', { rules, resourceVersion: this.exclusiveEditor.resourceVersion });
                 await loadExclusiveMenus();
@@ -493,7 +503,7 @@ export default {
                 debug: row.debug,
                 webshell: row.webshell,
                 fileeditor: row.fileeditor,
-                whitelist: row.whitelist,
+                whitelist: JSON.parse(JSON.stringify(row.whitelist || [])),
                 ...this.apiToForm(row.api || {}),
                 parentPermission: row.parentPermission || row.originData?.spec?.parentPermission || '',
             }
@@ -510,14 +520,18 @@ export default {
                 this.$message.error('集群信息加载失败，请刷新后重试');
                 return;
             }
-            const menuRules = toPermissionPaths(this.form.permission || []);
+            const clusterType = this.isSubCluster ? 'child' : 'main';
+            const menuRules = toPermissionPaths((this.form.permission || []).filter(key =>
+                !exclusiveMenus.value || allowsExclusiveMenu(exclusiveMenus.value, clusterType, keyToPermissionPath(key))));
             this.$refs.form.validate(async (err) => {
                 if (err) {
                     this.$refs.form.scrollToField(Object.keys(err)[0]);
                     return;
                 }
 
-                let whitelist = this.form.originData?.spec?.domainWhiteList || [];
+                let whitelist = this.isSubCluster
+                    ? (this.form.originData?.spec?.domainWhiteList || [])
+                    : (this.form.whitelist || []).filter(item => item.domain);
                 let api = this.formToApi();
                 this.applyFormConstraints();
                 api = this.formToApi();

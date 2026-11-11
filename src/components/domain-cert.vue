@@ -32,7 +32,7 @@
                                 </template>
                             </a-popover>
                         </span>
-                        <span class="c-99 ml-10">（如果您想使用自有证书，请先关闭https功能）</span>
+                        <span class="c-99 ml-10">（如果您想使用自有证书，请先关闭自动SSL功能）</span>
                     </div>
                 </div>
             </a-form-item>
