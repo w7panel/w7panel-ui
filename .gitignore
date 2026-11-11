@@ -43,3 +43,7 @@ scripts/*
 !scripts/login-continuation.test.cjs
 
 !scripts/panel-auth-boundary.test.cjs
+
+!src/utils/site-file-menu.ts
+!scripts/site-file-menu.test.cjs
+!scripts/native-site-files-navigation.test.cjs

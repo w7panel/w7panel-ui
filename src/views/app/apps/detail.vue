@@ -12,7 +12,7 @@
                 <div class="df df-c menu-absolute-div app-detail-menu-scroll w7-menu-scroll" :style="appMenuScrollStyle">
                     <a-menu
                         v-model:collapsed="appMenuCollapsed"
-                        v-model:selected-keys="selectMenu"
+                        v-model:selected-keys="selectedAppMenu"
                         :show-collapse-button="!appStore.hideMenu && appStore.device !== 'mobile'"
                         :level-indent="34"
                         style="width:100%;height:100%;"
@@ -111,8 +111,8 @@
                 </div>
             </component>
 
-            <a-layout class="app-detail-main df df-c" :style="appDetailMainStyle">
-                <Breadcrumb v-if="!isMicroEntry" class="df-s0" :routes="detailBreadcrumbRoutes" />
+            <a-layout class="app-detail-main df df-c" :class="{'app-detail-main--site-files': isSiteFilesPage}" :style="appDetailMainStyle">
+                <Breadcrumb v-if="!isMicroEntry" class="app-detail-breadcrumb df-s0" :routes="detailBreadcrumbRoutes" />
                 <a-layout-content v-if="isAppDirectPage" class="app-detail-content app-detail-content--native df df-c">
                     <app-direct
                         v-if="appGroupName"
@@ -135,6 +135,7 @@
                 </a-layout-content>
                 <a-layout-content v-else class="app-detail-content app-detail-content--native df df-c">
                 <a-tabs
+                    v-if="!isSiteFilesPage"
                     :active-key="appname"
                     type="card"
                     :editable="permission.includes('app/apps/delete')"
@@ -166,7 +167,7 @@
                 </a-tabs>
                 <div ref="nativeContentScroller" class="bg-white routerviewbox fc" >
                     <router-view v-if="$route.name=='app-detail-micro'" :url="appLocation" :data="data" @refresh="dataDetail" />
-                    <router-view v-else-if="data||isHelmPage" :data="data" :identifie="identifie" :appList="applist" :title="title" @refresh="dataDetail" @editApp="openForm()"/>
+                    <router-view v-else-if="nativePageData||isHelmPage" v-bind="isSiteFilesPage ? {compact: true} : {}" :key="nativeFileResourceKey || undefined" :data="nativePageData" :identifie="identifie" :appList="applist" :title="title" @refresh="dataDetail" @editApp="openForm()"/>
                 </div>
                 </a-layout-content>
             </a-layout>
@@ -233,6 +234,7 @@ import {
 } from '@/utils/w7panel-resource';
 import AppDirect from '@/views/topapp/app-direct.vue';
 import MicroappMenuItems from '@/components/microapp-menu-items.vue';
+import { SITE_FILES_MENU_DO, getSiteFilesMenu, nativeFileRoute, resolveSiteFileTarget } from '@/utils/site-file-menu';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -279,6 +281,7 @@ export default {
             },
             namespaceActive: '',
             data: null,
+            dataRequestId: 0,
             title: '',
             groupTitle: '',
             appname: '',
@@ -303,6 +306,8 @@ export default {
             menus: [],
             menuActive: '',
             selectMenu: [],
+            openingSiteFiles: false,
+            siteFileLeaveGuard: null,
             info: {},
             microAppBaseInfo: {},
             microAppRoleConfig: {},
@@ -387,6 +392,14 @@ export default {
         '$route.params.id'(){
             this.syncActiveAppTitle();
         },
+        nativeFileResourceKey(value, previous){
+            if(!value || !previous || value === previous){ return; }
+            this.data = null;
+            this.appname = this.$route.params.kind + this.$route.params.id;
+            // Route-name changes already reload via getData. This handles
+            // changing workloads while Vue Router stays on the files route.
+            this.dataDetail().catch(()=>{});
+        },
         '$route.query.showMenu'(){
             this.hideAppMenu = this.isHideMenu();
         },
@@ -424,6 +437,28 @@ export default {
         await this.getData();
     },
     computed:{
+        isSiteFilesPage(){
+            return !!getSiteFilesMenu(this.$route, this.getFlatMicroMenus());
+        },
+        nativeFileResourceKey(){
+            if(this.$route.name !== 'app-detail-files'){ return ''; }
+            return JSON.stringify([this.entryGroup, this.$route.params.kind, this.$route.params.id]);
+        },
+        nativePageData(){
+            if(!this.nativeFileResourceKey){ return this.data; }
+            const {kind, id} = this.$route.params;
+            const resource = this.data;
+            if(resource?.metadata?.name !== id || `${resource?.kind?.toLowerCase()}s` !== kind){ return null; }
+            if(resource.metadata.namespace && resource.metadata.namespace !== this.namespaceActive){ return null; }
+            return resource;
+        },
+        selectedAppMenu: {
+            get(){
+                const menu = getSiteFilesMenu(this.$route, this.getFlatMicroMenus());
+                return menu ? [menu.key] : this.selectMenu;
+            },
+            set(value){ this.selectMenu = value; },
+        },
         entryGroup(){
             return this.group || this.$route.params.group || '';
         },
@@ -450,7 +485,7 @@ export default {
         },
         appDetailMainStyle(){
             return {
-                padding: this.isMicroEntry && this.hideAppMenu ? '0' : '20px',
+                padding: this.isSiteFilesPage || (this.isMicroEntry && this.hideAppMenu) ? '0' : '20px',
             };
         },
         appMenuCollapsed: {
@@ -561,6 +596,36 @@ export default {
 
     },
     methods: {
+        async openSiteFilesMenu(menu){
+            // Arco emits selected-keys before menu-item-click. Keep the current
+            // page selected until the guard and directory lookup both succeed.
+            const currentMenu = this.isMicroPage && (this.findMenu(this.menuActive, this.activeMicroAppName) || this.findMenu(this.menuActive));
+            this.selectMenu = [currentMenu?.key || this.$route.meta.routekey || this.$route.name];
+            if(this.openingSiteFiles){ return; }
+            const group = this.entryGroup;
+            const from = this.$route.fullPath;
+            const navigationId = this.microNavigationId;
+            this.openingSiteFiles = true;
+            try{
+                if(!this.fileeditor){ throw new Error('当前面板未启用文件管理'); }
+                const guard = this.siteFileLeaveGuard;
+                if(this.isMicroPage && guard?.microAppName === this.activeMicroAppName){
+                    if(await guard.handler() === false){ return; }
+                }
+                if(this.microDisposed || navigationId !== this.microNavigationId || from !== this.$route.fullPath){ return; }
+                const target = await resolveSiteFileTarget(k8sproxy, this.namespaceActive, group);
+                if(this.microDisposed || navigationId !== this.microNavigationId || from !== this.$route.fullPath){ return; }
+                await this.$router.push(nativeFileRoute({
+                    ...target,
+                    sourceMicroApp: menu.microAppName,
+                    sourceMenuDo: menu.do,
+                }));
+            }catch(error){
+                this.$message.error(error?.response?.data?.message || error?.message || '无法打开站点文件管理');
+            }finally{
+                this.openingSiteFiles = false;
+            }
+        },
         setAppMenuCollapsed(value){
             if(this.appStore.device === 'desktop'){
                 this.appStore.updateSettings({menuCollapse:value});
@@ -1130,6 +1195,7 @@ export default {
             return this.wujieInitPromise;
         },
         async destroyWujieApp(destroy = this.wujieDestroy, container = this.$refs.microContainer){
+            this.siteFileLeaveGuard = null;
             if(!destroy && !this.microRuntimeStarted){
                 return;
             }
@@ -1250,9 +1316,20 @@ export default {
                 paneltoken: getToken(),
                 ...this.info,
                 ...frontProps,
+                ...(['w7-traditiontool', 'w7-phptool'].includes(this.extra.identifie)
+                    ? { namespace: this.namespaceActive } : {}),
                 appgroup: appGroupName,
                 group: appGroupName,
                 microappName,
+                registerSiteFileLeaveGuard: (handler) => {
+                    if(typeof handler !== 'function' || this.microDisposed
+                        || runtimeGeneration !== this.microRuntimeGeneration
+                        || microappName !== this.activeMicroAppName){ return () => {}; }
+                    this.siteFileLeaveGuard = {microAppName: microappName, handler};
+                    return () => {
+                        if(this.siteFileLeaveGuard?.handler === handler){ this.siteFileLeaveGuard = null; }
+                    };
+                },
                 reverse_dependent_apps: reverseDependentApps,
                 loginCloud,
                 runningFirstPod,
@@ -1356,6 +1433,9 @@ export default {
         },
         async handelMicroMenu(v){
             const selectedMenu = this.findMenu(v);
+            if(selectedMenu?.do === SITE_FILES_MENU_DO){
+                return this.openSiteFilesMenu(selectedMenu);
+            }
             if(isAppMenuDo(selectedMenu?.do)){
                 return this.activateBorrowedMenu(selectedMenu.do, {push:true});
             }
@@ -1801,10 +1881,18 @@ export default {
         dataDetail(){
             if(this.isHelmPage){ return Promise.resolve({}); }
             if(!this.$route.params.kind || !this.$route.params.id){return Promise.resolve({}); }
+            const {kind, id} = this.$route.params;
+            const group = this.entryGroup;
+            const namespace = this.namespaceActive;
+            const requestId = ++this.dataRequestId;
             return new Promise((resolve,reject)=>{
-                return k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+this.$route.params.kind+"/"+this.$route.params.id ).then(res=>{
+                return k8sproxy.get("/apis/apps/v1/namespaces/"+ namespace +"/"+kind+"/"+id ).then(res=>{
                     let data = res?.data || {};
-                    this.data = data;
+                    if(!this.microDisposed && requestId === this.dataRequestId
+                        && group === this.entryGroup && namespace === this.namespaceActive
+                        && kind === this.$route.params.kind && id === this.$route.params.id){
+                        this.data = data;
+                    }
                     resolve(res);
                 }).catch(()=>{
                     reject();
@@ -2249,6 +2337,9 @@ export default {
 .app-detail-page--dialog .routerviewbox{border:0;}
 .app-detail-layout{height:100%;min-width:0;min-height:0;overflow:hidden;}
 .app-detail-main{box-sizing:border-box;height:100%;min-width:0;min-height:0;overflow:hidden;}
+.app-detail-main--site-files{background:var(--color-bg-2);}
+.app-detail-main--site-files > .app-detail-breadcrumb{padding:20px 20px 0;}
+.app-detail-main--site-files .routerviewbox{border:0;}
 .app-detail-content{min-height:0;overflow:hidden;}
 .app-detail-content--native > .routerviewbox{min-height:0;overflow:auto;}
 .app-detail-content--micro > .routerviewbox{height:100%;overflow:auto;}

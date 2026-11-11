@@ -1,7 +1,7 @@
 <template>
     <div>
         <!-- <div class="page-title df ai-c">文件管理</div> -->
-        <div class="padding-20 bg-white">
+        <div class="bg-white" :class="{'padding-20': !compact}">
             <!-- <route-breadcrumb :data="{id:title}" /> -->
             
             <div v-if="appStatus!=1" class="bg-white ">
@@ -576,7 +576,7 @@ import { compressFiles, extractFiles } from '@/api/cluster';
 const fileRouteName = 'app-detail-files';
 
 export default {
-    props: ['data','title','origin','ip','is_component','componentData','appList'],
+    props: ['data','title','origin','ip','is_component','componentData','appList','compact'],
     components: {},
     data(){
         return {
@@ -703,6 +703,9 @@ export default {
             mfEdit: false,
 
             root: '/',
+            defaultDirectoryPath: '/',
+            fileListRequestId: 0,
+            filesDisposed: false,
             isInitializingFileList: false,
             hasLoadedFileListInInit: false,
 
@@ -722,9 +725,10 @@ export default {
         }
         this.getDataVm();
         await this.first();
-        this.getUserByWebDAV();
+        if(!this.filesDisposed){ this.getUserByWebDAV(); }
     },
-    beforeDestroy() {
+    beforeUnmount() {
+        this.filesDisposed = true;
         if (this.editor) {
             this.editor?.destroy();
             this.editor = null;
@@ -766,6 +770,9 @@ export default {
         },
     },
     watch:{
+        '$route.hash'(){
+            this.syncRouteDirectoryPath();
+        },
         data(v,ov){
             if(!ov||!Object.keys(ov)?.length){
                 this.appData = v;
@@ -783,7 +790,8 @@ export default {
                 this.hasLoadedFileListInInit = true;
             }
             this.getFileList();
-            if(!this.is_component || this.origin=='nodes'){
+            if((!this.is_component || this.origin=='nodes')
+                && (this.$route.name !== fileRouteName || this.getRouteDirectoryPath() !== this.form.path)){
                 this.$router.push({query:this.$route.query,hash:'#path='+ encodeURIComponent(this.form.path)});
             }
         },
@@ -822,6 +830,21 @@ export default {
         },
     },
     methods:{
+        syncRouteDirectoryPath(){
+            if(this.filesDisposed || this.is_component || this.$route.name !== fileRouteName
+                || this.isInitializingFileList || !this.outEditorInfo){ return; }
+            const path = this.getRouteDirectoryPath();
+            if(path !== null && path !== this.form.path){ this.form.path = path; }
+        },
+        getRouteDirectoryPath(){
+            const encoded = this.$route.hash.match(/path=([^&]+)/)?.[1];
+            if(!encoded){ return this.defaultDirectoryPath; }
+            try{
+                return this.root.replace(/\/$/,'') + decodeURIComponent(encoded);
+            }catch{
+                return null;
+            }
+        },
         canEditContent(record){
             return record?.type === 'file' && record?.editable === true && !record?.fromFileCatch;
         },
@@ -934,6 +957,7 @@ export default {
                 }
             }).finally(()=>{
                 this.isInitializingFileList = false;
+                this.syncRouteDirectoryPath();
             });
             // if(this.$route.name==fileRouteName){
             //     this.getContList2().then(res=>{
@@ -1142,6 +1166,7 @@ export default {
                     },
                     loading: true,
                 }).then(async res=>{
+                    if(this.filesDisposed){ return; }
                     let origin = window.location.origin;
                     this.outEditorInfo = {
                         origin: origin,
@@ -1163,7 +1188,8 @@ export default {
                     
 
                     this.form.subPid = res.data.subPid;
-                    this.form.path = res.data?.pwd?.trim?.() || '/';
+                    this.defaultDirectoryPath = res.data?.pwd?.trim?.() || '/';
+                    this.form.path = this.defaultDirectoryPath;
                     this.root = '/';
 
                     if(this.$route.query.path){
@@ -1207,6 +1233,7 @@ export default {
                 }
                 return d;
             }).then(d=>{
+                if(this.filesDisposed){ return; }
                 if(!d || !d?.hostIp){ return Promise.reject(); }
                 return panelApi.get('/pid',{
                     params:{
@@ -1218,6 +1245,7 @@ export default {
                     },
                     loading: true,
                 }).then(async res=>{
+                    if(this.filesDisposed){ return; }
                     let origin = window.location.origin;
                     this.outEditorInfo = {
                         origin: origin,
@@ -1251,7 +1279,8 @@ export default {
                     }
 
                     this.form.subPid = res.data.subPid;
-                    this.form.path = res.data?.pwd?.trim?.() || '/';
+                    this.defaultDirectoryPath = res.data?.pwd?.trim?.() || '/';
+                    this.form.path = this.defaultDirectoryPath;
                     this.root = '/';
 
                     // if(this.$route.query.path){
@@ -1388,11 +1417,19 @@ export default {
         },
         // 文件列表
         async getFileList(){
+            if(this.filesDisposed){ return; }
+            const requestId = ++this.fileListRequestId;
+            const path = this.form.path;
             this.selectedKeys = [];
             this.loading = true;
             
-            let list = await this.getDir();
-            this.parseList(list);
+            try{
+                let list = await this.getDir();
+                if(this.filesDisposed || requestId !== this.fileListRequestId || path !== this.form.path){ return; }
+                this.parseList(list);
+            }finally{
+                if(!this.filesDisposed && requestId === this.fileListRequestId){ this.loading = false; }
+            }
 
             // if(this.$route.name==fileRouteName){
             //     let list = await this.getDir();
