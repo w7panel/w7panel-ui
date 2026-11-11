@@ -45,6 +45,10 @@
                         </a-form-item>
                     </a-tab-pane>
 
+                    <a-tab-pane key="3" title="域名白名单">
+                        <div v-if="isSubCluster" class="mb-10 c-99">由主集群普通用户权限套餐统一配置，子集群只读。</div>
+                        <whitelist-component :data="pmsForm.whitelist" :disabled="editDisabledMenu || isSubCluster !== false"></whitelist-component>
+                    </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
                             <a-switch :disabled="editDisabledMenu" v-model="pmsForm.apiAll" @change="markCustomPermission"></a-switch>
@@ -106,6 +110,7 @@ import { k8sproxy } from '@/utils/api';
 import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree } from '@/utils/permission-menu';
 import { loadClusterContext } from '@/utils/cluster-access';
+import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
 import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import {
     getLoadedApiRouteDescriptions,
@@ -170,8 +175,7 @@ export default {
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
         }
     },
-    components: {
-    },
+    components: { whitelistComponent },
     watch:{
         show(){
             this.visible = this.show;
@@ -263,7 +267,7 @@ export default {
             this.pmsForm.customPermission = !this.pmsForm.permissionPackage;
             this.pmsForm.userMode = this.userMode || '';
             this.hasDebug = this.debug===true || this.debug===false;
-            this.pmsForm.whitelist = this.whitelist || [];
+            this.pmsForm.whitelist = JSON.parse(JSON.stringify(this.whitelist || []));
             this.pmsForm = {
                 ...this.pmsForm,
                 ...this.apiToForm(this.api || {}),
@@ -284,7 +288,9 @@ export default {
             // if(this.type=='virtual'){ this.pmsls = this.permissionPackageListVirtual; }
         },
         async submit(){
-            let whitelist = this.pmsForm.whitelist || [];
+            let whitelist = this.isSubCluster === false
+                ? (this.pmsForm.whitelist || []).filter(item => item.domain)
+                : (this.whitelist || []);
             if(!this.pmsForm.customPermission && !this.pmsForm.permissionPackage){
                 this.$message.warning('请选择权限套餐');
                 return;
@@ -371,7 +377,7 @@ export default {
             this.pmsForm.debug = find.debug;
             this.pmsForm.webshell = find.webshell;
             this.pmsForm.fileeditor = find.fileeditor;
-            this.pmsForm.whitelist = find.whitelist;
+            this.pmsForm.whitelist = JSON.parse(JSON.stringify(find.whitelist || []));
             this.pmsForm = {
                 ...this.pmsForm,
                 ...this.apiToForm(find.api || {}),
