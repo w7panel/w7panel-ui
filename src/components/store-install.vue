@@ -187,10 +187,17 @@
                                             <span class="form-label">{{sp.title}}</span>
                                         </template>
                                         <div class="fc df df-c">
-                                            <a-input v-if="sp.type=='text'" v-model="sp.value" :disabled="sp.lock" :spellcheck="false" placeholder="请输入" />
-                                            <a-select v-if="sp.type=='select'" v-model="sp.value" :disabled="sp.lock" :spellcheck="false" placeholder="请选择">
-                                                <a-option v-for="opt in sp.options" :key="opt" :label="opt" :value="opt" />
-                                            </a-select>
+                                            <div class="df" style="align-items:center;gap:8px">
+                                                <a-input v-if="sp.type=='text'" v-model="sp.value" :disabled="sp.lock" :spellcheck="false" placeholder="请输入" />
+                                                <a-textarea v-if="sp.type=='textarea'" v-model="sp.value" :disabled="sp.lock" placeholder="请输入" />
+                                                <a-select v-if="sp.type=='multiselect'" :model-value="sp.value ? String(sp.value).split(',') : []" multiple :disabled="sp.lock" placeholder="请选择" @update:model-value="value => { sp.value = value.join(','); testInstallStatus(); }">
+                                                    <a-option v-for="opt in sp.options" :key="opt" :label="opt" :value="opt" />
+                                                </a-select>
+                                                <a-select v-if="sp.type=='select'" v-model="sp.value" :disabled="sp.lock" :spellcheck="false" placeholder="请选择">
+                                                    <a-option v-for="opt in sp.options" :key="opt" :label="opt" :value="opt" />
+                                                </a-select>
+                                                <span v-if="sp.unit" style="flex-shrink:0">{{ sp.unit }}</span>
+                                            </div>
                                             <div v-if="sp.type=='storage'" class="df">
                                                 <a-select v-if="sp.form&&sp.form.storageClassName" v-model="sp.form.storageClassName.value" :disabled="sp.form.storageClassName.lock" @change="sp.value=sp.form.storageClassName.value+sp.form.storageSize.value" placeholder="请选择">
                                                     <a-option v-for="opt in storageClassNames" :key="opt" :label="opt" :value="opt"></a-option>
@@ -885,9 +892,10 @@ export default {
                     const capturedValues = this.capturedStartParamValues(i.identifie);
                     let startParams = [];
                     i?.startParams?.map(j=>{
-                        let options = [];
+                        let options = Array.isArray(j.options) ? j.options : [];
                         let value = j.values_text || '';
-                        if(/^([^\|]+\|)+[^\|]+$/.test(j.values_text)){
+                        // TODO: 临时兼容旧制品用 | 分隔候选项并默认选中第一项，下个版本移除。
+                        if(!Array.isArray(j.options) && (!j.type || ['text', 'select'].includes(j.type)) && /^([^\|]+\|)+[^\|]+$/.test(j.values_text)){
                             options = j.values_text.split('|');
                             value = options?.[0] || '';
                             j.type = 'select';
@@ -951,7 +959,7 @@ export default {
                             ...j,
                             name: j.name,
                             title: j.title,
-                            type: j.type,
+                            type: j.type || 'text',
                             options: options,
                             required: j.required || false,
                             value: value,
