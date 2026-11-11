@@ -8,6 +8,7 @@ import { REDIRECT_MAIN, NOT_FOUND_ROUTE } from './routes/base';
 import { isLogin, getPermission, getToken, getK8sinfo } from '@/utils/auth';
 import { hasPermission } from '@/utils/permission-match';
 import { allowsClusterRoute, loadClusterContext } from '@/utils/cluster-access';
+import { allowsExclusiveMenu, exclusiveMenus } from '@/utils/exclusive-menus';
 
 import useK3kinfo from '@/hooks/k3k-info';
 
@@ -150,7 +151,8 @@ router.beforeEach(async (to, from, next) => {
     }
     const forbidden = to.matched.some((record) => !allowsClusterRoute(record.meta, isSubCluster) || (record.meta?.key
       && (!hasPermission(permissions, record.path, String(record.meta.key))
-        || isSubCluster === null)));
+        || isSubCluster === null
+        || (exclusiveMenus.value && !allowsExclusiveMenu(exclusiveMenus.value, isSubCluster ? 'child' : 'main', record.path)))));
     if (forbidden) {
       next(getK8sinfo()?.['w7.cc/role'] === 'normal'
         ? { path: NORMAL_HOME, replace: true }

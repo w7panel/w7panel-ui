@@ -111,7 +111,8 @@ import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree } from '@/utils/permission-menu';
 import { loadClusterContext } from '@/utils/cluster-access';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
-import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
+import { keyToPermissionPath, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
+import { exclusiveMenus, loadExclusiveMenus, allowsExclusiveMenu } from '@/utils/exclusive-menus';
 import {
     getLoadedApiRouteDescriptions,
     resolveApiRouteDescription,
@@ -203,9 +204,11 @@ export default {
         this.getApiRoutes();
         this.initTreeData();
         loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
+        loadExclusiveMenus().catch(() => {});
     },
     computed: {
         sourceTreeData(){
+            exclusiveMenus.value;
             this.isSubCluster;
             return buildPermissionMenuTree(appClientMenus, undefined);
         },
@@ -301,7 +304,9 @@ export default {
                 ? this.permissionPackageList.find(i=>i.name==find.parentPermission)
                 : null;
             let role = find?.role || parent?.role || '';
-			const menus = toPermissionPaths(this.pmsForm.list || []);
+			const menus = toPermissionPaths((this.pmsForm.list || []).filter(key =>
+                this.isSubCluster === null || !exclusiveMenus.value
+                || allowsExclusiveMenu(exclusiveMenus.value, this.isSubCluster ? 'child' : 'main', keyToPermissionPath(key))));
 			const api = this.formToApi();
             this.$emit('submit',{
                 list: menus,
@@ -580,7 +585,9 @@ export default {
             function traverseAndDisable(nodes, disabled) {
                 return nodes.filter(node => {
                     const clusterType = context.isSubCluster ? 'child' : 'main';
-                    const nodeDisabled = keys.includes(node.key) || disabled || context.isSubCluster === null || (node.clusterTypes && !node.clusterTypes.includes(clusterType));
+                    const nodeDisabled = keys.includes(node.key) || disabled || context.isSubCluster === null
+                        || (exclusiveMenus.value && !allowsExclusiveMenu(exclusiveMenus.value, clusterType, node.route || keyToPermissionPath(node.key)))
+                        || (node.clusterTypes && !node.clusterTypes.includes(clusterType));
                     if (nodeDisabled) {
                         node.disabled = true;
                     }

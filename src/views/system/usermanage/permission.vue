@@ -21,6 +21,7 @@
                         <a-tooltip content="修改">
                             <i class="opt-icon" @click="edit(record)"><icon-edit /></i>
                         </a-tooltip>
+                        <a-button v-if="record.name === founderName && isSubCluster === false && isFounder" type="outline" class="ml-4" size="mini" @click="openExclusiveMenus">专属菜单设置</a-button>
                         <a-button v-if="record.name!='founder'" type="outline" class="ml-4" icon="plus" size="mini" @click="addCustom(record)">
                             <template #icon><icon-plus /></template>
                             <span>创建权限</span>
@@ -190,7 +191,7 @@ import whitelistComponent from '../whitelist/whitelist-component.vue';
 import { expandPermissionValues, keyToPermissionPath, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
 import appClientMenus from '@/router/app-menus';
 import { buildPermissionMenuTree } from '@/utils/permission-menu';
-import { allowsExclusiveMenu, loadExclusiveMenus } from '@/utils/exclusive-menus';
+import { allowsExclusiveMenu, exclusiveMenus, loadExclusiveMenus } from '@/utils/exclusive-menus';
 import {
     getLoadedApiRouteDescriptions,
     resolveApiRouteDescription,
@@ -522,7 +523,9 @@ export default {
                 this.$message.error('集群信息加载失败，请刷新后重试');
                 return;
             }
-            const menuRules = toPermissionPaths(this.form.permission || []);
+            const clusterType = this.isSubCluster ? 'child' : 'main';
+            const menuRules = toPermissionPaths((this.form.permission || []).filter(key =>
+                !exclusiveMenus.value || allowsExclusiveMenu(exclusiveMenus.value, clusterType, keyToPermissionPath(key))));
             this.$refs.form.validate(async (err) => {
                 if (err) {
                     this.$refs.form.scrollToField(Object.keys(err)[0]);
