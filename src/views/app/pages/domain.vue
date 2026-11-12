@@ -164,6 +164,9 @@
                                     <a-tooltip v-if="item.ingressclass=='higress'" content="策略">
                                         <i class="opt-icon" @click="openStrategy(part)"><icon-settings /></i>
                                     </a-tooltip>
+                                    <a-tooltip v-if="item.ingressclass=='higress'" content="WAF">
+                                        <i class="opt-icon" @click="openWaf(part)">WAF</i>
+                                    </a-tooltip>
                                     <a-tooltip content="灰度发布">
                                         <i class="opt-icon" @click="openGrayRelease(part)"><icon-send /></i>
                                     </a-tooltip>
@@ -560,6 +563,7 @@
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
         <!-- 策略 -->
         <domain-strategy ref="domainstrategy" :show="strategy.show" :data="strategy.data" :multiple="strategy.multiple" :hideRewrite="true" @submit="strategy.submit" @refresh="getList()" @cancel="strategy.show=false;"></domain-strategy>
+        <gateway-plugin-config :show="wafConfig.show" :plugin="wafConfig.plugin" :microapp="wafConfig.microapp" :ingress="wafConfig.ingress" scope="rule" @close="wafConfig.show=false" />
         <!-- 证书 -->
         <domain-cert ref="domainCert" :data-list="dataList" :domain-list="list" @success="getList(patchApp)"></domain-cert>
         <!-- 灰度发布 -->
@@ -610,7 +614,9 @@ import domainCert from '@/components/domain-cert.vue';
 import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
 import { applyWildcardSsl, isAutoSslIssuer } from '@/utils/wildcard-ssl';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
-import { cleanupIngressPluginRules } from '@/utils/gateway-plugin';
+import { cleanupIngressPluginRules, WASM_PLUGIN_API, resolvePluginMicroapp } from '@/utils/gateway-plugin';
+import { MICROAPP_API, getResourceGroupName, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
+import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
 
 const type3Backend = {
     service: {
@@ -650,6 +656,7 @@ export default {
                 originType: 1,
             },
             strategy: {},
+            wafConfig: { show: false, plugin: null, microapp: null, ingress: null },
             ingressclassList: [],
 
             yamlData: {
@@ -711,6 +718,7 @@ export default {
     },
     components: {
         domainStrategy,
+        gatewayPluginConfig,
         yamlDrawer,
         domainGrayRelease,
         domainParseAlert,
@@ -779,6 +787,27 @@ export default {
         },
     },
     methods: {
+        async openWaf(part){
+            const ingress = this.dataList.find(item=>item?.metadata?.name === part.name);
+            if(!ingress){
+                this.$message.warning('找不到当前域名规则');
+                return;
+            }
+            try{
+                const response = await k8sproxy.get(`${WASM_PLUGIN_API}/w7panel-pluginwaf`, { loading: true });
+                const plugin = response.data;
+                const group = getResourceGroupName(plugin);
+                const microapps = await loadResourcesByGroupNames(k8sproxy, MICROAPP_API, [group], true);
+                const microapp = resolvePluginMicroapp(plugin, microapps);
+                if(!microapp){
+                    this.$message.warning('WAF 插件配置前端未安装');
+                    return;
+                }
+                this.wafConfig = { show: true, plugin, microapp, ingress };
+            }catch(error){
+                this.$message.error(error?.message || '无法打开 WAF 配置');
+            }
+        },
         async cleanupIngressPluginRules(ingressNames){
             return cleanupIngressPluginRules(k8sproxy, this.namespaceActive, ingressNames);
         },
