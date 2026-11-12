@@ -21,6 +21,7 @@ src/components/*
 scripts/*
 !scripts/topapp-menu-identity.test.cjs
 !scripts/detail-micro-entry.test.cjs
+!scripts/appgroup-uninstall.test.mjs
 
 !src/utils/repo-notice.ts
 !src/utils/html-notice.ts

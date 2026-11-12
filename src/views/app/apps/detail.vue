@@ -213,8 +213,8 @@ import {
     filterAppGroupWorkloadItems,
     getAppGroupApplicationType,
     getAppGroupListRouteName,
-    uninstallAppGroup,
 } from '@/utils/appgroup';
+import { uninstallInstalledApp } from '@/utils/wujie-modal-handles';
 import { splitMicroAppMenuRoles, isAppMenuDo, parseAppMenuDo, getAppMenuMatchScore, resolveAppMenuBinding, getMicroAppRouteFromQuery } from '@/utils/microapp-menu';
 import {
     loadMicroAppReverseDependentApps,
@@ -1791,7 +1791,14 @@ export default {
             if(!item){return}
             if(item.isHelm){
                 try{
-                    await uninstallAppGroup(k8sproxy, this.namespaceActive, item.groupName);
+                    const result = await uninstallInstalledApp({
+                        appIdentify: item.groupName,
+                        namespace: this.namespaceActive,
+                        silentSuccess: true,
+                        silentError: true,
+                        returnResult: true,
+                    });
+                    if(!result){return}
                     this.$message.success('操作成功');
                     if(this.appname=='helm-'+item.groupName){
                         await this.$router.push({

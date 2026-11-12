@@ -208,7 +208,7 @@
 import { Modal } from '@arco-design/web-vue';
 import { k8sproxy, panelApi } from '@/utils/api';
 import { getPermission } from '@/utils/auth';
-import { uninstallAppGroup } from '@/utils/appgroup';
+import { uninstallInstalledApp } from '@/utils/wujie-modal-handles';
 import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
 import {
     groupGatewayPlugins,
@@ -599,7 +599,15 @@ export default {
             }
             try{
                 const namespace = row?.appGroup?.metadata?.namespace || 'default';
-                const result = await uninstallAppGroup(k8sproxy, namespace, row.groupName);
+                const result = await uninstallInstalledApp({
+                    appIdentify: row.groupName,
+                    namespace,
+                    silentSuccess: true,
+                    silentError: true,
+                    returnResult: true,
+                    alreadyConfirmed: true,
+                });
+                if(!result){return}
                 const dependentCount = result.plan.dependentItems.length;
                 this.$message.success(dependentCount
                     ? `应用已卸载，并一并卸载 ${dependentCount} 个依赖应用`

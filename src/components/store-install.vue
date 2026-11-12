@@ -286,6 +286,7 @@
 
 <script>
 import { panelApi } from '@/utils/api';
+import { Modal } from '@arco-design/web-vue';
 import { k8sproxy } from '@/utils/api';
 import {
     getAppGroupApplicationType,
@@ -1455,7 +1456,7 @@ export default {
             }
         },
         // 安装
-        install(){
+        async install(){
             if(!this.syncModuleStartParams(true)){return}
             let installOptions = this.form.forms.map(i=>{
                 let registry = this.mirror.find(m=>m.value==i.registry)
@@ -1556,6 +1557,26 @@ export default {
                 this.$emit('configured', {spec});
                 return;
             }
+			if(this.form.forms.some(item=>item.isUpgrade)){
+				try{
+					const response = await panelApi.post('/zpk/crds/upgrade-check', params, {loading:true,noAlert:true});
+					const { names = [], digest = '' } = response?.data || {};
+					if(names.length){
+						const confirmed = await new Promise(resolve=>Modal.confirm({
+							title: '更新应用 CRD',
+							content: `以下 CRD 的定义将先于应用更新：${names.join('、')}。请确认继续。`,
+							okText: '确认更新',
+							onOk: ()=>resolve(true),
+							onCancel: ()=>resolve(false),
+						}));
+						if(!confirmed){return}
+					}
+					params.crdApprovalDigest = digest;
+				}catch(error){
+					this.$message.error(error?.response?.data?.error || error?.message || 'CRD 检测失败');
+					return;
+				}
+			}
 
             panelApi.put('/zpk/install',params,{loading:true,noAlert:true}).then(res=>{
                 this.step = 3;
