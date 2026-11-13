@@ -18,7 +18,7 @@
                 <template v-if="!selected">
                     <a-form-item label="DNS 平台">
                         <a-select v-model="form.provider" :options="providerOptions" />
-                        <a-button class="ml-8" :disabled="!matchingProfiles.length" @click="reuseVisible = true">复用已有配置</a-button>
+                        <a-button class="ml-8" :disabled="!profiles.length" @click="reuseVisible = true">复用已有配置</a-button>
                     </a-form-item>
                     <a-form-item v-for="field in providerFields[form.provider]" :key="field.key" :label="field.label">
                         <a-input-password v-model="form.credentials[field.key]" :placeholder="field.placeholder || '请输入密钥'" allow-clear />
@@ -28,11 +28,12 @@
                     {{ providerNames[selectedProfile?.provider] }}（复用 {{ selectedProfile?.name || selectedProfile?.zone }}）
                     <a-button type="text" class="ml-8" @click="selected = ''">新建配置</a-button>
                 </a-form-item>
+                <a-alert v-if="selectedProfile && !wildcardInZone(host, selectedProfile.zone)" type="info">将验证当前泛域名，并为它创建独立的 DNS 配置。</a-alert>
             </a-form>
         </a-modal>
         <a-modal v-model:visible="reuseVisible" title="复用已有配置" :footer="false" :popup-container="$popupContainer">
-            <a-empty v-if="!matchingProfiles.length" description="暂无可复用配置" />
-            <div v-for="profile in matchingProfiles" :key="profile.id" class="mb-12">
+            <a-empty v-if="!profiles.length" description="暂无可复用配置" />
+            <div v-for="profile in profiles" :key="profile.id" class="mb-12">
                 <a-button type="text" @click="selected = profile.id; reuseVisible = false">*.{{ profile.zone }} - {{ providerNames[profile.provider] }}</a-button>
                 <a-popconfirm content="删除该 DNS 配置？正在使用的配置无法删除。" @ok="removeProfile(profile.id)">
                     <a-button type="text" status="danger">删除</a-button>
@@ -63,7 +64,6 @@ const providerFields = {
     cloudflare: [{ key: 'CLOUDFLARE_DNS_API_TOKEN', label: 'API Token' }],
     route53: [{ key: 'AWS_ACCESS_KEY_ID', label: 'Access Key ID' }, { key: 'AWS_SECRET_ACCESS_KEY', label: 'Secret Access Key' }, { key: 'AWS_REGION', label: 'Region', placeholder: '例如 us-east-1' }],
 };
-const matchingProfiles = computed(() => profiles.value.filter(profile => wildcardInZone(props.host, profile.zone)));
 const selectedProfile = computed(() => profiles.value.find(profile => profile.id === selected.value));
 
 function wildcardInZone(host, zone) {
@@ -95,7 +95,7 @@ async function toggle(value) {
     try {
         const response = await panelApi.get('/dns-profiles');
         profiles.value = response?.data || [];
-        if (!matchingProfiles.value.some(profile => profile.id === selected.value)) selected.value = '';
+        if (!profiles.value.some(profile => profile.id === selected.value)) selected.value = '';
         visible.value = true;
     } finally {
         busy.value = false;
@@ -106,8 +106,11 @@ async function confirm() {
     busy.value = true;
     try {
         let id = selected.value;
-        if (!id) {
-            const response = await panelApi.post('/dns-profiles', { namespace: props.namespace, host: props.host, provider: form.provider, credentials: form.credentials });
+        if (!id || (selectedProfile.value && !wildcardInZone(props.host, selectedProfile.value.zone))) {
+            const payload = id
+                ? { namespace: props.namespace, host: props.host, sourceProfileId: id }
+                : { namespace: props.namespace, host: props.host, provider: form.provider, credentials: form.credentials };
+            const response = await panelApi.post('/dns-profiles', payload);
             id = response?.data?.id;
         }
         if (!id) throw new Error('DNS 配置未保存');
