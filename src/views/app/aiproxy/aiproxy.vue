@@ -57,7 +57,7 @@
                                 </a-select>
                             </template>
                         </a-input>
-                        <wildcard-auto-ssl v-model="form.autoSsl" v-model:profile-id="form.dnsProfileId" :host="fullDomain()" :namespace="namespaceActive" class="ml-16 df-s0" />
+                        <wildcard-auto-ssl v-model="form.autoSsl" v-model:profile-id="form.dnsProfileId" v-model:auto-resolve="form.autoResolve" :host="fullDomain()" :namespace="namespaceActive" class="ml-16 df-s0" />
                     </div>
                 </a-form-item>
             </a-form>
@@ -120,7 +120,7 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
-import { applyWildcardSsl, isAutoSslIssuer } from '@/utils/wildcard-ssl';
+import { applyWildcardSsl, ensureWildcardResolution, isAutoSslIssuer } from '@/utils/wildcard-ssl';
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import { getPermission, getUserInfo } from '@/utils/auth';
@@ -175,6 +175,7 @@ export default {
                 domain: '',
                 whiteDomain: -1,
                 autoSsl: false,
+                autoResolve: false,
             },
             rules: {
                 domain: [{ required: true, message: '域名不能为空' }],
@@ -283,7 +284,7 @@ export default {
                 try {
                     const domain = this.fullDomain();
                     await this.createIngress(domain, this.form.autoSsl);
-                    this.$message.success('操作成功');
+                    if(await ensureWildcardResolution(domain, this.namespaceActive, this.form.dnsProfileId, this.form.autoResolve)) this.$message.success('操作成功');
                     this.form.show = false;
                     this.getData();
                 } finally {

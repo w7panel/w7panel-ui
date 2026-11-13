@@ -295,7 +295,7 @@
                                 </a-select>
                             </template>
                         </a-input>
-                        <wildcard-auto-ssl v-model="domainForm.auto_ssl" v-model:profile-id="domainForm.dnsProfileId" :host="domainFormFullHost" :namespace="namespaceActive" class="mt-16" />
+                        <wildcard-auto-ssl v-model="domainForm.auto_ssl" v-model:profile-id="domainForm.dnsProfileId" v-model:auto-resolve="domainForm.autoResolve" :host="domainFormFullHost" :namespace="namespaceActive" class="mt-16" />
                     </div>
                 </a-form-item>
             </a-form>
@@ -310,7 +310,7 @@
 <script>
 import { panelApi } from '@/utils/api';
 import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
-import { applyWildcardSsl, isAutoSslIssuer } from '@/utils/wildcard-ssl';
+import { applyWildcardSsl, ensureWildcardResolution, isAutoSslIssuer } from '@/utils/wildcard-ssl';
 import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import { k8sproxy } from '@/utils/api';
 import axios from "axios";
@@ -745,7 +745,7 @@ export default {
                         await this.updateGroupDomain();
 
                         this.domainForm.show = false;
-                        this.$message.success("修改成功");
+                        if(await ensureWildcardResolution(fullDomain, this.namespaceActive, this.domainForm.dnsProfileId, this.domainForm.autoResolve)) this.$message.success("修改成功");
                         this.getDomain();
                     })
                 } else {
@@ -811,7 +811,7 @@ export default {
                     return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data).then(async res=>{
                         await this.updateGroupDomain();
                         this.domainForm.show = false;
-                        this.$message.success("创建成功");
+                        if(await ensureWildcardResolution(fullDomain, this.namespaceActive, this.domainForm.dnsProfileId, this.domainForm.autoResolve)) this.$message.success("创建成功");
                         this.getDomain();
                     })
                 }
@@ -893,6 +893,7 @@ export default {
                     domain: domain || '',
                     whiteDomain: whiteDomain,
                     auto_ssl: this.domain.auto_ssl || false,
+                    autoResolve: false,
                     dnsProfileId: this.dataList.find(i=>i?.metadata?.name === this.domain.name)?.metadata?.annotations?.['w7.cc/dns-profile'] || '',
                     ingressclass: this.domain.ingressclass || this.ingressclassList[0],
                 };

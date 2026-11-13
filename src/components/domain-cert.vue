@@ -10,7 +10,7 @@
                     </a-select>
                     <!-- <a-input v-model="tlsForm.domain" disabled></a-input> -->
                     <div class="df ai-c mt-16">
-                        <wildcard-auto-ssl v-if="!manualOnly" v-model="tlsForm.auto_ssl" v-model:profile-id="tlsForm.dnsProfileId" :host="tlsForm.domain" :namespace="namespaceActive" />
+                        <wildcard-auto-ssl v-if="!manualOnly" v-model="tlsForm.auto_ssl" v-model:profile-id="tlsForm.dnsProfileId" v-model:auto-resolve="tlsForm.autoResolve" :host="tlsForm.domain" :namespace="namespaceActive" />
                         <span v-if="tlsForm.testStatus && tlsForm.auto_ssl" class="ml-10">
                             <icon-check-circle v-if="tlsForm.testStatus.status=='success'" class="c-green fs-16"/>
                             <span v-else-if="tlsForm.testStatus.status=='warning'" class="df ai-c">
@@ -55,7 +55,7 @@ import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import dayjs from 'dayjs';
 import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
-import { applyWildcardSsl, isAutoSslIssuer, isWildcardHost } from '@/utils/wildcard-ssl';
+import { applyWildcardSsl, ensureWildcardResolution, isAutoSslIssuer, isWildcardHost } from '@/utils/wildcard-ssl';
 
 const AUTO_SSL_ISSUER = 'w7-letsencrypt-prod';
 const AUTO_SSL_RENEW_BEFORE = '30m';
@@ -80,6 +80,7 @@ const getDefaultTlsForm = () => ({
     list: [],
     auto_ssl: false,
     dnsProfileId: '',
+    autoResolve: false,
     domainName: "",
     domain: "",
     tlsName: "",
@@ -356,6 +357,7 @@ export default {
             }
 
             this.tlsForm.domainName = name;
+            this.tlsForm.autoResolve = false;
             let inChild = this.tlsForm.list.find(i=>i.name==name) || {};
             let data = this.findIngress(inChild.parent || name);
             let secretName = "";
@@ -572,12 +574,12 @@ export default {
                     headers: {'Content-Type': 'application/json-patch+json'},
                 });
                 await this.setSubdomainTls();
-                this.$message.success("操作成功");
+                if(await ensureWildcardResolution(this.tlsForm.domain, this.namespaceActive, this.tlsForm.dnsProfileId, this.tlsForm.autoResolve)) this.$message.success("操作成功");
                 this.tlsForm.show = false;
                 this.$emit('success');
                 this.externalOnSuccess?.();
             }else{
-                this.$message.success("操作成功")
+                if(await ensureWildcardResolution(this.tlsForm.domain, this.namespaceActive, this.tlsForm.dnsProfileId, this.tlsForm.autoResolve)) this.$message.success("操作成功")
                 this.tlsForm.show = false;
                 this.$emit('success');
                 this.externalOnSuccess?.();

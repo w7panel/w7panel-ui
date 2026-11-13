@@ -115,7 +115,7 @@
                                                             </a-select>
                                                         </template>
                                                     </a-input>
-                                                    <wildcard-auto-ssl class="df-s0 ml-10" :disabled="(form.ingressDisabled && !installIngressHost.startsWith('*.')) || configConsole.isConsole" v-model="form.auto_ssl" v-model:profile-id="form.dnsProfileId" :host="installIngressHost" :namespace="namespaceActive" @update:model-value="v=>form.ingressHostPre=v?'https://':'http://'" />
+                                                    <wildcard-auto-ssl class="df-s0 ml-10" :disabled="(form.ingressDisabled && !installIngressHost.startsWith('*.')) || configConsole.isConsole" v-model="form.auto_ssl" v-model:profile-id="form.dnsProfileId" v-model:auto-resolve="form.autoResolve" :host="installIngressHost" :namespace="namespaceActive" @update:model-value="v=>form.ingressHostPre=v?'https://':'http://'" />
                                                     <a-button v-if="configConsole.isConsole && configConsole.domains.length && configConsole.canInput" class="ml-10" type="primary" @click="configConsole.isSelect=true;">锁定</a-button>
                                                 </div>
                                             </div>
@@ -603,6 +603,7 @@ export default {
             // 第一步域名
             const configuredDomain = this.installInputParams.domain || this.installInputParams.ingressHost;
             this.form.dnsProfileId = this.installInputParams.dnsProfileId || '';
+            this.form.autoResolve = this.installInputParams.autoResolve || false;
             if(configuredDomain){
                 let domain = this.decodeInstallParam(configuredDomain);
                 let match = domain.match(/^(http(s)?:\/\/)(.*)$/)
@@ -1529,6 +1530,7 @@ export default {
                 ingressHost: ingressHost,
                 ingressForceHttps: this.form.auto_ssl,
                 dnsProfileId: this.form.dnsProfileId || '',
+                autoResolve: this.form.autoResolve || false,
                 ingressClass: this.form.ingressclass,
                 ingressSeletorName: this.form.ingressSeletorName,
                 installOptions: installOptions,
@@ -1547,7 +1549,7 @@ export default {
 			}
 
             if(this.isCaptureMode){
-                const allowedKeys = ['repoUrl','namespace','releaseName','ingressHost','ingressForceHttps','dnsProfileId','ingressClass','ingressSeletorName','isTrandition','zipUrl','dependencies'];
+                const allowedKeys = ['repoUrl','namespace','releaseName','ingressHost','ingressForceHttps','dnsProfileId','autoResolve','ingressClass','ingressSeletorName','isTrandition','zipUrl','dependencies'];
                 const spec = Object.fromEntries(allowedKeys.filter(key=>params[key]!==undefined).map(key=>[key,params[key]]));
                 spec.installOptions = params.installOptions.map(option=>{
                     const captured = {...option};
@@ -1579,6 +1581,7 @@ export default {
 			}
 
             panelApi.put('/zpk/install',params,{loading:true,noAlert:true}).then(res=>{
+                if(res?.data?.dnsResolveError) this.$message.error(`应用已安装，自动解析失败：${res.data.dnsResolveError}`);
                 this.step = 3;
 
                 let { releaseName } = res?.data || {};
@@ -1613,6 +1616,7 @@ export default {
 			}
 			if(!params){return}
 			return panelApi.put('/zpk/install', {...params, reinstall:true}, {loading:true,noAlert:true}).then(res=>{
+				if(res?.data?.dnsResolveError) this.$message.error(`应用已安装，自动解析失败：${res.data.dnsResolveError}`);
 				this.step = 3;
 				let { releaseName } = res?.data || {};
 				this.releaseName = releaseName;

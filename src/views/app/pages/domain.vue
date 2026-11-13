@@ -301,7 +301,7 @@
                                 <span class="c-red">当前域名不符合管理员设置的域名白名单规则，是否需要更改？ </span>
                                 <span class="c-blue cursor ml-10" @click="domainForm.domain='';domainForm.whiteDomain=0;whiteList[domainForm.whiteDomain].prefixRandom?domainForm.domain=createShortUuid():null;">更改</span>
                             </span>
-                            <wildcard-auto-ssl v-model="domainForm.auto_ssl" v-model:profile-id="domainForm.dnsProfileId" :host="domainFormFullHost" :namespace="namespaceActive" class="mt-16" />
+                            <wildcard-auto-ssl v-model="domainForm.auto_ssl" v-model:profile-id="domainForm.dnsProfileId" v-model:auto-resolve="domainForm.autoResolve" :host="domainFormFullHost" :namespace="namespaceActive" class="mt-16" />
                         </div>
                     </a-form-item>
 
@@ -548,7 +548,7 @@
                             <span class="c-red">当前域名不符合管理员设置的域名白名单规则，是否需要更改？ </span>
                             <span class="c-blue cursor ml-10" @click="formcard.domain='';formcard.whiteDomain=0;whiteList[formcard.whiteDomain].prefixRandom?formcard.domain=createShortUuid():null;">更改</span>
                         </span>
-                        <wildcard-auto-ssl v-model="formcard.auto_ssl" v-model:profile-id="formcard.dnsProfileId" :host="formCardFullHost" :namespace="namespaceActive" class="mt-10" />
+                        <wildcard-auto-ssl v-model="formcard.auto_ssl" v-model:profile-id="formcard.dnsProfileId" v-model:auto-resolve="formcard.autoResolve" :host="formCardFullHost" :namespace="namespaceActive" class="mt-10" />
                     </div>
                 </a-form-item>
                 <a-form-item v-show="!formcard.ingressclass || ingressclassList.length>1" label="ingressClass" field="ingressclass">
@@ -585,10 +585,10 @@
                     <a-input v-model="item.host" placeholder="请输入域名" class="fc">
                         <template #prepend>{{item.autoSsl?'https://':'http://'}}</template>
                     </a-input>
-                    <wildcard-auto-ssl v-model="item.autoSsl" v-model:profile-id="item.dnsProfileId" :host="item.host" :namespace="namespaceActive" class="ml-10" />
+                    <wildcard-auto-ssl v-model="item.autoSsl" v-model:profile-id="item.dnsProfileId" v-model:auto-resolve="item.autoResolve" :host="item.host" :namespace="namespaceActive" class="ml-10" />
                     <icon-close class="ml-20 cursor fs-16" @click="bindDomain.list.splice(index,1);" />
                 </div>
-                <a-button @click="bindDomain.list.push({name:createName(),host:'',autoSsl:bindDomain.autoSsl,sslRedirect:bindDomain.sslRedirect})" type="outline">
+                <a-button @click="bindDomain.list.push({name:createName(),host:'',autoSsl:bindDomain.autoSsl,autoResolve:false,sslRedirect:bindDomain.sslRedirect})" type="outline">
                     <icon-plus />
                     <span class="ml-10">添加域名</span>
                 </a-button>
@@ -612,7 +612,7 @@ import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
 import domainCert from '@/components/domain-cert.vue';
 import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
-import { applyWildcardSsl, isAutoSslIssuer } from '@/utils/wildcard-ssl';
+import { applyWildcardSsl, ensureWildcardResolution, isAutoSslIssuer } from '@/utils/wildcard-ssl';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 import { cleanupIngressPluginRules, WASM_PLUGIN_API, resolvePluginMicroapp } from '@/utils/gateway-plugin';
 import { MICROAPP_API, getResourceGroupName, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
@@ -684,6 +684,7 @@ export default {
                 domain: "",
                 ins_name: "",
                 auto_ssl: false,
+                autoResolve: false,
                 ingressclass: "",
                 whiteDomain: 0,
             },
@@ -867,7 +868,7 @@ export default {
                 parent: row.name,
                 autoSsl: row.is_auto_ssl,
                 sslRedirect: row.redirect,
-                list: JSON.parse(JSON.stringify(row.children)) || [],
+                list: (JSON.parse(JSON.stringify(row.children)) || []).map(child => ({...child, autoResolve:false})),
             }
         },
         async bindSubmit(){
@@ -886,15 +887,17 @@ export default {
                     }
                 }
             }catch(error){ this.$message.error(error.message || 'DNS 授权失败'); return; }
-            
+            const resolutions = children.filter(child=>child.autoResolve).map(child=>({host:child.host, profileId:child.dnsProfileId}));
+            children.forEach(child=>delete child.autoResolve);
             k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.bindDomain.parent,[{
                 op: 'replace',
                 path: '/metadata/annotations/w7.cc~1child-hosts',
                 value: JSON.stringify(children)
             }],{
                 headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(()=>{
-                this.$message.success('操作成功');
+            }).then(async ()=>{
+                const results = await Promise.all(resolutions.map(item=>ensureWildcardResolution(item.host, this.namespaceActive, item.profileId, true)));
+                if(results.every(Boolean)) this.$message.success('操作成功');
                 this.bindDomain.show = false;
                 this.getList();
             }).catch(error=>this.$message.error(error.message || '保存子域名失败'))
@@ -1019,6 +1022,7 @@ export default {
                 ins_name: obj.ing_name || '',
                 domain: matched?.domain ?? obj.host ?? '',
                 auto_ssl: obj.auto_ssl || false,
+                autoResolve: false,
                 dnsProfileId: this.dataList.find(i=>i?.metadata?.name === obj.ing_name)?.metadata?.annotations?.['w7.cc/dns-profile'] || '',
                 ingressclass: this.ingressclassList?.[0] || '',
                 whiteDomain: obj.ing_name? (matched?.whiteDomain ?? obj.whiteDomain) : 0,
@@ -1052,6 +1056,7 @@ export default {
                 domain: fullDomain || '',
                 port: String(primary?.backend?.port || ''),
                 auto_ssl: this.formcard.auto_ssl || false,
+                autoResolve: this.formcard.autoResolve || false,
                 dnsProfileId: this.formcard.dnsProfileId || '',
                 name: this.formcard.ins_name || '', // 修改||新增
                 path: primary.path || '',
@@ -1716,6 +1721,7 @@ export default {
                 domain: matched?.domain ?? item.domain ?? '',
                 port: item.name ? String(item.port || '') : '',
                 auto_ssl: item.is_auto_ssl || false,
+                autoResolve: false,
                 dnsProfileId: this.dataList.find(i=>i?.metadata?.name === item.name)?.metadata?.annotations?.['w7.cc/dns-profile'] || '',
                 name: item.name || '',
                 path: '',
@@ -1878,9 +1884,10 @@ export default {
                             });
                         }
 
+                        const resolved = await ensureWildcardResolution(fullDomain, this.namespaceActive, this.domainForm.dnsProfileId, this.domainForm.autoResolve);
                         this.domainForm.show = false;
                         if(!eve.noMessage){
-                            this.$message.success("修改成功");
+                            if(resolved) this.$message.success("修改成功");
                             this.getList(this.patchApp);
                         }
                         if(this.inRvproxy){return res;}
@@ -1998,11 +2005,12 @@ export default {
                     }
                     
                     await applyWildcardSsl(data, this.domainForm.dnsProfileId);
-                    return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data).then(res=>{
+                    return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data).then(async res=>{
+                        const resolved = await ensureWildcardResolution(fullDomain, this.namespaceActive, this.domainForm.dnsProfileId, this.domainForm.autoResolve);
                         this.domainForm.show = false;
                         if(!eve.noMessage){
                             this.getList(this.patchApp);
-                            this.$message.success("创建成功");
+                            if(resolved) this.$message.success("创建成功");
                         }
                         return res;
                     })

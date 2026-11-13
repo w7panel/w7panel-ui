@@ -1,6 +1,7 @@
 <template>
     <span>
         <a-checkbox :model-value="modelValue" :disabled="disabled" @change="toggle">自动SSL证书</a-checkbox>
+        <a-button v-if="modelValue && host.startsWith('*.')" type="text" size="mini" @click="toggle(true)">配置</a-button>
         <a-modal v-model:visible="visible" title="泛域名证书配置" :mask-closable="false" :ok-loading="busy" :on-before-ok="confirm" @cancel="visible=false" :popup-container="$popupContainer">
             <a-alert type="info" class="mb-20 wildcard-ssl-tip">
                 <div>使用提示：</div>
@@ -29,6 +30,12 @@
                     <a-button type="text" class="ml-8" @click="selected = ''">新建配置</a-button>
                 </a-form-item>
                 <a-alert v-if="selectedProfile && !wildcardInZone(host, selectedProfile.zone)" type="info">将验证当前泛域名，并为它创建独立的 DNS 配置。</a-alert>
+                <a-form-item label="自动解析">
+                    <a-checkbox :model-value="resolveSelected" :disabled="!parseConfigured" @change="resolveSelected = $event">自动解析</a-checkbox>
+                    <a-tooltip :content="parseTip">
+                        <icon-question-circle class="ml-8 c-orange" />
+                    </a-tooltip>
+                </a-form-item>
             </a-form>
         </a-modal>
         <a-modal v-model:visible="reuseVisible" title="复用已有配置" :footer="false" :popup-container="$popupContainer">
@@ -48,13 +55,16 @@ import { computed, reactive, ref, watch } from 'vue';
 import { panelApi } from '@/utils/api';
 import { Message } from '@arco-design/web-vue';
 
-const props = defineProps({ modelValue: Boolean, profileId: { type: String, default: '' }, host: { type: String, default: '' }, namespace: { type: String, required: true }, disabled: Boolean });
-const emit = defineEmits(['update:modelValue', 'update:profileId']);
+const props = defineProps({ modelValue: Boolean, profileId: { type: String, default: '' }, autoResolve: Boolean, host: { type: String, default: '' }, namespace: { type: String, required: true }, disabled: Boolean });
+const emit = defineEmits(['update:modelValue', 'update:profileId', 'update:autoResolve']);
 const visible = ref(false);
 const reuseVisible = ref(false);
 const busy = ref(false);
 const selected = ref('');
 const profiles = ref([]);
+const resolveSelected = ref(false);
+const parseConfigured = ref(false);
+const parseTip = ref('系统尚未配置域名解析记录，请联系管理员获取。');
 const form = reactive({ provider: 'alidns', credentials: {} });
 const providerNames = { alidns: '阿里云 DNS', dnspod: 'DNSPod', cloudflare: 'Cloudflare', route53: 'Route53' };
 const providerOptions = Object.entries(providerNames).map(([value, label]) => ({ value, label }));
@@ -83,6 +93,7 @@ async function toggle(value) {
     if (!value) {
         emit('update:modelValue', false);
         emit('update:profileId', '');
+        emit('update:autoResolve', false);
         return;
     }
     if (!props.host.startsWith('*.')) {
@@ -93,8 +104,24 @@ async function toggle(value) {
     selected.value = props.profileId;
     busy.value = true;
     try {
-        const response = await panelApi.get('/dns-profiles');
+        const [response, parse] = await Promise.all([
+            panelApi.get('/dns-profiles'),
+            panelApi.get('/domain-parse', { noAlert: true }).catch(error => ({ error })),
+        ]);
         profiles.value = response?.data || [];
+        const spec = parse?.data?.spec || {};
+        const ips = Array.isArray(spec.ips) ? spec.ips.filter(ip => typeof ip === 'string' && ip.trim()).map(ip => ip.trim()) : [];
+        const type = spec.type || 'A';
+        const validIp = ip => ip.split('.').length === 4 && ip.split('.').every(part => /^\d{1,3}$/.test(part) && Number(part) <= 255);
+        const cname = spec.cname?.trim().replace(/\.$/, '').toLowerCase() || '';
+        const validCname = cname.length <= 253 && cname.includes('.') && cname.split('.').every(label => label.length > 0 && label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label));
+        parseConfigured.value = type.toUpperCase() === 'A' ? ips.length > 0 && ips.every(validIp) : type.toUpperCase() === 'CNAME' && validCname;
+        resolveSelected.value = parseConfigured.value;
+        parseTip.value = parse?.error && parse.error?.response?.status !== 404
+            ? '读取系统域名解析配置失败，请稍后重试。'
+            : parseConfigured.value
+                ? `保存域名后自动创建 ${type.toUpperCase() === 'A' ? 'A' : 'CNAME'} 记录，指向 ${type.toUpperCase() === 'A' ? ips.join('、') : spec.cname}。已有不同记录时停止，不会覆盖。`
+                : '系统尚未配置域名解析记录，请联系管理员获取。';
         if (!profiles.value.some(profile => profile.id === selected.value)) selected.value = '';
         visible.value = true;
     } finally {
@@ -115,6 +142,7 @@ async function confirm() {
         }
         if (!id) throw new Error('DNS 配置未保存');
         emit('update:profileId', id);
+        emit('update:autoResolve', resolveSelected.value);
         emit('update:modelValue', true);
         visible.value = false;
         return true;
