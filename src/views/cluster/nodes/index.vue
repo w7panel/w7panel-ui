@@ -6,6 +6,7 @@
             <!-- <a-button v-if="permission.includes('cluster/nodes/gpu')" type="outline" class="ml-10" @click="clscf.dialog=true;">GPU管理</a-button> -->
             <!-- <a-button type="outline" class="ml-10" @click="nodebindshow=true;">专用存储管理</a-button> -->
             <a-button type="outline" class="ml-10" @click="openClusterInfo">集群认证信息</a-button>
+            <a-button type="outline" class="ml-10" @click="$router.push('/cluster/system-info')">集群系统信息</a-button>
         </div>
         
         <a-layout class="fc" style="margin-top:20px;">

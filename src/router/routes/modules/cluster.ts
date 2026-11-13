@@ -79,6 +79,17 @@ const DASHBOARD: AppRouteRecordRaw[] = [
             },
         },
         {
+            path: 'system-info',
+            name: 'cluster-system-info',
+            component: () => import('@/views/cluster/nodes/system-info.vue'),
+            meta: {
+                locale: '集群系统信息',
+                requiresAuth: true,
+                hideInMenu: true,
+                roles: ['*'],
+            },
+        },
+        {
             path: 'build-image-list',
             name: 'build-image-list',
             component: () => import('@/views/cluster/nodes/build-image.vue'),
