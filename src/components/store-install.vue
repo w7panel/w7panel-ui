@@ -1037,7 +1037,7 @@ export default {
                             const param = group.valueParam || (group.param === 'default' ? (this.hasOwn(envs,'DOMAIN_URL') ? 'DOMAIN_URL' : 'DOMAIN_SSL_URL') : group.param);
                             if(!this.hasOwn(envs,param)) return group;
                             const value = String(envs[param] ?? '');
-                            return {...group, host: domainHost(value), hostLocked: group.param === 'default', inheritDefault: false, autoSSL: group.forceSSL || /^https:\/\//i.test(value), dnsProfileId: envs['domainGroups.'+group.param+'.dnsProfileId'] || group.dnsProfileId};
+                            return {...group, host: domainHost(value), hostLocked: true, inheritDefault: false, autoSSL: group.forceSSL || /^https:\/\//i.test(value), dnsProfileId: envs['domainGroups.'+group.param+'.dnsProfileId'] || group.dnsProfileId};
                         });
     
                         if(data.preSubPath){ f.preSubPath = data.preSubPath; }
