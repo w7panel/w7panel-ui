@@ -212,6 +212,7 @@ import { registerWujieEvent, unregisterWujieEvent } from '@/hooks/use-wujie-even
 import { legacyConsoleRequestConfig } from '@/utils/legacy-console-request';
 import { getThirdpartyPayIframeUrl } from '@/utils/thirdparty-pay';
 import { resolveWujieFileAppGroup } from '@/utils/w7panel-resource';
+import { nativeFileRoute } from '@/utils/site-file-menu';
 
 import podLog from '@/components/pod-log.vue';
 import jobLog from '@/components/job-log.vue';
@@ -715,7 +716,7 @@ export default {
         toFile(data) {
             const appgroup = this.getFileAppgroup(data);
             if(!appgroup){ return; }
-            this.$router.push('/app/appgroup/' + appgroup + '/' + data?.kind + '/' + data?.appname + '/files#path=' + (data?.path || ''));
+            this.$router.push(nativeFileRoute({...data, appgroup}));
         },
 
         // ========== 页面弹窗 ==========

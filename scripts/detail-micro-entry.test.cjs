@@ -30,7 +30,7 @@ function microApp() {
 }
 
 function harness({ routeName = 'dialog-micro', query = {}, props = {}, startApp,
-  resource = microApp(), targets = {}, role = 'founder', panelGet, reactiveRoute = false } = {}) {
+  resource = microApp(), targets = {}, role = 'founder', panelGet, k8sGet, reactiveRoute = false, namespace = 'default' } = {}) {
   const requests = [], starts = [], destroys = [], navigations = [], events = [], messages = [];
   const auth = { role, token: 'test-panel-token' };
   const appStore = { topApps: [], hideMenu: false, menu: true, topMenu: false, device: 'desktop' };
@@ -57,6 +57,10 @@ function harness({ routeName = 'dialog-micro', query = {}, props = {}, startApp,
   const k8sproxy = {
     async get(url) {
       requests.push(url);
+      if (k8sGet) {
+        const response = await k8sGet(url);
+        if (response !== undefined) return response;
+      }
       assert(!url.includes('/appgroups'), `MicroApp initialization requested AppGroup API: ${url}`);
       assert(url.includes('/microapps'), `Unexpected K8s API: ${url}`);
       const selector = new URL(url, 'http://panel.test').searchParams.get('labelSelector') || '';
@@ -68,7 +72,7 @@ function harness({ routeName = 'dialog-micro', query = {}, props = {}, startApp,
     '@/utils/api': { panelApi, k8sproxy },
     '@/store': {
       useAppStore: () => appStore,
-      useNamespaceStore: () => ({ namespace: 'default' }),
+      useNamespaceStore: () => ({ namespace }),
       useLoadingStore: () => loadingStore,
     },
     '@/utils/auth': {
@@ -136,7 +140,7 @@ function harness({ routeName = 'dialog-micro', query = {}, props = {}, startApp,
   const ctx = {
     ...component.data(), ...component.setup(),
     embeddedMicro: false, group: undefined, do: undefined, showMenu: undefined, ...props,
-    namespaceActive: 'default', userRole: role,
+    namespaceActive: namespace, userRole: role,
     $route: route,
     $refs: { microContainer: { querySelector() { return null; } } },
     $message: { error(message) { messages.push(message); } },
@@ -1318,4 +1322,133 @@ test('real Vue query watchers do not restart child navigation or duplicate histo
   } finally {
     stopWatchers();
   }
+});
+
+const siteFilesDo = '__panel_site_files__';
+function siteFilesResource() {
+  const resource = microApp();
+  resource.spec.bindings[0].menu.push({ title: '文件管理', do: siteFilesDo });
+  return resource;
+}
+function siteFilesApi(url) {
+  if (url.endsWith('/appgroups/w7-php')) return { data: {
+    metadata: { annotations: { 'w7.cc/default-domain': 'https://site.example.com' } },
+    status: { items: [{ kind: 'Deployment', name: 'w7-php' }] },
+  } };
+  if (url.endsWith('/deployments/w7-php')) return { data: {
+    metadata: { name: 'w7-php' },
+    spec: { template: { spec: {
+      containers: [{ name: 'web', volumeMounts: [{ name: 'data', mountPath: '/www/wwwroot', subPath: 'nginx-web-dir/site.example.com' }] }],
+      volumes: [{ name: 'data', persistentVolumeClaim: { claimName: 'data' } }],
+    } } },
+  } };
+}
+test('native site files restore the source menu after asynchronous menus load and keep the native breadcrumb', () => {
+  const { ctx } = harness({ routeName: 'app-detail-files', query: { do: siteFilesDo, microapp: 'w7-php' } });
+  ctx.selectMenu = ['app-detail-files'];
+  assert.equal(ctx.selectedAppMenu[0], 'app-detail-files');
+  ctx.getMenu([siteFilesResource()]);
+  assert.equal(ctx.selectedAppMenu[0], `w7-php:${siteFilesDo}`);
+  ctx.groupTitle = '我的站点'; ctx.$route.meta.locale = '文件管理';
+  assert.deepEqual(Array.from(ctx.detailBreadcrumbRoutes, item => item.label || item.name), ['root', '应用管理', '我的站点', '文件管理']);
+  assert.equal(ctx.isMicroPage, false);
+  ctx.$route.hash = '#path=%2Fwww%2Fwwwroot%2Fpublic';
+  assert.equal(ctx.selectedAppMenu[0], `w7-php:${siteFilesDo}`);
+  ctx.$route.query.microapp = 'not-visible';
+  assert.equal(ctx.selectedAppMenu[0], 'app-detail-files');
+  ctx.$route.query = {};
+  assert.equal(ctx.selectedAppMenu[0], 'app-detail-files');
+});
+test('the site files menu preserves the live child leave guard and never starts another file frontend', async () => {
+  const { ctx, requests, starts } = harness({ routeName: 'group-micro', resource: siteFilesResource(), k8sGet: siteFilesApi });
+  ctx.getMenu([siteFilesResource()]); ctx.activeMicroAppName = 'w7-php'; ctx.fileeditor = true;
+  ctx.menuActive = '#/versions';
+  ctx.selectMenu = [`w7-php:${siteFilesDo}`]; // Arco updates v-model before the click handler.
+  const targets = []; ctx.$router.push = async target => targets.push(target);
+  let allowed = false, checks = 0;
+  ctx.siteFileLeaveGuard = { microAppName: 'w7-php', handler: async () => { checks++; return allowed; } };
+  await ctx.handelMicroMenu(`w7-php:${siteFilesDo}`);
+  assert.equal(checks, 1); assert.equal(requests.length, 0); assert.equal(targets.length, 0);
+  assert.equal(ctx.selectedAppMenu[0], 'w7-php:#/versions');
+  assert.equal(ctx.getCurrentBreadcrumbLabel(), 'PHP versions');
+  allowed = true;
+  await ctx.handelMicroMenu(`w7-php:${siteFilesDo}`);
+  assert.equal(checks, 2); assert.equal(requests.length, 2); assert.equal(targets.length, 1);
+  const target = new URL(targets[0], 'http://panel.test');
+  assert.equal(target.pathname, '/app/appgroup/w7-php/deployments/w7-php/files');
+  assert.equal(target.searchParams.get('microapp'), 'w7-php'); assert.equal(target.searchParams.get('do'), siteFilesDo);
+  assert.equal(target.hash, '#path=%252Fwww%252Fwwwroot'); assert.equal(starts.length, 0);
+});
+test('site file menu loading does not navigate after the user has already left', async () => {
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  const { ctx } = harness({ routeName: 'app-detail-files', k8sGet: async url => {
+    if (url.includes('/appgroups/')) await pending;
+    return siteFilesApi(url);
+  } });
+  ctx.getMenu([siteFilesResource()]); ctx.fileeditor = true;
+  const targets = []; ctx.$router.push = async target => targets.push(target);
+  const navigation = ctx.handelMicroMenu(`w7-php:${siteFilesDo}`);
+  ctx.microNavigationId++;
+  release(); await navigation;
+  assert.equal(targets.length, 0);
+});
+
+test('the site leave guard can register again after same-runtime menu navigation but not after destruction', async () => {
+  const { ctx, starts } = harness({ routeName: 'dialog-micro' });
+  await ctx.getData();
+  const register = starts[0].props.registerSiteFileLeaveGuard;
+  const first = async () => false, second = async () => true;
+  const unregisterFirst = register(first);
+  assert.equal(ctx.siteFileLeaveGuard.handler, first);
+  unregisterFirst();
+  ctx.microNavigationId++;
+  register(second);
+  assert.equal(ctx.siteFileLeaveGuard.handler, second);
+  unregisterFirst();
+  assert.equal(ctx.siteFileLeaveGuard.handler, second);
+  await ctx.destroyWujieApp();
+  register(first);
+  assert.equal(ctx.siteFileLeaveGuard, null);
+});
+
+
+test('site tool runtimes receive the active namespace over static and server frontend props', async () => {
+  for (const identifie of ['w7-traditiontool', 'w7-phptool']) for (const namespace of ['default', 'tenant-a']) {
+    const resource = microApp();
+    resource.metadata.labels['w7.cc/identifie'] = identifie;
+    resource.metadata.namespace = namespace;
+    resource.spec.config = { props: { namespace: 'stale-static-namespace' } };
+    const { ctx, starts, requests } = harness({
+      namespace,
+      resource,
+      panelGet: async url => url.endsWith('/frontprops')
+        ? { data: { namespace: 'stale-server-namespace' } }
+        : undefined,
+    });
+    await ctx.getData();
+    assert.equal(starts.length, 1);
+    assert.equal(starts[0].props.namespace, namespace);
+    assert(requests.some(url => url.includes(`/namespaces/${namespace}/microapps`)));
+  }
+});
+
+
+test('ordinary MicroApps preserve their original namespace prop priority', async t => {
+  for (const { label, staticProps, serverProps, expected } of [
+    { label: 'static namespace', staticProps: { namespace: 'static-namespace' }, serverProps: {}, expected: 'static-namespace' },
+    { label: 'server namespace overrides static namespace', staticProps: { namespace: 'static-namespace' }, serverProps: { namespace: 'server-namespace' }, expected: 'server-namespace' },
+    { label: 'no configured namespace', staticProps: {}, serverProps: {}, expected: undefined },
+  ]) await t.test(label, async () => {
+    const resource = microApp();
+    resource.metadata.namespace = 'tenant-a';
+    resource.spec.config = { props: staticProps };
+    const { ctx, starts } = harness({ namespace: 'tenant-a', resource,
+      panelGet: async url => url.endsWith('/frontprops') ? { data: serverProps } : undefined,
+    });
+    await ctx.getData();
+    assert.equal(starts.length, 1);
+    assert.equal(starts[0].props.namespace, expected);
+    assert.equal(Object.hasOwn(starts[0].props, 'namespace'), expected !== undefined);
+  });
 });

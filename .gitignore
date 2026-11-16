@@ -43,3 +43,18 @@ scripts/*
 !scripts/login-continuation.test.cjs
 
 !scripts/panel-auth-boundary.test.cjs
+
+!src/utils/site-file-menu.ts
+!scripts/site-file-menu.test.cjs
+!scripts/native-site-files-navigation.test.cjs
+
+# Embedded site tools and their focused tests.
+!src/utils/site-panel.ts
+!scripts/site-panel.test.cjs
+!src/views/
+src/views/*
+!src/views/app/
+src/views/app/*
+!src/views/app/pages/
+src/views/app/pages/*
+!src/views/app/pages/site-panel.vue

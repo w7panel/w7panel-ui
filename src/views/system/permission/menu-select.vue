@@ -17,6 +17,8 @@
 import appClientMenus from '@/router/app-menus'
 import { buildPermissionMenuTree } from '@/utils/permission-menu'
 import { loadClusterContext } from '@/utils/cluster-access'
+import { exclusiveMenus, loadExclusiveMenus, allowsExclusiveMenu } from '@/utils/exclusive-menus'
+import { keyToPermissionPath } from '@/utils/permission-match'
 
 export default {
     props: ['permission','disabled','allowedKeys','userGroup'],
@@ -32,9 +34,11 @@ export default {
     created(){
         this.init();
         loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
+        loadExclusiveMenus().catch(() => {});
     },
     computed: {
         sourceTreeData(){
+            exclusiveMenus.value;
             this.isSubCluster;
             return buildPermissionMenuTree(appClientMenus, undefined);
         },
@@ -96,7 +100,8 @@ export default {
                     const nodeAllowed = !allowed || allowed.has(node.key) || allowed.has(node.route);
                     const clusterType = context.isSubCluster ? 'child' : 'main';
                     const clusterAllowed = !node.clusterTypes || node.clusterTypes.includes(clusterType);
-                    const nodeDisabled = (allowed && !nodeAllowed) || keys.includes(node.key) || disabled || context.isSubCluster === null || !clusterAllowed;
+                    const nodeDisabled = (allowed && !nodeAllowed) || keys.includes(node.key) || disabled || context.isSubCluster === null || !clusterAllowed
+                        || (exclusiveMenus.value && !allowsExclusiveMenu(exclusiveMenus.value, clusterType, node.route || keyToPermissionPath(node.key)));
                     if (nodeDisabled) {
                         node.disabled = true;
                     }

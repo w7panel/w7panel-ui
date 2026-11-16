@@ -2,6 +2,12 @@
 
 const DASHBOARD = [
     {
+        path: '/dialog/appgroup/:group/site-panel/:view(files|terminal|logs)',
+        name: 'dialog-site-panel',
+        component: () => import('@/views/app/pages/site-panel.vue'),
+        meta: { hideInMenu: true, requiresAuth: true },
+    },
+    {
         path: '/dialog/appgroup/:group/:kind?/:id/files',
         name: 'dialog-files',
         component: () => import('@/views/app/pages/files.vue'),
