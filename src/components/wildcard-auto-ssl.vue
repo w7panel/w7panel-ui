@@ -1,6 +1,6 @@
 <template>
     <span>
-        <a-checkbox :model-value="modelValue" :disabled="disabled" @change="toggle">自动SSL证书</a-checkbox>
+        <a-checkbox :model-value="modelValue" :disabled="disabled || (required && modelValue)" @change="toggle">自动SSL证书</a-checkbox>
         <a-modal v-model:visible="visible" title="泛域名 DNS-01 配置" :mask-closable="false" :ok-loading="busy" :on-before-ok="confirm" @cancel="visible=false" :popup-container="$popupContainer">
             <a-alert type="info" class="mb-16">泛域名证书需要 DNS-01 验证。密钥只保存在服务端，验证成功后才能启用自动 HTTPS。</a-alert>
             <a-form :model="form" auto-label-width>
@@ -32,7 +32,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { panelApi } from '@/utils/api';
 import { Message } from '@arco-design/web-vue';
 
-const props = defineProps({ modelValue: Boolean, profileId: { type: String, default: '' }, host: { type: String, default: '' }, namespace: { type: String, required: true }, disabled: Boolean });
+const props = defineProps({ modelValue: Boolean, profileId: { type: String, default: '' }, host: { type: String, default: '' }, namespace: { type: String, required: true }, disabled: Boolean, required: Boolean });
 const emit = defineEmits(['update:modelValue', 'update:profileId']);
 const visible = ref(false);
 const busy = ref(false);
@@ -63,6 +63,7 @@ watch(() => [props.host, props.modelValue, props.profileId], ([host, enabled, pr
 }, { immediate: true });
 
 async function toggle(value) {
+    if (!value && props.required) return;
     if (!value) {
         emit('update:modelValue', false);
         emit('update:profileId', '');

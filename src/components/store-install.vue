@@ -83,8 +83,14 @@
                             </a-alert>
                             <domain-parse-alert v-if="item.identifie==form.forms[0].identifie && form.requireDomain" class="install-domain-hint" />
                             <a-form :ref="'form-'+item.identifie" :model="item" auto-label-width >
+                                <a-form-item v-if="!configConsole.isConsole && item.domainGroups?.[0]?.param === 'default' && configIngress.length > 1 && item.index === 0" label="域名规则">
+                                    <a-select v-model="form.ingressSeletorName" :disabled="form.ingressDisabled || item.domainGroups[0].hostLocked">
+                                        <a-option v-for="config in configIngress" :key="config.name" :value="config.name">{{config.name}}</a-option>
+                                    </a-select>
+                                </a-form-item>
+                                <install-domain-groups v-if="item.domainGroups?.length && !(configConsole.isConsole && item.domainGroups[0].param === 'default')" :ref="'domains-'+item.identifie" v-model="item.domainGroups" @update:model-value="syncInheritedDomainGroups" :namespace="namespaceActive" :white-list="whiteList" :primary-locked="configConsole.isConsole && item.index === 0" />
                                 <div v-if="item.identifie==form.forms[0].identifie">
-                                    <a-form-item v-if="form.requireDomain" label="域名" field="ingressHost" :rules="domainRules">
+                                    <a-form-item v-if="form.requireDomain && configConsole.isConsole" label="域名" field="ingressHost" :rules="domainRules">
                                         <template #label>
                                             <span class="form-label">域名</span>
                                         </template>
@@ -97,7 +103,7 @@
                                             </div>
                                             <div v-else style="flex:1;">
                                                 <div>
-                                                    <a-select v-if="configIngress.length" v-model="form.ingressSeletorName" :disabled="form.ingressDisabled" style="margin-bottom:10px;">
+                                                    <a-select v-if="configIngress.length > 1" v-model="form.ingressSeletorName" :disabled="form.ingressDisabled" style="margin-bottom:10px;">
                                                         <a-option v-for="item in configIngress" :key="item.name" :value="item.name">{{item.name}}</a-option>
                                                     </a-select>
                                                 </div>
@@ -189,6 +195,9 @@
                                         <div class="fc df df-c">
                                             <div class="df" style="align-items:center;gap:8px">
                                                 <a-input v-if="sp.type=='text'" v-model="sp.value" :disabled="sp.lock" :spellcheck="false" placeholder="请输入" />
+                                                <a-select v-if="sp.type=='pvc'" v-model="sp.value" :disabled="sp.lock" :allow-clear="!sp.required" placeholder="请选择存储分区">
+                                                    <a-option v-for="storage in storages" :key="storage.name" :label="storage.name" :value="storage.name" />
+                                                </a-select>
                                                 <a-textarea v-if="sp.type=='textarea'" v-model="sp.value" :disabled="sp.lock" placeholder="请输入" />
                                                 <a-select v-if="sp.type=='multiselect'" :model-value="sp.value ? String(sp.value).split(',') : []" multiple :disabled="sp.lock" placeholder="请选择" @update:model-value="value => { sp.value = value.join(','); testInstallStatus(); }">
                                                     <a-option v-for="opt in sp.options" :key="opt" :label="opt" :value="opt" />
@@ -304,6 +313,8 @@ import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import shortuuid from 'short-uuid';
 import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
+import InstallDomainGroups from '@/components/install-domain-groups.vue';
+import { createDomainGroups, domainBindings, domainGroupEnvs, domainGroupError, domainHost, syncDefaultDomainGroups } from '@/utils/install-domain-group-values';
 
 // 安装进度摘要：启动阶段来自 Pod 状态，终态优先使用 Job 条件。
 function installJobStatus(job, pod, events = []) {
@@ -427,6 +438,7 @@ export default {
         domainParseAlert,
         jobLog,
         zoneDrawer,
+        InstallDomainGroups,
         imageformDrawer,
         customCheckbox,
     },
@@ -435,6 +447,8 @@ export default {
     },
     computed: {
         installIngressHost(){
+            const groups = this.form.forms?.[0]?.domainGroups;
+            if(groups?.length && !this.configConsole.isConsole) return groups.find(group=>group.host)?.host || '';
             let host = this.form.ingressHost || '';
             if(this.whiteList.length && host && !this.configConsole.isSelect){
                 const zone = this.whiteList[this.form.whiteDomain]?.domain;
@@ -629,6 +643,10 @@ export default {
             if(this.installInputParams.ingressClass){
                 this.form.ingressclass = this.installInputParams.ingressClass;
             }
+            const defaultGroup = this.form.forms?.[0]?.domainGroups?.find(group=>group.param === 'default');
+            if(defaultGroup && configuredDomain){
+                Object.assign(defaultGroup, {host: domainHost(this.form.ingressHost), autoSSL: defaultGroup.forceSSL || this.form.auto_ssl, dnsProfileId: this.form.dnsProfileId, hostLocked: this.form.ingressDisabled});
+            }
             this.nextStep();
         },
         
@@ -698,13 +716,10 @@ export default {
         },
         getModuleStartParamValue(form,name){
             const sourceName = this.normalizeDependencyParamName(name);
-            if(this.isDependencyPVCName(sourceName)){
-                return form?.pvcname;
-            }
             const param = this.getFormStartParamFields(form).find(item=>{
                 return this.normalizeDependencyParamName(item?.name)==sourceName;
             });
-            if(!param){return undefined}
+            if(!param){return this.isDependencyPVCName(sourceName) ? form?.pvcname : undefined}
             if(param.values_text=='%STORAGE_SIZE%'){
                 return param.value ? String(param.value).replace(/Gi$/i,'') : param.value;
             }
@@ -910,6 +925,16 @@ export default {
                                 value = value.replace(/Gi$/i,'');
                             }
                         }
+                        // Render the supplied PVC selector parameter without changing the parameter list.
+                        if(j.values_text=='%PVC_NAME%' && !j.module_name){
+                            startParams.push({
+                                ...j,
+                                type: 'pvc',
+                                value: hasOverride || hasCapturedValue ? value : (j.required ? (this.storages?.find(storage=>storage.isDefault)?.name || this.storages?.[0]?.name || '') : ''),
+                                lock: j.lock || hasOverride,
+                            });
+                            return;
+                        }
                         // 存储设备
                         if(j.values_text=='%STORAGE_SIZE%' || j.values_text=='%STORAGE_CLASS_NAME%' || j.values_text=='%STORAGE_RW_MODE%'){
                             let find = startParams.find(i=>i.type=='storage');
@@ -1008,12 +1033,14 @@ export default {
                         name: i.name, // 名称
                         identifie: i.identifie, // 标识
                         isInstall: isInstall, // 是否安装
+                        domainGroups: createDomainGroups(i.ingress, {...capturedValues, ...overrides}, this.capturedInstallOption(i.identifie)?.domainGroups || this.moduleInstallParams(i.identifie,index).values.domainGroups || [], this.whiteList, {...i, inheritDefault: index > 0}),
                         startParams: startParams, // 启动参数
                         outModuleNames: i.outModuleNames || [], // 依赖应用
                         dependsOnes: i.dependsOnes || [],
                     };
                 }) || [];
                 this.form.forms = forms;
+                syncDefaultDomainGroups(forms);
                 console.log('form.forms',this.form.forms)
 
                 if(this.form.forms.find(i=>i.requireParentReleaseName)){
@@ -1046,6 +1073,12 @@ export default {
                         f.isInstall = f.isInstall || (data.replicas==1);
 
                         let envs = data?.envs || {};
+                        f.domainGroups = f.domainGroups.map(group=>{
+                            const param = group.valueParam || (group.param === 'default' ? (this.hasOwn(envs,'DOMAIN_URL') ? 'DOMAIN_URL' : 'DOMAIN_SSL_URL') : group.param);
+                            if(!this.hasOwn(envs,param)) return group;
+                            const value = String(envs[param] ?? '');
+                            return {...group, host: domainHost(value), hostLocked: group.param === 'default', inheritDefault: false, autoSSL: group.forceSSL || /^https:\/\//i.test(value), dnsProfileId: envs['domainGroups.'+group.param+'.dnsProfileId'] || group.dnsProfileId};
+                        });
     
                         if(data.preSubPath){ f.preSubPath = data.preSubPath; }
                         if(f.requirePvc && data.pvcName){
@@ -1067,7 +1100,7 @@ export default {
                             }
                         });
                         
-                        if(i=='0' && this.form?.requireDomain && envs?.DOMAIN_URL){
+                        if(i=='0' && this.configConsole.isConsole && this.form?.requireDomain && envs?.DOMAIN_URL){
                             let url = envs.DOMAIN_URL;
                             this.form.ingressHostPre = url.match(/^https?:\/\//)?.[0] || 'http://';
                             this.form.ingressHost = url.replace(/^https?:\/\//,'') || '';
@@ -1417,20 +1450,38 @@ export default {
                 this.step = 2;
             }
         },
-        // 同步域名
-        // domainTest(){
-        //     let currentform = this.form.forms.find(i=>i.identifie==this.form.activeIdentifie);
-        //     currentform && (currentform.ingressHost = this.form.ingressHost);
-        // },
-        // 下一步
+        syncConsoleDomainGroup(){
+            const root = this.form.forms?.[0];
+            if(!this.configConsole.isConsole || !root?.domainGroups?.length) return;
+            root.domainGroups[0] = {...root.domainGroups[0],host:domainHost(this.installIngressHost),autoSSL:root.domainGroups[0].forceSSL || this.form.auto_ssl,dnsProfileId:this.form.dnsProfileId || root.domainGroups[0].dnsProfileId};
+        },
+        syncInheritedDomainGroups(){
+            this.syncConsoleDomainGroup();
+            syncDefaultDomainGroups(this.form.forms);
+        },
+        validateDomainGroups(activeOnly=false){
+            this.syncInheritedDomainGroups();
+            const forms = this.form.forms.filter(item=>(item.requireInstall || item.isInstall || item.index === 0) && (!activeOnly || item.identifie === this.form.activeIdentifie));
+            for(const item of forms){
+                if(!(item.domainGroups || []).some(group=>domainGroupError(group))) continue;
+                this.form.activeIdentifie = item.identifie;
+                this.$nextTick(()=>{
+                    const ref = this.$refs['domains-'+item.identifie];
+                    (Array.isArray(ref) ? ref[0] : ref)?.validate();
+                });
+                return false;
+            }
+            return true;
+        },
         nextStep(){
             if(this.step==1){
+                this.syncInheritedDomainGroups();
                 this.step = 2;
                 this.form.activeIdentifie = this.form.installForm?.[0];
             }else if(this.step==2){
                 const activeIndex = this.form.forms.findIndex(item=>item.identifie==this.form.activeIdentifie);
+                if(!this.validateDomainGroups(true)){return}
                 if(!this.syncModuleStartParams(true,activeIndex)){return}
-                // this.domainTest();
                 this.$refs['form-'+this.form.activeIdentifie][0].validate((valid)=>{
                     if(valid){return}
                     if(this.form.activeIdentifie==this.form.installForm?.[this.form.installForm.length-1]){
@@ -1456,6 +1507,7 @@ export default {
         },
         // 安装
         install(){
+            if(!this.validateDomainGroups()){return}
             if(!this.syncModuleStartParams(true)){return}
             let installOptions = this.form.forms.map(i=>{
                 let registry = this.mirror.find(m=>m.value==i.registry)
@@ -1489,7 +1541,8 @@ export default {
                 let o = {
                     replicas: (i.requireInstall||i.isInstall)? 1 : 0,
                     identifie: i.identifie,
-                    envKv: envKv,
+                    envKv: [...envKv.filter(env=>!i.domainGroups.some(group=>group.param===env.name)), ...domainGroupEnvs(i.domainGroups)],
+                    ...(i.domainGroups.length ? {domainGroups:domainBindings(i.domainGroups)} : {}),
                     pvcname: i.pvcname,
                     dockerRegistrySecretName: i.registry,
                     registry: registry,
@@ -1514,9 +1567,10 @@ export default {
                 repoUrl = find?.deployUrl || '';
                 releaseName = find?.releaseName || '';
             };
-            let ingressHost = this.form.ingressHost;
+            const primaryGroup = this.form.forms?.[0]?.domainGroups?.find(group=>group.host);
+            let ingressHost = this.form.forms?.[0]?.domainGroups?.length ? this.installIngressHost : this.form.ingressHost;
             let isSelectDomain = this.configConsole.isConsole && this.configConsole.domains.length && this.configConsole.isSelect;
-            if(!isSelectDomain && this.whiteList.length && ingressHost){
+            if(!this.form.forms?.[0]?.domainGroups?.length && !isSelectDomain && this.whiteList.length && ingressHost){
                 let wd = this.whiteList[this.form.whiteDomain];
                 ingressHost = /\.$/.test(ingressHost)? ingressHost : (ingressHost+'.');
                 ingressHost = ingressHost + wd.domain;
@@ -1526,8 +1580,8 @@ export default {
                 namespace: this.namespaceActive,
                 releaseName: releaseName || this.releaseName || (this.identifie.replaceAll('_','-') + '-' +this.createName()),
                 ingressHost: ingressHost,
-                ingressForceHttps: this.form.auto_ssl,
-                dnsProfileId: this.form.dnsProfileId || '',
+                ingressForceHttps: primaryGroup ? Boolean(primaryGroup.autoSSL || primaryGroup.forceSSL) : this.form.auto_ssl,
+                dnsProfileId: primaryGroup?.dnsProfileId || this.form.dnsProfileId || '',
                 ingressClass: this.form.ingressclass,
                 ingressSeletorName: this.form.ingressSeletorName,
                 installOptions: installOptions,
