@@ -235,6 +235,7 @@ import {
 import AppDirect from '@/views/topapp/app-direct.vue';
 import MicroappMenuItems from '@/components/microapp-menu-items.vue';
 import { SITE_FILES_MENU_DO, getSiteFilesMenu, nativeFileRoute, resolveSiteFileTarget } from '@/utils/site-file-menu';
+import { sitePanelUrl } from '@/utils/site-panel';
 
 const ROLE_NAME = {
     founder: '创始人',
@@ -1317,7 +1318,11 @@ export default {
                 ...this.info,
                 ...frontProps,
                 ...(['w7-traditiontool', 'w7-phptool'].includes(this.extra.identifie)
-                    ? { namespace: this.namespaceActive } : {}),
+                    ? { namespace: this.namespaceActive, getSitePanelUrl: (view) => {
+                        if(this.microDisposed || runtimeGeneration !== this.microRuntimeGeneration
+                            || microappName !== this.activeMicroAppName) throw new Error('站点上下文已变化，请刷新后重试');
+                        return sitePanelUrl(window.location.href, appGroupName, this.namespaceActive, view, getToken());
+                    } } : {}),
                 appgroup: appGroupName,
                 group: appGroupName,
                 microappName,
