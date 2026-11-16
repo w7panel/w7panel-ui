@@ -89,7 +89,7 @@
                                 <div>
                                     <div>
                                         <a :href="item.fullDomain" class="c-blue cursor" target="_blank">{{ item.fullDomain }}</a>
-                                        <a-tooltip v-if="!inRvproxy && appDefaultDomain==item.fullDomain" content="安装应用默认域名设置，不可删除">
+                                        <a-tooltip v-if="domainDeleteDenied(item)" content="此域名规则不可删除">
                                             <icon-lock class="ml-10 fs-16 c-orange" />
                                         </a-tooltip>
                                         <span class="c-blue cursor ml-20" @click="openTls(item)">https配置</span>
@@ -121,7 +121,7 @@
                                 <a-tooltip content="绑定域名">
                                     <i class="opt-icon" @click="openBind(item)"><icon-plus /></i>
                                 </a-tooltip>
-                                <a-popconfirm v-if="appDefaultDomain!=item.fullDomain" :content="'确认要删除吗'" @ok="toDelete(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
+                                <a-popconfirm v-if="!domainDeleteDenied(item)" :content="'确认要删除吗'" @ok="toDelete(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                     <a-tooltip content="删除">
                                         <i class="opt-icon"><icon-delete /></i>
                                     </a-tooltip>
@@ -132,7 +132,7 @@
                             <tr class="bg-gray">
                                 <!-- :style="{paddingLeft:(part.grayRelease&&part.grayRelease.length)?'10px':'40px'}" -->
                                 <td style="padding-left:40px;">
-                                    <a-checkbox v-model="checkList" :class="{'first-checkbox':checkList[0]==part.name}" @change="changeCheckPart" :value="part.name" label="" class="mr-10" style="vertical-align:middle;" />
+                                    <a-checkbox v-model="checkList" :disabled="ingressDeleteDenied(part.name)" :class="{'first-checkbox':checkList[0]==part.name}" @change="changeCheckPart" :value="part.name" label="" class="mr-10" style="vertical-align:middle;" />
                                     <button v-if="part.grayRelease&&part.grayRelease.length" class="table-expand-btn" style="vertical-align:middle;" @click="part.openGr=!part.openGr">
                                         <icon-minus v-if="part.openGr" />
                                         <icon-plus v-else />
@@ -173,7 +173,7 @@
                                     <a-tooltip content="修改">
                                         <i class="opt-icon" @click="domainShow(part)"><icon-edit /></i>
                                     </a-tooltip>
-                                    <a-popconfirm v-if="!part.is_root" :content="'确认要删除吗'" @ok="delPath(part)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
+                                    <a-popconfirm v-if="!part.is_root && !ingressDeleteDenied(part.name)" :content="'确认要删除吗'" @ok="delPath(part)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                         <a-tooltip content="删除">
                                             <i class="opt-icon"><icon-delete /></i>
                                         </a-tooltip>
@@ -301,7 +301,7 @@
                                 <span class="c-red">当前域名不符合管理员设置的域名白名单规则，是否需要更改？ </span>
                                 <span class="c-blue cursor ml-10" @click="domainForm.domain='';domainForm.whiteDomain=0;whiteList[domainForm.whiteDomain].prefixRandom?domainForm.domain=createShortUuid():null;">更改</span>
                             </span>
-                            <wildcard-auto-ssl v-model="domainForm.auto_ssl" v-model:profile-id="domainForm.dnsProfileId" v-model:auto-resolve="domainForm.autoResolve" :host="domainFormFullHost" :namespace="namespaceActive" class="mt-16" />
+                            <wildcard-auto-ssl v-model="domainForm.auto_ssl" :required="domainForm.forceSSL" v-model:profile-id="domainForm.dnsProfileId" v-model:auto-resolve="domainForm.autoResolve" :host="domainFormFullHost" :namespace="namespaceActive" class="mt-16" />
                         </div>
                     </a-form-item>
 
@@ -615,7 +615,7 @@ import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
 import { applyWildcardSsl, ensureWildcardResolution, isAutoSslIssuer } from '@/utils/wildcard-ssl';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 import { cleanupIngressPluginRules, WASM_PLUGIN_API, resolvePluginMicroapp } from '@/utils/gateway-plugin';
-import { MICROAPP_API, getResourceGroupName, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
+import { DENY_DELETE_ANNOTATION, MICROAPP_API, REQUIRE_HTTPS_ANNOTATION, getResourceGroupName, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
 import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
 
 const type3Backend = {
@@ -902,6 +902,15 @@ export default {
                 this.getList();
             }).catch(error=>this.$message.error(error.message || '保存子域名失败'))
         },
+        ingressDeleteDenied(name){
+            return this.dataList.some(i=>i.metadata?.name===name && i.metadata?.annotations?.[DENY_DELETE_ANNOTATION]==='true');
+        },
+        domainDeleteDenied(row){
+            const names = [row.name, ...(row.part || []).map(i=>i.name)];
+            if(names.some(name=>this.ingressDeleteDenied(name))){ return true; }
+            const annotations = this.dataList.find(i=>i.metadata?.name===row.name)?.metadata?.annotations || {};
+            return !(DENY_DELETE_ANNOTATION in annotations) && !this.inRvproxy && this.appDefaultDomain===row.fullDomain;
+        },
         async multipleDelete(){
             let arr = [];
             this.list.map(i=>{
@@ -913,6 +922,10 @@ export default {
                     }
                 })
             })
+            if(arr.some(item=>!item.is_root && this.ingressDeleteDenied(item.name))){
+                this.$message.warning('选中的域名规则不可删除');
+                return;
+            }
             await this.cleanupIngressPluginRules(arr.filter(item=>!item.is_root).map(item=>item.name));
             for(let i in arr){
                 if(arr[i].is_root){ continue }
@@ -1694,6 +1707,10 @@ export default {
             });
         },
         delPath(part,noMessage){
+            if(this.ingressDeleteDenied(part.name)){
+                this.$message.warning('此域名规则不可删除');
+                return Promise.resolve(false);
+            }
             return this.cleanupIngressPluginRules([part.name]).then(()=>k8sproxy.delete("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+part.name)).then(res=>{
                 if(!res?.data){return}
                 if(!noMessage){
@@ -1706,6 +1723,7 @@ export default {
         async domainFormShow(item){
             if(!await this.getWhiteList()){ return; }
             const matched = item.name && item.whiteDomain === -1 ? this.matchWhiteDomain(item.domain) : null;
+            const forceSSL = this.dataList.some(i=>(i.metadata?.name===item.name || i.metadata?.labels?.parents===item.name) && i.metadata?.annotations?.[REQUIRE_HTTPS_ANNOTATION]==='true');
             this.domainForm.appgroup = '';
             let originType = item.originType || (this.inRvproxy? 1 : 2);
             this.domainForm = {
@@ -1720,8 +1738,9 @@ export default {
                 ingressclass: item.ingressclass || this.ingressclassList?.[0] || '',
                 domain: matched?.domain ?? item.domain ?? '',
                 port: item.name ? String(item.port || '') : '',
-                auto_ssl: item.is_auto_ssl || false,
+                auto_ssl: forceSSL || item.is_auto_ssl || false,
                 autoResolve: false,
+                forceSSL,
                 dnsProfileId: this.dataList.find(i=>i?.metadata?.name === item.name)?.metadata?.annotations?.['w7.cc/dns-profile'] || '',
                 name: item.name || '',
                 path: '',
@@ -1798,7 +1817,12 @@ export default {
                     if(!data.spec.rules){return}
 
                     data.spec.rules[0].host = fullDomain;
-                    
+                    data.metadata.annotations = data.metadata.annotations || {};
+                    if(this.domainForm.forceSSL || data.metadata.annotations[REQUIRE_HTTPS_ANNOTATION]==='true'){
+                        this.domainForm.auto_ssl = true;
+                        data.metadata.annotations['w7.cc/ssl-redirect'] = 'true';
+                        data.metadata.annotations['higress.io/ssl-redirect'] = 'true';
+                    }
                     delete data.metadata.resourceVersion;
                     delete data.metadata.generation;
                     delete data.metadata.creationTimestamp;
@@ -2351,6 +2375,10 @@ export default {
             this.strategy.show = true;
         },
         async toDelete(row,opt){
+            if(this.domainDeleteDenied(row)){
+                this.$message.warning('此域名规则不可删除');
+                return;
+            }
             if(row.part.length>1){
                 // return this.$message.warning('请先删除子目录');
                 for(let i=0; i<row.part.length; i++){

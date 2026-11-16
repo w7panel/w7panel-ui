@@ -716,7 +716,7 @@ export default {
         }
     },
     async created(){
-        this.namespaceActive = useNamespaceStore().namespace;
+        this.namespaceActive = this.componentData?.namespace || useNamespaceStore().namespace;
         if((this.$route.name=='dialog-files' || this.is_component) && this.origin!='nodes'){
             // 单独弹窗需要先获取app data
             await this.getData();

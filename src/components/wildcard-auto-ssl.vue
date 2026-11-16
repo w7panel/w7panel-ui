@@ -1,6 +1,6 @@
 <template>
     <span>
-        <a-checkbox :model-value="modelValue" :disabled="disabled" @change="toggle">自动SSL证书</a-checkbox>
+        <a-checkbox :model-value="modelValue" :disabled="disabled || (required && modelValue)" @change="toggle">自动SSL证书</a-checkbox>
         <a-button v-if="modelValue && host.startsWith('*.')" type="text" size="mini" @click="toggle(true)">配置</a-button>
         <a-modal v-model:visible="visible" title="泛域名证书配置" :mask-closable="false" :ok-loading="busy" :on-before-ok="confirm" @cancel="visible=false" :popup-container="$popupContainer">
             <a-alert type="info" class="mb-20 wildcard-ssl-tip">
@@ -55,7 +55,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { panelApi } from '@/utils/api';
 import { Message } from '@arco-design/web-vue';
 
-const props = defineProps({ modelValue: Boolean, profileId: { type: String, default: '' }, autoResolve: Boolean, host: { type: String, default: '' }, namespace: { type: String, required: true }, disabled: Boolean });
+const props = defineProps({ modelValue: Boolean, profileId: { type: String, default: '' }, autoResolve: Boolean, host: { type: String, default: '' }, namespace: { type: String, required: true }, disabled: Boolean, required: Boolean });
 const emit = defineEmits(['update:modelValue', 'update:profileId', 'update:autoResolve']);
 const visible = ref(false);
 const reuseVisible = ref(false);
@@ -90,6 +90,7 @@ watch(() => [props.host, props.modelValue, props.profileId], ([host, enabled, pr
 }, { immediate: true });
 
 async function toggle(value) {
+    if (!value && props.required) return;
     if (!value) {
         emit('update:modelValue', false);
         emit('update:profileId', '');
