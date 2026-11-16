@@ -81,7 +81,7 @@
                                         </a-select>
                                     </template>
                                 </a-input>
-                                <wildcard-auto-ssl v-model="item.crtSsl" v-model:profile-id="item.dnsProfileId" :host="formFullDomain(item)" :namespace="namespaceActive" class="ml-16 df-s0" />
+                                <wildcard-auto-ssl v-model="item.crtSsl" v-model:profile-id="item.dnsProfileId" v-model:auto-resolve="item.autoResolve" :host="formFullDomain(item)" :namespace="namespaceActive" class="ml-16 df-s0" />
                             </div>
                         </a-form-item>
                         
@@ -132,7 +132,7 @@
 <script>
 import { k8sproxy } from '@/utils/api';
 import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
-import { applyWildcardSsl, isAutoSslIssuer } from '@/utils/wildcard-ssl';
+import { applyWildcardSsl, ensureWildcardResolution, isAutoSslIssuer } from '@/utils/wildcard-ssl';
 import axios from 'axios'
 import yamlDrawer from '@/components/yaml-drawer.vue';
 import { useNamespaceStore,useLoadingStore } from '@/store';
@@ -269,6 +269,7 @@ export default {
                 whiteDomain: this.whiteList?.length? 0 : -1,
                 crtSsl: false,
                 dnsProfileId: '',
+                autoResolve: false,
                 type: 'dns',
                 domains: [{value:''}],
                 protocol: 'HTTP',
@@ -450,6 +451,7 @@ export default {
                 k8sproxy.post('/apis/networking.higress.io/v1/namespaces/'+this.namespaceActive+'/mcpbridges', data, {loading:true}).then(async res => {    
                     useLoadingStore().loading = true;
                     let domainError = null;
+                    let resolveFailed = false;
                     for(let i in this.form.form){
                         let item = this.form.form[i];
                         let fullDomain = item.crtDomain;
@@ -458,18 +460,21 @@ export default {
                         }
                         if(!fullDomain){continue}
                         try{
-                            await this.createDomain({
+                            const resolved = await this.createDomain({
                                 name: item.beforename + item.aftername,
                                 type: item.type,
                                 domain: fullDomain,
                                 auto_ssl: item.crtSsl,
                                 dnsProfileId: item.dnsProfileId,
+                                autoResolve: item.autoResolve,
                             })
+                            if(!resolved) resolveFailed = true;
                         }catch(error){ domainError ||= error; }
                     }
                     if(domainError) throw domainError;
+                    return resolveFailed;
                 }).then(res=>{
-                    this.$message.success('操作成功');
+                    if(!res) this.$message.success('操作成功');
                     this.getData();
                     this.form.show = false;
                 }).catch(error=>this.$message.error(error.message || '创建域名失败')).finally(()=>{ useLoadingStore().loading = false; });
@@ -530,7 +535,8 @@ export default {
             data.metadata.labels['destination'] = o.name;
             
             await applyWildcardSsl(data, o.dnsProfileId);
-            return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data)
+            await k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data);
+            return ensureWildcardResolution(o.domain, this.namespaceActive, o.dnsProfileId, o.autoResolve);
         },
         // 修改类型同时修改域名的类型
         async editDomainType(data){

@@ -10,6 +10,7 @@ export const MICROAPP_PRESENTATION_KEY_LABEL = 'w7.cc/presentation-key';
 export const MICROAPP_PRESENTATION_MODE_ANNOTATION = 'w7.cc/presentation-mode';
 export const OFFICIAL_APP_ANNOTATION = 'w7.cc/official-app';
 export const DENY_DELETE_ANNOTATION = 'w7.cc/deny-delete';
+export const REQUIRE_HTTPS_ANNOTATION = 'w7.cc/require-https';
 
 export const getTopAppGroupName = (resource: any) => (
   getResourceGroupName(resource)

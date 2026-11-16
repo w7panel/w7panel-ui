@@ -14,10 +14,11 @@
 </template>
 
 <script>
-import {useNamespaceStore} from '@/store'
 import appClientMenus from '@/router/app-menus'
-import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu'
+import { buildPermissionMenuTree } from '@/utils/permission-menu'
 import { loadClusterContext } from '@/utils/cluster-access'
+import { exclusiveMenus, loadExclusiveMenus, allowsExclusiveMenu } from '@/utils/exclusive-menus'
+import { keyToPermissionPath } from '@/utils/permission-match'
 
 export default {
     props: ['permission','disabled','allowedKeys','userGroup'],
@@ -27,18 +28,19 @@ export default {
             checkedKeys: [],
             treeData: [],
             halfCheckedKeys: [],
-            microAppTreeData: [],
             isSubCluster: null,
         }
     },
     created(){
         this.init();
         loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
-        loadPermissionMicroAppMenus(useNamespaceStore().namespace).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
+        loadExclusiveMenus().catch(() => {});
     },
     computed: {
         sourceTreeData(){
-            return [...buildPermissionMenuTree(appClientMenus, this.isSubCluster), ...this.microAppTreeData];
+            exclusiveMenus.value;
+            this.isSubCluster;
+            return buildPermissionMenuTree(appClientMenus, undefined);
         },
     },
     watch: {
@@ -56,7 +58,7 @@ export default {
             this.initTreeData();
         },
         sourceTreeData(){
-            this.initTreeData();
+            this.init();
         },
         checkedKeys(v){
             this.$emit('checked', this.halfCheckedKeys.concat(v));
@@ -75,21 +77,36 @@ export default {
         },
         initTreeData(){
             this.treeData = this.filterTree([]);
+            const enabled = new Set();
+            const visit = nodes => nodes.forEach(node => {
+                if (!node.disabled) enabled.add(node.key);
+                visit(node.children || []);
+            });
+            visit(this.treeData);
+            if (!this.disabled && this.isSubCluster !== null) {
+                this.checkedKeys = this.checkedKeys.filter(key => enabled.has(key));
+                this.halfCheckedKeys = this.halfCheckedKeys.filter(key => enabled.has(key));
+            }
         },
         filterTree(keys){
             const menuDataCopy = JSON.parse(JSON.stringify(this.sourceTreeData));
             const allowed = this.allowedKeys ? new Set(this.allowedKeys) : null;
+            const context = this;
     
             function traverseAndDisable(nodes, keyPath = [], disabled) {
                 const result = [];
                 nodes.forEach(node => {
                     const currentKeyPath = [...keyPath, node.key];
                     const nodeAllowed = !allowed || allowed.has(node.key) || allowed.has(node.route);
-                    if (node.children && node.children.length > 0) {
-                        node.children = traverseAndDisable(node.children, currentKeyPath, disabled);
-                    }
-                    if ((allowed && !nodeAllowed) || keys.includes(node.key) || disabled) {
+                    const clusterType = context.isSubCluster ? 'child' : 'main';
+                    const clusterAllowed = !node.clusterTypes || node.clusterTypes.includes(clusterType);
+                    const nodeDisabled = (allowed && !nodeAllowed) || keys.includes(node.key) || disabled || context.isSubCluster === null || !clusterAllowed
+                        || (exclusiveMenus.value && !allowsExclusiveMenu(exclusiveMenus.value, clusterType, node.route || keyToPermissionPath(node.key)));
+                    if (nodeDisabled) {
                         node.disabled = true;
+                    }
+                    if (node.children && node.children.length > 0) {
+                        node.children = traverseAndDisable(node.children, currentKeyPath, nodeDisabled);
                     }
                     result.push(node);
                 });
@@ -98,7 +115,7 @@ export default {
             return traverseAndDisable(menuDataCopy, [], this.disabled);
         },
         filterAllowedKeys(keys){
-			if(!this.allowedKeys){return keys || []}
+            if(!this.allowedKeys){return keys || []}
             const allowed = new Set(this.allowedKeys);
             return (keys || []).filter(key => allowed.has(key));
         },

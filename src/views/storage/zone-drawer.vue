@@ -102,9 +102,9 @@ export default {
         // }
     },
     methods: {
-        closeDrawer(v){
+        closeDrawer(v, name){
             this.visible = false;
-            this.$emit('close',v);
+            this.$emit('close',v,name);
         },
         init(){
             this.form = {
@@ -264,7 +264,7 @@ export default {
                 }).then(()=>this.pushConfigmap(data.name)).then(()=>{
                     this.$message.success('创建成功');
                     this.pvpvc.show = false;
-                    this.closeDrawer(true);
+                    this.closeDrawer(true, data.name);
                 })
 
             });

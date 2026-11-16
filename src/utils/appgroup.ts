@@ -30,7 +30,8 @@ export interface AppGroupUninstallOptions {
     pollIntervalMs?: number;
     timeoutMs?: number;
     waitForDeletion?: boolean;
-    confirm?: (plan: AppGroupUninstallPlan) => boolean | Promise<boolean>;
+    confirm?: (plan: AppGroupUninstallPlan) => boolean | object | Promise<boolean | object>;
+    deleteItem?: (item: AppGroupUninstallPlanItem, choice: any) => Promise<void>;
     onDeleting?: (item: AppGroupUninstallPlanItem, plan: AppGroupUninstallPlan) => void;
 }
 
@@ -146,9 +147,8 @@ async function loadReverseDependentAppGroups(
     throwIfAborted(signal);
     const targetName = target?.metadata?.name || '';
     if(!targetName){return []}
-    const selector = `${APPGROUP_DEPENDENCY_LABEL_PREFIX}${targetName}=true`;
     const response = await k8sClient.get(
-        `${getAppGroupApi(namespace)}?labelSelector=${encodeURIComponent(selector)}`,
+        getAppGroupApi(namespace),
         { noAlert: true, signal },
     );
     return (response?.data?.items || []).filter((candidate: any) => (
@@ -243,37 +243,36 @@ export async function uninstallAppGroup(
         rootName,
         options.signal,
     );
-    if(options.confirm && !await options.confirm(plan)){
+    const choice = options.confirm ? await options.confirm(plan) : true;
+    if(!choice){
         return { cancelled: true, deletedNames: [], plan };
     }
 
     const timeoutMs = Math.max(1, options.timeoutMs || DEFAULT_UNINSTALL_TIMEOUT);
     const pollInterval = Math.max(100, options.pollIntervalMs || DEFAULT_UNINSTALL_POLL_INTERVAL);
     const deadline = Date.now() + timeoutMs;
-    const deletedNames = await Promise.all(plan.items.map(async item => {
+    const deletedNames: string[] = [];
+    for(const item of plan.items){
         throwIfAborted(options.signal);
         options.onDeleting?.(item, plan);
-        if(!item.resource?.metadata?.deletionTimestamp){
+        if(options.deleteItem || !item.resource?.metadata?.deletionTimestamp){
             try {
-                await k8sClient.delete(
-                    `${getAppGroupApi(resolvedNamespace)}/${encodeURIComponent(item.name)}`,
-                    { noAlert: true, signal: options.signal },
-                );
+                if(options.deleteItem){
+                    await options.deleteItem(item, choice);
+                }else{
+                    await k8sClient.delete(
+                        `${getAppGroupApi(resolvedNamespace)}/${encodeURIComponent(item.name)}`,
+                        { noAlert: true, signal: options.signal },
+                    );
+                }
             } catch(error) {
                 if(getErrorStatus(error) !== 404){throw error}
             }
         }
-        return item.name;
-    }));
-    if(options.waitForDeletion !== false){
-        await Promise.all(deletedNames.map(name => waitForAppGroupDeletion(
-            k8sClient,
-            resolvedNamespace,
-            name,
-            deadline,
-            pollInterval,
-            options.signal,
-        )));
+        deletedNames.push(item.name);
+        if(options.waitForDeletion !== false){
+            await waitForAppGroupDeletion(k8sClient, resolvedNamespace, item.name, deadline, pollInterval, options.signal);
+        }
     }
     return { cancelled: false, deletedNames, plan };
 }

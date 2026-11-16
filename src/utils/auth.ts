@@ -19,7 +19,11 @@ const getDialogPanelToken = () => {
     }
 
     try {
-        return new URLSearchParams(window.location.search).get('paneltoken') || '';
+        const queryToken = new URLSearchParams(window.location.search).get('paneltoken') || '';
+        if (window.location.pathname.includes('/site-panel/')) {
+            return new URLSearchParams(window.location.hash.slice(1)).get('paneltoken') || queryToken;
+        }
+        return queryToken;
     } catch {
         return '';
     }
@@ -155,7 +159,6 @@ const setK8sinfo = (v) => {
 };
 
 export { isLogin, getToken, setToken, clearToken,
-    isCkmSession,
     // getExpire,
     // setExpire,
     setPermission, getPermission, setUserInfo, getUserInfo,

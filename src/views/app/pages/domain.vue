@@ -89,7 +89,7 @@
                                 <div>
                                     <div>
                                         <a :href="item.fullDomain" class="c-blue cursor" target="_blank">{{ item.fullDomain }}</a>
-                                        <a-tooltip v-if="!inRvproxy && appDefaultDomain==item.fullDomain" content="安装应用默认域名设置，不可删除">
+                                        <a-tooltip v-if="domainDeleteDenied(item)" content="此域名规则不可删除">
                                             <icon-lock class="ml-10 fs-16 c-orange" />
                                         </a-tooltip>
                                         <span class="c-blue cursor ml-20" @click="openTls(item)">https配置</span>
@@ -121,7 +121,7 @@
                                 <a-tooltip content="绑定域名">
                                     <i class="opt-icon" @click="openBind(item)"><icon-plus /></i>
                                 </a-tooltip>
-                                <a-popconfirm v-if="appDefaultDomain!=item.fullDomain" :content="'确认要删除吗'" @ok="toDelete(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
+                                <a-popconfirm v-if="!domainDeleteDenied(item)" :content="'确认要删除吗'" @ok="toDelete(item)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                     <a-tooltip content="删除">
                                         <i class="opt-icon"><icon-delete /></i>
                                     </a-tooltip>
@@ -132,7 +132,7 @@
                             <tr class="bg-gray">
                                 <!-- :style="{paddingLeft:(part.grayRelease&&part.grayRelease.length)?'10px':'40px'}" -->
                                 <td style="padding-left:40px;">
-                                    <a-checkbox v-model="checkList" :class="{'first-checkbox':checkList[0]==part.name}" @change="changeCheckPart" :value="part.name" label="" class="mr-10" style="vertical-align:middle;" />
+                                    <a-checkbox v-model="checkList" :disabled="ingressDeleteDenied(part.name)" :class="{'first-checkbox':checkList[0]==part.name}" @change="changeCheckPart" :value="part.name" label="" class="mr-10" style="vertical-align:middle;" />
                                     <button v-if="part.grayRelease&&part.grayRelease.length" class="table-expand-btn" style="vertical-align:middle;" @click="part.openGr=!part.openGr">
                                         <icon-minus v-if="part.openGr" />
                                         <icon-plus v-else />
@@ -164,13 +164,16 @@
                                     <a-tooltip v-if="item.ingressclass=='higress'" content="策略">
                                         <i class="opt-icon" @click="openStrategy(part)"><icon-settings /></i>
                                     </a-tooltip>
+                                    <a-tooltip v-if="item.ingressclass=='higress'" content="WAF">
+                                        <i class="opt-icon" @click="openWaf(part)">WAF</i>
+                                    </a-tooltip>
                                     <a-tooltip content="灰度发布">
                                         <i class="opt-icon" @click="openGrayRelease(part)"><icon-send /></i>
                                     </a-tooltip>
                                     <a-tooltip content="修改">
                                         <i class="opt-icon" @click="domainShow(part)"><icon-edit /></i>
                                     </a-tooltip>
-                                    <a-popconfirm v-if="!part.is_root" :content="'确认要删除吗'" @ok="delPath(part)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
+                                    <a-popconfirm v-if="!part.is_root && !ingressDeleteDenied(part.name)" :content="'确认要删除吗'" @ok="delPath(part)" position="lt" class="popconfirm-delete" type="warning" :ok-button-props="{status:'danger'}">
                                         <a-tooltip content="删除">
                                             <i class="opt-icon"><icon-delete /></i>
                                         </a-tooltip>
@@ -229,15 +232,20 @@
                     <a-form-item v-if="!domainForm.name" label="">
                         <a-radio-group v-model="domainForm.originType" @change="chengeFormOriginType">
                             <a-radio v-if="!domainForm.name&&inRvproxy" :value="1">外部服务</a-radio>
-                            <a-radio :value="2" :disabled="!hasAppOptions">应用</a-radio>
+                            <a-radio :value="2">应用</a-radio>
                             <a-radio :value="3">应用直达</a-radio>
                         </a-radio-group>
                     </a-form-item>
                     <template v-if="domainForm.originType==2 && !inRvproxy">
-                        <a-form-item v-if="!domainForm.name" label="应用" field="app">
-                            <a-select v-model="domainForm.app" @change="v=>{domainForm.port='';domainForm.appPorts=appPorts[v];}" placeholder="请选择应用">
-                                <a-option v-for="i in appList" :key="i.name" :label="i.title" :value="i.name"></a-option>
-                            </a-select>
+                        <a-form-item v-if="!domainForm.name" label="Service" field="app">
+                            <div style="width:100%;">
+                                <a-alert v-if="!domainForm.loading && !hasAppOptions" type="warning" class="mb-10">
+                                    当前应用下未找到可用端口配置，请先修改应用添加端口配置！
+                                </a-alert>
+                                <a-select v-model="domainForm.app" @change="v=>{domainForm.port='';domainForm.appPorts=appPorts[v] || []; }" placeholder="请选择 Service">
+                                    <a-option v-for="i in serviceList" :key="i.name" :label="i.label" :value="i.name"></a-option>
+                                </a-select>
+                            </div>
                         </a-form-item>
                         <a-form-item v-if="!domainForm.name" label="选择端口" field="port">
                             <a-select v-model="domainForm.port" placeholder="请选择端口">
@@ -247,12 +255,19 @@
                     </template>
                     <template v-if="domainForm.originType==2 && inRvproxy">
                         <a-form-item v-if="!domainForm.name" label="应用" field="app">
-                            <a-select v-model="domainForm.appgroup" @change="domainForm.app=''" placeholder="请选择">
-                                <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
-                            </a-select>
-                            <a-select v-model="domainForm.app" @change="domainForm.port='';checkAllAppPorts(domainForm.appgroup,domainForm.app,(v)=>{domainForm.appPorts=v});" placeholder="请选择应用" class="ml-10">
-                                <a-option v-for="i in allAppList[domainForm.appgroup]" :key="i.name" :label="i.title" :value="i.name"></a-option>
-                            </a-select>
+                            <div style="width:100%;">
+                                <a-alert v-if="!domainForm.loading && (!hasAppOptions || (domainForm.appgroup && !allAppList[domainForm.appgroup]?.length))" type="warning" class="mb-10">
+                                    当前应用下未找到可用端口配置，请先修改应用添加端口配置！
+                                </a-alert>
+                                <div class="df">
+                                    <a-select v-model="domainForm.appgroup" @change="domainForm.app='';domainForm.port=''" placeholder="请选择">
+                                        <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
+                                    </a-select>
+                                    <a-select v-model="domainForm.app" @change="domainForm.port='';checkAllAppPorts(domainForm.appgroup,domainForm.app,(v)=>{domainForm.appPorts=v});" placeholder="请选择 Service" class="ml-10">
+                                        <a-option v-for="i in allAppList[domainForm.appgroup]" :key="i.name" :label="i.label" :value="i.name"></a-option>
+                                    </a-select>
+                                </div>
+                            </div>
                         </a-form-item>
                         <a-form-item v-if="!domainForm.name" label="选择端口" field="port">
                             <a-select v-model="domainForm.port" placeholder="请选择端口">
@@ -286,7 +301,7 @@
                                 <span class="c-red">当前域名不符合管理员设置的域名白名单规则，是否需要更改？ </span>
                                 <span class="c-blue cursor ml-10" @click="domainForm.domain='';domainForm.whiteDomain=0;whiteList[domainForm.whiteDomain].prefixRandom?domainForm.domain=createShortUuid():null;">更改</span>
                             </span>
-                            <wildcard-auto-ssl v-model="domainForm.auto_ssl" v-model:profile-id="domainForm.dnsProfileId" :host="domainFormFullHost" :namespace="namespaceActive" class="mt-16" />
+                            <wildcard-auto-ssl v-model="domainForm.auto_ssl" :required="domainForm.forceSSL" v-model:profile-id="domainForm.dnsProfileId" v-model:auto-resolve="domainForm.autoResolve" :host="domainFormFullHost" :namespace="namespaceActive" class="mt-16" />
                         </div>
                     </a-form-item>
 
@@ -322,12 +337,16 @@
                         <a-radio :value="3">应用直达</a-radio>
                     </a-radio-group>
                 </a-form-item>
-
                 <template v-if="domain.originType==2 && !inRvproxy" >
-                    <a-form-item v-if="!inRvproxy" label="应用" field="app">
-                        <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v];}" placeholder="请选择应用" style="width:500px;">
-                            <a-option v-for="i in appList" :key="i.name" :label="i.title" :value="i.name"></a-option>
-                        </a-select>
+                    <a-form-item v-if="!inRvproxy" label="Service" field="app">
+                        <div style="width:500px;">
+                            <a-alert v-if="!domainForm.loading && !hasAppOptions" type="warning" class="mb-10">
+                                当前应用下未找到可用端口配置，请先修改应用添加端口配置！
+                            </a-alert>
+                            <a-select v-model="domain.app" @change="v=>{domain.port='';domain.appPorts=appPorts[v] || []; }" placeholder="请选择 Service">
+                                <a-option v-for="i in serviceList" :key="i.name" :label="i.label" :value="i.name"></a-option>
+                            </a-select>
+                        </div>
                     </a-form-item>
                     
                     <a-form-item v-if="!inRvproxy" label="选择端口" field="port">
@@ -339,12 +358,19 @@
 
                 <template v-if="domain.originType==2 && inRvproxy" >
                     <a-form-item v-if="!domain.name" label="应用" field="app">
-                        <a-select v-model="domain.appgroup" @change="domain.app=''" placeholder="请选择">
-                            <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
-                        </a-select>
-                        <a-select v-model="domain.app" @change="domain.port='';checkAllAppPorts(domain.appgroup,domain.app,(v)=>{domain.appPorts=v});" placeholder="请选择应用" class="ml-10">
-                            <a-option v-for="i in allAppList[domain.appgroup]" :key="i.name" :label="i.title" :value="i.name"></a-option>
-                        </a-select>
+                        <div style="width:100%;">
+                            <a-alert v-if="!domainForm.loading && (!hasAppOptions || (domain.appgroup && !allAppList[domain.appgroup]?.length))" type="warning" class="mb-10">
+                                当前应用下未找到可用端口配置，请先修改应用添加端口配置！
+                            </a-alert>
+                            <div class="df">
+                                <a-select v-model="domain.appgroup" @change="domain.app='';domain.port=''" placeholder="请选择">
+                                    <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
+                                </a-select>
+                                <a-select v-model="domain.app" @change="domain.port='';checkAllAppPorts(domain.appgroup,domain.app,(v)=>{domain.appPorts=v});" placeholder="请选择 Service" class="ml-10">
+                                    <a-option v-for="i in allAppList[domain.appgroup]" :key="i.name" :label="i.label" :value="i.name"></a-option>
+                                </a-select>
+                            </div>
+                        </div>
                     </a-form-item>
                     <a-form-item v-if="!domain.name" label="选择端口" field="port">
                         <a-select v-model="domain.port" placeholder="请选择端口">
@@ -522,7 +548,7 @@
                             <span class="c-red">当前域名不符合管理员设置的域名白名单规则，是否需要更改？ </span>
                             <span class="c-blue cursor ml-10" @click="formcard.domain='';formcard.whiteDomain=0;whiteList[formcard.whiteDomain].prefixRandom?formcard.domain=createShortUuid():null;">更改</span>
                         </span>
-                        <wildcard-auto-ssl v-model="formcard.auto_ssl" v-model:profile-id="formcard.dnsProfileId" :host="formCardFullHost" :namespace="namespaceActive" class="mt-10" />
+                        <wildcard-auto-ssl v-model="formcard.auto_ssl" v-model:profile-id="formcard.dnsProfileId" v-model:auto-resolve="formcard.autoResolve" :host="formCardFullHost" :namespace="namespaceActive" class="mt-10" />
                     </div>
                 </a-form-item>
                 <a-form-item v-show="!formcard.ingressclass || ingressclassList.length>1" label="ingressClass" field="ingressclass">
@@ -537,13 +563,14 @@
         <yaml-drawer v-if="debug" :show="yamlData.show" :title="yamlData.title" :data="yamlData.data" @submit="yamlData.submit" @cancel="yamlData.show=false;"></yaml-drawer>
         <!-- 策略 -->
         <domain-strategy ref="domainstrategy" :show="strategy.show" :data="strategy.data" :multiple="strategy.multiple" :hideRewrite="true" @submit="strategy.submit" @refresh="getList()" @cancel="strategy.show=false;"></domain-strategy>
+        <gateway-plugin-config :show="wafConfig.show" :plugin="wafConfig.plugin" :microapp="wafConfig.microapp" :ingress="wafConfig.ingress" scope="rule" @close="wafConfig.show=false" />
         <!-- 证书 -->
         <domain-cert ref="domainCert" :data-list="dataList" :domain-list="list" @success="getList(patchApp)"></domain-cert>
         <!-- 灰度发布 -->
         <domain-gray-release
             ref="grayrelease"
             :show="grayRelease.show"
-            :appList="appList"
+            :appList="serviceList"
             :appPorts="appPorts"
             :parentName="grayRelease.parentName"
             :parentPath="grayRelease.parentPath"
@@ -558,10 +585,10 @@
                     <a-input v-model="item.host" placeholder="请输入域名" class="fc">
                         <template #prepend>{{item.autoSsl?'https://':'http://'}}</template>
                     </a-input>
-                    <wildcard-auto-ssl v-model="item.autoSsl" v-model:profile-id="item.dnsProfileId" :host="item.host" :namespace="namespaceActive" class="ml-10" />
+                    <wildcard-auto-ssl v-model="item.autoSsl" v-model:profile-id="item.dnsProfileId" v-model:auto-resolve="item.autoResolve" :host="item.host" :namespace="namespaceActive" class="ml-10" />
                     <icon-close class="ml-20 cursor fs-16" @click="bindDomain.list.splice(index,1);" />
                 </div>
-                <a-button @click="bindDomain.list.push({name:createName(),host:'',autoSsl:bindDomain.autoSsl,sslRedirect:bindDomain.sslRedirect})" type="outline">
+                <a-button @click="bindDomain.list.push({name:createName(),host:'',autoSsl:bindDomain.autoSsl,autoResolve:false,sslRedirect:bindDomain.sslRedirect})" type="outline">
                     <icon-plus />
                     <span class="ml-10">添加域名</span>
                 </a-button>
@@ -571,7 +598,7 @@
 </template>
 
 <script>
-import { k8sproxy } from '@/utils/api';
+import { k8sproxy, panelApi } from '@/utils/api';
 
 import axios from 'axios'
 import domainStrategy from '@/components/domain-strategy.vue'
@@ -585,9 +612,11 @@ import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
 import domainCert from '@/components/domain-cert.vue';
 import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
-import { applyWildcardSsl, isAutoSslIssuer } from '@/utils/wildcard-ssl';
+import { applyWildcardSsl, ensureWildcardResolution, isAutoSslIssuer } from '@/utils/wildcard-ssl';
 import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
-import { cleanupIngressPluginRules } from '@/utils/gateway-plugin';
+import { cleanupIngressPluginRules, WASM_PLUGIN_API, resolvePluginMicroapp } from '@/utils/gateway-plugin';
+import { DENY_DELETE_ANNOTATION, MICROAPP_API, REQUIRE_HTTPS_ANNOTATION, getResourceGroupName, loadResourcesByGroupNames } from '@/utils/w7panel-resource';
+import gatewayPluginConfig from '@/components/gateway-plugin-config.vue';
 
 const type3Backend = {
     service: {
@@ -604,8 +633,9 @@ export default {
             
             appPorts: [],
             appList: [],
+            serviceList: [],
 
-            allAppPorts: [],
+            allAppPorts: {},
             allGroup: [],
             allAppList: {},
 
@@ -626,6 +656,7 @@ export default {
                 originType: 1,
             },
             strategy: {},
+            wafConfig: { show: false, plugin: null, microapp: null, ingress: null },
             ingressclassList: [],
 
             yamlData: {
@@ -637,7 +668,7 @@ export default {
 
             rules: {
                 destination: [{ required: true, message: '请选择代理', trigger: 'blur' },],
-                app: [{ required: true, message: '请选择应用', trigger: 'blur' },],
+                app: [{ required: true, message: '请选择 Service', trigger: 'blur' },],
                 ingressclass: [{ required: true, message: '请选择ingressClass', trigger: 'blur' },],
                 domain: [{ required: true, message: '请输入域名', trigger: 'blur' },],
                 port: [{ required: true, message: '请选择端口', trigger: 'blur' },],
@@ -653,6 +684,7 @@ export default {
                 domain: "",
                 ins_name: "",
                 auto_ssl: false,
+                autoResolve: false,
                 ingressclass: "",
                 whiteDomain: 0,
             },
@@ -687,6 +719,7 @@ export default {
     },
     components: {
         domainStrategy,
+        gatewayPluginConfig,
         yamlDrawer,
         domainGrayRelease,
         domainParseAlert,
@@ -730,7 +763,7 @@ export default {
             if(this.inRvproxy){
                 return Object.values(this.allAppList || {}).some(list=>list?.length);
             }
-            return !!this.appList?.length;
+            return !!this.serviceList?.length;
         },
         currentDirectApp(){
             const name = this.$route.params?.group || '';
@@ -755,6 +788,27 @@ export default {
         },
     },
     methods: {
+        async openWaf(part){
+            const ingress = this.dataList.find(item=>item?.metadata?.name === part.name);
+            if(!ingress){
+                this.$message.warning('找不到当前域名规则');
+                return;
+            }
+            try{
+                const response = await k8sproxy.get(`${WASM_PLUGIN_API}/w7panel-pluginwaf`, { loading: true });
+                const plugin = response.data;
+                const group = getResourceGroupName(plugin);
+                const microapps = await loadResourcesByGroupNames(k8sproxy, MICROAPP_API, [group], true);
+                const microapp = resolvePluginMicroapp(plugin, microapps);
+                if(!microapp){
+                    this.$message.warning('WAF 插件配置前端未安装');
+                    return;
+                }
+                this.wafConfig = { show: true, plugin, microapp, ingress };
+            }catch(error){
+                this.$message.error(error?.message || '无法打开 WAF 配置');
+            }
+        },
         async cleanupIngressPluginRules(ingressNames){
             return cleanupIngressPluginRules(k8sproxy, this.namespaceActive, ingressNames);
         },
@@ -814,7 +868,7 @@ export default {
                 parent: row.name,
                 autoSsl: row.is_auto_ssl,
                 sslRedirect: row.redirect,
-                list: JSON.parse(JSON.stringify(row.children)) || [],
+                list: (JSON.parse(JSON.stringify(row.children)) || []).map(child => ({...child, autoResolve:false})),
             }
         },
         async bindSubmit(){
@@ -833,18 +887,29 @@ export default {
                     }
                 }
             }catch(error){ this.$message.error(error.message || 'DNS 授权失败'); return; }
-            
+            const resolutions = children.filter(child=>child.autoResolve).map(child=>({host:child.host, profileId:child.dnsProfileId}));
+            children.forEach(child=>delete child.autoResolve);
             k8sproxy.patch("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+this.bindDomain.parent,[{
                 op: 'replace',
                 path: '/metadata/annotations/w7.cc~1child-hosts',
                 value: JSON.stringify(children)
             }],{
                 headers: {'Content-Type': 'application/json-patch+json'},
-            }).then(()=>{
-                this.$message.success('操作成功');
+            }).then(async ()=>{
+                const results = await Promise.all(resolutions.map(item=>ensureWildcardResolution(item.host, this.namespaceActive, item.profileId, true)));
+                if(results.every(Boolean)) this.$message.success('操作成功');
                 this.bindDomain.show = false;
                 this.getList();
             }).catch(error=>this.$message.error(error.message || '保存子域名失败'))
+        },
+        ingressDeleteDenied(name){
+            return this.dataList.some(i=>i.metadata?.name===name && i.metadata?.annotations?.[DENY_DELETE_ANNOTATION]==='true');
+        },
+        domainDeleteDenied(row){
+            const names = [row.name, ...(row.part || []).map(i=>i.name)];
+            if(names.some(name=>this.ingressDeleteDenied(name))){ return true; }
+            const annotations = this.dataList.find(i=>i.metadata?.name===row.name)?.metadata?.annotations || {};
+            return !(DENY_DELETE_ANNOTATION in annotations) && !this.inRvproxy && this.appDefaultDomain===row.fullDomain;
         },
         async multipleDelete(){
             let arr = [];
@@ -857,6 +922,10 @@ export default {
                     }
                 })
             })
+            if(arr.some(item=>!item.is_root && this.ingressDeleteDenied(item.name))){
+                this.$message.warning('选中的域名规则不可删除');
+                return;
+            }
             await this.cleanupIngressPluginRules(arr.filter(item=>!item.is_root).map(item=>item.name));
             for(let i in arr){
                 if(arr[i].is_root){ continue }
@@ -892,18 +961,26 @@ export default {
         },
         // 选择应用获取端口
         async checkAllAppPorts(appGroup,appName,callback){
-            if(this.allAppPorts[appName]?.length){
-                callback(this.allAppPorts[appName]);
-                return;
-            }
-            let app = this.allAppList?.[appGroup]?.find(i=>i.name==appName)
-            if(!app){
-                callback([]);
-                return;
-            }
-            let { data } = await k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ app.kind +"/"+ app.name);
-            this.allAppPorts[app.name] = data?.spec?.template?.spec?.containers?.[0]?.ports?.map(i=>String(i.containerPort)) || [];
-            callback(this.allAppPorts[app.name]);
+            callback(this.allAppPorts[appGroup]?.[appName] || []);
+        },
+        async loadGroupServices(group, appGroup = this.groupData){
+            if(!group){return []}
+            const response = await panelApi.get(`/namespaces/${encodeURIComponent(this.namespaceActive)}/appgroups/${encodeURIComponent(group)}/services`);
+            const workloads = filterAppGroupWorkloadItems(appGroup?.status?.items || []);
+            return (response.data?.data || response.data || []).map(item=>{
+                const name = item.metadata.name;
+                const workload = workloads.find(workload=>
+                    workload.name==name || item.metadata.ownerReferences?.some(owner=>owner.name==workload.name)
+                    || item.spec?.selector?.app==workload.name
+                );
+                const chineseName = item.metadata.annotations?.title || workload?.title || '';
+                return {
+                    name,
+                    title: chineseName && chineseName!=name ? `${chineseName}（${name}）` : name,
+                    label: chineseName && chineseName!=name ? `${name}（${chineseName}）` : name,
+                    ports: (item.spec?.ports || []).filter(port=>(port.protocol || 'TCP')==='TCP').map(port=>String(port.port)),
+                };
+            }).filter(item=>item.ports.length);
         },
         async getWhiteList(){
             this.whiteListReady = false;
@@ -958,6 +1035,7 @@ export default {
                 ins_name: obj.ing_name || '',
                 domain: matched?.domain ?? obj.host ?? '',
                 auto_ssl: obj.auto_ssl || false,
+                autoResolve: false,
                 dnsProfileId: this.dataList.find(i=>i?.metadata?.name === obj.ing_name)?.metadata?.annotations?.['w7.cc/dns-profile'] || '',
                 ingressclass: this.ingressclassList?.[0] || '',
                 whiteDomain: obj.ing_name? (matched?.whiteDomain ?? obj.whiteDomain) : 0,
@@ -991,6 +1069,7 @@ export default {
                 domain: fullDomain || '',
                 port: String(primary?.backend?.port || ''),
                 auto_ssl: this.formcard.auto_ssl || false,
+                autoResolve: this.formcard.autoResolve || false,
                 dnsProfileId: this.formcard.dnsProfileId || '',
                 name: this.formcard.ins_name || '', // 修改||新增
                 path: primary.path || '',
@@ -1136,18 +1215,15 @@ export default {
         // 获取父子应用端口
         async getAppPorts(){
             if(this.inRvproxy){return}
-            if(!this.appList?.length){return;}
-            let o = {};
             this.domainForm.loading = true;
             try{
-                for(let i in this.appList){
-                    let app = this.appList[i];
-                    let { data } = await k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ app.kind +"/"+ app.name);
-                    o[app.name] = data?.spec?.template?.spec?.containers?.[0]?.ports?.map(i=>String(i.containerPort)) || [];
-                }
-            }catch{}
-            this.domainForm.loading = false;
-            this.appPorts = o;
+                this.serviceList = await this.loadGroupServices(this.$route.params.group);
+                this.appPorts = Object.fromEntries(this.serviceList.map(item=>[item.name,item.ports]));
+                this.getTitleByName();
+            }catch{
+                this.serviceList = [];
+                this.appPorts = {};
+            }finally{ this.domainForm.loading = false; }
             if(!this.inRvproxy && this.domainForm.app){
                 this.domainForm.appPorts = this.appPorts?.[this.domainForm.app] || [];
             }
@@ -1179,15 +1255,17 @@ export default {
         getTitleByName(){
             let findfun = (name)=>{
                 if(!name){return ""}
+                if(!this.inRvproxy){
+                    const service = this.serviceList.find(item=>item.name==name);
+                    if(service){return service.title;}
+                    const workload = this.appList.find(item=>item.name==name);
+                    if(workload){return workload.title;}
+                }
                 for(let i in this.allAppList){
                     let find = this.allAppList[i]?.find(item=>item?.name==name);
                     if(find){return find?.title || name;}
                 }
                 return name;
-                if(this.inRvproxy){
-                }else{
-                    return this.appList?.find(i=>i?.name==name)?.title || name
-                }
             }
             this.list.forEach(item=>{
                 // item.appTitle = findfun(item.app);
@@ -1233,7 +1311,7 @@ export default {
         },
         getList(callback){
 
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups',{loading:true}).then(res=>{
+            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups',{loading:true}).then(async res=>{
                 let allGroup = [];
                 let allAppList = {};
                 let list = res?.data?.items || [];
@@ -1242,14 +1320,15 @@ export default {
                         name: item.metadata.name,
                         title: item?.spec?.title || item.metadata.name,
                     })
-                    allAppList[item.metadata.name] = filterAppGroupWorkloadItems(item?.status?.items || []).map(i=>{
-                        return {
-                            title: i.title || i.name,
-                            name: i.name,
-                            kind: i.kind?.toLowerCase()+'s',
-                        }
-                    });
+                    allAppList[item.metadata.name] = [];
                 })
+                if(this.inRvproxy){
+                    await Promise.all(allGroup.map(async group=>{
+                        const services = await this.loadGroupServices(group.name, list.find(item=>item.metadata.name==group.name));
+                        allAppList[group.name] = services;
+                        this.allAppPorts[group.name] = Object.fromEntries(services.map(service=>[service.name,service.ports]));
+                    }));
+                }
                 this.allGroup = allGroup;
                 this.allAppList = allAppList;
                 if(!this.inRvproxy){
@@ -1628,6 +1707,10 @@ export default {
             });
         },
         delPath(part,noMessage){
+            if(this.ingressDeleteDenied(part.name)){
+                this.$message.warning('此域名规则不可删除');
+                return Promise.resolve(false);
+            }
             return this.cleanupIngressPluginRules([part.name]).then(()=>k8sproxy.delete("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses/"+part.name)).then(res=>{
                 if(!res?.data){return}
                 if(!noMessage){
@@ -1640,24 +1723,24 @@ export default {
         async domainFormShow(item){
             if(!await this.getWhiteList()){ return; }
             const matched = item.name && item.whiteDomain === -1 ? this.matchWhiteDomain(item.domain) : null;
+            const forceSSL = this.dataList.some(i=>(i.metadata?.name===item.name || i.metadata?.labels?.parents===item.name) && i.metadata?.annotations?.[REQUIRE_HTTPS_ANNOTATION]==='true');
             this.domainForm.appgroup = '';
             let originType = item.originType || (this.inRvproxy? 1 : 2);
-            if(originType == 2 && !this.hasAppOptions){
-                originType = this.inRvproxy? 1 : 3;
-            }
             this.domainForm = {
                 ...this.domainForm,
                 is_default: !this.inRvproxy && this.appDefaultDomain==item.fullDomain,
                 title: item.name?'修改域名':'添加域名',
                 show: true,
-                app: this.inRvproxy? '' : this.$route.params.id,
+                app: item.name ? (item.app || '') : '',
 
                 originType: originType,
-                appPorts: this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id] || []),
+                appPorts: item.name && !this.inRvproxy ? (this.appPorts?.[item.app] || []) : [],
                 ingressclass: item.ingressclass || this.ingressclassList?.[0] || '',
                 domain: matched?.domain ?? item.domain ?? '',
-                port: String(item.port || (this.inRvproxy? '' : (this.appPorts?.[this.$route.params.id]?.[0]||''))),
-                auto_ssl: item.is_auto_ssl || false,
+                port: item.name ? String(item.port || '') : '',
+                auto_ssl: forceSSL || item.is_auto_ssl || false,
+                autoResolve: false,
+                forceSSL,
                 dnsProfileId: this.dataList.find(i=>i?.metadata?.name === item.name)?.metadata?.annotations?.['w7.cc/dns-profile'] || '',
                 name: item.name || '',
                 path: '',
@@ -1707,8 +1790,8 @@ export default {
             if(!this.whiteListReady){ return Promise.reject(new Error('域名白名单尚未加载')); }
             this.normalizeDirectAppTarget(this.domainForm);
             return new Promise((resolve,reject)=>{
-                if(this.domainForm.originType == 2 && !this.hasAppOptions){
-                    this.$message.warning('暂无应用可选');
+                if(!this.domainForm.name && this.domainForm.originType==2 && (!this.domainForm.app || !this.domainForm.port)){
+                    this.$message.warning('请选择 Service 和端口');
                     reject();
                     return;
                 }
@@ -1734,7 +1817,12 @@ export default {
                     if(!data.spec.rules){return}
 
                     data.spec.rules[0].host = fullDomain;
-                    
+                    data.metadata.annotations = data.metadata.annotations || {};
+                    if(this.domainForm.forceSSL || data.metadata.annotations[REQUIRE_HTTPS_ANNOTATION]==='true'){
+                        this.domainForm.auto_ssl = true;
+                        data.metadata.annotations['w7.cc/ssl-redirect'] = 'true';
+                        data.metadata.annotations['higress.io/ssl-redirect'] = 'true';
+                    }
                     delete data.metadata.resourceVersion;
                     delete data.metadata.generation;
                     delete data.metadata.creationTimestamp;
@@ -1820,9 +1908,10 @@ export default {
                             });
                         }
 
+                        const resolved = await ensureWildcardResolution(fullDomain, this.namespaceActive, this.domainForm.dnsProfileId, this.domainForm.autoResolve);
                         this.domainForm.show = false;
                         if(!eve.noMessage){
-                            this.$message.success("修改成功");
+                            if(resolved) this.$message.success("修改成功");
                             this.getList(this.patchApp);
                         }
                         if(this.inRvproxy){return res;}
@@ -1940,11 +2029,12 @@ export default {
                     }
                     
                     await applyWildcardSsl(data, this.domainForm.dnsProfileId);
-                    return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data).then(res=>{
+                    return k8sproxy.post("/apis/networking.k8s.io/v1/namespaces/"+ this.namespaceActive +"/ingresses", data).then(async res=>{
+                        const resolved = await ensureWildcardResolution(fullDomain, this.namespaceActive, this.domainForm.dnsProfileId, this.domainForm.autoResolve);
                         this.domainForm.show = false;
                         if(!eve.noMessage){
                             this.getList(this.patchApp);
-                            this.$message.success("创建成功");
+                            if(resolved) this.$message.success("创建成功");
                         }
                         return res;
                     })
@@ -1970,17 +2060,17 @@ export default {
                 show: true,
                 title: item?.path?'修改子目录':'添加子目录',
                 is_create: !item.path,
-                port: String(item?.port || ''),
+                port: item?.path ? String(item?.port || '') : '',
                 index: item.index || 0,
 
                 filecache: item.filecache,
                 registrycache: item.registrycache,
 
-                app: item?.app || '',
+                app: item?.path ? (item?.app || '') : '',
                 originType: item.originType || (this.inRvproxy? 1 : 2),
                 zdApp: this.inRvproxy? (item?.zdApp || '') : this.currentDirectApp.name,
 
-                appPorts: this.inRvproxy? [] : (this.appPorts[item.app] || []),
+                appPorts: item?.path && !this.inRvproxy ? (this.appPorts[item.app] || []) : [],
                 isroot: item.is_root || false,
                 path: item?.path?.replace(/^\//,'') || '',
                 parent: item.name,
@@ -2009,6 +2099,11 @@ export default {
                 }, {})
             }
             return new Promise((resolve,reject)=>{
+                if(this.domain.originType==2 && (!this.domain.app || !this.domain.port)){
+                    this.$message.warning('请选择 Service 和端口');
+                    reject();
+                    return;
+                }
                 if(this.$refs.dialog){
                     this.$refs.dialog.validate((err) => {
                         if (err) { reject(); return; }
@@ -2280,6 +2375,10 @@ export default {
             this.strategy.show = true;
         },
         async toDelete(row,opt){
+            if(this.domainDeleteDenied(row)){
+                this.$message.warning('此域名规则不可删除');
+                return;
+            }
             if(row.part.length>1){
                 // return this.$message.warning('请先删除子目录');
                 for(let i=0; i<row.part.length; i++){

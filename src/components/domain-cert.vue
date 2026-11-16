@@ -10,7 +10,7 @@
                     </a-select>
                     <!-- <a-input v-model="tlsForm.domain" disabled></a-input> -->
                     <div class="df ai-c mt-16">
-                        <wildcard-auto-ssl v-if="!manualOnly" v-model="tlsForm.auto_ssl" v-model:profile-id="tlsForm.dnsProfileId" :host="tlsForm.domain" :namespace="namespaceActive" />
+                        <wildcard-auto-ssl v-if="!manualOnly" v-model="tlsForm.auto_ssl" :required="tlsForm.forceSSL" v-model:profile-id="tlsForm.dnsProfileId" v-model:auto-resolve="tlsForm.autoResolve" :host="tlsForm.domain" :namespace="namespaceActive" />
                         <span v-if="tlsForm.testStatus && tlsForm.auto_ssl" class="ml-10">
                             <icon-check-circle v-if="tlsForm.testStatus.status=='success'" class="c-green fs-16"/>
                             <span v-else-if="tlsForm.testStatus.status=='warning'" class="df ai-c">
@@ -32,7 +32,7 @@
                                 </template>
                             </a-popover>
                         </span>
-                        <span class="c-99 ml-10">（如果您想使用自有证书，请先关闭https功能）</span>
+                        <span v-if="!tlsForm.forceSSL" class="c-99 ml-10">（如果您想使用自有证书，请先关闭自动SSL功能）</span>
                     </div>
                 </div>
             </a-form-item>
@@ -43,7 +43,7 @@
                 <a-textarea v-model="tlsForm.key" :disabled="tlsForm.auto_ssl" placeholder="请输入" style="height:120px;" :spellcheck="false" allow-clear/>
             </a-form-item>
             <a-form-item label="强制跳转">
-                <a-switch v-model="tlsForm.redirect" >强制跳转</a-switch>
+                <a-switch v-model="tlsForm.redirect" :disabled="tlsForm.forceSSL" >强制跳转</a-switch>
                 <div class="c-99 ml-10">根据配置将用户访问强制跳转为https或http</div>
             </a-form-item>
         </a-form>
@@ -55,7 +55,8 @@ import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore, useLoadingStore } from '@/store';
 import dayjs from 'dayjs';
 import wildcardAutoSsl from '@/components/wildcard-auto-ssl.vue';
-import { applyWildcardSsl, isAutoSslIssuer, isWildcardHost } from '@/utils/wildcard-ssl';
+import { applyWildcardSsl, ensureWildcardResolution, isAutoSslIssuer, isWildcardHost } from '@/utils/wildcard-ssl';
+import { REQUIRE_HTTPS_ANNOTATION } from '@/utils/w7panel-resource';
 
 const AUTO_SSL_ISSUER = 'w7-letsencrypt-prod';
 const AUTO_SSL_RENEW_BEFORE = '30m';
@@ -80,6 +81,7 @@ const getDefaultTlsForm = () => ({
     list: [],
     auto_ssl: false,
     dnsProfileId: '',
+    autoResolve: false,
     domainName: "",
     domain: "",
     tlsName: "",
@@ -356,9 +358,11 @@ export default {
             }
 
             this.tlsForm.domainName = name;
+            this.tlsForm.autoResolve = false;
             let inChild = this.tlsForm.list.find(i=>i.name==name) || {};
             let data = this.findIngress(inChild.parent || name);
             let secretName = "";
+            this.tlsForm.forceSSL = this.getIngressList().some(i=>(i.metadata?.name===(inChild.parent || name) || i.metadata?.labels?.parents===(inChild.parent || name)) && i.metadata?.annotations?.[REQUIRE_HTTPS_ANNOTATION]==='true');
 
             if(inChild.parent){
                 this.tlsForm.auto_ssl = this.manualOnly ? false : inChild.autoSsl;
@@ -378,6 +382,10 @@ export default {
                 secretName = data?.spec?.tls?.[0]?.secretName || '';
             }
 
+            if(this.tlsForm.forceSSL){
+                this.tlsForm.auto_ssl = !this.manualOnly;
+                this.tlsForm.redirect = true;
+            }
             this.tlsForm.tlsName = secretName || "";
 
             if(!secretName){
@@ -487,6 +495,10 @@ export default {
                 return;
             }
 
+            if(this.tlsForm.forceSSL || data.metadata?.annotations?.[REQUIRE_HTTPS_ANNOTATION]==='true'){
+                this.tlsForm.auto_ssl = !this.manualOnly;
+                this.tlsForm.redirect = true;
+            }
             try{
             let operation = [];
             this.tlsForm.tlsName = this.tlsForm.tlsName || (this.domainToname(this.tlsForm.domain) + "-tls-secret");
@@ -572,12 +584,12 @@ export default {
                     headers: {'Content-Type': 'application/json-patch+json'},
                 });
                 await this.setSubdomainTls();
-                this.$message.success("操作成功");
+                if(await ensureWildcardResolution(this.tlsForm.domain, this.namespaceActive, this.tlsForm.dnsProfileId, this.tlsForm.autoResolve)) this.$message.success("操作成功");
                 this.tlsForm.show = false;
                 this.$emit('success');
                 this.externalOnSuccess?.();
             }else{
-                this.$message.success("操作成功")
+                if(await ensureWildcardResolution(this.tlsForm.domain, this.namespaceActive, this.tlsForm.dnsProfileId, this.tlsForm.autoResolve)) this.$message.success("操作成功")
                 this.tlsForm.show = false;
                 this.$emit('success');
                 this.externalOnSuccess?.();

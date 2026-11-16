@@ -39,7 +39,7 @@
                         <td>创建时间</td>
                         <td>操作</td>
                     </tr>
-                    <tr v-for="item in list" :key="item.name">
+                    <tr v-for="item in list" :key="item.namespace + '/' + item.name">
                         <td>{{item.title || item.name}}</td>
                         <td>{{item.namespace}}</td>
                         <td>{{item.creattime}}</td>
@@ -50,14 +50,14 @@
                                 </span>
                             </a-tooltip>
 
-                            <a-tooltip v-if="item.kind=='PodList'" content="查看日志">
-                                <span class="opt-icon" @click="openLog(item)">
+                            <a-tooltip v-if="canInspectPods(item)" content="查看日志">
+                                <span class="opt-icon" @click="inspectPods(item, 'log')">
                                     <icon-file />
                                 </span>
                             </a-tooltip>
 
-                            <a-tooltip v-if="item.kind=='PodList'" content="webshell">
-                                <span class="opt-icon" @click="openWs(item)" :style="{opacity:item?.status?.toUpperCase()!='RUNNING'?0.5:1}">
+                            <a-tooltip v-if="canInspectPods(item)" content="连接终端">
+                                <span class="opt-icon" @click="inspectPods(item, 'terminal')" :style="{opacity:item.kind==='PodList' && item.status!=='RUNNING'?0.5:1}">
                                     <icon-code-square />
                                 </span>
                             </a-tooltip>
@@ -88,9 +88,22 @@
 
         <k8syaml-drawer :show="k8syaml.show" @close="closeK8syaml" ></k8syaml-drawer>
 
+        <a-modal v-model:visible="podPicker.show" :title="podPicker.action === 'log' ? '选择 Pod 查看日志' : '选择 Pod 连接终端'" :footer="false" width="720px">
+            <a-spin :loading="podPicker.loading" style="width:100%">
+                <table class="com-table"><tbody>
+                    <tr><td>Pod</td><td>状态</td><td>操作</td></tr>
+                    <tr v-for="pod in podPicker.pods" :key="pod.name">
+                        <td>{{ pod.name }}</td><td>{{ pod.status }}</td>
+                        <td><a-button type="text" :disabled="podPicker.action === 'terminal' && pod.status !== 'RUNNING'" @click="selectPod(pod)">{{ podPicker.action === 'log' ? '查看日志' : '连接终端' }}</a-button></td>
+                    </tr>
+                    <tr v-if="!podPicker.loading && !podPicker.pods.length"><td colspan="3"><a-empty description="该资源暂无 Pod" /></td></tr>
+                </tbody></table>
+            </a-spin>
+        </a-modal>
+
         <podLog :show="logs.show" :data="{name: logs.name, containerList: logs.containerList}" :namespace="logs.namespace" @close="logs.show=false;"></podLog>
 
-        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancle="ws.dialog = false;" top="10vh" :popup-container="$popupContainer">
+        <a-modal title="webshell" v-model:visible="ws.dialog" width="500px"  @cancel="ws.dialog = false;" top="10vh" :popup-container="$popupContainer">
             <template #title>webshell</template>
             <div style="margin-top:-10px;">
                 <a-form :model="ws">
@@ -162,6 +175,7 @@ export default {
                 containerList: [],
                 container: null,
             },
+            podPicker: { show: false, loading: false, action: 'log', pods: [] },
             debug: false,
         }
     },
@@ -199,6 +213,54 @@ export default {
         }
     },
     methods: {
+        canInspectPods(item){
+            return item.kind === 'PodList' || (this.resourceItem?.name === 'apps' &&
+                ['deployments', 'statefulsets', 'daemonsets', 'replicasets'].includes(this.resourceItem.label));
+        },
+        async inspectPods(item, action){
+            if(item.kind === 'PodList'){
+                action === 'log' ? this.openLog(item) : this.openWs(item);
+                return;
+            }
+            this.podPicker = { show: true, loading: true, action, pods: [] };
+            const picker = this.podPicker;
+            try {
+                const selector = item.selector;
+                const terms = Object.entries(selector?.matchLabels || {}).map(([key, value]) => `${key}=${value}`);
+                for(const { key, operator, values = [] } of selector?.matchExpressions || []){
+                    if(operator === 'In') terms.push(`${key} in (${values.join(',')})`);
+                    else if(operator === 'NotIn') terms.push(`${key} notin (${values.join(',')})`);
+                    else if(operator === 'Exists') terms.push(key);
+                    else if(operator === 'DoesNotExist') terms.push(`!${key}`);
+                    else throw new Error('不支持的 Pod 选择条件');
+                }
+                // 缺少选择器时禁止查询整个命名空间。
+                if(!terms.length) return;
+                const res = await k8sproxy.get(`/api/v1/namespaces/${encodeURIComponent(item.namespace)}/pods`, {
+                    params: { labelSelector: terms.join(',') },
+                });
+                if(this.podPicker !== picker) return;
+                picker.pods = (res?.data?.items || []).map(pod => {
+                    const containers = [...(pod.spec?.containers || []), ...(pod.spec?.initContainers || [])];
+                    return {
+                        name: pod.metadata.name,
+                        namespace: pod.metadata.namespace,
+                        status: pod.status?.phase?.toUpperCase() || '',
+                        containerList: containers,
+                        containerName: containers[0]?.name,
+                    };
+                }).sort((a, b) => a.name.localeCompare(b.name));
+            } catch(error){
+                if(this.podPicker === picker) picker.show = false;
+                this.$message.error('获取资源 Pod 失败，请检查权限后重试');
+            } finally {
+                picker.loading = false;
+            }
+        },
+        selectPod(pod){
+            this.podPicker.show = false;
+            this.podPicker.action === 'log' ? this.openLog(pod) : this.openWs(pod);
+        },
         openPwsb(item){
             // console.log(item,this.resourceItem)
             if(this.resourceItem.label=='pods'){
@@ -285,6 +347,7 @@ export default {
                     containers = item?.spec?.initContainers || [];
                     containers = containers.concat(item?.spec?.containers || []);
                     return {
+                        selector: item.spec?.selector,
                         name: item.metadata.name,
                         kind: data.kind,
                         status: item?.status?.phase?.toUpperCase() || '',

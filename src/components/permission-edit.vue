@@ -46,7 +46,8 @@
                     </a-tab-pane>
 
                     <a-tab-pane key="3" title="域名白名单">
-                        <whitelist-component ref="whitelist" :data="pmsForm.whitelist" :disabled="editDisabledMenu"></whitelist-component>
+                        <div v-if="isSubCluster" class="mb-10 c-99">由主集群普通用户权限套餐统一配置，子集群只读。</div>
+                        <whitelist-component :data="pmsForm.whitelist" :disabled="editDisabledMenu || isSubCluster !== false"></whitelist-component>
                     </a-tab-pane>
                     <a-tab-pane key="4" title="API权限">
                         <a-form-item label="全部API">
@@ -106,12 +107,12 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
-import { useNamespaceStore } from '@/store';
 import appClientMenus from '@/router/app-menus';
-import { buildPermissionMenuTree, loadPermissionMicroAppMenus } from '@/utils/permission-menu';
+import { buildPermissionMenuTree } from '@/utils/permission-menu';
 import { loadClusterContext } from '@/utils/cluster-access';
 import whitelistComponent from '@/views/system/whitelist/whitelist-component.vue';
-import { toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
+import { keyToPermissionPath, toPermissionPaths, toTreeKeys } from '@/utils/permission-match';
+import { exclusiveMenus, loadExclusiveMenus, allowsExclusiveMenu } from '@/utils/exclusive-menus';
 import {
     getLoadedApiRouteDescriptions,
     resolveApiRouteDescription,
@@ -147,7 +148,6 @@ export default {
     props: ['show','list','api','name', 'debug','fileeditor','whitelist','webshell','permissionPackage','userMode','disabledBase','disabledMenu','noCustom'],
     data(){
         return {
-            namespaceActive: '',
             pmsls: [],
             permissionPackageList: [],
             permissionPackageListShared: [],
@@ -170,15 +170,13 @@ export default {
             sharedTreeData: [],
             virtualTreeData: [],
             globalTreeData: [],
-            microAppTreeData: [],
             isSubCluster: null,
             apiRoutes: [],
             apiRoutesPromise: null,
             apiRouteDescriptions: getLoadedApiRouteDescriptions(),
         }
     },
-    components: {
-    },
+    components: { whitelistComponent },
     watch:{
         show(){
             this.visible = this.show;
@@ -201,17 +199,18 @@ export default {
 		},
     },
     created(){
-        this.namespaceActive = useNamespaceStore().namespace;
         this.init();
         this.taocan();
         this.getApiRoutes();
         this.initTreeData();
         loadClusterContext().then(context => { this.isSubCluster = context.isSubCluster; }).catch(() => {});
-        loadPermissionMicroAppMenus(this.namespaceActive).then(nodes=>{ this.microAppTreeData = nodes; }).catch(()=>{});
+        loadExclusiveMenus().catch(() => {});
     },
     computed: {
         sourceTreeData(){
-            return [...buildPermissionMenuTree(appClientMenus, this.isSubCluster), ...this.microAppTreeData];
+            exclusiveMenus.value;
+            this.isSubCluster;
+            return buildPermissionMenuTree(appClientMenus, undefined);
         },
         apiRouteGroups(){
             let groupMap = {};
@@ -260,9 +259,6 @@ export default {
 			return selected?.role || parent?.role || this.pmsForm.userMode || 'normal';
 		},
     },
-    components: {
-        whitelistComponent,
-    },
     methods: {
         init(){
             this.pmsForm.debug = this.debug || false;
@@ -274,7 +270,7 @@ export default {
             this.pmsForm.customPermission = !this.pmsForm.permissionPackage;
             this.pmsForm.userMode = this.userMode || '';
             this.hasDebug = this.debug===true || this.debug===false;
-            this.pmsForm.whitelist = this.whitelist || [];
+            this.pmsForm.whitelist = JSON.parse(JSON.stringify(this.whitelist || []));
             this.pmsForm = {
                 ...this.pmsForm,
                 ...this.apiToForm(this.api || {}),
@@ -295,7 +291,9 @@ export default {
             // if(this.type=='virtual'){ this.pmsls = this.permissionPackageListVirtual; }
         },
         async submit(){
-            let whitelist = this.$refs.whitelist.getList() || [];
+            let whitelist = this.isSubCluster === false
+                ? (this.pmsForm.whitelist || []).filter(item => item.domain)
+                : (this.whitelist || []);
             if(!this.pmsForm.customPermission && !this.pmsForm.permissionPackage){
                 this.$message.warning('请选择权限套餐');
                 return;
@@ -306,7 +304,9 @@ export default {
                 ? this.permissionPackageList.find(i=>i.name==find.parentPermission)
                 : null;
             let role = find?.role || parent?.role || '';
-			const menus = toPermissionPaths(this.pmsForm.list);
+			const menus = toPermissionPaths((this.pmsForm.list || []).filter(key =>
+                this.isSubCluster === null || !exclusiveMenus.value
+                || allowsExclusiveMenu(exclusiveMenus.value, this.isSubCluster ? 'child' : 'main', keyToPermissionPath(key))));
 			const api = this.formToApi();
             this.$emit('submit',{
                 list: menus,
@@ -382,7 +382,7 @@ export default {
             this.pmsForm.debug = find.debug;
             this.pmsForm.webshell = find.webshell;
             this.pmsForm.fileeditor = find.fileeditor;
-            this.pmsForm.whitelist = find.whitelist;
+            this.pmsForm.whitelist = JSON.parse(JSON.stringify(find.whitelist || []));
             this.pmsForm = {
                 ...this.pmsForm,
                 ...this.apiToForm(find.api || {}),
@@ -580,14 +580,19 @@ export default {
         },
         filterTree(keys){
             const menuDataCopy = JSON.parse(JSON.stringify(this.sourceTreeData));
+            const context = this;
     
             function traverseAndDisable(nodes, disabled) {
                 return nodes.filter(node => {
-                    if (keys.includes(node.key) || disabled) {
+                    const clusterType = context.isSubCluster ? 'child' : 'main';
+                    const nodeDisabled = keys.includes(node.key) || disabled || context.isSubCluster === null
+                        || (exclusiveMenus.value && !allowsExclusiveMenu(exclusiveMenus.value, clusterType, node.route || keyToPermissionPath(node.key)))
+                        || (node.clusterTypes && !node.clusterTypes.includes(clusterType));
+                    if (nodeDisabled) {
                         node.disabled = true;
                     }
                     if (node.children && node.children.length > 0) {
-                        node.children = traverseAndDisable(node.children, disabled);
+                        node.children = traverseAndDisable(node.children, nodeDisabled);
                     }
                     return true;
                 });

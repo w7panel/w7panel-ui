@@ -6,6 +6,7 @@
             <!-- <a-button v-if="permission.includes('cluster/nodes/gpu')" type="outline" class="ml-10" @click="clscf.dialog=true;">GPU管理</a-button> -->
             <!-- <a-button type="outline" class="ml-10" @click="nodebindshow=true;">专用存储管理</a-button> -->
             <a-button type="outline" class="ml-10" @click="openClusterInfo">集群认证信息</a-button>
+            <a-button type="outline" class="ml-10" @click="$router.push('/cluster/system-info')">集群系统信息</a-button>
         </div>
         
         <a-layout class="fc" style="margin-top:20px;">
@@ -1065,7 +1066,7 @@ export default {
                 // let ip = this.list?.find(i=>i.master)?.internalIP;
                 // let localurl = window.location.protocol+'//' + ip + ':' + window.location.port;
                 // this.form.command = `curl -sfL ${ this.form.ww? url : localurl }/k3s-${this.form.type}.sh | K3S_URL=${this.form.k3s_url} K3S_TOKEN=${this.form.k3s_token}${uuid}${ha}${nodename}${version} sh -`;
-                this.form.command = `curl -sfL https://cdn.w7.cc/w7panel/install.sh | K3S_URL=${this.form.k3s_url} K3S_TOKEN=${this.form.k3s_token}${uuid}${ha}${nodename}${version} sh -`;
+                this.form.command = `curl -sfL https://w7panel.com/installer/install.sh | K3S_URL=${this.form.k3s_url} K3S_TOKEN=${this.form.k3s_token}${uuid}${ha}${nodename}${version} sh -`;
                 this.$nextTick(()=>{
                     this.termInit(()=>{
                         let e = this.form.command;

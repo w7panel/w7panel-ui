@@ -229,8 +229,8 @@ import {
     isPluginAppGroup,
     SYSTEM_IMAGE_APPLICATION_TYPE,
     TRADITION_APPLICATION_TYPE,
-    uninstallAppGroup,
 } from '@/utils/appgroup';
+import { uninstallInstalledApp } from '@/utils/wujie-modal-handles';
 
 export default {
     data(){
@@ -438,9 +438,16 @@ export default {
             // }
 
             try{
-                const result = await uninstallAppGroup(k8sproxy, this.namespaceActive, item.groupName, {
-                    waitForDeletion: false,
+                const result = await uninstallInstalledApp({
+                    appIdentify: item.groupName,
+                    name: item.name,
+                    namespace: this.namespaceActive,
+                    silentSuccess: true,
+                    silentError: true,
+                    returnResult: true,
+                    alreadyConfirmed: true,
                 });
+                if(!result){return}
                 const dependentCount = result.plan.dependentItems.length;
                 this.$message.success(dependentCount
                     ? `删除成功，已一并卸载 ${dependentCount} 个依赖应用`

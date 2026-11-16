@@ -38,10 +38,10 @@
                                         <a-option v-for="agent in allAgent" :key="agent.name" :value="agent.name" :label="agent.name"></a-option>
                                     </a-select>
                                     <div v-if="item.type==2" class="df mt-10" style="gap:10px;">
-                                        <a-select v-model="item.appgroup" :disabled="index==0&&!multiple" @change="item.app=''" placeholder="请选择appgroup">
+                                        <a-select v-model="item.appgroup" :disabled="index==0&&!multiple" @change="item.app='';item.port=''" placeholder="请选择appgroup">
                                             <a-option v-for="i in allGroup" :key="i.name" :label="i.title" :value="i.name"></a-option>
                                         </a-select>
-                                        <a-select v-model="item.app" :disabled="index==0&&!multiple" @change="item.port='';checkAllAppPorts(item.appgroup,item.app,(v)=>{item.appPorts=v});" placeholder="请选择应用" class="ml-10">
+                                        <a-select v-model="item.app" :disabled="index==0&&!multiple" @change="item.port='';checkAllAppPorts(item.appgroup,item.app,(v)=>{item.appPorts=v});" placeholder="请选择 Service" class="ml-10">
                                             <a-option v-for="i in allAppList[item.appgroup]" :key="i.name" :label="i.title" :value="i.name"></a-option>
                                         </a-select>
                                         <a-select v-model="item.port" :disabled="index==0&&!multiple" placeholder="请选择端口">
@@ -52,8 +52,8 @@
                             </td>
                             <td v-else>
                                 <div class="df">
-                                    <a-select v-model="item.app" :disabled="index==0&&!multiple" @change="v=>{item.port='';item.appPorts=appPorts[v];}" placeholder="请选择应用" style="min-width:150px;" >
-                                        <a-option v-for="i in appList" :key="i.name" :label="i.title" :value="i.name"></a-option>
+                                    <a-select v-model="item.app" :disabled="index==0&&!multiple" @change="v=>{item.port='';item.appPorts=servicePorts[v] || []; }" placeholder="请选择 Service" style="min-width:150px;" >
+                                        <a-option v-for="i in serviceList" :key="i.name" :label="i.name" :value="i.name"></a-option>
                                     </a-select>
                                     <a-select v-model="item.port" :disabled="index==0&&!multiple" placeholder="请选择端口" class="ml-10 df-s0" style="width:120px;">
                                         <a-option v-for="i in item.appPorts" :key="i" :label="i" :value="i"></a-option>
@@ -114,10 +114,10 @@
 
 <script>
 import { k8sproxy } from '@/utils/api';
+import { panelApi } from '@/utils/api';
 import axios from 'axios';
 import { useNamespaceStore } from '@/store';
 import CryptoJS  from 'crypto-js';
-import { filterAppGroupWorkloadItems } from '@/utils/appgroup';
 
 export default {
     props: ['show','appList','appPorts','parentName','parentPath','checkList','multiple'],
@@ -137,15 +137,19 @@ export default {
             allGroup: [],
             allAppList: {},
             allAppPorts: {},
+            serviceList: [],
+            servicePorts: {},
         }
     },
     watch: {
-        show(val){
+        async show(val){
             this.showDrower = val;
             if(!val){return}
             this.form.type = 'header';
             this.form.list = [];
             this.delList = [];
+            if(this.inRvproxy) await this.getAllAgent();
+            else { this.serviceList = this.appList || []; this.servicePorts = this.appPorts || {}; }
             this.getList(()=>{
                 this.getData();
             });
@@ -159,9 +163,6 @@ export default {
     created(){
         this.inRvproxy = this.$route.name == 'gateway-rvproxy-domain';
         this.namespaceActive = useNamespaceStore().namespace;
-        if(this.inRvproxy){
-            this.getAllAgent();
-        }
     },
     methods: {
         multipleAsync(){
@@ -175,22 +176,22 @@ export default {
         },
         // 选择应用获取端口
         async checkAllAppPorts(appGroup,appName,callback){
-            if(this.allAppPorts[appName]?.length){
-                callback(this.allAppPorts[appName]);
-                return;
-            }
-            let app = this.allAppList?.[appGroup]?.find(i=>i.name==appName)
-            if(!app){
-                callback([]);
-                return;
-            }
-            let { data } = await k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ app.kind +"/"+ app.name);
-            this.allAppPorts[app.name] = data?.spec?.template?.spec?.containers?.[0]?.ports?.map(i=>String(i.containerPort)) || [];
-            callback(this.allAppPorts[app.name]);
+            callback(this.allAppPorts[appGroup]?.[appName] || []);
+        },
+        async loadServices(group){
+            if(!group){ this.serviceList=[]; this.servicePorts={}; return []; }
+            const response = await panelApi.get(`/namespaces/${encodeURIComponent(this.namespaceActive)}/appgroups/${encodeURIComponent(group)}/services`);
+            const services = (response.data?.data || response.data || []).map(item=>({
+                name: item.metadata.name,
+                ports: (item.spec?.ports || []).filter(port=>(port.protocol || 'TCP')==='TCP').map(port=>port.port),
+            })).filter(item=>item.ports.length);
+            this.serviceList = services;
+            this.servicePorts = Object.fromEntries(services.map(item=>[item.name,item.ports]));
+            return services;
         },
         getAllAgent(){
 
-            k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then(res=>{
+            const groupsPromise = k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/namespaces/'+ this.namespaceActive +'/appgroups').then(async res=>{
                 let allGroup = [];
                 let allAppList = {};
                 let list = res?.data?.items || [];
@@ -199,14 +200,13 @@ export default {
                         name: item.metadata.name,
                         title: item?.spec?.title || item.metadata.name,
                     })
-                    allAppList[item.metadata.name] = filterAppGroupWorkloadItems(item?.status?.items || []).map(i=>{
-                        return {
-                            title: i.title || i.name,
-                            name: i.name,
-                            kind: i.kind?.toLowerCase()+'s',
-                        }
-                    });
+                    allAppList[item.metadata.name] = [];
                 })
+                await Promise.all(allGroup.map(async group=>{
+                    const services = await this.loadServices(group.name);
+                    allAppList[group.name] = services;
+                    this.allAppPorts[group.name] = Object.fromEntries(services.map(service=>[service.name,service.ports]));
+                }));
                 this.allGroup = allGroup;
                 this.allAppList = allAppList;
             })
@@ -254,6 +254,7 @@ export default {
                     // console.log(list)
                 })
             }
+            return groupsPromise;
         },
         // 获取域名列表
         getList(callback){
@@ -325,6 +326,7 @@ export default {
                     id: i.metadata.name,
                     app: s?.name,
                     port: s?.port?.number,
+                    appPorts: this.inRvproxy ? (this.allAppPorts[appgroup]?.[s?.name] || []) : (this.servicePorts[s?.name] || []),
                     agent: i.metadata?.labels?.['higress.io/destination'] || '',
                     weight: ann?.['higress.io/canary-weight'] || '0',
                     name: ann?.['higress.io/canary-by-header'] || ann?.['higress.io/canary-by-cookie'] || '',
@@ -356,7 +358,7 @@ export default {
                 if(i=='0'){ continue; }
                 let item = this.form.list[i];
                 if(!item.port && !this.inRvproxy){
-                    this.$message.error('请选择应用与端口');
+                    this.$message.error('请选择 Service 与端口');
                     return;
                 }
                 if(this.inRvproxy && item.type==1 && !item.agent){
@@ -364,7 +366,7 @@ export default {
                     return;
                 }
                 if(this.inRvproxy && item.type==2 && !item.port){
-                    this.$message.error('请选择应用与端口');
+                    this.$message.error('请选择 Service 与端口');
                     return;
                 }
                 if(this.form.type=='header'||this.form.type=='cookie'){

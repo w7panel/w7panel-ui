@@ -559,6 +559,12 @@ export default {
                     data.spec.volumeClaimTemplates = this.data?.spec?.volumeClaimTemplates;
                     return k8sproxy.put("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ this.kind +"/"+ this.id, data,{loading:false}).then(async res=>{
                         if(!res.data){return;}
+                        try {
+                            await panelApi.post(`/namespaces/${encodeURIComponent(this.namespaceActive)}/workloads/${this.kind}/${encodeURIComponent(this.id)}/panel-service`);
+                        } catch(error) {
+                            this.$message.error('应用已保存，但 Service 更新失败，请在当前页面重试保存');
+                            throw error;
+                        }
                         if(!hideMessage){this.$message.success("修改成功");}
                         this.emitInfo({
                             isSubmit: true,
@@ -566,13 +572,21 @@ export default {
                         });
                     })
                 }else{
-                    data.metadata.annotations['w7.cc/create-svc'] = 'true';
                     data.spec.template.spec.enableServiceLinks = false;
                     // 创建子应用
                     if(this.parent){ data.metadata.labels.parent = this.parent; }
                     return k8sproxy.post("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+ this.form.kind, data,{loading:false}).then(async res=>{
                         if(!res.data){return;}
-                        if(!hideMessage){this.$message.success("创建成功");}
+                        let serviceCreated = true;
+                        if(data.spec.template.spec.containers.some(container=>container.ports?.length)){
+                            try {
+                                await panelApi.post(`/namespaces/${encodeURIComponent(this.namespaceActive)}/workloads/${this.form.kind}/${encodeURIComponent(data.metadata.name)}/panel-service`);
+                            } catch {
+                                serviceCreated = false;
+                                this.$message.warning('应用已创建，但 Service 创建失败；请在应用修改页重新保存');
+                            }
+                        }
+                        if(!hideMessage && serviceCreated){this.$message.success("创建成功");}
                         this.emitInfo({
                             isSubmit: true,
                             submitStatus: true,

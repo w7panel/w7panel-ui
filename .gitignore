@@ -21,6 +21,7 @@ src/components/*
 scripts/*
 !scripts/topapp-menu-identity.test.cjs
 !scripts/detail-micro-entry.test.cjs
+!scripts/appgroup-uninstall.test.mjs
 
 !src/utils/repo-notice.ts
 !src/utils/html-notice.ts
@@ -28,11 +29,13 @@ scripts/*
 !src/utils/cluster-access.ts
 !src/utils/permission-exclusives.ts
 !src/utils/permission-api-catalog.ts
+!src/utils/exclusive-menus.ts
 !scripts/repo-html-notice.test.cjs
 !scripts/auth-bookmark-guard.test.cjs
 !scripts/domain-parse-alert.test.cjs
 !scripts/child-main-settings.test.cjs
 !scripts/permission-menu.test.cjs
+!scripts/exclusive-menus.test.cjs
 !scripts/cluster-menu.test.cjs
 !scripts/app-form-volumes.test.cjs
 !scripts/app-form-preservation.test.cjs
@@ -41,3 +44,21 @@ scripts/*
 !scripts/login-continuation.test.cjs
 
 !scripts/panel-auth-boundary.test.cjs
+
+!src/utils/site-file-menu.ts
+!scripts/site-file-menu.test.cjs
+!scripts/native-site-files-navigation.test.cjs
+
+# Embedded site tools and their focused tests.
+!src/utils/site-panel.ts
+!scripts/site-panel.test.cjs
+!src/views/
+src/views/*
+!src/views/app/
+src/views/app/*
+!src/views/app/pages/
+src/views/app/pages/*
+!src/views/app/pages/site-panel.vue
+!src/components/install-domain-groups.vue
+!src/utils/install-domain-group-values.js
+!scripts/install-domain-group-values.test.cjs

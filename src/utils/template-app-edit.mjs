@@ -43,7 +43,7 @@ export function applyTemplateAppEdit(original, baseline, edited) {
         for (const key of Object.keys(baseline)) {
             if (same(baseline[key], edited[key])) continue;
             if (!(key in edited)) delete result[key];
-            else result[key] = applyTemplateAppEdit(result[key], baseline[key], edited[key]);
+            else result[key] = key in result ? applyTemplateAppEdit(result[key], baseline[key], edited[key]) : copy(edited[key]);
         }
         for (const key of Object.keys(edited)) {
             if (!(key in baseline) && edited[key] !== undefined) result[key] = copy(edited[key]);
@@ -62,7 +62,7 @@ export function applyTemplateAppEdit(original, baseline, edited) {
                 'portworxVolume', 'quobyte', 'rbd', 'scaleIO', 'storageos', 'vsphereVolume']);
         }
         for (const group of groups) {
-            const selected = group.find(key => key in edited && !(key in baseline));
+            const selected = group.find(key => key in edited && !same(baseline[key], edited[key]));
             if (selected) for (const key of group) if (key !== selected) delete result[key];
         }
         return result;
