@@ -3,7 +3,11 @@ export function domainHost(value) {
 }
 
 export function createDomainGroups(ingress = [], values = {}, saved = [], _whiteList = [], app = {}) {
-    const named = ingress.filter(group => group.domainParam && group.routes?.length);
+    values = values ?? {};
+    saved = saved ?? [];
+    _whiteList = _whiteList ?? [];
+    app = app ?? {};
+    const named = (Array.isArray(ingress) ? ingress : []).filter(group => group.domainParam && group.routes?.length);
     const legacyParam = (app.startParams || []).find(param => !param.module_name && /^%DOMAIN_(?:SSL_URL|URL|HOST)%$/.test(param.values_text || ''));
     const definitions = named.length ? named.map((group, index) => ({
         param: group.domainParam, valueParam: group.domainParam,
@@ -39,6 +43,7 @@ export function createDomainGroups(ingress = [], values = {}, saved = [], _white
 }
 
 export function syncDefaultDomainGroups(forms = []) {
+    forms = forms ?? [];
     const source = forms[0]?.domainGroups?.find(group => group.param === 'default') || forms[0]?.domainGroups?.find(group => group.host);
     if (!source) return;
     for (const form of forms.slice(1)) {
@@ -50,6 +55,7 @@ export function syncDefaultDomainGroups(forms = []) {
 }
 
 export function domainGroupError(group) {
+    if (group == null) return '';
     if (!group.host) return group.required ? '请输入域名' : '';
     const labels = group.host.replace(/^\*\./, '').split('.');
     if (group.host.length > 253 || labels.some(label => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label))) return '域名格式不正确';
@@ -60,9 +66,11 @@ export function domainGroupError(group) {
 }
 
 export function domainGroupEnvs(groups = []) {
+    groups = groups ?? [];
     return groups.filter(group => group.param !== 'default').map(group => ({ name: group.valueParam || group.param, value: group.host ? `${group.autoSSL || group.forceSSL ? 'https' : 'http'}://${group.host}` : '' }));
 }
 
 export function domainBindings(groups = []) {
+    groups = groups ?? [];
     return groups.map(group => ({ param: group.param, host: group.host, autoSSL: !!(group.autoSSL || group.forceSSL), dnsProfileId: group.dnsProfileId || '' }));
 }
