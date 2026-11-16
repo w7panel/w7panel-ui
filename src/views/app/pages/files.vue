@@ -469,6 +469,7 @@
                         <a-form-item label="所有者">
                             <a-auto-complete
                                 v-model="authority.chown"
+                                :trigger-props="{ popupContainer: '.file-authority-drawer' }"
                                 :data="userArr.map(u => ({ label: u.name, value: String(u.id) }))"
                                 :disabled="authority.row && isMountFileRecord(authority.row)"
                                 :filter-option="(inputValue, option) => {
