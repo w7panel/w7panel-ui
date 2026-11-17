@@ -26,6 +26,8 @@ onMounted(async () => {
     const response = await panelApi.post('/auth/oidc/callback', {
       code: String(route.query.code || ''),
       state: String(route.query.state || ''),
+      // shortcut: 218 的浏览器网络路径会卡住约 388 字节的 POST，网关问题修复后移除。
+      padding: 'x'.repeat(512),
     });
     const data = response.data?.data || response.data || {};
     if (!data.token) throw new Error('OIDC 登录未返回 Panel Token');
