@@ -28,10 +28,11 @@ export function createDomainGroups(ingress = [], values = {}, saved = [], _white
         if (!host && !prior && !inheritDefault && definition.required && _whiteList[whiteDomain]?.prefixRandom) {
             host = Math.random().toString(36).slice(2, 12) + '.' + _whiteList[whiteDomain].domain;
         }
+        const savedSSL = values[`domainGroups.${definition.param}.autoSSL`];
         return {
             ...definition,
             host,
-            autoSSL: definition.forceSSL || (prior ? !!prior.autoSSL : values[`domainGroups.${definition.param}.autoSSL`] != null ? String(values[`domainGroups.${definition.param}.autoSSL`]) === 'true' : /^https:\/\//i.test(value)),
+            autoSSL: definition.forceSSL || (prior ? !!prior.autoSSL : savedSSL != null ? String(savedSSL) === 'true' : /^https:\/\//i.test(value)),
             dnsProfileId: prior?.dnsProfileId || '',
             autoResolve: !!prior?.autoResolve,
             inheritDefault,

@@ -1063,9 +1063,10 @@ export default {
                         
                         if(i=='0' && this.configConsole.isConsole && this.form?.requireDomain && envs?.DOMAIN_URL){
                             let url = envs.DOMAIN_URL;
-                            this.form.ingressHostPre = url.match(/^https?:\/\//)?.[0] || 'http://';
-                            this.form.ingressHost = url.replace(/^https?:\/\//,'') || '';
-                            this.form.auto_ssl = this.form.ingressHostPre == 'https://';
+                            const domainGroup = f.domainGroups.find(group => group.param === 'DOMAIN_URL' || group.param === 'default');
+                            this.form.auto_ssl = domainGroup ? !!domainGroup.autoSSL : /^https:\/\//i.test(url);
+                            this.form.ingressHostPre = this.form.auto_ssl ? 'https://' : 'http://';
+                            this.form.ingressHost = domainHost(url);
                             this.form.ingressDisabled = true;
                         }
                     }
