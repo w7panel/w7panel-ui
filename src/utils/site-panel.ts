@@ -26,9 +26,18 @@ export function sitePodSelector(application: any) {
     return labels.join(',');
 }
 
+export function siteTerminalContainers(application: any, pod: any): string[] {
+    // Admission can add runtime helpers to Pods; terminal choices follow the workload's declared containers.
+    const podContainers = new Set((pod?.spec?.containers || []).map((item: any) => item.name));
+    const running = new Set((pod?.status?.containerStatuses || [])
+        .filter((status: any) => status.state?.running).map((status: any) => status.name));
+    return (application?.spec?.template?.spec?.containers || []).map((item: any) => item.name)
+        .filter((name: string) => podContainers.has(name) && running.has(name));
+}
+
 export function sitePanelPods(items: any[], view: string) {
-    return items.filter(pod => pod.metadata?.name && !pod.metadata.deletionTimestamp
-        && (view !== 'terminal' || (pod.status?.phase === 'Running'
+    return items.filter(pod => pod.metadata?.name
+        && (view !== 'terminal' || (!pod.metadata.deletionTimestamp && pod.status?.phase === 'Running'
             && pod.status?.containerStatuses?.some((status: any) => status.state?.running))))
         .sort((a, b) => Number(b.status?.phase === 'Running') - Number(a.status?.phase === 'Running')
             || String(b.metadata.creationTimestamp || '').localeCompare(String(a.metadata.creationTimestamp || '')));

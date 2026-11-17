@@ -62,3 +62,9 @@ src/views/app/pages/*
 !src/components/install-domain-groups.vue
 !src/utils/install-domain-group-values.js
 !scripts/install-domain-group-values.test.cjs
+
+# Site tool regression coverage.
+!scripts/file-target-selection.test.cjs
+!scripts/site-panel-auth-refresh.test.cjs
+!scripts/site-panel-lifecycle.test.cjs
+!scripts/pod-log-inline-resize.test.cjs

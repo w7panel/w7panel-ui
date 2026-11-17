@@ -1,7 +1,8 @@
 <template>
     <div>
         <!-- <div class="page-title df ai-c">文件管理</div> -->
-        <div class="bg-white" :class="{'padding-20': !compact}">
+        <a-alert v-if="initializationError" type="error">{{ initializationError }}</a-alert>
+        <div v-else class="bg-white" :class="{'padding-20': !compact}">
             <!-- <route-breadcrumb :data="{id:title}" /> -->
             
             <div v-if="appStatus!=1" class="bg-white ">
@@ -707,6 +708,7 @@ export default {
             defaultDirectoryPath: '/',
             fileListRequestId: 0,
             filesDisposed: false,
+            initializationError: '',
             isInitializingFileList: false,
             hasLoadedFileListInInit: false,
 
@@ -718,15 +720,20 @@ export default {
     },
     async created(){
         this.namespaceActive = this.componentData?.namespace || useNamespaceStore().namespace;
-        if((this.$route.name=='dialog-files' || this.is_component) && this.origin!='nodes'){
-            // 单独弹窗需要先获取app data
-            await this.getData();
-        }else{
-            this.appData = this.data;
+        try{
+            if((this.$route.name=='dialog-files' || this.is_component) && this.origin!='nodes'){
+                // 单独弹窗需要先获取app data
+                await this.getData();
+            }else{
+                this.appData = this.data;
+            }
+            if(this.filesDisposed){ return; }
+            this.getDataVm();
+            await this.first();
+            if(!this.filesDisposed){ this.getUserByWebDAV(); }
+        }catch(error){
+            if(!this.filesDisposed){ this.initializationError = error?.response?.data?.message || error?.message || '文件管理初始化失败'; }
         }
-        this.getDataVm();
-        await this.first();
-        if(!this.filesDisposed){ this.getUserByWebDAV(); }
     },
     beforeUnmount() {
         this.filesDisposed = true;
@@ -778,7 +785,7 @@ export default {
             if(!ov||!Object.keys(ov)?.length){
                 this.appData = v;
                 this.getDataVm();
-                this.first();
+                this.first().catch(()=>{});
             }
         },
         'form.path'(v,ov){
@@ -941,21 +948,65 @@ export default {
         },
         getData(){
             if(this.origin=='nodes'){return}
-            let kind = this.is_component? this.componentData.kind : this.$route.params.kind;
-            let id = this.is_component? this.componentData.id : this.$route.params.id;
-            return k8sproxy.get("/apis/apps/v1/namespaces/"+ this.namespaceActive +"/"+kind+"/"+id ).then(res=>{
-                let data = res?.data || {};
-                this.appData = data;
-            }).catch(()=>{
+            const kind = this.is_component? this.componentData?.kind : this.$route.params.kind;
+            const id = this.is_component? this.componentData?.id : this.$route.params.id;
+            this.appData = null;
+            if(typeof kind !== 'string' || !kind || typeof id !== 'string' || !id || !this.namespaceActive){
+                return Promise.reject(new Error('缺少文件管理工作负载信息'));
+            }
+            return k8sproxy.get("/apis/apps/v1/namespaces/"+ encodeURIComponent(this.namespaceActive) +"/"+encodeURIComponent(kind)+"/"+encodeURIComponent(id) ).then(res=>{
+                this.getFileWorkloadTarget(res?.data);
+                if(!this.filesDisposed){ this.appData = res.data; }
             })
         },
+        getFileWorkloadTarget(data = this.appData){
+            const expectedId = this.is_component ? this.componentData?.id : this.$route.params.id;
+            const expectedKind = this.is_component ? this.componentData?.kind : this.$route.params.kind;
+            if(!data?.metadata?.name || (expectedId && data.metadata.name !== expectedId)
+                || data.metadata.namespace !== this.namespaceActive
+                || !data.kind || (expectedKind && `${data.kind.toLowerCase()}s` !== expectedKind)){
+                throw new Error('未获取到当前应用的有效工作负载信息');
+            }
+            const containerName = data.spec?.template?.spec?.containers?.[0]?.name;
+            if(typeof containerName !== 'string' || !containerName){ throw new Error('工作负载中未找到应用容器'); }
+            const selector = data.spec?.selector;
+            if(!selector || typeof selector !== 'object' || Array.isArray(selector)){ throw new Error('未找到应用 Pod 选择器'); }
+            const labels = [];
+            const validKey = key => typeof key === 'string' && /^(?:[a-z0-9](?:[-a-z0-9.]*[a-z0-9])?\/)?[A-Za-z0-9](?:[-A-Za-z0-9_.]*[A-Za-z0-9])?$/.test(key);
+            const validValue = value => typeof value === 'string' && /^(?:[A-Za-z0-9](?:[-A-Za-z0-9_.]*[A-Za-z0-9])?)?$/.test(value);
+            const matchLabels = selector.matchLabels || {};
+            if(typeof matchLabels !== 'object' || Array.isArray(matchLabels)){ throw new Error('应用 Pod 选择器格式不正确'); }
+            for(const [key, value] of Object.entries(matchLabels)){
+                if(!validKey(key) || !validValue(value)){ throw new Error('应用 Pod 选择器格式不正确'); }
+                labels.push(`${key}=${value}`);
+            }
+            const expressions = selector.matchExpressions || [];
+            if(!Array.isArray(expressions)){ throw new Error('应用 Pod 选择器格式不正确'); }
+            for(const expression of expressions){
+                const {key, operator, values = []} = expression || {};
+                if(!validKey(key) || !Array.isArray(values) || !values.every(validValue)){
+                    throw new Error('应用 Pod 选择器格式不正确');
+                }
+                if((operator === 'In' || operator === 'NotIn') && values.length){
+                    labels.push(`${key} ${operator === 'In' ? 'in' : 'notin'} (${values.join(',')})`);
+                }else if(operator === 'Exists' && !values.length){ labels.push(key); }
+                else if(operator === 'DoesNotExist' && !values.length){ labels.push(`!${key}`); }
+                else{ throw new Error('应用 Pod 选择器格式不正确'); }
+            }
+            if(!labels.length){ throw new Error('未找到应用 Pod 选择器'); }
+            return { labelSelector: labels.join(','), containerName };
+        },
         first(){
+            this.initializationError = '';
             this.isInitializingFileList = true;
             this.hasLoadedFileListInInit = false;
             return this.getContList2().then(res=>{
                 if(!this.hasLoadedFileListInInit){
                     return this.getFileList();
                 }
+            }).catch(error=>{
+                if(!this.filesDisposed){ this.initializationError = error?.response?.data?.message || error?.message || '文件管理初始化失败'; }
+                throw error;
             }).finally(()=>{
                 this.isInitializingFileList = false;
                 this.syncRouteDirectoryPath();
@@ -1156,8 +1207,7 @@ export default {
         // },
         // 容器列表-2
         async getContList2(){
-            let selector = this.appData?.spec?.selector?.matchLabels || {};
-            let label = Object.keys(selector).map(key=>`${key}=${selector[key]}`).join(',');
+            if(this.filesDisposed){ return; }
             
             if(this.origin=='nodes'){
                 return panelApi.get('/pid',{
@@ -1206,27 +1256,28 @@ export default {
                 })
                 return;
             }
-            return k8sproxy.get("/api/v1/namespaces/"+ this.namespaceActive +"/pods",{
-                params: {labelSelector: label},
+            const {labelSelector, containerName} = this.getFileWorkloadTarget();
+            return k8sproxy.get("/api/v1/namespaces/"+ encodeURIComponent(this.namespaceActive) +"/pods",{
+                params: {labelSelector},
                 loading: true
             }).then(res=>{
                 let items = res?.data?.items || [];
-                let list = items.map(item=>{
-                    const firstContainer = item?.spec?.containers?.[0] || {};
-                    const firstContainerStatus = item?.status?.containerStatuses?.find(status => status?.name === firstContainer.name)
-                        || item?.status?.containerStatuses?.[0]
-                        || {};
-                    return {
-                        status: item?.status?.phase?.toUpperCase() || '',
-                        namespace: item?.metadata?.namespace,
-                        hostIp: item?.status?.hostIP,
-                        containerId: firstContainerStatus.containerID,
-                        containerName: firstContainer.name || firstContainerStatus.name,
-                        creationTimestamp: item?.metadata?.creationTimestamp,
-                        name: item?.metadata?.name,
-                    }
-                }).filter(i=>i.status=='RUNNING');
-                list.sort((a,b)=>b.creationTimestamp - a.creationTimestamp);
+                let list = items.filter(item=>item?.metadata?.name && item.metadata.namespace === this.namespaceActive
+                    && !item.metadata.deletionTimestamp && item.status?.phase?.toUpperCase() === 'RUNNING'
+                    && item.spec?.containers?.some(container=>container.name === containerName))
+                    .map(item=>{
+                        const containerStatus = item.status?.containerStatuses?.find(status=>status.name === containerName);
+                        if(!containerStatus?.state?.running || !containerStatus.containerID){ return null; }
+                        return {
+                            namespace: item?.metadata?.namespace,
+                            hostIp: item?.status?.hostIP,
+                            containerId: containerStatus.containerID,
+                            containerName,
+                            creationTimestamp: item?.metadata?.creationTimestamp,
+                            name: item?.metadata?.name,
+                        }
+                    }).filter(item=>item?.hostIp);
+                list.sort((a,b)=>(Date.parse(b.creationTimestamp) || 0) - (Date.parse(a.creationTimestamp) || 0));
                 
                 let d = list?.[0] || null;
                 if(this.$route.query.ip){
@@ -1235,7 +1286,7 @@ export default {
                 return d;
             }).then(d=>{
                 if(this.filesDisposed){ return; }
-                if(!d || !d?.hostIp){ return Promise.reject(); }
+                if(!d || !d?.hostIp){ throw new Error('暂无可访问文件的运行中应用容器'); }
                 return panelApi.get('/pid',{
                     params:{
                         namespace: d.namespace,
