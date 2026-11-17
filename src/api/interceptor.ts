@@ -196,6 +196,11 @@ axios.interceptors.response.use(
                 if (refreshed) return axios({ ...error.config, _authRetried: true, signal: undefined });
             }
             clearToken();
+            // A site tool owns its URL credential. Do not enter the ordinary
+            // login flow and fall back to an unrelated shared panel session.
+            if (/^\/dialog\/appgroup\/[^/]+\/site-panel\/(?:files|terminal|logs)\/?$/.test(window.location?.pathname || '')) {
+                return Promise.reject(error);
+            }
             if(router?.currentRoute.value?.name == 'login'){
                 // Keep the original authorization request and login options in the URL.
                 // The login page is already mounted, so no navigation is needed.

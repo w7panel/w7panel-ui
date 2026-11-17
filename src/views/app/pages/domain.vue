@@ -88,7 +88,13 @@
                             <td>
                                 <div>
                                     <div>
-                                        <a :href="item.fullDomain" class="c-blue cursor" target="_blank">{{ item.fullDomain }}</a>
+                                        <template v-if="isPlaceholderDomain(item.fullDomain)">
+                                            <span class="c-99">{{ item.fullDomain }}</span>
+                                            <a-tooltip content="此域名仅用于占位，修改为真实域名后才能访问">
+                                                <a-tag class="ml-10" size="small" color="orange">占位域名</a-tag>
+                                            </a-tooltip>
+                                        </template>
+                                        <a v-else :href="item.fullDomain" class="c-blue cursor" target="_blank">{{ item.fullDomain }}</a>
                                         <a-tooltip v-if="domainDeleteDenied(item)" content="此域名规则不可删除">
                                             <icon-lock class="ml-10 fs-16 c-orange" />
                                         </a-tooltip>
@@ -137,7 +143,8 @@
                                         <icon-minus v-if="part.openGr" />
                                         <icon-plus v-else />
                                     </button>
-                                    <a :href="part.fullDomain" class="c-blue cursor" target="_blank" style="vertical-align:middle;">{{part.path}}</a>
+                                    <span v-if="isPlaceholderDomain(part.fullDomain)" class="c-99" style="vertical-align:middle;">{{part.path}}</span>
+                                    <a v-else :href="part.fullDomain" class="c-blue cursor" target="_blank" style="vertical-align:middle;">{{part.path}}</a>
                                 </td>
                                 <td>
                                     <span>{{{Prefix:'前缀匹配',Exact:'精准匹配',ImplementationSpecific:'正则匹配'}[part.path_type]}}</span>
@@ -183,7 +190,8 @@
                             <template v-if="part.openGr">
                                 <tr v-for="gr in part.grayRelease" :key="gr.name" style="background-color: var(--color-fill-1);">
                                     <td style="padding-left:100px;">
-                                        <a :href="(gr.is_auto_ssl?'https://':'http://')+gr.domain + gr.path" class="c-blue cursor" target="_blank">{{gr.path}}</a>
+                                        <span v-if="isPlaceholderDomain(gr.domain)" class="c-99">{{gr.path}}</span>
+                                        <a v-else :href="(gr.is_auto_ssl?'https://':'http://')+gr.domain + gr.path" class="c-blue cursor" target="_blank">{{gr.path}}</a>
                                         <a-tag color="gray" class="ml-20" style="background-color:var(--color-fill-3);">
                                             <template #icon><icon-send /></template>
                                             <span>{{{header:'Header',cookie:'Cookie',weight:'权重'}[gr.type]}}</span>
@@ -788,6 +796,16 @@ export default {
         },
     },
     methods: {
+        isPlaceholderDomain(value) {
+            if (!value) return false;
+            try {
+                const input = String(value).trim();
+                const host = new URL(input.includes('://') ? input : 'http://' + input).hostname.toLowerCase().replace(/\.$/, '');
+                return host.endsWith('.invalid');
+            } catch {
+                return false;
+            }
+        },
         async openWaf(part){
             const ingress = this.dataList.find(item=>item?.metadata?.name === part.name);
             if(!ingress){

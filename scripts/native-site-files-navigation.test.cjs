@@ -44,7 +44,7 @@ async function harness({ initial = 'worker', initialRoute, getResource, getDirec
       const name = selector.slice('app='.length);
       return { data: { items: [{ metadata: { name: `${name}-pod`, namespace: 'tenant' },
         spec: { containers: [{ name: `${name}-container` }] }, status: { phase: 'Running', hostIP: '192.0.2.1',
-          containerStatuses: [{ name: `${name}-container`, containerID: `containerd://${name}` }] },
+          containerStatuses: [{ name: `${name}-container`, containerID: `containerd://${name}`, state: { running: {} } }] },
       }] } };
     }
     resources.push(url);

@@ -12,6 +12,23 @@ const WEBSHELL_KEY = 'w7panel-webshell';
 const K8SINFO_KEY = 'w7panel-k8sinfo';
 const isSubapp = (window as any).__POWERED_BY_WUJIE__;
 const authPrefix = () => isSubapp ? PRE : '';
+const isSitePanelFrame = () => /^\/dialog\/appgroup\/[^/]+\/site-panel\/(?:files|terminal|logs)\/?$/.test(window.location?.pathname || '');
+let sitePanelToken: string | undefined;
+let sitePanelRefreshToken: string | undefined;
+
+const updateSitePanelTokenLocation = (token: string) => {
+    try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('paneltoken');
+        const fragment = new URLSearchParams(url.hash.slice(1));
+        if (token) fragment.set('paneltoken', token);
+        else fragment.delete('paneltoken');
+        url.hash = fragment.toString();
+        window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    } catch {
+        // The in-memory override still prevents stale URL credentials from being reused.
+    }
+};
 
 const getDialogPanelToken = () => {
     if (typeof window === 'undefined' || !window.location.pathname.includes('/dialog/appgroup/')) {
@@ -20,7 +37,8 @@ const getDialogPanelToken = () => {
 
     try {
         const queryToken = new URLSearchParams(window.location.search).get('paneltoken') || '';
-        if (window.location.pathname.includes('/site-panel/')) {
+        if (isSitePanelFrame()) {
+            if (sitePanelToken !== undefined) return sitePanelToken;
             return new URLSearchParams(window.location.hash.slice(1)).get('paneltoken') || queryToken;
         }
         return queryToken;
@@ -30,6 +48,7 @@ const getDialogPanelToken = () => {
 };
 
 const isLogin = () => {
+    if (isSitePanelFrame()) return !!getDialogPanelToken();
     if (getDialogPanelToken()) {
         return true;
     }
@@ -43,6 +62,7 @@ const isLogin = () => {
 };
 
 const getToken = () => {
+    if (isSitePanelFrame()) return getDialogPanelToken();
     const dialogPanelToken = getDialogPanelToken();
     if (dialogPanelToken) {
         return dialogPanelToken;
@@ -56,6 +76,13 @@ const getToken = () => {
     return localStorage.getItem(authPrefix() + TOKEN_KEY);
 };
 const getRefreshToken = () => {
+    if (isSitePanelFrame()) {
+        if (sitePanelRefreshToken !== undefined) return sitePanelRefreshToken;
+        const token = getDialogPanelToken();
+        // A frame credential must not borrow the refresh token of another login.
+        return token && localStorage.getItem(authPrefix() + TOKEN_KEY) === token
+            ? localStorage.getItem(authPrefix() + REFRESH_TOKEN) || '' : '';
+    }
     if((window as any).__POWERED_BY_WUJIE__ && (window as any)?.$wujie?.props?.refreshToken){
         return (window as any)?.$wujie?.props?.refreshToken;
     }
@@ -84,9 +111,26 @@ const dispatchAuthChange = () => {
 };
 
 const setToken = (token: string) => {
+    if (isSitePanelFrame()) {
+        const previousToken = getDialogPanelToken();
+        if (previousToken && localStorage.getItem(authPrefix() + TOKEN_KEY) === previousToken) {
+            localStorage.setItem(authPrefix() + TOKEN_KEY, token);
+        }
+        sitePanelToken = token || '';
+        updateSitePanelTokenLocation(sitePanelToken);
+        return;
+    }
     localStorage.setItem(authPrefix() + TOKEN_KEY, token);
 };
 const setRefreshToken = (token: string) => {
+    if (isSitePanelFrame()) {
+        sitePanelRefreshToken = token || '';
+        const previousToken = getDialogPanelToken();
+        if (previousToken && localStorage.getItem(authPrefix() + TOKEN_KEY) === previousToken) {
+            localStorage.setItem(authPrefix() + REFRESH_TOKEN, sitePanelRefreshToken);
+        }
+        return;
+    }
     localStorage.setItem(REFRESH_TOKEN, token);
 }
 const setIframeToken = (token: string) => {
@@ -113,6 +157,13 @@ const setUserInfo = (v: string[]) => {
 };
 
 const clearToken = () => {
+    if (isSitePanelFrame()) {
+        sitePanelToken = '';
+        sitePanelRefreshToken = '';
+        updateSitePanelTokenLocation('');
+        dispatchAuthChange();
+        return;
+    }
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN);
     localStorage.removeItem(USERINFO);
