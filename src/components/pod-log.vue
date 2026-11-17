@@ -62,7 +62,7 @@
             </div>
         </div>
         
-        <div class="log-terminal" :id="termId" :style="{ height: (fullscreen ? 'calc(100vh - 114px)' : height + 'px') }"></div>
+        <div ref="terminal" class="log-terminal" :id="termId" :style="{ height: (fullscreen ? 'calc(100vh - 114px)' : height + 'px') }"></div>
     </a-modal>
 
     <!-- 页面嵌入模式 -->
@@ -102,7 +102,7 @@
             </div>
         </div>
         
-        <div class="log-terminal" :id="termId"></div>
+        <div ref="terminal" class="log-terminal" :id="termId"></div>
     </div>
 </template>
 
@@ -197,6 +197,7 @@ export default {
             currentContainer: '',
             currentTailLines: 100,
             logRequestId: 0,
+            logDisposed: false,
         };
     },
     computed: {
@@ -222,10 +223,14 @@ export default {
                 this.$emit('close');
             }
         },
+        height() {
+            if (this.mode === 'inline') this.scheduleFit();
+        },
     },
     created() {
     },
     beforeUnmount() {
+        this.logDisposed = true;
         this.cleanup();
     },
     methods: {
@@ -299,7 +304,7 @@ export default {
         initTerm() {
             if (this.term) return;
 
-            const dom = document.getElementById(this.termId);
+            const dom = this.$refs.terminal || document.getElementById(this.termId);
             if (!dom) return;
             
             dom.innerHTML = '';
@@ -311,10 +316,43 @@ export default {
             this.fitAddon = new FitAddon();
             this.term.loadAddon(this.fitAddon);
 
-            // 延迟 fit 确保 DOM 完全渲染
+            if (this.mode === 'inline') {
+                this.observeTerminalSize(dom);
+                this.scheduleFit();
+            } else {
+                // Modal layout is finalized by its open/fullscreen callbacks.
+                this.$nextTick(() => { this.fitAddon?.fit(); });
+            }
+        },
+        observeTerminalSize(dom) {
+            if (typeof ResizeObserver !== 'undefined') {
+                this.logResizeObserver = new ResizeObserver(() => this.scheduleFit());
+                this.logResizeObserver.observe(dom);
+            }
+            window.addEventListener('resize', this.scheduleFit);
+        },
+        scheduleFit() {
+            const version = this.logFitVersion || 0;
             this.$nextTick(() => {
-                this.fitAddon.fit();
+                if (this.logDisposed || version !== (this.logFitVersion || 0)
+                    || !this.visible || !this.term || !this.fitAddon || this.logFitFrame != null) return;
+                this.logFitFrame = window.requestAnimationFrame(() => {
+                    this.logFitFrame = null;
+                    if (this.logDisposed || version !== (this.logFitVersion || 0)
+                        || !this.visible || !this.term || !this.fitAddon) return;
+                    const dom = this.$refs.terminal || document.getElementById(this.termId);
+                    if (!dom?.clientWidth || !dom?.clientHeight) return;
+                    this.fitAddon.fit();
+                });
             });
+        },
+        stopSizeObserver() {
+            this.logFitVersion = (this.logFitVersion || 0) + 1;
+            this.logResizeObserver?.disconnect();
+            this.logResizeObserver = null;
+            window.removeEventListener('resize', this.scheduleFit);
+            if (this.logFitFrame != null) window.cancelAnimationFrame(this.logFitFrame);
+            this.logFitFrame = null;
         },
         cleanup() {
             this.logRequestId += 1;
@@ -335,6 +373,7 @@ export default {
             }
         },
         disposeTerm() {
+            this.stopSizeObserver();
             try {
                 if (this.term) {
                     this.term.dispose();
