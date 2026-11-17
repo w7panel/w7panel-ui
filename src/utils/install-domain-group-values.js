@@ -31,7 +31,7 @@ export function createDomainGroups(ingress = [], values = {}, saved = [], _white
         return {
             ...definition,
             host,
-            autoSSL: definition.forceSSL || (prior ? !!prior.autoSSL : /^https:\/\//i.test(value)),
+            autoSSL: definition.forceSSL || (prior ? !!prior.autoSSL : values[`domainGroups.${definition.param}.autoSSL`] != null ? String(values[`domainGroups.${definition.param}.autoSSL`]) === 'true' : /^https:\/\//i.test(value)),
             dnsProfileId: prior?.dnsProfileId || '',
             autoResolve: !!prior?.autoResolve,
             inheritDefault,
@@ -67,7 +67,7 @@ export function domainGroupError(group) {
 
 export function domainGroupEnvs(groups = []) {
     groups = groups ?? [];
-    return groups.filter(group => group.param !== 'default').map(group => ({ name: group.valueParam || group.param, value: group.host ? `${group.autoSSL || group.forceSSL ? 'https' : 'http'}://${group.host}` : '' }));
+    return groups.filter(group => group.param !== 'default').map(group => ({ name: group.valueParam || group.param, value: group.host || '' }));
 }
 
 export function domainBindings(groups = []) {
