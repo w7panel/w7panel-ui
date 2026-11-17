@@ -326,6 +326,7 @@
             <template #title>集群认证信息</template>
             <a-tabs v-model:active-key="clusterInfo.activeTab">
                 <a-tab-pane key="kubeconfig" title="kubeconfig">
+                    <a-alert v-if="clusterInfo.isSubCluster" class="mb-16">子集群 kubeconfig 使用集群内部地址，仅能从已连通该集群网络的环境访问。</a-alert>
                     <a-select v-if="kubeconfigAddresses.length" v-model="clusterInfo.selectedAddress" placeholder="请选择地址" @change="getKubeconfig">
                         <a-option v-for="address in kubeconfigAddresses" :key="address" :value="address">{{address}}</a-option>
                     </a-select>
