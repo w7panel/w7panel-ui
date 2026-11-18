@@ -1,9 +1,9 @@
 <template>
-    <div class="com-container">
-        <route-breadcrumb />
-        <div class="bg-white padding-20 mt-20">
-            <div class="title fs-16">集群系统信息</div>
-            <a-form :model="info" class="mt-20" label-align="left" auto-label-width>
+    <div :class="{'com-container': !embedded}">
+        <route-breadcrumb v-if="!embedded" />
+        <div :class="{'bg-white padding-20 mt-20': !embedded}">
+            <div v-if="!embedded" class="title fs-16">集群系统信息</div>
+            <a-form :model="info" :class="{'mt-20': !embedded}" label-align="left" auto-label-width>
                 <a-form-item label="集群版本"><span>{{info.gitVersion || '-'}}</span></a-form-item>
                 <a-form-item label="创建时间"><span>{{info.creationTimestamp || '-'}}</span></a-form-item>
                 <a-form-item label="集群模式">
@@ -45,6 +45,7 @@ import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 
 export default {
+    props: { embedded: { type: Boolean, default: false } },
     data() {
         return {
             info: { gitVersion: '', creationTimestamp: '' },
