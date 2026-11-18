@@ -1342,6 +1342,10 @@ export default {
                 microappProxy: createMicroappProxy(proxyBackendUrl),
                 k8sproxy: createK8sProxy(),
                 panelProxy: createPanelProxy(),
+                openAppMenu: (groupName) => {
+                    if(!/^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$/.test(groupName)) throw new Error('应用名称不合法');
+                    return this.$router.push({ name: 'topapp-micro', params: { group: groupName } });
+                },
                 navigateMicro: (payload) => this.navigateMicro(payload),
                 restartMicroApp: (payload) => this.navigateMicro(payload),
                 is_sub_cluster: frontProps.is_sub_cluster === true,
