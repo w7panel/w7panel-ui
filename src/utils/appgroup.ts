@@ -3,6 +3,7 @@ const APP_GROUP_WORKLOAD_KINDS = ['deployment', 'statefulset', 'daemonset'];
 export const APP_GROUP_MANIFEST_TYPE_ANNOTATION = 'w7.cc/manifest-type';
 export const APP_GROUP_MANIFEST_TYPE_LABEL = 'w7.cc/manifest-type';
 export const GATEWAY_PLUGIN_APPLICATION_TYPE = 'gateway-plugin';
+export const METRICS_PLUGIN_APPLICATION_TYPE = 'metrics-plugin';
 export const APP_PLUGIN_APPLICATION_TYPE = 'app-plugin';
 export const TRADITION_APPLICATION_TYPE = 'tradition';
 export const SYSTEM_IMAGE_APPLICATION_TYPE = 'system-image';
@@ -69,7 +70,9 @@ export function isAppPluginAppGroup(appGroup: any) {
 }
 
 export function isPluginAppGroup(appGroup: any) {
-    return isGatewayPluginAppGroup(appGroup) || isAppPluginAppGroup(appGroup);
+    return isGatewayPluginAppGroup(appGroup)
+        || isAppPluginAppGroup(appGroup)
+        || getAppGroupApplicationType(appGroup) === METRICS_PLUGIN_APPLICATION_TYPE;
 }
 
 export function appGroupDependsOn(appGroup: any, target: any) {
