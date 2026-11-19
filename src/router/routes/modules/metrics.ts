@@ -8,7 +8,7 @@ const routes: AppRouteRecordRaw[] = [{
         locale: '监控管理',
         requiresAuth: true,
         icon: 'icon-dashboard',
-        order: 3,
+        order: 5,
         menuGroup: 'cloudserver',
         key: 'metrics',
         linkIcon: true,
