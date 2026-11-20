@@ -49,7 +49,7 @@
                 </a-form>
             </div>
             <div class="mt-40 df jc-e">
-                <a-button type="primary" @click="submit">确定</a-button>
+                <a-button type="primary" :disabled="!data" @click="submit">确定</a-button>
             </div>
         </div>
     </div>
@@ -78,10 +78,10 @@ export default{
     },
     methods: {
         init(){
-            k8sproxy.get('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins?labelSelector=higress.io/wasm-plugin-name=w7-white-domain',{
+            k8sproxy.get('/apis/extensions.higress.io/v1alpha1/namespaces/higress-system/wasmplugins/w7panel-pluginwhitedomain',{
                 noAlert: true,
             }).then(res=>{
-                let data = res?.data?.items?.[0];
+                let data = res?.data;
                 if(!data){return}
 
                 this.data = data;
@@ -91,6 +91,8 @@ export default{
                     code: data?.spec?.defaultConfig?.response_code,
                     content: data?.spec?.defaultConfig?.response_content,
                 }
+            }).catch(()=>{
+                this.$message.error('备案域名插件未安装或加载失败');
             })
         },
         submit(){
