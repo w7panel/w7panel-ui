@@ -599,7 +599,7 @@ export default {
     methods: {
         async openSiteFilesMenu(menu){
             // Arco emits selected-keys before menu-item-click. Keep the current
-            // page selected until the guard and directory lookup both succeed.
+            // page selected until the leave guard allows navigation.
             const currentMenu = this.isMicroPage && (this.findMenu(this.menuActive, this.activeMicroAppName) || this.findMenu(this.menuActive));
             this.selectMenu = [currentMenu?.key || this.$route.meta.routekey || this.$route.name];
             if(this.openingSiteFiles){ return; }
@@ -614,8 +614,7 @@ export default {
                     if(await guard.handler() === false){ return; }
                 }
                 if(this.microDisposed || navigationId !== this.microNavigationId || from !== this.$route.fullPath){ return; }
-                const target = await resolveSiteFileTarget(k8sproxy, this.namespaceActive, group);
-                if(this.microDisposed || navigationId !== this.microNavigationId || from !== this.$route.fullPath){ return; }
+                const target = resolveSiteFileTarget(group);
                 await this.$router.push(nativeFileRoute({
                     ...target,
                     sourceMicroApp: menu.microAppName,

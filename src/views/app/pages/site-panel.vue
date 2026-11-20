@@ -127,8 +127,7 @@ export default {
                 if (!SITE_PANEL_VIEWS.includes(view)) throw new Error('不支持的站点工具');
                 if (!groupName || !namespace) throw new Error('缺少站点或命名空间');
                 if (view === 'files') {
-                    const target = await resolveSiteFileTarget(k8sproxy, namespace, groupName);
-                    if (requestId !== this.requestId) return;
+                    const target = resolveSiteFileTarget(groupName);
                     this.fileData = { kind: target.kind, id: target.appname, namespace, path: decodeURIComponent(target.path) };
                     this.loadedScope = scope;
                     return;
