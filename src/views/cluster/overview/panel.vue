@@ -77,6 +77,7 @@
                 <a-form :model="info" class="mt-20" label-align="left" auto-label-width>
                     <a-form-item label="面板版本" style="margin-bottom:0;">
                         <span class="c-00-6">{{appInfo.helmVersion || '-'}}</span>
+                        <a-button v-if="panelUpgrade?.zpkUrl" size="mini" type="text" status="danger" class="ml-10" @click="openPanelUpgrade"><icon-exclamation-circle-fill /> 新版本</a-button>
                         <a-button size="mini" type="text" class="ml-10" :loading="checkingUpdate" @click="checkPanelUpdate">更新检测</a-button>
                     </a-form-item>
                     <a-form-item label="更新时间" style="margin-bottom:0;">
@@ -396,6 +397,7 @@ export default {
             panelUpdatedAt: '',
             panelRunningDays: null,
             checkingUpdate: false,
+            panelUpgrade: null,
             gpuIsOpen: false,
 
             userInfo: {},
@@ -638,17 +640,31 @@ export default {
             const { helmReleaseName, helmNamespace } = this.appInfo;
             if (!helmReleaseName) { this.$message.warning('暂无面板发布信息'); return; }
             this.checkingUpdate = true;
+            this.panelUpgrade = null;
             try {
-                const token = (await panelApi.get('/auth/console/info?code=test', { noAlert: true }))?.data?.thirdparty_cd_token || '';
+                const consoleInfo = (await panelApi.get('/auth/console/info?code=test', { noAlert: true }))?.data || {};
                 const res = await panelApi.get('/zpk/upgrade-info', {
-                    params: { namespace: helmNamespace || this.namespaceActive, releaseName: helmReleaseName, thirdpartyCDToken: token }, noAlert: true,
+                    params: { namespace: helmNamespace || this.namespaceActive, releaseName: helmReleaseName, thirdpartyCDToken: consoleInfo.thirdparty_cd_token || '' }, noAlert: true,
                 });
-                this.$message[res?.data?.canUpgrade ? 'info' : 'success'](res?.data?.canUpgrade ? `发现新版本 ${res.data.version || ''}，请前往应用管理更新` : '当前已是最新版本');
+                if (res?.data?.canUpgrade) {
+                    this.panelUpgrade = { ...res.data, releaseName: helmReleaseName, token: consoleInfo.thirdparty_cd_token || '', clusterId: consoleInfo.cluster_id || '' };
+                    this.$message.info(this.panelUpgrade.zpkUrl ? `发现新版本 ${res.data.version || ''}` : `发现新版本 ${res.data.version || ''}，请前往应用管理更新`);
+                } else {
+                    this.$message.success('当前已是最新版本');
+                }
             } catch {
                 this.$message.error('更新检测失败');
             } finally {
                 this.checkingUpdate = false;
             }
+        },
+        openPanelUpgrade(){
+            this.$router.push({ name: 'app-store-install', query: {
+                path: this.panelUpgrade.zpkUrl,
+                releasename: this.panelUpgrade.releaseName,
+                thirdpartyCDToken: this.panelUpgrade.token,
+                insClusterId: this.panelUpgrade.clusterId,
+            }});
         },
         submitDomainForm(){
             this.$refs.domainForm.validate(async (err) => {
