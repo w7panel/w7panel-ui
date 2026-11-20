@@ -1330,19 +1330,6 @@ function siteFilesResource() {
   resource.spec.bindings[0].menu.push({ title: '文件管理', do: siteFilesDo });
   return resource;
 }
-function siteFilesApi(url) {
-  if (url.endsWith('/appgroups/w7-php')) return { data: {
-    metadata: { annotations: { 'w7.cc/default-domain': 'https://site.example.com' } },
-    status: { items: [{ kind: 'Deployment', name: 'w7-php' }] },
-  } };
-  if (url.endsWith('/deployments/w7-php')) return { data: {
-    metadata: { name: 'w7-php' },
-    spec: { template: { spec: {
-      containers: [{ name: 'web', volumeMounts: [{ name: 'data', mountPath: '/www/wwwroot', subPath: 'nginx-web-dir/site.example.com' }] }],
-      volumes: [{ name: 'data', persistentVolumeClaim: { claimName: 'data' } }],
-    } } },
-  } };
-}
 test('native site files restore the source menu after asynchronous menus load and keep the native breadcrumb', () => {
   const { ctx } = harness({ routeName: 'app-detail-files', query: { do: siteFilesDo, microapp: 'w7-php' } });
   ctx.selectMenu = ['app-detail-files'];
@@ -1360,7 +1347,7 @@ test('native site files restore the source menu after asynchronous menus load an
   assert.equal(ctx.selectedAppMenu[0], 'app-detail-files');
 });
 test('the site files menu preserves the live child leave guard and never starts another file frontend', async () => {
-  const { ctx, requests, starts } = harness({ routeName: 'group-micro', resource: siteFilesResource(), k8sGet: siteFilesApi });
+  const { ctx, requests, starts } = harness({ routeName: 'group-micro', resource: siteFilesResource() });
   ctx.getMenu([siteFilesResource()]); ctx.activeMicroAppName = 'w7-php'; ctx.fileeditor = true;
   ctx.menuActive = '#/versions';
   ctx.selectMenu = [`w7-php:${siteFilesDo}`]; // Arco updates v-model before the click handler.
@@ -1373,24 +1360,22 @@ test('the site files menu preserves the live child leave guard and never starts 
   assert.equal(ctx.getCurrentBreadcrumbLabel(), 'PHP versions');
   allowed = true;
   await ctx.handelMicroMenu(`w7-php:${siteFilesDo}`);
-  assert.equal(checks, 2); assert.equal(requests.length, 2); assert.equal(targets.length, 1);
+  assert.equal(checks, 2); assert.equal(requests.length, 0); assert.equal(targets.length, 1);
   const target = new URL(targets[0], 'http://panel.test');
   assert.equal(target.pathname, '/app/appgroup/w7-php/deployments/w7-php/files');
   assert.equal(target.searchParams.get('microapp'), 'w7-php'); assert.equal(target.searchParams.get('do'), siteFilesDo);
   assert.equal(target.hash, '#path=%252Fwww%252Fwwwroot'); assert.equal(starts.length, 0);
 });
-test('site file menu loading does not navigate after the user has already left', async () => {
+test('site file menu leave checks do not navigate after the user has already left', async () => {
   let release;
   const pending = new Promise(resolve => { release = resolve; });
-  const { ctx } = harness({ routeName: 'app-detail-files', k8sGet: async url => {
-    if (url.includes('/appgroups/')) await pending;
-    return siteFilesApi(url);
-  } });
-  ctx.getMenu([siteFilesResource()]); ctx.fileeditor = true;
+  const { ctx } = harness({ routeName: 'group-micro', resource: siteFilesResource() });
+  ctx.getMenu([siteFilesResource()]); ctx.fileeditor = true; ctx.activeMicroAppName = 'w7-php';
+  ctx.siteFileLeaveGuard = { microAppName: 'w7-php', handler: () => pending };
   const targets = []; ctx.$router.push = async target => targets.push(target);
   const navigation = ctx.handelMicroMenu(`w7-php:${siteFilesDo}`);
   ctx.microNavigationId++;
-  release(); await navigation;
+  release(true); await navigation;
   assert.equal(targets.length, 0);
 });
 
