@@ -7,11 +7,11 @@
                 <a-form-item label="集群版本"><span>{{info.gitVersion || '-'}}</span></a-form-item>
                 <a-form-item label="创建时间"><span>{{info.creationTimestamp || '-'}}</span></a-form-item>
                 <a-form-item label="集群模式">
-                    <div v-if="!config.edit || config.type != 1" class="mr-10">{{config.titles[config.type] || '-'}}</div>
+                    <div v-if="!config.edit || config.type != 1" class="mr-10">{{isSubCluster && config.type === 2 ? '内嵌 etcd' : config.titles[config.type] || '-'}}</div>
                     <a-select v-else v-model="config.editType" size="mini" class="mr-10">
                         <a-option :value="1" label="单机（内嵌sqlite）" />
-                        <a-option :value="2" label="高可用（内嵌etcd）" />
-                        <a-option :value="3" label="高可用（外部数据库）" />
+                        <a-option :value="2" :label="isSubCluster ? '内嵌 etcd' : '高可用（内嵌etcd）'" />
+                        <a-option v-if="!isSubCluster" :value="3" label="高可用（外部数据库）" />
                     </a-select>
                     <a-button v-if="config.edit" size="mini" type="primary" @click="configEdit">确定</a-button>
                     <span v-else-if="config.type == 1" class="c-blue cursor" @click="config.edit = true">修改</span>
@@ -35,7 +35,8 @@
             </a-form>
         </a-drawer>
         <a-modal v-model:visible="haWarn" title="提示" @ok="haSelect(true)" @cancel="haSelect(false)">
-            <div>切换高可用模式后，允许注册多个master节点，但切换过程不可逆，是否继续？</div>
+            <div v-if="isSubCluster">将集群从 SQLite 切换为内嵌 etcd，K3s 将重启。切换过程不可逆，是否继续？</div>
+            <div v-else>切换高可用模式后，允许注册多个master节点，但切换过程不可逆，是否继续？</div>
         </a-modal>
     </div>
 </template>
@@ -45,7 +46,7 @@ import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 
 export default {
-    props: { embedded: { type: Boolean, default: false } },
+    props: { embedded: { type: Boolean, default: false }, isSubCluster: { type: Boolean, default: false } },
     data() {
         return {
             info: { gitVersion: '', creationTimestamp: '' },
@@ -77,9 +78,9 @@ export default {
         getConfig() {
             k8sproxy.get('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config').then(res => {
                 const data = res?.data?.spec?.data || {};
-                if (data['k3s.cluster-init'] === 'false' && data['k3s.datastore-endpoint'] === '') this.config.type = this.config.editType = 1;
-                else if (data['k3s.cluster-init'] === 'true') this.config.type = this.config.editType = 2;
+                if (data['k3s.cluster-init'] === 'true') this.config.type = this.config.editType = 2;
                 else if (data['k3s.datastore-endpoint']) this.config.type = this.config.editType = 3;
+                else if (this.isSubCluster || (data['k3s.cluster-init'] === 'false' && data['k3s.datastore-endpoint'] === '')) this.config.type = this.config.editType = 1;
             });
         },
         configEdit() {
@@ -89,7 +90,7 @@ export default {
         haSelect(confirmed) {
             this.haWarn = false;
             if (!confirmed) { this.config.editType = this.config.type; return; }
-            if (this.config.editType === 3) {
+            if (this.config.editType === 3 && !this.isSubCluster) {
                 this.config.dialog = true;
                 this.config.form = { type: 'mysql', path: '', port: '', uname: '', upwd: '', db: '', dsn: '' };
             } else if (this.config.editType === 2) {
@@ -115,7 +116,7 @@ export default {
             return k8sproxy.patch('/apis/w7panel.w7.com/v1alpha1/k3sconfigs/config', {
                 metadata: { labels: { 'data-hash': String(Date.now()) } }, spec: { data },
             }, { headers: { 'Content-Type': 'application/merge-patch+json' } }).then(res => {
-                this.$message.success('操作成功');
+                this.$message.success(this.isSubCluster ? '配置已提交，等待 K3s 重启' : '操作成功');
                 return res;
             });
         },
