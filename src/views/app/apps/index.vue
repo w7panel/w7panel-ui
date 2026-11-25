@@ -561,7 +561,7 @@ export default {
 			return record.groupName===this.uninstallTarget?.groupName;
 		},
 		getDeleteConfirm(record){
-			if(!this.isUninstallTarget(record)){return '确认要删除吗'}
+			if(!this.isUninstallTarget(record)){return `确认删除应用“${record.title || record.groupName}”吗？`}
 			return `确认卸载应用“${record.title || record.groupName}”吗？唯一标识：${record.groupName}`;
 		},
         dedupeDomains(domains){
