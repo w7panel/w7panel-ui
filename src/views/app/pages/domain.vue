@@ -172,7 +172,7 @@
                                         <i class="opt-icon" @click="openStrategy(part)"><icon-settings /></i>
                                     </a-tooltip>
                                     <a-tooltip v-if="item.ingressclass=='higress'" content="WAF">
-                                        <i class="opt-icon" @click="openWaf(part)">WAF</i>
+                                        <i class="opt-icon" @click="openWaf(part)"><icon-safe /></i>
                                     </a-tooltip>
                                     <a-tooltip content="灰度发布">
                                         <i class="opt-icon" @click="openGrayRelease(part)"><icon-send /></i>
