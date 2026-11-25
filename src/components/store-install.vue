@@ -681,9 +681,10 @@ export default {
         },
         getModuleStartParamValue(form,name){
             const sourceName = this.normalizeDependencyParamName(name);
-            const param = this.getFormStartParamFields(form).find(item=>{
+            const fields = this.getFormStartParamFields(form);
+            const param = fields.find(item=>{
                 return this.normalizeDependencyParamName(item?.name)==sourceName;
-            });
+            }) || fields.find(item=>item?.values_text===`%${sourceName}%`);
             if(!param){return this.isDependencyPVCName(sourceName) ? form?.pvcname : undefined}
             if(param.values_text=='%STORAGE_SIZE%'){
                 return param.value ? String(param.value).replace(/Gi$/i,'') : param.value;
@@ -708,7 +709,8 @@ export default {
                     if(!param?.module_name){continue}
                     const sourceForm = this.findConfigModuleForm(param.module_name,current);
                     if(!sourceForm){continue}
-                    const template = param.name ? `%${param.name}%` : '';
+                    const valuesText = String(param.values_text || '');
+                    const template = /%([^%]+)%/.test(valuesText) ? valuesText : (param.name ? `%${param.name}%` : '');
                     const placeholders = [...template.matchAll(/%([^%]+)%/g)];
                     if(!placeholders.length){continue}
                     let message = '';
