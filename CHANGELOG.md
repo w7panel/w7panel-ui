@@ -1094,3 +1094,11 @@
 ## 2026-11-24 OIDC 内网发现地址提示
 
 - OIDC 密钥管理页显示集群内发现地址，并提示应用优先走内网及 SDK issuer 一致性。影响模块：OIDC 管理界面。验证：前端构建。
+
+## 2026-11-25 MicroApp 第三方 Cookie 引导
+
+- iframe 模式的 MicroApp 页面提供 Cookie 设置引导，展示浏览器开关截图与刷新说明。影响模块：应用详情、网关插件 MicroApp。验证：前端构建与页面入口检查。
+
+## 2026-11-25 MicroApp Cookie 引导范围更正
+
+- 引导仅用于应用详情和顶部 MicroApp 的 iframe 页面；撤回网关插件 MicroApp 的入口。影响模块：应用详情、顶部 MicroApp。验证：共用组件与路由检查、前端构建。

@@ -124,6 +124,7 @@
                 </a-layout-content>
                 <a-layout-content v-else-if="isMicroPage" class="app-detail-content app-detail-content--micro df df-c">
                     <div class="app-detail-micro-container bg-white routerviewbox fc">
+                        <micro-cookie-guide v-if="info.load_mode === 'iframe'" />
                         <a-result v-if="microError" status="error" title="应用页面暂时无法打开" :subtitle="microError">
                             <template #extra><a-button @click="retryMicroMenu">重试</a-button></template>
                         </a-result>
@@ -202,6 +203,7 @@ import formDrawer from '@/views/app/pages/form-drawer.vue';
 import { bus, startApp, destroyApp } from "wujie";
 import { getPermission,getFileEditor ,getToken,getK8sinfo} from '@/utils/auth';
 import wujieModals from '@/components/wujie-modals.vue';
+import MicroCookieGuide from '@/components/micro-cookie-guide.vue';
 import { getWujieRoutePrefix, normalizeWujieSyncRoute, normalizeWujieNavigationRoute, joinWujieUrlRoute } from '@/utils/wujie-route';
 import { appendWujieModalHandles } from '@/utils/wujie-modal-handles';
 import { appendWujieProxyRequestQuery, getWujieProxyBackendUrl } from '@/utils/wujie-proxy-request';
@@ -575,6 +577,7 @@ export default {
         },
     },
     components: {
+        MicroCookieGuide,
         formDrawer,
         wujieModals,
         AppDirect,
