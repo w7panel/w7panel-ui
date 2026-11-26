@@ -554,6 +554,11 @@ export default {
     background: #fff;
 }
 
+.log-modal .xterm-viewport::-webkit-scrollbar-thumb {
+    background: #999;
+    border-radius: 5px;
+}
+
 .log-modal .log-modal-title {
     position: relative;
     height: 44px;
