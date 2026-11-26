@@ -6,7 +6,7 @@
             <!-- <a-button v-if="permission.includes('cluster/nodes/gpu')" type="outline" class="ml-10" @click="clscf.dialog=true;">GPU管理</a-button> -->
             <!-- <a-button type="outline" class="ml-10" @click="nodebindshow=true;">专用存储管理</a-button> -->
             <a-button type="outline" class="ml-10" @click="openClusterInfo">集群认证信息</a-button>
-            <a-button type="outline" class="ml-10" @click="$router.push('/cluster/system-info')">集群系统信息</a-button>
+            <a-button type="outline" class="ml-10" @click="systemInfoVisible=true">集群系统信息</a-button>
         </div>
         
         <a-layout class="fc" style="margin-top:20px;">
@@ -322,10 +322,16 @@
             </template>
         </a-modal>
 
+        <a-drawer :visible="systemInfoVisible" width="800px" :footer="false" @cancel="systemInfoVisible=false" :popup-container="$popupContainer">
+            <template #title>集群系统信息</template>
+            <system-info v-if="systemInfoVisible" embedded />
+        </a-drawer>
+
         <a-drawer :visible="clusterInfo.show" width="800px" @cancel="clusterInfo.show=false;" :popup-container="$popupContainer">
             <template #title>集群认证信息</template>
             <a-tabs v-model:active-key="clusterInfo.activeTab">
                 <a-tab-pane key="kubeconfig" title="kubeconfig">
+                    <a-alert v-if="clusterInfo.isSubCluster" class="mb-16">子集群 kubeconfig 使用集群内部地址，仅能从已连通该集群网络的环境访问。</a-alert>
                     <a-select v-if="kubeconfigAddresses.length" v-model="clusterInfo.selectedAddress" placeholder="请选择地址" @change="getKubeconfig">
                         <a-option v-for="address in kubeconfigAddresses" :key="address" :value="address">{{address}}</a-option>
                     </a-select>
@@ -399,6 +405,7 @@ import { getPermission,getWebshell,getFileEditor } from '@/utils/auth';
 import jsyaml from "js-yaml";
 import storeInstallDrawer from '@/components/store-install-drawer.vue';
 import gatewayPluginMicroapp from '@/components/gateway-plugin-microapp.vue';
+import systemInfo from './system-info.vue';
 
 const templateYaml = `apiVersion: helm.cattle.io/v1
 kind: HelmChart
@@ -523,6 +530,7 @@ export default {
                 loading: false,
             },
             isSubCluster: true,
+            systemInfoVisible: false,
             clusterInfo: {
                 show: false,
                 loading: false,
@@ -596,6 +604,7 @@ export default {
         ndSet,
         storeInstallDrawer,
         gatewayPluginMicroapp,
+        systemInfo,
     },
     computed: {
         kubeconfigAddresses(){

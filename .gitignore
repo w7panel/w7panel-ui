@@ -60,6 +60,12 @@ src/views/app/*
 src/views/app/pages/*
 !src/views/app/pages/site-panel.vue
 !src/components/install-domain-groups.vue
+!src/router/
+!src/router/routes/
+!src/router/routes/modules/
+!src/router/routes/modules/metrics.ts
+!src/views/metrics/
+!src/views/metrics/entry.vue
 !src/utils/install-domain-group-values.js
 !scripts/install-domain-group-values.test.cjs
 

@@ -15,7 +15,7 @@
                 </a-tabs>
                 <div v-if="selectedGroup" class="df ai-c" style="width:100%">
                     <a-input v-model="selectedGroup.host" :disabled="selectedGroup.hostLocked || (primaryLocked && selectedGroup.param === 'default') || selectedGroup.inheritDefault" placeholder="请输入完整域名" @change="changed" />
-                    <wildcard-auto-ssl class="ml-10" v-model="selectedGroup.autoSSL" v-model:profile-id="selectedGroup.dnsProfileId" v-model:auto-resolve="selectedGroup.autoResolve" :required="selectedGroup.forceSSL" :host="selectedGroup.host" :namespace="namespace" @update:model-value="changed" />
+                    <wildcard-auto-ssl class="ml-10" style="white-space: nowrap;" v-model="selectedGroup.autoSSL" v-model:profile-id="selectedGroup.dnsProfileId" v-model:auto-resolve="selectedGroup.autoResolve" :required="selectedGroup.forceSSL" :host="selectedGroup.host" :namespace="namespace" @update:model-value="changed" />
                 </div>
                 <a-alert v-if="error" class="domain-group-error" type="error">{{ error }}</a-alert>
             </div>
