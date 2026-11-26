@@ -538,6 +538,12 @@ export default {
     padding: 10px;
 }
 
+.log-modal .log-terminal {
+    box-sizing: border-box;
+    padding: 20px;
+    background: #000;
+}
+
 .log-modal .log-modal-title {
     position: relative;
     height: 44px;
