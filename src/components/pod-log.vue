@@ -544,6 +544,10 @@ export default {
     background: linear-gradient(to right, #000 calc(100% - 10px), #fff 0);
 }
 
+.log-modal .log-terminal .xterm {
+    padding-right: 10px;
+}
+
 .log-modal .xterm-viewport {
     background-color: transparent !important;
 }
