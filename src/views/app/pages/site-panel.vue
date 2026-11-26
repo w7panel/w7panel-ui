@@ -168,5 +168,5 @@ export default {
 };
 </script>
 <style scoped>
-.site-panel-embed{box-sizing:border-box;height:100vh;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px;background:var(--color-bg-1);overflow:hidden}.site-panel-loading{margin:auto}.site-panel-files{flex:1;min-height:0;overflow:auto}.site-panel-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex-shrink:0}.site-panel-terminal{flex:1;min-height:240px;background:#1f1d45;padding:20px;box-sizing: border-box;}.site-panel-embed :deep(.pod-log-inline){min-height:0;max-height:100%}
+.site-panel-embed{box-sizing:border-box;height:100vh;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px;background:var(--color-bg-1);overflow:hidden}.site-panel-loading{margin:auto}.site-panel-files{flex:1;min-height:0;overflow:auto}.site-panel-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex-shrink:0}.site-panel-terminal{flex:1;min-height:240px;background:#1f1d45;padding:20px;box-sizing: border-box;}.site-panel-embed :deep(.pod-log-inline){min-height:0;max-height:100%}.site-panel-embed :deep(.pod-log-inline .log-terminal){box-sizing:border-box;padding:20px;background:#000}
 </style>
