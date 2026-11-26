@@ -540,7 +540,7 @@ export default {
 
 .log-modal .log-terminal {
     box-sizing: border-box;
-    padding: 20px;
+    padding: 10px;
     background: #000;
 }
 
