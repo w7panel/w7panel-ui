@@ -541,7 +541,17 @@ export default {
 .log-modal .log-terminal {
     box-sizing: border-box;
     padding: 10px 0 10px 10px;
-    background: #000;
+    background: linear-gradient(to right, #000 calc(100% - 10px), #fff 0);
+}
+
+.log-modal .xterm-viewport {
+    background-color: transparent !important;
+}
+
+.log-modal .xterm-viewport::-webkit-scrollbar,
+.log-modal .xterm-viewport::-webkit-scrollbar-track {
+    width: 10px;
+    background: #fff;
 }
 
 .log-modal .log-modal-title {
