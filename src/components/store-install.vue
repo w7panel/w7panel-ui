@@ -681,9 +681,10 @@ export default {
         },
         getModuleStartParamValue(form,name){
             const sourceName = this.normalizeDependencyParamName(name);
-            const param = this.getFormStartParamFields(form).find(item=>{
+            const fields = this.getFormStartParamFields(form);
+            const param = fields.find(item=>{
                 return this.normalizeDependencyParamName(item?.name)==sourceName;
-            });
+            }) || fields.find(item=>item?.values_text===`%${sourceName}%`);
             if(!param){return this.isDependencyPVCName(sourceName) ? form?.pvcname : undefined}
             if(param.values_text=='%STORAGE_SIZE%'){
                 return param.value ? String(param.value).replace(/Gi$/i,'') : param.value;
@@ -708,7 +709,8 @@ export default {
                     if(!param?.module_name){continue}
                     const sourceForm = this.findConfigModuleForm(param.module_name,current);
                     if(!sourceForm){continue}
-                    const template = param.name ? `%${param.name}%` : '';
+                    const valuesText = String(param.values_text || '');
+                    const template = /%([^%]+)%/.test(valuesText) ? valuesText : (param.name ? `%${param.name}%` : '');
                     const placeholders = [...template.matchAll(/%([^%]+)%/g)];
                     if(!placeholders.length){continue}
                     let message = '';
@@ -1063,9 +1065,10 @@ export default {
                         
                         if(i=='0' && this.configConsole.isConsole && this.form?.requireDomain && envs?.DOMAIN_URL){
                             let url = envs.DOMAIN_URL;
-                            this.form.ingressHostPre = url.match(/^https?:\/\//)?.[0] || 'http://';
-                            this.form.ingressHost = url.replace(/^https?:\/\//,'') || '';
-                            this.form.auto_ssl = this.form.ingressHostPre == 'https://';
+                            const domainGroup = f.domainGroups.find(group => group.param === 'DOMAIN_URL' || group.param === 'default');
+                            this.form.auto_ssl = domainGroup ? !!domainGroup.autoSSL : /^https:\/\//i.test(url);
+                            this.form.ingressHostPre = this.form.auto_ssl ? 'https://' : 'http://';
+                            this.form.ingressHost = domainHost(url);
                             this.form.ingressDisabled = true;
                         }
                     }
