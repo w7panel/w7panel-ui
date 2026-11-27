@@ -529,20 +529,23 @@ export default {
                     try{config = JSON.parse(atob(secret.data?.['.dockerconfigjson'] || ''))}catch{continue}
                     let storedNamespace = '';
                     try{storedNamespace=atob(secret.data?.namespace || '')}catch{continue}
-                    if(storedNamespace && storedNamespace !== namespace){continue}
                     for(const [address, account] of Object.entries(config.auths || {})){
                         let source;
                         try{source = new URL(address.includes('://') ? address : 'https://'+address)}catch{continue}
                         if(source.host !== registry){continue}
                         const scope = source.pathname.replace(/^\/+|\/+$/g,'');
-                        if(scope && scope !== 'v1' && scope !== namespace){continue}
+                        const credentialNamespace = storedNamespace || (scope === 'v1' ? '' : scope);
+                        const priority = credentialNamespace === namespace ? 2 : (credentialNamespace ? 0 : 1);
                         let username = account.username || '', password = account.password || '';
                         if(!username && account.auth){
                             try{const decoded=atob(account.auth); const colon=decoded.indexOf(':'); if(colon<0){continue} username=decoded.slice(0,colon);password=decoded.slice(colon+1)}catch{continue}
                         }
-                        matches.push({key:secret.metadata.name+'@'+address,name:secret.metadata.name,username,password});
+                        if(!username || !password){continue}
+                        matches.push({key:secret.metadata.name+'@'+address,name:secret.metadata.name,username,password,priority});
                     }
                 }
+                // Namespace metadata only ranks candidates; the source registry checks pull access.
+                matches.sort((a,b)=>b.priority-a.priority);
                 this.registryLogin.secrets = matches;
                 if(matches.length){this.registryLogin.secret=matches[0].key;this.selectSourceRegistrySecret(matches[0].key)}
             }catch(error){this.registryLogin.error='读取镜像仓库登录配置失败，请手动输入账号密码'}
