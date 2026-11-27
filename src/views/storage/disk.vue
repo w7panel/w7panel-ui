@@ -18,7 +18,7 @@
             
             <div v-if="tabsActive=='1'">
                 <div v-if="usermode=='cluster' || !hasLonghornSystem">
-                    <a-table :data="storageClasses" :pagination="false" :bordered="false">
+                    <a-table :data="storageLoading ? [] : storageClasses" :loading="storageLoading" :pagination="false" :bordered="false">
                         <template #columns>
                             <a-table-column title="名称" data-index="name"></a-table-column>
                             <!-- <a-table-column>
@@ -54,7 +54,7 @@
                 </div>
                 <div v-else>
                     <!-- :row-selection="rowSelection" v-model:selectedKeys="selectedKeys" -->
-                    <a-table :data="list" class="extratable" :expandable="userMode=='cluster'?false:expandable" v-model:expandedKeys="expandedKeys" :bordered="false" :pagination="false">
+                    <a-table :data="storageLoading ? [] : list" :loading="storageLoading" class="extratable" :expandable="userMode=='cluster'?false:expandable" v-model:expandedKeys="expandedKeys" :bordered="false" :pagination="false">
                         <template #columns>
                             <a-table-column title="名称">
                                 <template #cell="{ record }">
@@ -317,6 +317,7 @@ export default {
             userMode: '',
 
             storageClasses: [],
+            storageLoading: true,
             resourceUsedStatus: {
                 hard: 0,
                 used: 0,
@@ -339,15 +340,16 @@ export default {
     created(){
         let userInfo = getUserInfo();
         this.usermode = userInfo?.['w7.cc/user-mode'];
-        this.getStorageClasses();
-        if(this.usermode=='cluster'){
-            this.getResource();
-        }else{
+        if(this.usermode!='cluster'){
             this.permission = getPermission() || [];
             this.namespaceActive = useNamespaceStore().namespace;
-            this.getList();
         }
         this.testLonghornSystem();
+        this.getStorageClasses().catch(()=>{}).then(()=>{
+            return this.usermode=='cluster' ? this.getResource() : this.getList();
+        }).catch(()=>{}).finally(()=>{
+            this.storageLoading = false;
+        });
     },
     methods: {
         testLonghornSystem(){
@@ -405,7 +407,7 @@ export default {
             return value
         },
         getStorageClasses(){
-            k8sproxy.get('/apis/storage.k8s.io/v1/storageclasses').then(res=>{
+            return k8sproxy.get('/apis/storage.k8s.io/v1/storageclasses').then(res=>{
                 let list = res?.data?.items || [];
                 list = list.map(i=>{
                     return {
@@ -420,7 +422,7 @@ export default {
             let configList = [];
             let diskList = [];
 
-            k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps?labelSelector=type=disk', {
+            return k8sproxy.get('/api/v1/namespaces/'+ this.namespaceActive +'/configmaps?labelSelector=type=disk', {
                 loading: true,
             }).then(res=>{
                 let list = res?.data?.items || [];

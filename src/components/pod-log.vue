@@ -296,7 +296,7 @@ export default {
             });
         },
         onOpen() {
-            this.fitAddon?.fit();
+            this.scheduleFit();
         },
         onClose() {
             this.cleanup();
@@ -316,13 +316,8 @@ export default {
             this.fitAddon = new FitAddon();
             this.term.loadAddon(this.fitAddon);
 
-            if (this.mode === 'inline') {
-                this.observeTerminalSize(dom);
-                this.scheduleFit();
-            } else {
-                // Modal layout is finalized by its open/fullscreen callbacks.
-                this.$nextTick(() => { this.fitAddon?.fit(); });
-            }
+            this.observeTerminalSize(dom);
+            this.scheduleFit();
         },
         observeTerminalSize(dom) {
             if (typeof ResizeObserver !== 'undefined') {
@@ -390,9 +385,7 @@ export default {
         },
         toggleFullscreen() {
             this.fullscreen = !this.fullscreen;
-            this.$nextTick(() => {
-                this.fitAddon?.fit();
-            });
+            this.scheduleFit();
         },
         fetchLog() {
             const requestId = ++this.logRequestId;
