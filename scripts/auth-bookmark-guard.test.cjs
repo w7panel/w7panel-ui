@@ -77,7 +77,7 @@ test('401 refreshes once and retries the original request', async () => {
       setRefreshToken() {}, getRefreshToken: () => 'refresh',
     },
     '@/router': { __esModule: true, default: { currentRoute: { value: { name: 'cluster-panel', fullPath: '/cluster/panel' } }, push() {} } },
-    '@/utils/repo-notice': { showRepoHtmlNotice: () => false },
+    '@/utils/app-install-notice': { showRepoHtmlNotice: () => false },
   };
   const source = fs.readFileSync('src/api/interceptor.ts', 'utf8');
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } }).outputText;

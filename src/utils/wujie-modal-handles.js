@@ -201,13 +201,13 @@ export function createWujieModalHandles(getModal) {
     }, {});
 }
 
-export function appendWujieModalHandles(props, getModal, appDynamicHandles = {}) {
-    const { getAppDynamicValues, validateApp } = appDynamicHandles;
+export function appendWujieModalHandles(props, getModal, appLicenseHandles = {}) {
+    const { getAppLicenseInfo, validateApp } = appLicenseHandles;
     props.handles = {
         ...(props.handles || {}),
         ...createWujieModalHandles(getModal),
         ...createInstalledAppHandles(),
-        ...(typeof getAppDynamicValues === 'function' ? { getAppDynamicValues } : {}),
+        ...(typeof getAppLicenseInfo === 'function' ? { getAppLicenseInfo } : {}),
         ...(typeof validateApp === 'function' ? { validateApp } : {}),
     };
     return props;

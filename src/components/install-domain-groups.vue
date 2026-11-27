@@ -26,7 +26,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import WildcardAutoSsl from './wildcard-auto-ssl.vue';
-import { domainGroupError } from '@/utils/install-domain-group-values';
+import { domainGroupError } from '@/utils/app-install-domain-group-values';
 
 const props = defineProps({ modelValue: { type: Array, required: true }, namespace: { type: String, required: true }, whiteList: { type: Array, default: () => [] }, primaryLocked: Boolean });
 const emit = defineEmits(['update:modelValue']);

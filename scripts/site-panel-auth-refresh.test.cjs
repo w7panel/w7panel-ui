@@ -50,7 +50,7 @@ function harness({ pathname = '/dialog/appgroup/site/site-panel/terminal', searc
         '@arco-design/web-vue': { Notification: { error() {} } },
         '@/store': { useLoadingStore: () => ({}), useNamespaceStore: () => ({}) },
         '@/router': { __esModule: true, default: { currentRoute: { value: { name: 'dialog-site-panel', fullPath: location.pathname + location.search + location.hash } }, push(target) { navigation.push(target); } } },
-        '@/utils/repo-notice': { showRepoHtmlNotice: () => false },
+        '@/utils/app-install-notice': { showRepoHtmlNotice: () => false },
     });
     return { auth, axios, storage, localStorage, location, locate, sent, navigation, events };
 }

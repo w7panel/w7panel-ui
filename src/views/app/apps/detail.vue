@@ -225,7 +225,7 @@ import {
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
-import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
+import { checkAppAvailability, createAppLicenseInfoGetter, createAppValidator } from '@/utils/app-install-license-info';
 import {
     findTopAppByRouteGroup,
     getTopAppGroupName,
@@ -1276,10 +1276,10 @@ export default {
             const appGroupName = this.appGroupName;
             const reverseDependentApps = await this.loadReverseDependentApps(appGroupName).catch(()=>[]);
             if(!isCurrent()){ return; }
-            const getAppDynamicValues = createAppDynamicValuesGetter({
+            const getAppLicenseInfo = createAppLicenseInfoGetter({
                 currentAppgroup: appGroupName,
             });
-            const validateApp = createAppValidator(getAppDynamicValues);
+            const validateApp = createAppValidator(getAppLicenseInfo);
             const bindings = this.microApp?.spec?.bindings || [];
             const runtimeRoute = parseAppMenuDo(this.menuActive)?.route || this.menuActive;
             const isArtifactMenu = bindings.some(binding=>binding.name === 'other'
@@ -1350,7 +1350,7 @@ export default {
                 is_sub_cluster: frontProps.is_sub_cluster === true,
             }
             appendWujieModalHandles(props, () => this.$refs.wujieModals, {
-                getAppDynamicValues,
+                getAppLicenseInfo,
                 validateApp,
             });
             console.log(props)

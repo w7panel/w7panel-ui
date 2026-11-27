@@ -13,7 +13,7 @@ src/*
 !src/utils/
 src/utils/*
 !src/utils/appgroup-microapps.ts
-!src/utils/app-dynamic-values.ts
+!src/utils/app-install-license-info.ts
 !src/components/
 src/components/*
 !src/components/microapp-menu-items.vue
@@ -23,7 +23,7 @@ scripts/*
 !scripts/detail-micro-entry.test.cjs
 !scripts/appgroup-uninstall.test.mjs
 
-!src/utils/repo-notice.ts
+!src/utils/app-install-notice.ts
 !src/utils/html-notice.ts
 !src/utils/permission-menu.ts
 !src/utils/cluster-access.ts
@@ -66,11 +66,20 @@ src/views/app/pages/*
 !src/router/routes/modules/metrics.ts
 !src/views/metrics/
 !src/views/metrics/entry.vue
-!src/utils/install-domain-group-values.js
-!scripts/install-domain-group-values.test.cjs
+!src/utils/app-install-domain-group-values.js
+!scripts/app-install-domain-group-values.test.cjs
 
 # Site tool regression coverage.
 !scripts/file-target-selection.test.cjs
 !scripts/site-panel-auth-refresh.test.cjs
 !scripts/site-panel-lifecycle.test.cjs
 !scripts/pod-log-inline-resize.test.cjs
+!src/utils/app-install-resources.ts
+!scripts/app-install-resources.test.cjs
+
+!scripts/app-install-domain-groups.test.cjs
+
+!scripts/app-install-dependency.test.cjs
+
+!scripts/app-install-start-params-options.test.cjs
+!scripts/app-install-registry-login.test.cjs

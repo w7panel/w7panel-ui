@@ -10,7 +10,7 @@ import { clearToken } from '@/utils/auth';
 import { useNamespaceStore } from '@/store';
 import { getToken, setToken, setRefreshToken, getRefreshToken, } from '@/utils/auth';
 import router from "@/router";
-import { showRepoHtmlNotice } from '@/utils/repo-notice';
+import { showRepoHtmlNotice } from '@/utils/app-install-notice';
 
 interface CustomAxiosRequestConfig extends AxiosRequestConfig {
     loading?: boolean;

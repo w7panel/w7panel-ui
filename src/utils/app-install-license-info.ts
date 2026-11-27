@@ -5,7 +5,7 @@ const CACHE_TTL_MS = 30_000;
 const VALIDATION_NOTICE_INTERVAL_MS = 5_000;
 let lastValidationNoticeAt = 0;
 
-export interface AppDynamicValuesResult {
+export interface AppLicenseInfoResult {
   status: 'ready' | 'not_supported' | 'unavailable';
   title: string;
   data: Record<string, unknown> | null;
@@ -18,29 +18,29 @@ export interface AppValidation {
   message: string;
 }
 
-interface AppDynamicValuesGetterOptions {
+interface AppLicenseInfoGetterOptions {
   currentAppgroup: string;
 }
 
 interface CacheEntry {
   expiresAt: number;
-  value?: AppDynamicValuesResult;
-  pending?: Promise<AppDynamicValuesResult>;
+  value?: AppLicenseInfoResult;
+  pending?: Promise<AppLicenseInfoResult>;
 }
 
 const cache = new Map<string, CacheEntry>();
 
 /**
- * 创建按 AppGroup 读取应用动态值的方法。制品地址由面板后端根据已安装
+ * 创建按 AppGroup 读取应用授权信息的方法。制品地址由面板后端根据已安装
  * AppGroup 解析，不依赖目标应用是否创建 MicroApp。
  */
-export function createAppDynamicValuesGetter(options: AppDynamicValuesGetterOptions) {
+export function createAppLicenseInfoGetter(options: AppLicenseInfoGetterOptions) {
   const currentAppgroup = String(options.currentAppgroup || '').trim();
 
-  return async function getAppDynamicValues(
+  return async function getAppLicenseInfo(
     appgroup?: string,
     requestOptions: { force?: boolean } = {},
-  ): Promise<AppDynamicValuesResult> {
+  ): Promise<AppLicenseInfoResult> {
     const requestedAppgroup = String(appgroup || '').trim();
     const target = requestedAppgroup || currentAppgroup;
     if(!target){
@@ -73,12 +73,12 @@ export function createAppDynamicValuesGetter(options: AppDynamicValuesGetterOpti
         data: payload?.status === 'ready' && payload?.data && typeof payload.data === 'object'
           ? payload.data
           : null,
-      } as AppDynamicValuesResult;
+      } as AppLicenseInfoResult;
     }).catch(() => ({
       status: 'unavailable',
       title: '',
       data: null,
-    } as AppDynamicValuesResult)).then(value => {
+    } as AppLicenseInfoResult)).then(value => {
       cache.set(cacheKey, { value, expiresAt: Date.now() + CACHE_TTL_MS });
       return value;
     });
@@ -88,13 +88,13 @@ export function createAppDynamicValuesGetter(options: AppDynamicValuesGetterOpti
 }
 
 export function createAppValidator(
-  getAppDynamicValues: ReturnType<typeof createAppDynamicValuesGetter>,
+  getAppLicenseInfo: ReturnType<typeof createAppLicenseInfoGetter>,
 ) {
   return async function validateApp(
     appgroup?: string,
     requestOptions: { force?: boolean } = {},
   ): Promise<AppValidation | null> {
-    const result = await getAppDynamicValues(appgroup, requestOptions);
+    const result = await getAppLicenseInfo(appgroup, requestOptions);
     const validate = result.status === 'ready' ? result.data?.validate : null;
     if(!validate || typeof validate !== 'object'){
       return null;

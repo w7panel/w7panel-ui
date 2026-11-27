@@ -20,7 +20,7 @@ import { wujieFetch } from '@/utils/wujie-cors-fetch';
 import { runningFirstPod } from '@/utils/running-first-pod';
 import { podShell } from '@/utils/pod-shell';
 import { createK8sProxy, createMicroappProxy, createPanelProxy } from '@/utils/microapp-proxy';
-import { checkAppAvailability, createAppDynamicValuesGetter, createAppValidator } from '@/utils/app-dynamic-values';
+import { checkAppAvailability, createAppLicenseInfoGetter, createAppValidator } from '@/utils/app-install-license-info';
 
 // wujie-modals 会间接引用 domain-strategy-plugin。使用异步组件打断
 // domain-strategy-plugin -> gateway-plugin-config -> gateway-plugin-microapp
@@ -145,10 +145,10 @@ export default {
                     ?? this.contextProps?.pluginConfigEnabled
                     ?? true;
                 const configScope = this.contextProps?.configScope === 'rule' ? 'rule' : 'global';
-                const getAppDynamicValues = createAppDynamicValuesGetter({
+                const getAppLicenseInfo = createAppLicenseInfoGetter({
                     currentAppgroup: appgroup,
                 });
-                const validateApp = createAppValidator(getAppDynamicValues);
+                const validateApp = createAppValidator(getAppLicenseInfo);
                 const isArtifactMenu = runtimeBindings.some(binding=>binding.name === 'other'
                     && (binding.menu || []).some(menu=>menu.do === this.route));
                 if(!isArtifactMenu){
@@ -185,7 +185,7 @@ export default {
                     is_sub_cluster: frontProps.is_sub_cluster === true,
                 };
                 appendWujieModalHandles(props, () => this.$refs.wujieModals, {
-                    getAppDynamicValues,
+                    getAppLicenseInfo,
                     validateApp,
                 });
                 await startApp({

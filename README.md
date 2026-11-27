@@ -4,7 +4,7 @@
 
 应用管理按 AppGroup 的 `metadata.labels["w7.cc/manifest-type"]` 分页展示：普通“应用列表”排除 `tradition` 和 `system-image`，`tradition` 在“传统应用”管理，`system-image` 在“轻量虚拟机”管理；没有类型标签或尚未独立管理的其他类型仍由普通应用列表兜底展示。专用制品市场、制品安装完成后的“返回列表”，以及安装页和应用详情面包屑都会按入口或当前应用类型返回对应列表。网关插件 AppGroup（`gateway-plugin`）只在网关插件页面管理，不在顶部菜单、应用直达和普通应用列表中展示；应用插件 AppGroup（`app-plugin`）的功能会聚合到所依赖的传统应用中，同样不在应用列表中单独展示。
 
-Wujie 应用通过 `props.handles` 获得 `getAppDynamicValues(appgroup?, options)` 和 `validateApp(appgroup?, options)`。进入非“授权与续费”页面时，宿主会在后台读取当前应用的 `validate`，默认复用 30 秒缓存；市场明确返回不可用时展示原因，但查询异常不阻断应用启动。应用可主动调用，并通过 `force` 强制刷新。不传 `appgroup` 时读取当前 AppGroup；传入时由面板后端根据已安装 AppGroup 解析 ZPK 来源，不依赖目标应用是否存在 MicroApp。`validateApp` 复用同一查询并只返回市场生成的 `validate`，面板不重复实现试用或退款规则。
+Wujie 应用通过 `props.handles` 获得 `getAppLicenseInfo(appgroup?, options)` 和 `validateApp(appgroup?, options)`。进入非“授权与续费”页面时，宿主会在后台读取当前应用的 `validate`，默认复用 30 秒缓存；市场明确返回不可用时展示原因，但查询异常不阻断应用启动。应用可主动调用，并通过 `force` 强制刷新。不传 `appgroup` 时读取当前 AppGroup；传入时由面板后端根据已安装 AppGroup 解析 ZPK 来源，不依赖目标应用是否存在 MicroApp。`validateApp` 复用同一查询并只返回市场生成的 `validate`，面板不重复实现试用或退款规则。
 
 插件应用仍持有自己的 MicroApp。传统应用页面通过 MicroApp 的 `w7.cc/depends-<releaseName>` 反向索引查找依赖它的 `w7.cc/manifest-type=app-plugin` MicroApp；单数 `w7.cc/group-name` 处理同一 Release 内资源归属，不使用复数 `w7.cc/group-names`。旧 MicroApp 缺少分组标签时，仅以与 AppGroup 同名的 `metadata.name` 精确兜底。
 
@@ -146,3 +146,20 @@ bash compress-ui-test.sh all
 ### 集群工作负载诊断
 
 资源管理的 apps 分组下，Deployment、StatefulSet、DaemonSet 和 ReplicaSet 支持选择 Pod 查看日志或连接终端。复用应用详情的 pod-log 组件及 pod-webshell 页面，按资源命名空间和完整标签选择器查询 Pod。
+
+## 安装资源参数（2026-11-26）
+
+安装表单识别制品启动参数类型 resource-cpu、resource-memory、resource-gpu、resource-bandwidth，集中展示资源配置。统一“不限制资源”开关首次默认开启，默认值仍展示；关闭后应用输入值，空项仍不限制。切换开关保留填写内容，沿用现有启动参数提交接口。
+
+## 应用安装脚本命名
+
+安装专用工具和回归脚本统一使用 `app-install-` 前缀，保留原有 JS / TS 类型与导出方法：
+
+| 工具 | 职责 |
+| --- | --- |
+| `src/utils/app-install-notice.ts` | 安装 / 升级授权提示及强制重装确认 |
+| `src/utils/app-install-domain-group-values.js` | 域名分组初始化、校验与提交值 |
+| `src/utils/app-install-resources.ts` | 安装资源参数识别、取值与校验 |
+| `src/utils/app-install-license-info.ts` | 已安装应用授权信息查询与可用性检查 |
+
+对应测试为 `scripts/app-install-*.test.cjs`，可运行 `node --test scripts/app-install-*.test.cjs`。授权查询同时由 `scripts/detail-micro-entry.test.cjs` 回归。通用 HTML 净化保留在 `html-notice.ts`。

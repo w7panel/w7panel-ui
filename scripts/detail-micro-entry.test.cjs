@@ -102,8 +102,8 @@ function harness({ routeName = 'dialog-micro', query = {}, props = {}, startApp,
     '@/utils/ckm-panel-session': { createOpenCkmPanel: emptyFactory },
     '@/utils/running-first-pod': { runningFirstPod() {} },
     '@/utils/pod-shell': { podShell() {} },
-    '@/utils/app-dynamic-values': {
-      createAppDynamicValuesGetter: emptyFactory,
+    '@/utils/app-install-license-info': {
+      createAppLicenseInfoGetter: emptyFactory,
       createAppValidator: emptyFactory,
       checkAppAvailability() {},
     },

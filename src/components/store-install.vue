@@ -19,20 +19,45 @@
             </div>
         </div>
         <div v-if="!clusterInstallUnsupported" class="df ai-c progress c-00-6">
+            <template v-if="registryLogin.required">
+                <div class="df ai-c" :class="{'c-blue': step !== 0}">
+                    <div v-if="step === 0" class="no">1</div>
+                    <div v-else class="over df ai-c jc-c"><icon-check /></div>
+                    <div class="fs-14 lh-1">仓库登录</div>
+                </div>
+                <div class="line" :class="{active: step !== 0}"></div>
+            </template>
             <div class="df ai-c" :class="{'c-blue':step>=2}">
-                <div v-if="step<=2" class="no">1</div>
+                <div v-if="step<=2" class="no">{{ registryLogin.required ? 2 : 1 }}</div>
                 <div v-if="step>2" class="over df ai-c jc-c"><icon-check /></div>
                 <div class="fs-14 lh-1">环境变量配置</div>
             </div>
             <div class="line" :class="{active:step>2}"></div>
             <div class="df ai-c" :class="{'c-blue':step==3}">
-                <div class="no">2</div>
+                <div class="no">{{ registryLogin.required ? 3 : 2 }}</div>
                 <div class="fs-14 lh-1">{{ isCaptureMode ? '保存配置' : '安装' }}</div>
             </div>
         </div>
 
         <div v-if="!clusterInstallUnsupported" class="mt-40" style="width:720px;">
-            <div v-if="step==2">
+            <div v-if="step === 0">
+                <a-alert class="mb-20">该制品为私有，需要使用源仓库账号登录并取得拉取权限。</a-alert>
+                <a-form :model="registryLogin" layout="vertical">
+                    <a-form-item label="源仓库"><a-input :model-value="registryLogin.registry" readonly /></a-form-item>
+                    <a-form-item v-if="registryLogin.secrets.length" label="登录配置">
+                        <a-select v-model="registryLogin.secret" @change="selectSourceRegistrySecret">
+                            <a-option v-for="item in registryLogin.secrets" :key="item.key" :value="item.key">{{ item.name }}</a-option>
+                            <a-option value="">使用其他账号</a-option>
+                        </a-select>
+                    </a-form-item>
+                    <a-form-item v-if="!registryLogin.secret" label="用户名"><a-input v-model="registryLogin.username" autocomplete="username" /></a-form-item>
+                    <a-form-item v-if="!registryLogin.secret" label="密码"><a-input-password v-model="registryLogin.password" autocomplete="current-password" /></a-form-item>
+                    <a-form-item v-if="!registryLogin.secret"><a-checkbox v-model="registryLogin.save">保存为镜像仓库登录配置</a-checkbox></a-form-item>
+                    <a-alert v-if="registryLogin.error" type="error" class="mb-20">{{ registryLogin.error }}</a-alert>
+                    <div class="df jc-c"><a-button type="primary" :loading="registryLogin.loading" @click="loginSourceRegistry">登录并继续</a-button></div>
+                </a-form>
+            </div>
+            <div v-else-if="step==2">
                 <a-tabs v-model:active-key="form.activeIdentifie" type="card-gutter" class="zpkinstalltabs">
                     <a-tab-pane v-for="item in form.forms" :disabled="true" :key="item.identifie">
                         <template #title>
@@ -158,8 +183,22 @@
                                     <span @click="imgShow=true;" class="ml-10 c-blue cursor" style="flex-shrink:0;">新建</span>
                                 </a-form-item> -->
 
+                                <template v-if="item.startParams.some(sp => isResourceParam(sp) && !sp.hidden)">
+                                    <a-divider orientation="left">资源配置</a-divider>
+                                    <a-form-item label="不限制资源" extra="开启时不应用资源限制；关闭后可填写，留空的项目仍不限制。">
+                                        <a-switch v-model="item.resourceNoLimit" />
+                                    </a-form-item>
+                                    <template v-for="(sp,index) in item.startParams" :key="sp.name">
+                                        <a-form-item v-if="isResourceParam(sp) && !sp.hidden" :label="sp.title" :field="'startParams['+index+'].value'"
+                                            :rules="[{validator: (value, callback) => callback(resourceParamError(sp, item.resourceNoLimit) || undefined)}]">
+                                            <a-input v-model="sp.value" :disabled="item.resourceNoLimit || sp.lock" placeholder="不限制">
+                                                <template v-if="sp.unit" #append>{{ sp.unit }}</template>
+                                            </a-input>
+                                        </a-form-item>
+                                    </template>
+                                </template>
                                 <div v-for="(sp,index) in item.startParams" :key="sp.name">
-                                    <a-form-item v-if="!sp.hidden && sp.values_text!='%DOMAIN_HOST%' && sp.values_text!='%DOMAIN_URL%' && sp.values_text!='%DOMAIN_SSL_URL%'" @change="testInstallStatus" :label="sp.title" :field="'startParams['+index+'].value'" :rules="[{required:sp.required,message:'内容不能为空'}, validator(sp)]">
+                                    <a-form-item v-if="!isResourceParam(sp) && !sp.hidden && sp.values_text!='%DOMAIN_HOST%' && sp.values_text!='%DOMAIN_URL%' && sp.values_text!='%DOMAIN_SSL_URL%'" @change="testInstallStatus" :label="sp.title" :field="'startParams['+index+'].value'" :rules="[{required:sp.required,message:'内容不能为空'}, validator(sp)]">
                                         <template #label>
                                             <span class="form-label">{{sp.title}}</span>
                                         </template>
@@ -266,6 +305,7 @@
 
 <script>
 import { panelApi } from '@/utils/api';
+import { isResourceParam, resourceParamValue, resourceParamError } from '@/utils/app-install-resources';
 import { Modal } from '@arco-design/web-vue';
 import { k8sproxy } from '@/utils/api';
 import {
@@ -274,7 +314,7 @@ import {
 } from '@/utils/appgroup';
 
 import axios from 'axios';
-import { showRepoHtmlNotice } from '@/utils/repo-notice';
+import { showRepoHtmlNotice } from '@/utils/app-install-notice';
 import { useNamespaceStore,useLoadingStore } from '@/store';
 import zoneDrawer from '@/views/storage/zone-drawer.vue';
 import imageformDrawer from '@/views/config/sercet/imageform-drawer.vue';
@@ -285,7 +325,7 @@ import { loadDomainWhiteList } from '@/utils/domain-white-list';
 import shortuuid from 'short-uuid';
 import domainParseAlert from '@/components/domain-parse-alert.vue';
 import InstallDomainGroups from '@/components/install-domain-groups.vue';
-import { createDomainGroups, domainBindings, domainGroupEnvs, domainGroupError, domainHost, syncDefaultDomainGroups } from '@/utils/install-domain-group-values';
+import { createDomainGroups, domainBindings, domainGroupEnvs, domainGroupError, domainHost, syncDefaultDomainGroups } from '@/utils/app-install-domain-group-values';
 
 // 安装进度摘要：启动阶段来自 Pod 状态，终态优先使用 Job 条件。
 function installJobStatus(job, pod, events = []) {
@@ -320,6 +360,9 @@ export default {
     emits: [ 'complete', 'configured', 'manifestTypeChange' ],
     data(){
         return {
+            registryAuthorization: '',
+            registryCredentialHost: '',
+            registryLogin: {autoLoginTarget:'',required:false, registry:'', repository:'', secrets:[], secret:'', username:'', password:'', save:false, error:'', loading:false},
             namespaceActive: '',
             infoversion: '',
             mirror: [],
@@ -435,6 +478,100 @@ export default {
         },
     },
     methods: {
+        async resolveSourceRegistryLogin(error, reinstall){
+            const login = this.registryLogin;
+            const detail = error.response.data.data || {};
+            login.registry = detail.registry || '';
+            login.repository = detail.repository || '';
+            const target = login.registry + '/' + login.repository;
+            // Retry once with the matched Secret; a rejected retry must show the login form.
+            if(!this.registryAuthorization && login.autoLoginTarget !== target){
+                login.autoLoginTarget = target;
+                login.loading = true;
+                try{
+                    await this.loadSourceRegistrySecrets();
+                    if(login.secret && login.username && login.password){
+                        this.setSourceRegistryAuthorization();
+                        if(await this.getInfo(reinstall)){
+                            login.required = false;
+                            login.error = '';
+                            return true;
+                        }
+                        login.required = true;
+                        login.error ||= '无法验证已有仓库登录配置，请重试或使用其他账号';
+                        this.step = 0;
+                        return false;
+                    }
+                }finally{login.loading = false}
+            }
+            login.required = true;
+            if(this.registryAuthorization){login.error = error.response.data.error || '账号没有拉取权限'}
+            this.step = 0;
+            return false;
+        },
+        setSourceRegistryAuthorization(){
+            const login = this.registryLogin;
+            this.registryAuthorization = 'Basic '+btoa(String.fromCharCode(...new TextEncoder().encode(login.username+':'+login.password)));
+            this.registryCredentialHost = login.registry;
+        },
+        async loadSourceRegistrySecrets(){
+            try{
+                const {data} = await k8sproxy.get('/api/v1/namespaces/'+this.namespaceActive+'/secrets?fieldSelector=type=kubernetes.io/dockerconfigjson');
+                const matches = [];
+                const registry = this.registryLogin.registry;
+                const namespace = this.registryLogin.repository.split('/')[0];
+                for(const secret of data?.items || []){
+                    let config;
+                    try{config = JSON.parse(atob(secret.data?.['.dockerconfigjson'] || ''))}catch{continue}
+                    let storedNamespace = '';
+                    try{storedNamespace=atob(secret.data?.namespace || '')}catch{continue}
+                    if(storedNamespace && storedNamespace !== namespace){continue}
+                    for(const [address, account] of Object.entries(config.auths || {})){
+                        let source;
+                        try{source = new URL(address.includes('://') ? address : 'https://'+address)}catch{continue}
+                        if(source.host !== registry){continue}
+                        const scope = source.pathname.replace(/^\/+|\/+$/g,'');
+                        if(scope && scope !== 'v1' && scope !== namespace){continue}
+                        let username = account.username || '', password = account.password || '';
+                        if(!username && account.auth){
+                            try{const decoded=atob(account.auth); const colon=decoded.indexOf(':'); if(colon<0){continue} username=decoded.slice(0,colon);password=decoded.slice(colon+1)}catch{continue}
+                        }
+                        matches.push({key:secret.metadata.name+'@'+address,name:secret.metadata.name,username,password});
+                    }
+                }
+                this.registryLogin.secrets = matches;
+                if(matches.length){this.registryLogin.secret=matches[0].key;this.selectSourceRegistrySecret(matches[0].key)}
+            }catch(error){this.registryLogin.error='读取镜像仓库登录配置失败，请手动输入账号密码'}
+        },
+        selectSourceRegistrySecret(key){
+            const account=this.registryLogin.secrets.find(item=>item.key===key);
+            this.registryLogin.username=account?.username || '';
+            this.registryLogin.password=account?.password || '';
+        },
+        async loginSourceRegistry(){
+            const login=this.registryLogin;
+            if(!login.username || !login.password){login.error='请输入用户名和密码';return}
+            login.loading=true;login.error='';
+            try{
+                this.setSourceRegistryAuthorization();
+                this.step=1;
+                if(!await this.init()){this.step=0;return}
+                login.required=false;
+                if(login.save && !login.secret){
+                    const name='zpk-source-'+this.createName();
+                    const config={auths:{[login.registry]:{username:login.username,password:login.password,auth:this.registryAuthorization.slice(6)}}};
+                    const encode=value=>btoa(String.fromCharCode(...new TextEncoder().encode(value)));
+                    await k8sproxy.post('/api/v1/namespaces/'+this.namespaceActive+'/secrets',{
+                        apiVersion:'v1',kind:'Secret',metadata:{name},type:'kubernetes.io/dockerconfigjson',
+                        data:{'.dockerconfigjson':encode(JSON.stringify(config)),namespace:encode(login.repository.split('/')[0])},
+                    });
+                    login.save=false;
+                }
+            }catch(error){login.required=true;login.error=error?.response?.data?.error || '仓库登录配置保存失败';this.step=0}
+            finally{login.loading=false}
+        },
+        isResourceParam,
+        resourceParamError,
         hasOwn(object, key){
             return Object.prototype.hasOwnProperty.call(object || {}, key);
         },
@@ -570,11 +707,19 @@ export default {
                     return;
                 }
             }
+            if(this.registryAuthorization){
+                let source;
+                try{source=new URL(this.path)}catch{}
+                if(source?.host!==this.registryCredentialHost){
+                    this.registryAuthorization='';this.registryCredentialHost='';
+                    Object.assign(this.registryLogin,{autoLoginTarget:'',required:false,username:'',password:'',secrets:[],secret:''});
+                }
+            }
             // 放前面
             await this.getToken();
             await this.getStorage();
             await this.getWhiteList();
-			if(!await this.getInfo(reinstall)){return}
+			if(!await this.getInfo(reinstall)){return false}
             await this.getMirror();
             await this.getIngressclassList();
             // 第一步域名
@@ -613,6 +758,7 @@ export default {
                 Object.assign(defaultGroup, {host: domainHost(this.form.ingressHost + (zone ? '.' + zone : '')), autoSSL: defaultGroup.forceSSL || this.form.auto_ssl, dnsProfileId: this.form.dnsProfileId, autoResolve: !!this.form.autoResolve, hostLocked: this.form.ingressDisabled});
             }
             this.nextStep();
+            return true;
         },
         
         getToken(){
@@ -792,7 +938,7 @@ export default {
                 this.releaseName = this.$route.query.completeName;
                 return true;
             }
-            return panelApi.get('/zpk/config',{params:{
+            return panelApi.get('/zpk/config',{headers: this.registryAuthorization ? {'X-Registry-Authorization':this.registryAuthorization} : {}, params:{
                 repoUrl: this.path,
                 thirdpartyCDToken: this.installInputParams.thirdpartyCDToken,
                 // Configuration capture describes a future installation. Do
@@ -996,6 +1142,7 @@ export default {
                         isInstall: isInstall, // 是否安装
                         domainGroups: createDomainGroups(i.ingress, {...capturedValues, ...overrides}, this.capturedInstallOption(i.identifie)?.domainGroups || this.moduleInstallParams(i.identifie,index).values.domainGroups || [], this.whiteList, {...i, inheritDefault: index > 0}),
                         startParams: startParams, // 启动参数
+                        resourceNoLimit: !startParams.some(param => isResourceParam(param) && this.hasOwn(capturedValues, param.name) && capturedValues[param.name] !== ''),
                         outModuleNames: i.outModuleNames || [], // 依赖应用
                         dependsOnes: i.dependsOnes || [],
                     };
@@ -1106,8 +1253,11 @@ export default {
                 // 更新应用，替换env
                 if(!this.releaseName && res?.data?.[0]?.releaseName){ this.releaseName = res.data[0].releaseName; }
 				return true;
-			}).catch(error=>{
-				if(this.handleRepoNotice(error, null, true)){return false}
+            }).catch(async error=>{
+                if(error?.response?.data?.code === 'ZPK_REGISTRY_AUTH_REQUIRED'){
+                    return this.resolveSourceRegistryLogin(error, reinstall);
+                }
+                if(this.handleRepoNotice(error, null, true)){return false}
 				this.$message.error(error?.response?.data?.error || error?.message || '获取安装配置失败');
 				return false;
             })
@@ -1405,7 +1555,7 @@ export default {
         prevStep(){
             if(this.step==2){
                 if(this.form.activeIdentifie==this.form.installForm?.[0]){
-                    // this.step = 1;
+                    if(this.registryLogin.required){this.step = 0}
                 }else{
                     let index = this.form.installForm.findIndex(i=>i==this.form.activeIdentifie);
                     this.form.activeIdentifie = this.form.installForm[index-1];
@@ -1471,6 +1621,10 @@ export default {
         },
         // 安装
         async install(){
+            for (const item of this.form.forms.filter(item => item.requireInstall || item.isInstall)) {
+                const error = item.startParams.map(param => isResourceParam(param) ? resourceParamError(param, item.resourceNoLimit) : '').find(Boolean);
+                if (error) { this.$message.error(error); return; }
+            }
             if(!this.validateDomainGroups()){return}
             if(!this.syncModuleStartParams(true)){return}
             let installOptions = this.form.forms.map(i=>{
@@ -1495,7 +1649,7 @@ export default {
                         }
                         return;
                     }
-                    envKv.push({ name: j.name, value: j.value,});
+                    envKv.push({ name: j.name, value: isResourceParam(j) ? resourceParamValue(j, i.resourceNoLimit) : j.value,});
                 })
 
                 let volumesMounts = i.volumesMounts?.map?.(i=>{
@@ -1535,6 +1689,7 @@ export default {
             let ingressHost = this.installIngressHost;
             let params = {
                 repoUrl: repoUrl || this.path,
+                registryAuth: this.registryAuthorization || undefined,
                 namespace: this.namespaceActive,
                 releaseName: releaseName || this.releaseName || (this.identifie.replaceAll('_','-') + '-' +this.createName()),
                 ingressHost: ingressHost,
