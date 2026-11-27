@@ -183,20 +183,24 @@
                                     <span @click="imgShow=true;" class="ml-10 c-blue cursor" style="flex-shrink:0;">新建</span>
                                 </a-form-item> -->
 
-                                <template v-if="item.startParams.some(sp => isResourceParam(sp) && !sp.hidden)">
-                                    <a-divider orientation="left">资源配置</a-divider>
-                                    <a-form-item label="不限制资源" extra="开启时不应用资源限制；关闭后可填写，留空的项目仍不限制。">
-                                        <a-switch v-model="item.resourceNoLimit" />
-                                    </a-form-item>
-                                    <template v-for="(sp,index) in item.startParams" :key="sp.name">
-                                        <a-form-item v-if="isResourceParam(sp) && !sp.hidden" :label="sp.title" :field="'startParams['+index+'].value'"
-                                            :rules="[{validator: (value, callback) => callback(resourceParamError(sp, item.resourceNoLimit) || undefined)}]">
-                                            <a-input v-model="sp.value" :disabled="item.resourceNoLimit || sp.lock" placeholder="不限制">
-                                                <template v-if="sp.unit" #append>{{ sp.unit }}</template>
-                                            </a-input>
-                                        </a-form-item>
-                                    </template>
-                                </template>
+                                <a-form-item v-if="item.startParams.some(sp => isResourceParam(sp) && !sp.hidden)" label="资源配置">
+                                    <div class="install-resource-fields">
+                                        <div class="df ai-c install-resource-toggle">
+                                            <a-switch v-model="item.resourceNoLimit" />
+                                            <span class="ml-10">不限制资源</span>
+                                        </div>
+                                        <div class="install-resource-hint">开启时不应用资源限制；关闭后可填写，留空的项目仍不限制。</div>
+                                        <template v-for="(sp,index) in item.startParams" :key="sp.name">
+                                            <a-form-item v-if="isResourceParam(sp) && !sp.hidden" :label="sp.title" :field="'startParams['+index+'].value'"
+                                                label-align="left" :label-col-props="{flex:'0 0 64px'}" :wrapper-col-props="{flex:'1'}"
+                                                :rules="[{validator: (value, callback) => callback(resourceParamError(sp, item.resourceNoLimit) || undefined)}]">
+                                                <a-input v-model="sp.value" :disabled="item.resourceNoLimit || sp.lock" placeholder="不限制">
+                                                    <template v-if="sp.unit" #append>{{ sp.unit }}</template>
+                                                </a-input>
+                                            </a-form-item>
+                                        </template>
+                                    </div>
+                                </a-form-item>
                                 <div v-for="(sp,index) in item.startParams" :key="sp.name">
                                     <a-form-item v-if="!isResourceParam(sp) && !sp.hidden && sp.values_text!='%DOMAIN_HOST%' && sp.values_text!='%DOMAIN_URL%' && sp.values_text!='%DOMAIN_SSL_URL%'" @change="testInstallStatus" :label="sp.title" :field="'startParams['+index+'].value'" :rules="[{required:sp.required,message:'内容不能为空'}, validator(sp)]">
                                         <template #label>
@@ -2102,6 +2106,11 @@ export default {
 }
 .form-label{display:inline-block;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;line-height:1.5;max-width:160px;vertical-align:middle;}
 .install-domain-hint :deep(.arco-alert){margin:0 0 20px;}
+.install-resource-fields{width:100%;}
+.install-resource-toggle{min-height:32px;}
+.install-resource-hint{margin:4px 0 16px;color:var(--color-text-3);font-size:12px;line-height:20px;}
+.install-resource-fields :deep(.arco-form-item){margin-bottom:12px;}
+.install-resource-fields :deep(.arco-form-item:last-child){margin-bottom:0;}
 </style>
 <style>
 .zpkinstalltabs .arco-tabs-tab-disabled{color:var(--color-text-2);}
