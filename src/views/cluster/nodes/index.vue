@@ -324,7 +324,7 @@
 
         <a-drawer :visible="systemInfoVisible" width="800px" :footer="false" @cancel="systemInfoVisible=false" :popup-container="$popupContainer">
             <template #title>集群系统信息</template>
-            <system-info v-if="systemInfoVisible" embedded />
+            <system-info v-if="systemInfoVisible" embedded :is-sub-cluster="isSubCluster" />
         </a-drawer>
 
         <a-drawer :visible="clusterInfo.show" width="800px" @cancel="clusterInfo.show=false;" :popup-container="$popupContainer">

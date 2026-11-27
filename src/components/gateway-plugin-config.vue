@@ -101,7 +101,7 @@
 
 <script>
 import jsyaml from 'js-yaml';
-import { k8sproxy, panelApi } from '@/utils/api';
+import { k8sproxy } from '@/utils/api';
 import { useNamespaceStore } from '@/store';
 import yamlInput from '@/components/yaml-input.vue';
 import gatewayPluginMicroapp from '@/components/gateway-plugin-microapp.vue';
@@ -193,11 +193,7 @@ export default {
                 pluginConfigEnabled: config.enabled,
                 microappRole: this.menuRoles[0]?.name || (this.scope === 'rule' ? 'normal' : 'founder'),
                 savePluginConfig: (value, enabled)=>this.saveMicroConfig(value, enabled),
-                ...(this.localPlugin?.metadata?.name === 'w7panel-pluginwaf' ? {
-                    loadWafConfig: ()=>this.loadWafConfig(),
-                    saveWafConfig: policy=>this.saveWafConfig(policy),
-                    loadWafLogs: ()=>this.loadWafLogs(),
-                } : {}),
+                refreshPluginConfig: ()=>this.refreshPluginConfig(),
             };
         },
     },
@@ -214,25 +210,10 @@ export default {
         },
     },
     methods: {
-        wafParams(){
-            return {
-                scope: this.scope,
-                ...(this.scope === 'rule' ? { namespace: this.ingress?.metadata?.namespace || this.namespaceActive, ingressName: this.ingressName } : {}),
-            };
-        },
-        async loadWafConfig(){
-            const response = await panelApi.get('/waf/config', { params: this.wafParams(), noAlert: true });
-            return response.data;
-        },
-        async saveWafConfig(policy){
-            await panelApi.put('/waf/config', { ...this.wafParams(), policy }, { noAlert: true });
+        async refreshPluginConfig(){
             const response = await k8sproxy.get(`${WASM_PLUGIN_API}/${this.localPlugin.metadata.name}`, { noAlert: true }).catch(()=>null);
             if(response?.data){ this.localPlugin = response.data; }
             this.$emit('saved', this.localPlugin);
-        },
-        async loadWafLogs(){
-            const response = await panelApi.get('/waf/logs', { params: this.wafParams(), noAlert: true });
-            return response.data || [];
         },
         async init(){
             if(!this.plugin){ return; }

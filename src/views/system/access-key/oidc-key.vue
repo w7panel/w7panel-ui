@@ -6,7 +6,8 @@
             <a-button type="primary" @click="openCreate()"><template #icon><icon-plus /></template>新增</a-button>
         </div>
         <div class="bg-white padding-20 fc">
-            <a-alert >OpenID Connect发现端点：{{locationOrigin}}/panel-api/v1/oidc/.well-known/openid-configuration</a-alert>
+            <a-alert>OpenID Connect 发现端点：{{locationOrigin}}/panel-api/v1/oidc/.well-known/openid-configuration</a-alert>
+            <a-alert class="mt-10" type="info">面板内安装的应用推荐使用内网地址通信。Issuer / SDK 地址：{{internalIssuer}}；发现端点：{{internalIssuer}}/.well-known/openid-configuration。</a-alert>
             <a-table class="cptable mt-20" :data="list" :pagination="false" :bordered="false">
                 <template #columns>
                     <a-table-column title="clientName">
@@ -104,6 +105,7 @@ import yamlDrawer from '@/components/yaml-drawer.vue';
 const GROUP = 'w7panel.w7.com';
 const VERSION = 'v1alpha1';
 const RESOURCE = 'oidcclients';
+const internalIssuer = 'http://w7panel-offline.default.svc.cluster.local:8000/panel-api/v1/oidc';
 const scopeOptions = ['openid', 'profile', 'offline_access'];
 
 function randomId() {
@@ -152,6 +154,7 @@ export default {
                 data: this.getDefaultFormData(),
             },
             locationOrigin: window.location.origin,
+            internalIssuer,
         };
     },
     created() {
