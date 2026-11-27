@@ -163,12 +163,12 @@ export default {
                     // 场景2：有选中（多行）
                     const ranges = selection.ranges;
                     const changes = [];
-                    let lastLineEnd = 0; // 记录最后一行的结束位置
-
                     ranges.forEach(range => {
                     const startLine = state.doc.lineAt(range.from);
-                    const endLine = state.doc.lineAt(range.to);
-                    lastLineEnd = endLine.to; // 更新最后一行位置
+                    let endLine = state.doc.lineAt(range.to);
+                    if (range.to === endLine.from && range.to > range.from) {
+                        endLine = state.doc.line(endLine.number - 1);
+                    }
 
                     // 遍历选中的每一行，在行首插入缩进
                     for (let lineNum = startLine.number; lineNum <= endLine.number; lineNum++) {
@@ -177,14 +177,7 @@ export default {
                     }
                     });
 
-                    dispatch({
-                    changes,
-                    // 光标移到最后一行缩进后的位置
-                    selection: {
-                        anchor: lastLineEnd + INDENT_LEN,
-                        head: lastLineEnd + INDENT_LEN
-                    }
-                    });
+                    dispatch({ changes });
                     return true;
                 },
                 preventDefault: true // 阻止浏览器默认Tab行为（焦点切换）
@@ -223,12 +216,12 @@ export default {
                     // 场景2：有选中（多行）
                     const ranges = selection.ranges;
                     const changes = [];
-                    let lastLineEnd = 0;
-
                     ranges.forEach(range => {
                     const startLine = state.doc.lineAt(range.from);
-                    const endLine = state.doc.lineAt(range.to);
-                    lastLineEnd = endLine.to;
+                    let endLine = state.doc.lineAt(range.to);
+                    if (range.to === endLine.from && range.to > range.from) {
+                        endLine = state.doc.line(endLine.number - 1);
+                    }
 
                     // 遍历选中的每一行，删除行首的缩进（若有）
                     for (let lineNum = startLine.number; lineNum <= endLine.number; lineNum++) {
@@ -242,14 +235,7 @@ export default {
 
                     // 有缩进可删除时才执行dispatch
                     if (changes.length > 0) {
-                    dispatch({
-                        changes,
-                        // 光标移到最后一行取消缩进后的位置
-                        selection: {
-                        anchor: Math.max(lastLineEnd - INDENT_LEN, state.doc.lineAt(lastLineEnd).from),
-                        head: Math.max(lastLineEnd - INDENT_LEN, state.doc.lineAt(lastLineEnd).from)
-                        }
-                    });
+                    dispatch({ changes });
                     return true;
                     }
                     return false;

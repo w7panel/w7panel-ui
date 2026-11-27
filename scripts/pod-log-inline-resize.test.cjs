@@ -162,16 +162,22 @@ test('window resizing remains available when ResizeObserver is unsupported', asy
     assert.equal(terminal.addon.fits, initialFits + 1);
 });
 
-test('modal open and fullscreen fitting retain their existing behavior without inline observers', async t => {
+test('modal refits after opening, fullscreen changes, and container width changes', async t => {
     const state = await harness({ mode: 'modal' });
     t.after(() => state.app.unmount());
     const terminal = state.terminals[0], initialFits = terminal.addon.fits;
     assert.equal(initialFits, 1);
     state.child.onOpen();
+    await settle(); state.flushFrames();
     assert.equal(terminal.addon.fits, initialFits + 1);
     state.child.toggleFullscreen(); await settle();
+    state.flushFrames();
     assert.equal(terminal.addon.fits, initialFits + 2);
-    assert.equal(state.observers.length, 0);
-    assert.equal(state.listeners.size, 0);
+    state.dom.clientWidth = 520;
+    state.emitObserverResize();
+    await settle(); state.flushFrames();
+    assert.equal(terminal.addon.columns, 52);
+    assert.equal(state.observers.length, 1);
+    assert.equal(state.listeners.size, 1);
     assert.equal(state.requests.length, 1);
 });

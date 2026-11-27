@@ -296,7 +296,7 @@ export default {
             });
         },
         onOpen() {
-            this.fitAddon?.fit();
+            this.scheduleFit();
         },
         onClose() {
             this.cleanup();
@@ -316,13 +316,8 @@ export default {
             this.fitAddon = new FitAddon();
             this.term.loadAddon(this.fitAddon);
 
-            if (this.mode === 'inline') {
-                this.observeTerminalSize(dom);
-                this.scheduleFit();
-            } else {
-                // Modal layout is finalized by its open/fullscreen callbacks.
-                this.$nextTick(() => { this.fitAddon?.fit(); });
-            }
+            this.observeTerminalSize(dom);
+            this.scheduleFit();
         },
         observeTerminalSize(dom) {
             if (typeof ResizeObserver !== 'undefined') {
@@ -390,9 +385,7 @@ export default {
         },
         toggleFullscreen() {
             this.fullscreen = !this.fullscreen;
-            this.$nextTick(() => {
-                this.fitAddon?.fit();
-            });
+            this.scheduleFit();
         },
         fetchLog() {
             const requestId = ++this.logRequestId;
@@ -536,6 +529,31 @@ export default {
 <style>
 .log-modal .arco-modal-body {
     padding: 10px;
+}
+
+.log-modal .log-terminal {
+    box-sizing: border-box;
+    padding: 10px 0 10px 10px;
+    background: linear-gradient(to right, #000 calc(100% - 10px), #fff 0);
+}
+
+.log-modal .log-terminal .xterm {
+    padding-right: 10px;
+}
+
+.log-modal .xterm-viewport {
+    background-color: transparent !important;
+}
+
+.log-modal .xterm-viewport::-webkit-scrollbar,
+.log-modal .xterm-viewport::-webkit-scrollbar-track {
+    width: 10px;
+    background: #fff;
+}
+
+.log-modal .xterm-viewport::-webkit-scrollbar-thumb {
+    background: #999;
+    border-radius: 5px;
 }
 
 .log-modal .log-modal-title {
